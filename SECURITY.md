@@ -4,7 +4,7 @@
 
 | Version | Supported |
 |---|---|
-| 0.0.x (latest) | yes |
+| 0.1.x (latest) | yes |
 | older | no |
 
 ## Reporting a vulnerability
@@ -12,14 +12,16 @@
 Chock is a policy-engineering framework whose artifacts run inside AI coding
 agents and git hooks; vulnerabilities here can propagate into every consumer repo.
 
-- **Preferred:** open a private security advisory on the repository
-  (GitHub → Security → Advisories → "Report a vulnerability") once the repo is public.
+- **Preferred:** open a private security advisory:
+  <https://github.com/open-coder-ai/chock/security/advisories/new>
 - Do **not** open a public issue for exploitable findings.
 - Include: affected artifact or tool path, reproduction steps, and impact
   (e.g. ambient-context injection, sandbox escape, script-integrity bypass).
 
-Expect an acknowledgment within 7 days. Fixes land as a patch release with a
-`SEC-*` entry in the enforcement matrix when a new invariant is required.
+Expect an acknowledgment within 7 days and an initial assessment within 14 days.
+Confirmed vulnerabilities are fixed in a patch release, credited to the reporter
+unless they prefer otherwise, with a `SEC-*` entry in the enforcement matrix when
+a new invariant is required.
 
 ## Threat model
 
