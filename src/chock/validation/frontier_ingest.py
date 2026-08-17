@@ -11,17 +11,17 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import importlib.util
 import json
 import re
 import sys
 from pathlib import Path
 from typing import Any
 
-try:
-    import yaml  # noqa: F401 — availability check; PyYAML is required by sibling tools
-except ImportError as exc:  # pragma: no cover
+if importlib.util.find_spec("yaml") is None:  # pragma: no cover
+    # Availability check only; PyYAML is required by sibling tools, not imported here.
     print("ERROR: PyYAML is required. Install: pip install pyyaml", file=sys.stderr)
-    raise SystemExit(1) from exc
+    raise SystemExit(1)
 
 STANDARDS_DIR = Path(__file__).parent / "frontier_standards"
 

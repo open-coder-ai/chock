@@ -55,7 +55,7 @@ def test_a_removed_chock_skill_bridge_is_still_swept(tmp_path: Path) -> None:
 def test_copy_bridge_is_marked_and_idempotent(tmp_path: Path, monkeypatch) -> None:
     # Force the copy fallback (no symlink privilege) and confirm the marker is written and
     # a second run does not churn the copy.
-    import chock.scaffold.skills_bridge as sb
+    from chock.scaffold import skills_bridge as sb
 
     def no_symlink(*_a, **_k):
         raise OSError("no symlink privilege")
