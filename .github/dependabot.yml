@@ -32,3 +32,8 @@ updates:
       day: monday
     open-pull-requests-limit: 5
     labels: [dependencies, ci]
+    groups:
+      # All action bumps in one weekly PR: they are the same kind of change (a SHA pin
+      # moving to the current release tag), and one reviewable batch beats a PR stream.
+      actions:
+        patterns: ["*"]
