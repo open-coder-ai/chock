@@ -34,7 +34,7 @@ dependencies = [
 dev = [
     "pytest>=7.0",
     # The tier 1 acceptance suite (acceptance/) is written in Gherkin.
-    "pytest-bdd>=8.0",
+    "pytest-bdd>=8.1.0",
     # Pin the minor: ruff's formatter changes behavior across minors (0.16 began
     # formatting Python inside Markdown), which silently breaks CI on unrelated PRs.
     "ruff>=0.16,<0.17",
