@@ -32,7 +32,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0",
+    "pytest>=9.1.1",
     # The tier 1 acceptance suite (acceptance/) is written in Gherkin.
     "pytest-bdd>=8.0",
     # Pin the minor: ruff's formatter changes behavior across minors (0.16 began
