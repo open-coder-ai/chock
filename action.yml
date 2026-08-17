@@ -1,6 +1,9 @@
 name: Chock
 author: Open Coder AI
 description: Run a Chock command in CI with a pinned pipx install.
+branding:
+  icon: shield
+  color: gray-dark
 
 inputs:
   command:
