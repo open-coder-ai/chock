@@ -1,0 +1,35 @@
+# Coverage-guided fuzzing of the id/selection parsers (fuzz/fuzz_policy_id.py).
+# Time-boxed: this is a regression net, not an open-ended campaign. Runs weekly, on
+# demand, and on any PR that touches the harness or the code under test.
+name: Fuzz
+
+on:
+  schedule:
+    - cron: "23 6 * * 1"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "fuzz/**"
+      - "requirements/fuzz.txt"
+      - "src/chock/policy_id.py"
+      - "src/chock/compile/surfaces.py"
+      - ".github/workflows/fuzz.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Install atheris and the package
+        run: |
+          python -m pip install --require-hashes -r requirements/fuzz.txt
+          pip install .
+      - name: Fuzz for 90 seconds
+        run: python fuzz/fuzz_policy_id.py -max_total_time=90
