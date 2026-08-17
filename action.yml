@@ -1,4 +1,4 @@
-name: Chock
+name: Chock Governance Check
 author: Open Coder AI
 description: Run a Chock command in CI with a pinned pipx install.
 branding:
