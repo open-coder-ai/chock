@@ -1,0 +1,33 @@
+id: minimal-content
+name: "Minimal Content Rule"
+version: "0.0.1"
+description: >
+  trigger: redundancy, essays, duplicated explanations, speculative depth.
+  avoid: long prose blocks, ambient rules >2 lines, future-roadmap files.
+artifact: rule
+enforcement: advise
+rule:
+  text: |
+    every(file, section, line): justify(token_cost)
+    expression: schema|pseudocode|command; action: compress; delete(redundancy, essays, prose, speculative_depth)
+provenance:
+  author: "chock-core"
+  created_at: "2026-07-12T00:00:00Z"
+  updated_at: "2026-07-12T00:00:00Z"
+  source_repo: "https://github.com/open-coder-ai/chock"
+  license: "Apache-2.0"
+  trust_tier: "community"
+
+lifecycle:
+  status: draft
+  reviewed_by:
+    - "chock-core"
+
+security:
+  content_instructions: never-obey
+
+changelog:
+- version: 0.0.1
+  date: '2026-07-12'
+  changes:
+  - "Initial public baseline (0.0.1); pre-release iteration history is preserved in git log."

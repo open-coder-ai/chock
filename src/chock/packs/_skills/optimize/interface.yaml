@@ -1,0 +1,51 @@
+input_schema:
+  type: object
+  properties:
+    policy_path:
+      type: string
+      description: Path to the policy folder to optimize.
+    evidence:
+      type: string
+      description: Usage evidence such as execution traces, failure examples, or feedback.
+  required:
+  - policy_path
+  additionalProperties: false
+output_schema:
+  type: object
+  properties:
+    proposed:
+      type: boolean
+      description: True if an optimization was proposed.
+    candidate_path:
+      type: string
+      description: Path to the candidate policy folder, if proposed.
+    diff_summary:
+      type: string
+      description: Human-readable summary of the proposed change.
+    eval_result:
+      type: object
+      properties:
+        passed:
+          type: boolean
+        pass_rate:
+          type: number
+      description: eval_result field
+    outcome:
+      type: string
+      enum:
+      - success
+      - failure
+      - needs_handoff
+      description: Overall execution outcome of the artifact.
+  required:
+  - outcome
+  - proposed
+  additionalProperties: false
+evaluation:
+  test_suite_ref: evals/suite.yaml
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      weight: 1.0
+      threshold: 0.9
+      direction: higher_is_better

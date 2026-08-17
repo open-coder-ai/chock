@@ -1,0 +1,69 @@
+name: Stale
+
+# The cheapest volume reducer for a solo maintainer, and the least rude one available: it says
+# out loud that a thread has gone quiet instead of leaving people to guess whether anyone is
+# reading. Silence is what actually damages a project's reputation for responsiveness.
+#
+# Deliberately NOT included: automatic PR size labelling. Labelling a fork's pull request needs
+# a write-scoped token, which `pull_request` does not give, and the usual workaround is
+# `pull_request_target` -- refused by `tests/test_workflow_safety.py`. The safe variant exists
+# but depends on nobody ever adding a checkout step to it, and a cosmetic label is not worth
+# carrying a hazard that has to be re-argued at every future edit.
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@v9
+        with:
+          # 60 days is long for a project this size. A contributor who waited two weeks for a
+          # first review should not then be told their issue is stale -- that is the bot
+          # blaming them for the maintainer's queue.
+          days-before-issue-stale: 60
+          days-before-issue-close: 14
+          days-before-pr-stale: 45
+          days-before-pr-close: 21
+
+          stale-issue-message: >
+            No activity here for 60 days, so this is being marked stale. That is a statement
+            about the thread, not about whether the issue is valid — comment to keep it open,
+            and it will not be closed automatically while there is discussion. If it is closed
+            and still matters to you, say so and it gets reopened.
+
+          stale-pr-message: >
+            No activity here for 45 days, so this is being marked stale. If it is waiting on
+            review rather than on you, say so and it stays open — a maintainer's queue is not
+            a contributor's problem.
+
+          close-issue-message: >
+            Closing after 14 days with no further activity. Not a judgement on the idea; reopen
+            or comment any time and it comes back.
+
+          close-pr-message: >
+            Closing after 21 days with no further activity. The branch is untouched — reopen
+            when you want to pick it up.
+
+          # Exempt anything a maintainer has already triaged into a commitment, and the starter
+          # issues, which exist precisely to sit unclaimed until someone new arrives.
+          exempt-issue-labels: "good first issue,help wanted,security,pinned,roadmap"
+          exempt-pr-labels: "security,pinned,dependencies"
+
+          # Never close an issue someone is actually assigned to.
+          exempt-all-assignees: true
+
+          # A stale label removed by any activity, so a single comment fully resets the clock.
+          remove-stale-when-updated: true
+
+          # Keeps the daily run from consuming the API budget on a repo this size.
+          operations-per-run: 60

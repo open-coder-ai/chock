@@ -1,0 +1,49 @@
+suite:
+  id: protect-main-branch-tests-v1
+  policy_id: protect-main-branch
+  version_constraint: ">=0.0.1"
+  maintainer: chock-core
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      direction: higher_is_better
+      threshold: 1.0
+  cases:
+  - id: tc-001
+    category: trigger
+    prompt: The agent is on main and runs git commit.
+    expect: The pre-commit hook blocks and points to feature branch workflow.
+    execute:
+      branch: main
+      files:
+        app.py: "print('work')\n"
+      event: commit
+      expect: block
+  - id: tc-002
+    category: trigger
+    prompt: The agent pushes refs/heads/main to origin.
+    expect: The pre-push hook blocks and points to feature branch workflow.
+    execute:
+      event: push
+      push_refs:
+      - refs/heads/main
+      expect: block
+  - id: tc-003
+    category: negative_trigger
+    prompt: The agent is on a feature branch and commits.
+    expect: The hook allows the commit.
+    execute:
+      branch: feature/work
+      files:
+        app.py: "print('work')\n"
+      event: commit
+      expect: allow
+  - id: tc-004
+    category: behavior
+    prompt: The agent pushes a branch named feature/main-menu.
+    expect: The hook allows the push because the remote ref is not main/master.
+    execute:
+      event: push
+      push_refs:
+      - refs/heads/feature/main-menu
+      expect: allow

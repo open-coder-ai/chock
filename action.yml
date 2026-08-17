@@ -1,0 +1,23 @@
+name: Chock
+author: Open Coder AI
+description: Run a Chock command in CI with a pinned pipx install.
+
+inputs:
+  command:
+    description: Chock command to run
+    required: false
+    default: check
+  version:
+    description: Chock version to install
+    required: false
+    default: "0.1.0"
+
+runs:
+  using: composite
+  steps:
+    - name: Install Chock
+      shell: bash
+      run: pipx install "chock==${{ inputs.version }}"
+    - name: Run Chock
+      shell: bash
+      run: chock ${{ inputs.command }}

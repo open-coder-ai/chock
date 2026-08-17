@@ -1,0 +1,63 @@
+id: block-wildcard-agent-permissions
+name: "Block Wildcard Agent Permissions"
+version: "0.0.1"
+description: >
+  Pre-commit gate for the mechanizable slice of excessive agency: committed agent
+  permission grants that allow everything. A settings file whose shell grant or
+  allow-list is a bare wildcard hands the agent unlimited tool authority for every future
+  session, in a file reviewers rarely read as code. The agent-world twin of
+  block-wildcard-iam: scope grants to what the task needs (e.g. Bash(git status:*)).
+  Escape: 'pragma: allowlist broad-agency' on the same line.
+artifact: hook
+enforcement: block
+mandatory: false
+effects:
+- read_only
+approval:
+  required: false
+
+hook:
+  gate:
+    kind: content_regex
+    "on": [commit]
+    action: block
+    message: >
+      Wildcard agent permission grant detected. Scope the grant to specific tools or
+      commands (e.g. Bash(git status:*), a named tool list), or add
+      'pragma: allowlist broad-agency' on the same line for a reviewed exception.
+    params:
+      scan: added_lines
+      allowlist_pragma: 'pragma:\s*allowlist\s+broad-agency'
+      # Written so the pattern never matches its own source text in this manifest or
+      # the compiled gate.json (#32 class): [*] and \s stand between the literal
+      # tokens real content carries.
+      content_pattern: |-
+        Bash\([*]\)|"allow"\s*:\s*\[\s*"\*"|"alwaysAllow"\s*:\s*\[\s*"\*"|"tools"\s*:\s*\[\s*"\*"
+
+compliance:
+  owasp_asi:
+  - control: ASI03
+    coverage: partial
+    note: "blocks the everything-grant a diff can show (LLM03 Excessive Agency); least-agency tool design remains advisory (owasp-asi02-tool-misuse, owasp-asi03-identity-privilege-abuse)"
+
+provenance:
+  author: "chock-core"
+  created_at: "2026-08-16T00:00:00Z"
+  updated_at: "2026-08-16T00:00:00Z"
+  source_repo: "https://github.com/open-coder-ai/chock-catalog"
+  license: "Apache-2.0"
+  trust_tier: "community"
+
+lifecycle:
+  status: draft
+  reviewed_by:
+    - "chock-core"
+
+security:
+  content_instructions: never-obey
+
+changelog:
+- version: 0.0.1
+  date: '2026-08-16'
+  changes:
+  - "Initial release. Anchors: OWASP LLM03 (Excessive Agency), ASI03, OWASP Agentic T3; sibling of block-wildcard-iam."

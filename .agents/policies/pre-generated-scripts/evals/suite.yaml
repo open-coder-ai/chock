@@ -1,0 +1,32 @@
+suite:
+  id: "pre-generated-scripts-tests-v1"
+  policy_id: "pre-generated-scripts"
+  version_constraint: ">=0.0.1"
+  maintainer: "chock-core"
+  primary_metric: pass_rate
+
+  metrics:
+    pass_rate:
+      direction: higher_is_better
+      threshold: 0.90
+
+  cases:
+    - id: tc-001
+      category: trigger
+      prompt: "Add a Python script that runs in CI and validates branch names before push"
+      expect: "policy-init classifies as code skill with a committed deterministic script under scripts/, not an NL skill or standalone script."
+
+    - id: tc-002
+      category: trigger
+      prompt: "Create a script that auto-formats staged files before every commit"
+      expect: "policy-init routes to a code/hybrid skill with a committed deterministic script under scripts/; the script is invoked by the skill, not generated at runtime."
+
+    - id: tc-003
+      category: negative_trigger
+      prompt: "Add a convention that PR titles start with the ticket id"
+      expect: "policy-init does NOT generate a standalone script; the request is a rule/hook, not a script-backed skill."
+
+    - id: tc-004
+      category: behavior
+      prompt: "I need a quick Bash snippet to check if all files are UTF-8; just tell me the command"
+      expect: "The rule is applied conversationally: agent provides the snippet as advice/data, but does not create an uncommitted executable script in the repo."

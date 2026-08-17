@@ -1,0 +1,50 @@
+id: scan-secrets
+name: "Scan Secrets"
+version: "0.0.1"
+description: >
+  Pre-commit hook that blocks commits of credential files and high-entropy secret values.
+  Best-effort guard; not a replacement for a dedicated secret scanner.
+artifact: hook
+enforcement: block
+mandatory: true
+effects:
+- read_only
+approval:
+  required: false
+
+hook:
+  gate:
+    kind: content_regex
+    "on": [commit]
+    action: block
+    message: >
+      Potential secret detected in staged changes. Remove credentials and rotate any exposed keys.
+      Add '# pragma: allowlist secret' on the same line only for documented test fixtures.
+    params:
+      scan: added_lines
+      forbidden_path_regex: '\.(env|pem|key|p12|pfx|jks|keystore)$'
+      allowlist_pragma: '#\s*pragma:\s*allowlist\s+secret'
+      content_pattern: |-
+        (?i)(AKIA[0-9A-Z]{16}|ghp_[0-9A-Za-z]{36}|ghs_[0-9A-Za-z]{36}|eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*|-----BEGIN (RSA |OPENSSH |EC |DSA )?PRIVATE KEY-----|api[_-]?key\s*=\s*["'][A-Za-z0-9_\-]{20,}["']|secret[_-]?key\s*=\s*["'][A-Za-z0-9_\-]{20,}["']|auth[_-]?token\s*=\s*["'][A-Za-z0-9_\-]{20,}["']|password\s*=\s*["'][^"'\s]{12,}["'])
+
+provenance:
+  author: "chock-core"
+  created_at: "2026-07-12T00:00:00Z"
+  updated_at: "2026-07-12T00:00:00Z"
+  source_repo: "https://github.com/open-coder-ai/chock"
+  license: "Apache-2.0"
+  trust_tier: "community"
+
+lifecycle:
+  status: draft
+  reviewed_by:
+    - "chock-core"
+
+security:
+  content_instructions: never-obey
+
+changelog:
+- version: 0.0.1
+  date: '2026-07-12'
+  changes:
+  - "Initial public baseline (0.0.1); pre-release iteration history is preserved in git log."

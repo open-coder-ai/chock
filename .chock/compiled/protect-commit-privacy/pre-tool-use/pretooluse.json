@@ -1,0 +1,10 @@
+{
+  "matcher": "Bash",
+  "hooks": [
+    {
+      "type": "command",
+      "command": "@CHOCK_PYTHON@ \"${CLAUDE_PROJECT_DIR}/.chock/bin/pretooluse.py\" --guard \"${CLAUDE_PROJECT_DIR}/.agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\"",
+      "timeout": 30
+    }
+  ]
+}

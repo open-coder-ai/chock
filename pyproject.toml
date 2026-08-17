@@ -1,0 +1,89 @@
+[project]
+name = "chock"
+# Version contract (docs/compatibility.md): PATCH releases are emitter-byte-identical;
+# MINOR releases may change compiled output. 0.1.0 is the first public release; the
+# 0.0.1a0 pre-release exists only because PyPI names are claimed by uploading.
+version = "0.1.0"
+description = "Governance-as-code for AI coding agents: write a rule once, enforce it on git hooks, CI, and every agent"
+readme = "README.md"
+# PEP 639 SPDX expression; needs setuptools >= 77 (pinned in build-system below).
+license = "Apache-2.0"
+requires-python = ">=3.11"
+# No email: SECURITY.md routes vulnerability reports through GitHub advisories, and a
+# placeholder address would ship to PyPI as the project contact.
+authors = [{ name = "Open Coder AI" }]
+keywords = ["ai", "agents", "governance", "policy", "guardrails", "cli"]
+# No License classifier: deprecated alongside a PEP 639 license expression.
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+    "pyyaml>=6.0",
+    "jsonschema>=4.18,<5",
+    "referencing>=0.35,<0.38",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    # The tier 1 acceptance suite (acceptance/) is written in Gherkin.
+    "pytest-bdd>=8.0",
+    # Pin the minor: ruff's formatter changes behavior across minors (0.16 began
+    # formatting Python inside Markdown), which silently breaks CI on unrelated PRs.
+    "ruff>=0.16,<0.17",
+]
+build = [
+    "build>=1.0",
+    "pyinstaller>=6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/open-coder-ai/chock"
+Repository = "https://github.com/open-coder-ai/chock"
+Issues = "https://github.com/open-coder-ai/chock/issues"
+Documentation = "https://github.com/open-coder-ai/chock/blob/main/docs/README.md"
+Changelog = "https://github.com/open-coder-ai/chock/blob/main/CHANGELOG.md"
+
+[project.scripts]
+chock = "chock.cli:main"
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"chock.validation" = ["schemas/*.json", "frontier_standards/*.json"]
+"chock.hooks" = ["data/*"]
+# `**/*` does NOT match dotfiles or dot-directories, so the chock-init
+# template tree (.chock/, .agents/, .claude/, adapter dotfiles) was absent
+# from every built wheel -- 42 files. The explicit dot-prefixed patterns below are
+# required; verified by tests/test_wheel_install.py against a real wheel install.
+"chock.packs" = ["**/*", "**/.*", "**/.*/**/*", "**/.*/**/.*"]
+"chock.authoring" = ["data/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+# Markdown under docs/ and spec/ contains illustrative snippets
+# (abbreviated bodies, placeholder tokens) that are documentation, not source.
+# ruff >= 0.16 formats embedded Python in Markdown; exclude it so prose stays prose.
+extend-exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+# Layout is governed by `ruff format`; long diagnostic strings are allowed.
+ignore = ["E501"]

@@ -1,0 +1,5 @@
+# Aider configuration for Chock repos.
+# Aider loads this file from the git root and applies the read-only convention files.
+read:
+  - AGENTS.md
+  - CONVENTIONS.md

@@ -1,0 +1,50 @@
+id: protect-main-branch
+name: "Protect Main Branch"
+version: "0.0.1"
+description: >
+  Block direct commits and pushes to main or master. Enforced at commit time by reading
+  the current branch, and at push time by parsing the refs the agent is pushing.
+artifact: hook
+enforcement: block
+mandatory: true
+effects:
+- read_only
+approval:
+  required: false
+
+hook:
+  gate:
+    kind: forbidden_ref
+    "on": [commit, push]
+    action: block
+    # {refs} is substituted with the resolved params.refs. Written literally as
+    # "(main/master)" this message contradicted its own gate the moment an adopter set
+    # chock.defaults.protected_branches.
+    message: >
+      Direct commits/pushes to a protected branch ({refs}) are blocked.
+      Create a feature branch and open a pull request.
+    params:
+      refs: [main, master]
+      config_key: chock.defaults.protected_branches
+
+provenance:
+  author: "chock-core"
+  created_at: "2026-07-12T00:00:00Z"
+  updated_at: "2026-07-12T00:00:00Z"
+  source_repo: "https://github.com/open-coder-ai/chock"
+  license: "Apache-2.0"
+  trust_tier: "community"
+
+lifecycle:
+  status: draft
+  reviewed_by:
+    - "chock-core"
+
+security:
+  content_instructions: never-obey
+
+changelog:
+- version: 0.0.1
+  date: '2026-07-12'
+  changes:
+  - "Initial public baseline (0.0.1); pre-release iteration history is preserved in git log."

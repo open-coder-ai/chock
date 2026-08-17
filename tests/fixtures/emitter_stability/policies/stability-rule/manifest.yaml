@@ -1,0 +1,40 @@
+# Frozen fixture: exercises the advisory emitters (ambient-rule, managed-setting).
+# Do not "improve" this policy -- see test_emitter_stability.py.
+id: stability-rule
+name: "Emitter Stability Rule"
+version: "0.0.1"
+description: >
+  Fixture policy for the emitter-stability guarantee: an advisory rule whose compiled
+  ambient output is compared byte-for-byte across releases.
+artifact: rule
+enforcement: advise
+rule:
+  text: |
+    never(commit|push): --no-verify|-n
+    if(hook_fails): fix_issue; never(skip_hook)
+effects:
+- read_only
+approval:
+  required: false
+
+provenance:
+  author: "chock-core"
+  created_at: "2026-08-15T00:00:00Z"
+  updated_at: "2026-08-15T00:00:00Z"
+  source_repo: "https://github.com/open-coder-ai/chock"
+  license: "Apache-2.0"
+  trust_tier: "community"
+
+lifecycle:
+  status: draft
+  reviewed_by:
+    - "chock-core"
+
+security:
+  content_instructions: never-obey
+
+changelog:
+- version: 0.0.1
+  date: '2026-08-15'
+  changes:
+  - "Frozen emitter-stability fixture."

@@ -1,0 +1,28 @@
+# Chock dogfooding config for this repository.
+#
+# `supported_agents` carries the full agent-agnostic set: this repo asks open-source
+# maintainers to protect themselves this way, so it runs the same wiring itself -- the
+# adapter dot-directories at the root are the product working, and coverage.json reports
+# every policy x agent pair we ship adapters for. (It previously pinned the init default
+# of three, on the argument that agents reading AGENTS.md natively make extra wrappers
+# root clutter; dogfooding the full set was judged worth the clutter.)
+#
+# Deliberately ONLY these two sections. The emitter-stability goldens compile fixture
+# policies whose config resolution reaches this file, so an added `defaults:` block here
+# changes golden bytes -- an init re-run once wrote one and broke the patch-release
+# contract in CI.
+
+chock:
+  supported_agents: [aider, claude, codex, copilot, cursor, devin, gemini, grok, kimi-code,
+    replit, tabnine, vscode, windsurf]
+
+policies:
+  # verify-dependency-exists blocks any dependency absent from
+  # .chock/dependency-allowlist.txt. `chock init` ships it disabled for new
+  # adopters, but that default lives in the init template and so never applied to this
+  # repo, which had no config at all. Without this entry the policy is enabled here with
+  # an unpopulated allowlist: inert today (this project uses pyproject.toml, and the gate
+  # watches requirements.txt only), but it would block every entry the moment anyone added
+  # a requirements.txt. We run what we ship.
+  disabled: [verify-dependency-exists]
+  overrides: {}

@@ -1,0 +1,249 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json",
+  "title": "ChockManifestCommon",
+  "description": "Shared definitions for the Chock v3 manifest schema.",
+  "definitions": {
+    "effects": {
+      "type": "array",
+      "items": {"type": "string", "enum": ["none", "read_only", "writes_workspace", "writes_external", "irreversible", "reads_private", "network"]}
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {"required": {"type": "boolean"}, "mode": {"type": "string", "enum": ["human", "auto"]}, "justification": {"type": "string", "maxLength": 500}}
+    },
+    "optimization": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "optimizable": {"type": "boolean"},
+        "learning_rate_budget": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "frozen_sections": {"type": "array", "items": {"type": "string"}},
+        "validation_gate": {"type": "string", "enum": ["strict", "standard", "permissive"]},
+        "min_eval_score": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "rejected_edit_ttl_days": {"type": "integer"}
+      }
+    },
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "test_suite_ref": {"type": "string"},
+        "benchmark_scenarios": {"type": "array", "items": {"type": "string"}},
+        "primary_metric": {"type": "string"},
+        "metrics": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["threshold", "direction"],
+            "properties": {"weight": {"type": "number"}, "threshold": {"type": "number"}, "direction": {"type": "string", "enum": ["higher_is_better", "lower_is_better"]}}
+          }
+        }
+      }
+    },
+    "depItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": {"type": "string"},
+        "version_constraint": {"type": "string"},
+        "optional": {"type": "boolean"},
+        "name": {"type": "string"},
+        "type": {"type": "string", "enum": ["rest_api", "grpc", "database", "message_queue", "storage"]},
+        "min_context_tokens": {"type": "integer"},
+        "required": {"type": "boolean"}
+      }
+    },
+    "toolSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {"allowed": {"type": "array", "items": {"type": "string"}}, "forbidden": {"type": "array", "items": {"type": "string"}}}
+    },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "skills": {"type": "array", "items": {"$ref": "#/definitions/depItem"}},
+        "subagents": {"type": "array", "items": {"$ref": "#/definitions/depItem"}},
+        "services": {"type": "array", "items": {"$ref": "#/definitions/depItem"}},
+        "models": {"type": "array", "items": {"$ref": "#/definitions/depItem"}},
+        "tools": {"$ref": "#/definitions/toolSet"},
+        "mcp_servers": {"type": "array", "items": {"type": "string"}},
+        "policies": {"type": "array", "items": {"$ref": "#/definitions/depItem"}}
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "content_instructions": {"type": "string", "enum": ["never-obey"]},
+        "prompt_injection_defense": {"type": "string", "enum": ["strict", "standard", "disabled"]},
+        "input_sanitization": {"type": "boolean"},
+        "output_validation": {"type": "boolean"},
+        "pii_handling": {"type": "string", "enum": ["block", "redact", "allow"]},
+        "data_residency": {"type": "string"},
+        "audit_logging": {"type": "boolean"},
+        "processes_external_content": {"type": "boolean"}
+      }
+    },
+    "changelogItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "date", "changes"],
+      "properties": {
+        "version": {"type": "string"},
+        "date": {"type": "string", "format": "date"},
+        "changes": {"type": "array", "items": {"type": "string"}},
+        "breaking": {"type": "boolean"}
+      }
+    },
+    "tagList": {"type": "array", "items": {"type": "string", "maxLength": 64}, "maxItems": 20},
+    "concernList": {"type": "array", "items": {"type": "string", "maxLength": 64}},
+    "appliesTo": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "agents": {"type": "array", "items": {"type": "string"}},
+        "paths": {"type": "array", "items": {"type": "string"}},
+        "events": {"type": "array", "items": {"type": "string", "enum": ["commit", "push", "tool_use"]}},
+        "model_tier": {"type": "array", "items": {"type": "string", "enum": ["small", "mid", "frontier"]}}
+      }
+    },
+    "compliance": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {"type": "string"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["control", "coverage"],
+              "properties": {"control": {"type": "string"}, "coverage": {"type": "string", "enum": ["partial", "full"]}, "note": {"type": "string"}}
+            }
+          ]
+        }
+      }
+    },
+    "bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {"id": {"type": "string"}, "shared_assets": {"type": "array", "items": {"type": "string"}}}
+    },
+    "conflict": {"type": "object", "additionalProperties": false, "required": ["id", "reason"], "properties": {"id": {"type": "string"}, "reason": {"type": "string"}}},
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "properties", "additionalProperties"],
+      "properties": {
+        "type": {"type": "string"},
+        "properties": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type"],
+            "properties": {
+              "type": {"type": "string"},
+              "description": {"type": "string", "minLength": 1},
+              "format": {"type": "string"},
+              "default": {},
+              "enum": {"type": "array"},
+              "items": {"anyOf": [{"type": "object"}, {"type": "array"}]},
+              "properties": {"type": "object"},
+              "required": {"type": "array", "items": {"type": "string"}},
+              "additionalProperties": {"anyOf": [{"type": "boolean"}, {"type": "object"}]},
+              "minLength": {"type": "integer"},
+              "maxLength": {"type": "integer"}
+            }
+          }
+        },
+        "required": {"type": "array", "items": {"type": "string"}},
+        "additionalProperties": {"type": "boolean"}
+      }
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "properties", "additionalProperties"],
+      "properties": {
+        "type": {"type": "string"},
+        "properties": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type"],
+            "properties": {
+              "type": {"type": "string"},
+              "description": {"type": "string", "minLength": 1},
+              "format": {"type": "string"},
+              "default": {},
+              "enum": {"type": "array"},
+              "items": {"anyOf": [{"type": "object"}, {"type": "array"}]},
+              "properties": {"type": "object"},
+              "required": {"type": "array", "items": {"type": "string"}},
+              "additionalProperties": {"anyOf": [{"type": "boolean"}, {"type": "object"}]},
+              "minLength": {"type": "integer"},
+              "maxLength": {"type": "integer"}
+            }
+          },
+          "required": ["outcome"],
+          "properties": {
+            "outcome": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type", "enum"],
+              "properties": {
+                "type": {"type": "string"},
+                "enum": {"type": "array", "items": {"type": "string"}, "contains": {"enum": ["success", "failure", "needs_handoff"]}},
+                "description": {"type": "string"}
+              }
+            }
+          }
+        },
+        "required": {"type": "array", "items": {"type": "string"}},
+        "additionalProperties": {"type": "boolean"}
+      }
+    },
+    "runtime": {"type": "object", "additionalProperties": false, "properties": {"max_retries": {"type": "integer"}, "max_identical_invocations": {"type": "integer"}}},
+    "composition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phases", "monitoring", "handoff"],
+      "properties": {
+        "pattern": {"type": "string"},
+        "phases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "mode", "failure_policy", "monitoring"],
+            "properties": {
+              "id": {"type": "string"},
+              "mode": {"type": "string"},
+              "source": {"type": "string"},
+              "invoke": {"type": "object"},
+              "isolation": {"type": "object"},
+              "concurrency": {"type": "object"},
+              "failure_policy": {"type": "string"},
+              "result": {"type": "object"},
+              "approval": {"type": "object"},
+              "monitoring": {"type": "object"}
+            }
+          }
+        },
+        "monitoring": {"type": "object"},
+        "handoff": {"type": "object"}
+      }
+    },
+    "scripts": {"type": "object", "additionalProperties": false, "properties": {"entrypoint": {"type": "string"}}},
+    "skillType": {"type": "string", "enum": ["nl", "code", "hybrid"]}
+  }
+}

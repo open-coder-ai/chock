@@ -1,0 +1,33 @@
+id: yagni
+name: "YAGNI Rule Pack"
+version: "0.0.1"
+description: >
+  trigger: might need, placeholder, unused template, premature generalization.
+  avoid: speculative abstractions, TODO files, config for unscoped features.
+artifact: rule
+enforcement: advise
+rule:
+  text: |
+    before_add(file|abstraction|feature): need.exists AND repeated
+    if not: leave_out; on_find(unused): delete
+provenance:
+  author: "chock-core"
+  created_at: "2026-07-11T00:00:00Z"
+  updated_at: "2026-07-11T00:00:00Z"
+  source_repo: "https://github.com/open-coder-ai/chock"
+  license: "Apache-2.0"
+  trust_tier: "community"
+
+lifecycle:
+  status: draft
+  reviewed_by:
+    - "chock-core"
+
+security:
+  content_instructions: never-obey
+
+changelog:
+- version: 0.0.1
+  date: '2026-07-12'
+  changes:
+  - "Initial public baseline (0.0.1); pre-release iteration history is preserved in git log."

@@ -1,0 +1,54 @@
+input_schema:
+  type: object
+  properties:
+    policy_path:
+      type: string
+      description: Path to the policy folder whose eval suite should be run.
+  required:
+  - policy_path
+  additionalProperties: false
+output_schema:
+  type: object
+  properties:
+    passed:
+      type: boolean
+      description: True if the primary metric meets its threshold.
+    pass_rate:
+      type: number
+      description: Fraction of eval cases that passed.
+    primary_metric:
+      type: string
+      description: primary_metric field
+    findings:
+      type: array
+      items:
+        type: object
+        properties:
+          case_id:
+            type: string
+          passed:
+            type: boolean
+          reason:
+            type: string
+      description: findings field
+    outcome:
+      type: string
+      enum:
+      - success
+      - failure
+      - needs_handoff
+      description: Overall execution outcome of the artifact.
+  required:
+  - outcome
+  - passed
+  - pass_rate
+  - primary_metric
+  additionalProperties: false
+evaluation:
+  test_suite_ref: evals/suite.yaml
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      weight: 1.0
+      threshold: 0.9
+      direction: higher_is_better

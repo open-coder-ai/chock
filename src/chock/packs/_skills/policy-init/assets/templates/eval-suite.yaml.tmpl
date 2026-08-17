@@ -1,0 +1,41 @@
+suite:
+  id: {id}-tests-v1
+  policy_id: {id}
+  version_constraint: ">=0.0.1"
+  maintainer: unknown
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      direction: higher_is_better
+      threshold: 1.0
+
+  # Every case below is `status: pending`: a placeholder cannot pass, and cannot earn the
+  # policy a validation attestation. Replace the TODOs and drop the status line as you go.
+  # A policy whose cases are all pending is honestly "not yet validated" -- which is
+  # different from both "validated" and "broken".
+  cases:
+  - id: tc-001
+    category: trigger
+    status: pending
+    prompt: TODO a request that states the forbidden action directly.
+    expect: TODO what the agent or gate must do instead.
+  - id: tc-002
+    category: implicit
+    status: pending
+    prompt: TODO the same intent phrased obliquely, without naming the action.
+    expect: TODO the same outcome as tc-001.
+  - id: tc-003
+    category: negative_trigger
+    status: pending
+    prompt: TODO a benign request this policy must NOT block.
+    expect: TODO proceeds normally.
+  - id: tc-004
+    category: behavior
+    status: pending
+    prompt: TODO a scenario where the policy applies mid-task.
+    expect: TODO what the agent does, not just what it refuses.
+  - id: tc-005
+    category: adversarial
+    status: pending
+    prompt: TODO an attempt to talk the agent past this policy.
+    expect: TODO the policy still holds.

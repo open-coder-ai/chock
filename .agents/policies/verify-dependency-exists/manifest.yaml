@@ -1,0 +1,70 @@
+id: verify-dependency-exists
+name: "Verify Dependency Exists"
+version: "0.0.1"
+description: >
+  Block hallucinated or unknown dependencies before they enter the repo. Watches
+  requirements.txt, pyproject.toml, package.json, and go.mod, and blocks any newly
+  added dependency not present in the allowlist file. Opt-in: disabled by default
+  because it requires a curated allowlist. Enable with
+  `chock enable verify-dependency-exists` after populating
+  .chock/dependency-allowlist.txt.
+artifact: hook
+enforcement: block
+mandatory: false
+effects:
+- read_only
+approval:
+  required: false
+
+hook:
+  gate:
+    kind: dependency_allowlist
+    "on": [commit]
+    action: block
+    message: >
+      Unknown dependency blocked. Verify the package exists in the official registry,
+      then add it to .chock/dependency-allowlist.txt to allow it.
+    params:
+      # Each format has a dedicated extractor that parses the whole staged file, so
+      # section context is available and only real dependencies are reported. Only names
+      # this commit ADDS are checked -- diffed against HEAD -- so touching a manifest
+      # that already contains an unlisted package does not block the commit.
+      # `chock check` rejects any format without an extractor.
+      manifests:
+      - requirements.txt
+      - pyproject.toml
+      - package.json
+      - go.mod
+      allowlist_file: .chock/dependency-allowlist.txt
+
+compliance:
+  owasp_asi:
+  - control: ASI04
+    coverage: full
+    note: "blocks unlisted deps added to requirements.txt, pyproject.toml, package.json, go.mod"
+
+provenance:
+  author: "chock-core"
+  created_at: "2026-07-12T00:00:00Z"
+  updated_at: "2026-08-04T00:00:00Z"
+  source_repo: "https://github.com/open-coder-ai/chock"
+  license: "Apache-2.0"
+  trust_tier: "community"
+
+lifecycle:
+  status: draft
+  reviewed_by:
+  - "chock-core"
+
+security:
+  content_instructions: never-obey
+
+changelog:
+- version: 0.0.1
+  date: '2026-07-12'
+  changes:
+  - "Initial public baseline (0.0.1)."
+- version: 0.0.2
+  date: '2026-08-04'
+  changes:
+  - "Ported to v3 manifest shape with dependency_allowlist gate; added compliance.owasp_asi ASI04."

@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-coder-ai.github.io/chock/schemas/v0/reviewer-evidence-v1.json",
+  "title": "Chock reviewer evidence, v1",
+  "$comment": "Published under schemas/v0/ with every other Chock schema: `v0` versions the schema set, `-v1` versions this format, and the two move independently. tests/test_schema_identity.py pins $id to the path the Pages workflow actually serves.",
+  "description": "What a review of a change rests on. `verified` claims are re-derived by CI and are worth what the re-run says; `attested` claims are a named reviewer's judgement and are worth what the reviewer is worth. Keeping the two apart is the whole purpose of the format: a schema that let an attestation render like a verification would be the review-time version of crediting an enforcement surface nothing installs.",
+  "type": "object",
+  "required": ["$schema", "diff_sha", "produced_by"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "const": "https://open-coder-ai.github.io/chock/schemas/v0/reviewer-evidence-v1.json"
+    },
+    "diff_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 of the change this evidence describes, computed over `git diff <base>...HEAD` with the evidence directory itself excluded. Binds evidence to content: a force-push or any edit produces a different digest, so evidence cannot vouch for code that no longer exists. The self-exclusion matters -- without it, writing the evidence file would change the diff it attests to."
+    },
+    "base_ref": {
+      "type": "string",
+      "description": "The ref the diff was taken against. Diagnostic only; verification recomputes it."
+    },
+    "head_sha": {
+      "type": "string",
+      "description": "Commit at the time of production. Diagnostic only -- a rebase that changes no content leaves `diff_sha` intact, which is deliberate."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "produced_by": {
+      "type": "object",
+      "required": ["kind", "id"],
+      "additionalProperties": false,
+      "description": "Who or what produced this. An attestation with no name attached is not an attestation.",
+      "properties": {
+        "kind": { "enum": ["agent", "human"] },
+        "id": { "type": "string", "minLength": 1, "maxLength": 200 }
+      }
+    },
+    "verified": {
+      "type": "array",
+      "description": "Claims a machine re-derives. `check` names an entry in the repository's check registry; `command` is recorded for a human reader and is NEVER executed on verification -- the verifier runs the registry's own command and reports a mismatch if the recorded one differs. Executing a command supplied by the evidence would make a contributor-authored file into arbitrary code in CI.",
+      "items": {
+        "type": "object",
+        "required": ["check", "result"],
+        "additionalProperties": false,
+        "properties": {
+          "check": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "description": "Registry key. Unknown keys fail verification rather than being skipped -- a claim nobody can re-derive must not pass quietly."
+          },
+          "command": { "type": "string", "description": "Informational. Not executed." },
+          "result": { "enum": ["pass", "fail"] },
+          "detail": { "type": "string", "maxLength": 2000 }
+        }
+      }
+    },
+    "attested": {
+      "type": "array",
+      "description": "Claims no machine can re-derive. Recorded, surfaced, and never counted as verification.",
+      "items": {
+        "type": "object",
+        "required": ["criterion", "claim", "basis"],
+        "additionalProperties": false,
+        "properties": {
+          "criterion": {
+            "type": "string",
+            "description": "Which written criterion this addresses, e.g. `effects-honesty`."
+          },
+          "claim": { "type": "string", "minLength": 1, "maxLength": 2000 },
+          "basis": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "What the reviewer actually did. `read implementations/x.sh in full` and `the diff looked fine` are different claims, and this forces the choice into writing."
+          },
+          "confidence": { "enum": ["high", "medium", "low"] }
+        }
+      }
+    },
+    "unattestable": {
+      "type": "array",
+      "description": "Paths a contributor may not self-certify -- the machinery that checks contributions. Fixed by the repository's config, never by the submitter: verification recomputes the list and rejects evidence that disagrees. Mirrors `verify` judging the vendored runner rather than the source pack.",
+      "items": { "type": "string" }
+    }
+  }
+}

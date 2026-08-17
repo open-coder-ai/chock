@@ -1,0 +1,46 @@
+id: {id}
+name: "{name}"
+version: "0.0.1"
+description: >
+  TODO: one-line description of what this subagent does.
+artifact: subagent
+purpose: >
+  TODO: one-sentence mission this subagent is delegated.
+bounded_to:
+- "TODO: paths or scope this subagent may touch"
+max_iterations: 5
+effects:
+- read_only
+approval:
+  required: false
+input_schema:
+  type: object
+  additionalProperties: false
+  properties:
+    request:
+      type: string
+      description: "The user request."
+  required: [request]
+output_schema:
+  type: object
+  additionalProperties: false
+  properties:
+    outcome:
+      type: string
+      enum: [success, failure, needs_handoff]
+      description: "Terminal status of the delegation."
+    result:
+      type: string
+      description: "Human-readable result or handoff detail."
+  required: [outcome]
+provenance:
+  author: "unknown"
+  created_at: "{now}"
+  updated_at: "{now}"
+  license: "Apache-2.0"
+  trust_tier: "sandbox"
+lifecycle:
+  status: draft
+  reviewed_by: []
+security:
+  content_instructions: never-obey

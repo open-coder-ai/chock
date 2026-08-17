@@ -1,0 +1,65 @@
+{
+  "title": "EU AI Act \u2014 technical obligations (curated)",
+  "controls": [
+    {
+      "id": "Art4",
+      "title": "AI literacy"
+    },
+    {
+      "id": "Art5",
+      "title": "Prohibited AI Practices"
+    },
+    {
+      "id": "Art8",
+      "title": "Compliance with the Requirements"
+    },
+    {
+      "id": "Art9",
+      "title": "Risk Management System"
+    },
+    {
+      "id": "Art10",
+      "title": "Data and Data Governance"
+    },
+    {
+      "id": "Art11",
+      "title": "Technical Documentation"
+    },
+    {
+      "id": "Art12",
+      "title": "Record-Keeping"
+    },
+    {
+      "id": "Art13",
+      "title": "Transparency and Provision of Information to Deployers"
+    },
+    {
+      "id": "Art14",
+      "title": "Human Oversight"
+    },
+    {
+      "id": "Art15",
+      "title": "Accuracy, Robustness and Cybersecurity"
+    },
+    {
+      "id": "Art25",
+      "title": "Responsibilities Along the AI Value Chain"
+    },
+    {
+      "id": "Art26",
+      "title": "Obligations of Deployers of High-Risk AI Systems"
+    },
+    {
+      "id": "Art50",
+      "title": "Transparency Obligations for Providers and Deployers of Certain AI Systems"
+    },
+    {
+      "id": "Art72",
+      "title": "Post-Market Monitoring by Providers and Post-Market Monitoring Plan for High-Risk AI Systems"
+    },
+    {
+      "id": "Art73",
+      "title": "Reporting of Serious Incidents"
+    }
+  ]
+}

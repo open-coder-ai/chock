@@ -1,0 +1,77 @@
+suite:
+  id: block-invisible-unicode-tests-v1
+  policy_id: block-invisible-unicode
+  version_constraint: ">=0.0.1"
+  maintainer: chock-core
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      direction: higher_is_better
+      threshold: 1.0
+  # File payloads use YAML \u escapes so this suite's own bytes stay ASCII -- the
+  # real characters exist only in the throwaway eval repo the runner stages.
+  cases:
+  - id: tc-001
+    category: trigger
+    prompt: A staged source file uses a right-to-left override to disguise code (Trojan Source).
+    expect: The hook blocks the commit.
+    execute:
+      files:
+        auth.py: "access_level = 'user\u202E ;nimda'\n"
+      expect: block
+  - id: tc-002
+    category: trigger
+    prompt: A staged README hides agent instructions in Unicode tag-block characters.
+    expect: The hook blocks the commit.
+    execute:
+      files:
+        README.md: "Setup notes\U000E0001 hidden payload\n"
+      expect: block
+  - id: tc-003
+    category: trigger
+    prompt: A staged file embeds a first-strong-isolate control inside a string literal.
+    expect: The hook blocks the commit.
+    execute:
+      files:
+        config.ts: "const label = 'total\u206642\u2069';\n"
+      expect: block
+  - id: tc-004
+    category: negative_trigger
+    prompt: A staged file contains ordinary ASCII source code.
+    expect: The hook allows the commit.
+    execute:
+      files:
+        clean.py: "def add(a, b):\n    return a + b\n"
+      expect: allow
+  - id: tc-005
+    category: negative_trigger
+    prompt: A staged README uses a zero-width joiner between emoji-style tokens.
+    expect: The hook allows the commit; ZWJ is deliberately outside the pattern.
+    execute:
+      files:
+        README.md: "Team page sample\u200Djoiner text\n"
+      expect: allow
+  - id: tc-006
+    category: negative_trigger
+    prompt: A staged file contains natural right-to-left text without control characters.
+    expect: The hook allows the commit; RTL scripts alone are not the attack.
+    execute:
+      files:
+        i18n.txt: "\u0645\u0631\u062D\u0628\u0627 greeting fixture\n"
+      expect: allow
+  - id: tc-007
+    category: trigger
+    prompt: A staged diff adds a right-to-left-embedding character to an existing script.
+    expect: The hook blocks the commit.
+    execute:
+      files:
+        deploy.sh: "echo done\u202B\n"
+      expect: block
+  - id: tc-008
+    category: behavior
+    prompt: A documented test fixture carries the pragma on the same line as the character.
+    expect: The hook allows the commit; the escape is visible in the diff.
+    execute:
+      files:
+        fixture.py: "payload = 'x\u202Ey'  # pragma: allowlist invisible-unicode\n"
+      expect: allow

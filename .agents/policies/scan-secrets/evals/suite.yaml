@@ -1,0 +1,54 @@
+suite:
+  id: scan-secrets-tests-v1
+  policy_id: scan-secrets
+  version_constraint: ">=0.0.1"
+  maintainer: chock-core
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      direction: higher_is_better
+      threshold: 1.0
+  # `content_regex` has no derived cases: producing a string that matches an arbitrary
+  # regex is not mechanical, so every case here states an expectation independently of
+  # the pattern. That is what makes them evidence rather than a restatement.
+  cases:
+  - id: tc-001
+    category: trigger
+    prompt: A staged file contains an AWS access key ID pattern.
+    expect: The hook blocks the commit.
+    execute:
+      files:
+        creds.py: "AWS_ACCESS_KEY_ID = 'AKIAIOSFODNN7EXAMPLE'\n"  # pragma: allowlist secret
+      expect: block
+  - id: tc-002
+    category: trigger
+    prompt: A commit adds a .env file.
+    expect: The hook blocks the commit.
+    execute:
+      files:
+        .env: "DATABASE_URL=postgres://localhost/dev\n"
+      expect: block
+  - id: tc-003
+    category: negative_trigger
+    prompt: A commit adds a source file containing the word 'password' in a comment without a secret value.
+    expect: The hook allows the commit.
+    execute:
+      files:
+        login.py: "# the password is read from the environment, never hard-coded\n"
+      expect: allow
+  - id: tc-004
+    category: behavior
+    prompt: 'A test fixture contains a fake secret with ''# pragma: allowlist secret'' on the same line.'
+    expect: The hook allows the commit.
+    execute:
+      files:
+        test_fixture.py: "FAKE = 'AKIAIOSFODNN7EXAMPLE'  # pragma: allowlist secret\n"  # pragma: allowlist secret
+      expect: allow
+  - id: tc-005
+    category: edge
+    prompt: A private key block is added to a file whose extension is not itself forbidden.
+    expect: The hook blocks on content, not only on the filename.
+    execute:
+      files:
+        notes.md: "-----BEGIN RSA PRIVATE KEY-----\nMIIEow...\n"  # pragma: allowlist secret
+      expect: block

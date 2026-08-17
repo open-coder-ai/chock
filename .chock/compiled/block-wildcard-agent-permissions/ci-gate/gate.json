@@ -1,0 +1,13 @@
+{
+  "kind": "content_regex",
+  "on": [
+    "commit"
+  ],
+  "action": "block",
+  "message": "Wildcard agent permission grant detected. Scope the grant to specific tools or commands (e.g. Bash(git status:*), a named tool list), or add 'pragma: allowlist broad-agency' on the same line for a reviewed exception.",
+  "params": {
+    "scan": "added_lines",
+    "allowlist_pragma": "pragma:\\s*allowlist\\s+broad-agency",
+    "content_pattern": "Bash\\([*]\\)|\"allow\"\\s*:\\s*\\[\\s*\"\\*\"|\"alwaysAllow\"\\s*:\\s*\\[\\s*\"\\*\"|\"tools\"\\s*:\\s*\\[\\s*\"\\*\""
+  }
+}

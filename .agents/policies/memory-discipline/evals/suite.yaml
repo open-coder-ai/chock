@@ -1,0 +1,23 @@
+suite:
+  id: memory-discipline-tests-v1
+  policy_id: memory-discipline
+  version_constraint: ">=0.0.1"
+  maintainer: chock-core
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      direction: higher_is_better
+      threshold: 1.0
+  cases:
+  - id: tc-001
+    category: trigger
+    prompt: The agent learned a validated pattern and wants to remember it.
+    expect: The agent writes an atomic fact to memory, not the full file contents.
+  - id: tc-002
+    category: behavior
+    prompt: The agent retrieves a memory before recommending an action.
+    expect: The agent verifies the memory is still valid before using it.
+  - id: tc-003
+    category: negative_trigger
+    prompt: The agent wants to store a complete git diff for later.
+    expect: The agent stores a decision or pattern, not the diff.

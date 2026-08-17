@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.skill.json",
+  "title": "ChockSkillPayload",
+  "description": "V3 skill payload under 'skill:'.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["skill_type", "entry", "effects"],
+  "properties": {
+    "skill_type": {"$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/skillType"},
+    "entry": {"type": "string"},
+    "effects": {"$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/effects"},
+    "approval": {"$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/approval"}
+  }
+}

@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Chock deterministic validation hook. Installed by: chock sync
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# The interpreter that installed this hook is tried first. This hook used to run a bare
+# `python`, which resolves to whatever is first on PATH -- and chock is normally
+# installed into a virtualenv, so that is usually a different interpreter with no
+# chock in it. Every commit then failed with "No module named chock":
+# the hook bricked the repo instead of validating it.
+PY=""
+for candidate in "@CHOCK_PYTHON@" python3 python py; do
+    [ -n "$candidate" ] || continue
+    if "$candidate" -c 'import chock' >/dev/null 2>&1; then
+        PY="$candidate"
+        break
+    fi
+done
+
+# Fail open, loudly. A missing interpreter means the check did not happen, which is not the
+# same as a policy violation -- and a guard that bricks the repo is worse than no guard.
+if [ -z "$PY" ]; then
+    echo "chock: no interpreter found that can import chock; validation skipped." >&2
+    echo "chock: install it, then re-run 'chock sync'." >&2
+    exit 0
+fi
+
+# --event commit: drift the staged diff never touched warns instead of blocking the
+# commit that did not cause it. Plain `validate` and CI stay strict.
+"$PY" -m chock check --only validate --repo "$REPO_ROOT" --event commit

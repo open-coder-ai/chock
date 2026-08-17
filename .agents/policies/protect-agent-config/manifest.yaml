@@ -1,0 +1,53 @@
+id: protect-agent-config
+name: "Protect Agent Config"
+version: "0.0.1"
+description: >
+  Guard against an agent hand-editing its own guardrails. Agent instruction files
+  (AGENTS.md and the per-agent wrappers), permission files (.claude/settings.json,
+  .mcp.json) and vendored enforcement (.chock/bin/, .chock/compiled/) define what the
+  agent may do -- so a shell command that rewrites them is the agent modifying its own
+  authority (MITRE ATLAS AML.T0081; the AIVSS self-modification factor). The guard
+  refuses shell write-commands targeting those paths; reads pass, and regeneration
+  through `chock sync` passes because the tool writes them itself rather than through
+  shell editing. Best-effort and deliberately coarse: a compound command that both
+  reads a protected file and writes elsewhere may be refused -- rewrite it in two
+  steps. Escape for a human-approved change: include 'chock: approved-config-change'
+  in the command.
+artifact: rule
+enforcement: advise
+rule:
+  text: |
+    agent_config(AGENTS.md|wrappers|.claude/settings|.mcp.json|.chock/bin|.chock/compiled): never(hand_edit|delete); regenerate_via(chock sync)
+    if(config_change_needed): propose_to_human; await(approval)  # an agent must not widen or disarm its own guardrails
+effects:
+- read_only
+approval:
+  required: false
+
+compliance:
+  owasp_asi:
+  - control: ASI03
+    coverage: partial
+    note: "blocks shell self-modification of agent permission and instruction files; identity design and grant scoping remain advisory"
+
+provenance:
+  author: "chock-core"
+  created_at: "2026-08-16T00:00:00Z"
+  updated_at: "2026-08-16T00:00:00Z"
+  source_repo: "https://github.com/open-coder-ai/chock-catalog"
+  license: "Apache-2.0"
+  trust_tier: "community"
+
+lifecycle:
+  status: draft
+  reviewed_by:
+    - "chock-core"
+
+security:
+  content_instructions: never-obey
+
+changelog:
+- version: 0.0.1
+  date: '2026-08-16'
+  changes:
+  - "Initial release. Anchors: MITRE ATLAS AML.T0081 (Modify Agent Configuration), AML.T0083, OWASP ASI03, AIVSS Self-Modification."

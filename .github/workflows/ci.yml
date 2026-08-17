@@ -1,0 +1,196 @@
+name: CI
+
+# Linux-only by default, full matrix on demand.
+#
+# This is a private repo, so Actions minutes are metered, and they are not counted evenly:
+# Windows bills 2x and macOS 10x. The full matrix cost ~37 billed minutes per run -- the
+# macOS binary job alone spent 10 minutes of quota on 24 seconds of work -- which exhausted
+# the 2,000-minute monthly allowance in about two days and blocked CI entirely.
+#
+# Linux-only costs ~6. The other platforms are NOT deleted, because the defects that
+# justified them were platform-specific and would have shipped otherwise: WSL bash exiting
+# non-zero where a guard was expected to pass, and CRLF line endings in generated files.
+#
+# The full matrix runs in two cases, and one of them is not a decision anyone has to
+# remember: **pushing a `v*` tag always runs it**. A release cannot be cut having only been
+# tested on Linux, which a note in this file asking someone to remember would not prevent.
+# The other is on demand, from the Actions tab -> Run workflow -> full_matrix, for when you
+# are touching path handling, line endings, or shell invocation.
+#
+# Making the repo public would make all of this free.
+on:
+  push:
+    branches: [main, master, develop]
+    tags: ["v*"]
+  pull_request:
+    branches: [main, master, develop]
+  workflow_dispatch:
+    inputs:
+      full_matrix:
+        description: "Also run Windows and macOS (~6x the minutes). Tags do this automatically."
+        type: boolean
+        default: false
+
+jobs:
+  # Every PR commit must carry a Signed-off-by trailer (Developer Certificate of
+  # Origin -- see CONTRIBUTING.md). Checked here rather than via the DCO GitHub App
+  # so it works while the repo is private; the App can be added after launch.
+  dco:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      # Range is origin/<base>..HEAD rather than the event's head SHA:
+      # test_workflow_safety forbids the head-sha marker anywhere in a workflow,
+      # because next to a privileged trigger it reads as an untrusted-ref checkout.
+      - name: Check Signed-off-by on every PR commit
+        run: |
+          git fetch --quiet origin "${{ github.base_ref }}"
+          missing=0
+          while read -r sha; do
+            if ! git log -1 --format=%B "$sha" | grep -qi '^Signed-off-by: .\+<.\+@.\+>'; then
+              echo "::error::commit $sha lacks a Signed-off-by trailer (git commit -s)"
+              missing=1
+            fi
+          done < <(git rev-list --no-merges "origin/${{ github.base_ref }}..HEAD")
+          exit "$missing"
+
+  validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON((github.event.inputs.full_matrix == 'true' || startsWith(github.ref, 'refs/tags/v')) && '["ubuntu-latest","windows-latest"]' || '["ubuntu-latest"]') }}
+        python-version: ["3.11", "3.12"]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev,build]'
+
+      - name: Lint (ruff)
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Check enforcement matrix traceability
+        run: chock check --only matrix
+
+      - name: Install bundled skills (injects canonical schemas)
+        run: chock install-skills .
+
+      - name: Validate all artifacts
+        run: chock check --only validate
+
+      # `.chock/compiled/` is generated but committed, because the compiled gate is
+      # what actually enforces -- a manifest diff without it shows intent, not effect. That
+      # only holds if the two match, and nothing checked it: a manifest could declare one
+      # set of protected branches while the committed gate blocked another, with validate,
+      # refresh --check and eval all green.
+      - name: Compiled artifacts match their manifests
+        run: chock sync --repo . --check
+
+      - name: Index freshness check
+        run: chock check --only index
+
+      # Tier 2. Deterministic mode replays each policy's own gate or guard, so it needs no
+      # model, no budget, and no sandbox -- which is why it can gate every build rather
+      # than only policy PRs. Non-zero exit means a policy stopped doing what it declares.
+      - name: Policy evals (deterministic)
+        run: chock check --only evals
+
+      - name: Validate in frontier-claude mode
+        run: chock check --only validate --mode frontier-claude
+
+      - name: Validate in frontier-devin mode
+        run: chock check --only validate --mode frontier-devin
+
+      - name: Registry freshness check
+        run: |
+          before="$(mktemp)"
+          cp .chock/registry.json "$before"
+          chock registry scan
+          diff -u "$before" .chock/registry.json
+
+      # The lockfile pins the compiled artifacts, not just the source packs, so this is the
+      # step that fails when the thing that enforces is not the thing that was locked. It
+      # was never run in CI, which is part of why that gap went unnoticed.
+      - name: Lockfile matches installed packs and compiled artifacts
+        run: chock check --only verify
+
+      - name: Run tests
+        run: pytest -q
+
+  binary:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON((github.event.inputs.full_matrix == 'true' || startsWith(github.ref, 'refs/tags/v')) && '["ubuntu-latest","macos-latest","windows-latest"]' || '["ubuntu-latest"]') }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[build]'
+
+      - name: Build one-file binary
+        run: pyinstaller packaging/chock.spec
+
+      - name: Smoke test binary
+        run: |
+          if [ -f dist/chock.exe ]; then
+            CHOCK="$(pwd)/dist/chock.exe"
+          else
+            CHOCK="$(pwd)/dist/chock"
+          fi
+          "$CHOCK" --version
+          mkdir -p /tmp/ac-smoke
+          cd /tmp/ac-smoke
+          git init --quiet
+          "$CHOCK" init . --skip-hooks
+          # init ships no policies, so the scaffolding is what proves the binary works.
+          [ -f AGENTS.md ] && [ -f .chock/config.yaml ] && [ -f .agents/policies/INDEX.md ]
+
+  acceptance:
+    name: acceptance (tier 1)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON((github.event.inputs.full_matrix == 'true' || startsWith(github.ref, 'refs/tags/v')) && '["ubuntu-latest","windows-latest"]' || '["ubuntu-latest"]') }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      # Deliberately NOT `pip install -e .`: this job must exercise the built wheel, not
+      # the source tree. The suite builds and installs it itself.
+      - name: Install build tooling
+        run: python -m pip install --upgrade pip build pytest pytest-bdd
+      - name: Run acceptance suite
+        run: python -m pytest acceptance/ -q -c acceptance/pytest.ini --rootdir=acceptance

@@ -1,0 +1,20 @@
+{
+  "source": "https://code.claude.com/docs/en/skills",
+  "description": "Claude Code skills extension of Agent Skills",
+  "skill_path": {
+    "project": ".claude/skills/<skill-name>/SKILL.md",
+    "personal": "~/.claude/skills/<skill-name>/SKILL.md",
+    "commands": ".claude/commands/<command-name>.md"
+  },
+  "features": [
+    "invocation_control",
+    "subagent_execution",
+    "dynamic_context_injection"
+  ],
+  "dynamic_context_injection": {
+    "syntax": "!`command`",
+    "allowed": true
+  },
+  "extends": "agentskills",
+  "fetched_at": "2026-07-12T22:02:48.894693+00:00"
+}

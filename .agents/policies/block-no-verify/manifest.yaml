@@ -1,0 +1,39 @@
+id: block-no-verify
+name: "Block No-Verify"
+version: "0.0.1"
+description: >
+  Best-effort guard against bypassing git hooks via git commit/push --no-verify or -n.
+  Known bypass classes include aliases, wrapper scripts, and non-standard clients.
+  Fix the underlying hook failure instead of skipping validation.
+artifact: rule
+enforcement: advise
+rule:
+  text: |
+    never(commit|push): --no-verify|-n
+    if(hook_fails): fix_issue; never(skip_hook)
+effects:
+- read_only
+approval:
+  required: false
+
+provenance:
+  author: "chock-core"
+  created_at: "2026-07-12T00:00:00Z"
+  updated_at: "2026-07-12T00:00:00Z"
+  source_repo: "https://github.com/open-coder-ai/chock"
+  license: "Apache-2.0"
+  trust_tier: "community"
+
+lifecycle:
+  status: draft
+  reviewed_by:
+    - "chock-core"
+
+security:
+  content_instructions: never-obey
+
+changelog:
+- version: 0.0.1
+  date: '2026-07-12'
+  changes:
+  - "Initial public baseline (0.0.1); pre-release iteration history is preserved in git log."

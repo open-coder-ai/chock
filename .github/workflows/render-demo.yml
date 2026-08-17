@@ -1,0 +1,40 @@
+# Renders docs/assets/demo.tape -> demo.gif with VHS, on demand.
+#
+# Manual-only (workflow_dispatch): rendering is an authoring step, not a build step,
+# so it never spends CI minutes on its own. Run it from the Actions tab, download the
+# `demo-gif` artifact, review it, and commit the GIF alongside the README change that
+# uncomments the hero image. Linux rendering is canonical -- the tape is authored
+# against a Unix shell, and VHS is at its flakiest on Windows.
+name: Render demo
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vhs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # The tape drives the real CLI; install the tree being rendered.
+      - name: Install chock
+        run: pip install .
+
+      - name: Render tape
+        uses: charmbracelet/vhs-action@v2
+        with:
+          path: docs/assets/demo.tape
+
+      - name: Upload GIF
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-gif
+          path: docs/assets/demo.gif
+          if-no-files-found: error

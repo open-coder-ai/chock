@@ -1,0 +1,73 @@
+input_schema:
+  type: object
+  properties:
+    policy_path:
+      type: string
+      description: Path to the policy folder or repo root to validate.
+    mode:
+      type: string
+      enum:
+      - agnostic
+      - frontier-agentskills
+      - frontier-claude
+      - frontier-openai
+      - frontier-devin
+      - frontier-cursor
+      - frontier-copilot
+      - frontier-codex
+      default: agnostic
+      description: Validation mode.
+  required:
+  - policy_path
+  additionalProperties: false
+output_schema:
+  type: object
+  properties:
+    valid:
+      type: boolean
+      description: True if no errors were found.
+    errors:
+      type: array
+      items:
+        type: object
+        properties:
+          path:
+            type: string
+          check:
+            type: string
+          message:
+            type: string
+      description: errors field
+    warnings:
+      type: array
+      items:
+        type: object
+        properties:
+          path:
+            type: string
+          check:
+            type: string
+          message:
+            type: string
+      description: warnings field
+    outcome:
+      type: string
+      enum:
+      - success
+      - failure
+      - needs_handoff
+      description: Overall execution outcome of the artifact.
+  required:
+  - outcome
+  - valid
+  - errors
+  - warnings
+  additionalProperties: false
+evaluation:
+  test_suite_ref: evals/suite.yaml
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      weight: 1.0
+      threshold: 0.9
+      direction: higher_is_better

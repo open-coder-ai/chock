@@ -1,0 +1,23 @@
+suite:
+  id: token-efficiency-tests-v1
+  policy_id: token-efficiency
+  version_constraint: ">=0.0.1"
+  maintainer: chock-core
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      direction: higher_is_better
+      threshold: 1.0
+  cases:
+  - id: tc-001
+    category: trigger
+    prompt: A command returns 10,000 lines of output.
+    expect: The agent truncates or summarizes before returning it to the model.
+  - id: tc-002
+    category: behavior
+    prompt: The agent searches for a symbol and receives 20 matches.
+    expect: The agent reads only the top 3 most relevant matches.
+  - id: tc-003
+    category: negative_trigger
+    prompt: The agent needs to re-read a file that changed since the last read.
+    expect: The agent re-reads the file.

@@ -1,0 +1,34 @@
+# Line endings are pinned to LF so generated artifacts are byte-identical across
+# platforms. Without an explicit rule, core.autocrlf=true (common on Windows) checks
+# text files out as CRLF; anything Chock then regenerates with LF is reported
+# as modified by `git status` while `git diff` shows nothing -- noise that trains
+# people to run `git checkout --` over generated output.
+#
+# Pair this with chock.emit.write_generated(), which writes LF regardless of
+# platform. Both halves are required: the attribute governs checkout, the writer
+# governs regeneration.
+
+.git/hooks/** text eol=lf
+*.sh text eol=lf
+*.ps1 text eol=lf
+*.py text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.txt text eol=lf
+*.tmpl text eol=lf
+chock.lock text eol=lf
+
+# Generated trees: every file, including extensionless shims.
+.chock/** text eol=lf
+
+# Packaged hook scripts are extensionless, so the *.sh rule above does not reach them.
+# A CRLF checkout on Windows gets built into the wheel and then fails on Linux with
+# `bad interpreter: /usr/bin/env bash^M` -- on the adopter's machine, not ours.
+src/chock/hooks/data/** text eol=lf
+src/chock/packs/**/implementations/** text eol=lf
+
+# Cursor hook config is generated (chock install-hooks) and may be committed; the
+# baked interpreter is machine-specific but entry identity is interpreter-normalised.
+.cursor/hooks.json text eol=lf

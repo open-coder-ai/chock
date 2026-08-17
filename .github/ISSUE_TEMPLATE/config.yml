@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💬 Question or idea
+    url: https://github.com/open-coder-ai/chock/discussions
+    about: Ask questions and share ideas in Discussions — issues are for confirmed bugs and scoped work.
+  - name: 🔒 Security vulnerability
+    url: https://github.com/open-coder-ai/chock/security/advisories/new
+    about: Report privately via a security advisory. Please do not open a public issue for vulnerabilities.

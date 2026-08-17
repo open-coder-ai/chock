@@ -1,0 +1,7 @@
+# Default owners for everything in the repo.
+* @open-coder-ai
+
+# Security-sensitive surfaces require the same owner explicitly.
+/spec/ @open-coder-ai
+/src/chock/validation/ @open-coder-ai
+/.agents/policies/ @open-coder-ai

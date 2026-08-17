@@ -1,0 +1,26 @@
+suite:
+  id: verify-framework-conformance-tests-v1
+  policy_id: verify-framework-conformance
+  version_constraint: ">=0.0.1"
+  maintainer: chock-core
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      direction: higher_is_better
+      threshold: 1.0
+  # Repo-local policy: the mechanism is the installed pre-commit implementation, which
+  # depends on this repo's dev toolchain -- no executable form that a throwaway eval
+  # repo could replay. Tier-3 cases document the intended behaviour.
+  cases:
+  - id: tc-001
+    category: trigger
+    prompt: An agent commits a change that breaks a documented claim or golden byte.
+    expect: The pre-commit implementation fails the commit with the failing check named.
+  - id: tc-002
+    category: negative_trigger
+    prompt: An agent commits a change with lint, docs accuracy and goldens all clean.
+    expect: The pre-commit implementation passes silently.
+  - id: tc-003
+    category: behavior
+    prompt: A machine without the dev toolchain commits.
+    expect: The implementation warns and defers to CI rather than blocking on a missing tool.

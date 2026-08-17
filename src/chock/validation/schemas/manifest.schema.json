@@ -1,0 +1,185 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.schema.json",
+  "title": "ChockManifest",
+  "description": "Unified JSON Schema for Chock manifest.yaml. Discriminated by artifact; exactly one type payload must match the declared artifact.",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "version",
+    "description",
+    "artifact",
+    "enforcement",
+    "provenance",
+    "lifecycle"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{2,63}$"
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.]+)?$"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1024
+    },
+    "artifact": {
+      "type": "string",
+      "enum": [
+        "rule",
+        "hook",
+        "skill",
+        "workflow"
+      ]
+    },
+    "agent_specific_vocabulary": {
+      "type": "boolean"
+    },
+    "mandatory": {
+      "type": "boolean"
+    },
+    "enforcement": {
+      "type": "string",
+      "enum": [
+        "advise",
+        "verify",
+        "block"
+      ]
+    },
+    "effects": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/effects"
+    },
+    "approval": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/approval"
+    },
+    "provenance": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.provenance.json#/definitions/provenance"
+    },
+    "lifecycle": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.provenance.json#/definitions/lifecycle"
+    },
+    "optimization": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/optimization"
+    },
+    "evaluation": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/evaluation"
+    },
+    "dependencies": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/dependencies"
+    },
+    "security": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/security"
+    },
+    "tags": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/tagList"
+    },
+    "changelog": {
+      "type": "array",
+      "items": {
+        "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/changelogItem"
+      }
+    },
+    "applies_to": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/appliesTo"
+    },
+    "compliance": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/compliance"
+    },
+    "validation": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.provenance.json#/definitions/validation"
+    },
+    "propagation": {
+      "type": "string",
+      "enum": [
+        "inherit",
+        "local"
+      ]
+    },
+    "concerns": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/concernList"
+    },
+    "conflicts_with": {
+      "type": "array",
+      "items": {
+        "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/conflict"
+      }
+    },
+    "bundle": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/bundle"
+    },
+    "rule": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.rule.json"
+    },
+    "hook": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.hook.json"
+    },
+    "skill": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.skill.json"
+    },
+    "workflow": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.workflow.json"
+    },
+    "input_schema": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/inputSchema"
+    },
+    "output_schema": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/outputSchema"
+    },
+    "runtime": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/runtime"
+    },
+    "composition": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/composition"
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "determinization_reviewed": {
+      "type": "boolean"
+    },
+    "scripts": {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/scripts"
+    }
+  },
+  "allOf": [
+    {
+      "oneOf": [
+        {
+          "required": [
+            "rule"
+          ]
+        },
+        {
+          "required": [
+            "hook"
+          ]
+        },
+        {
+          "required": [
+            "skill"
+          ]
+        },
+        {
+          "required": [
+            "workflow"
+          ]
+        }
+      ]
+    },
+    {
+      "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.artifact-conditionals.json"
+    }
+  ]
+}

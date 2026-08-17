@@ -1,0 +1,94 @@
+name: Publish schemas
+
+# The manifest schemas carry `$id`s under
+# https://open-coder-ai.github.io/chock/schemas/v0/. JSON Schema does not require an
+# `$id` to be dereferenceable, and validation resolves them from a local store either way --
+# but an identifier that 404s is a worse answer than one that serves the document, and the
+# previous base pointed at a domain the project does not own.
+#
+# Published from the packaged schemas directly. Committing a second copy under docs/ would
+# create exactly the drift this repo checks for everywhere else.
+#
+# Guarded on `private == false`, for the reason codeql.yml gives and this file learned the
+# hard way: Pages is unavailable on a private repo without a paid plan, so every run of this
+# workflow so far has failed at `configure-pages` with "Get Pages site failed". Three red
+# runs on main, none of them a defect. A workflow that cannot be satisfied teaches everyone
+# to ignore red -- the same failure mode as a guard nobody can pass. It starts working by
+# itself the day the repo flips, and `enablement: true` provisions Pages on that first run
+# so publishing the `$id`s is not one more manual launch step to forget.
+#
+# The skip costs no coverage: `test_schema_identity.py` parses every schema on every push, so
+# a malformed one fails CI whether or not this job runs.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/chock/validation/schemas/**"
+      - ".github/workflows/schemas.yml"
+  workflow_dispatch:
+
+# Pages deployment needs id-token; nothing here writes to the repo.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A superseded deploy is not worth finishing, but never cancel one in flight: a half-applied
+# Pages deployment would serve a mixed set of schemas.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # The `$id` inside each document is the contract, so lay the files out at exactly the
+      # path it names. `test_schema_identity.py` pins `$id` to CANONICAL_BASE + filename,
+      # which is what makes this flat copy correct rather than coincidental.
+      - name: Stage schemas at the path their $id names
+        run: |
+          mkdir -p _site/schemas/v0
+          cp src/chock/validation/schemas/*.json _site/schemas/v0/
+
+      # Serving a bare directory listing invites someone to treat the index as the contract.
+      # An index that says what these are, and that they are generated, is cheap.
+      - name: Write an index
+        run: |
+          {
+            echo "<!doctype html><meta charset=utf-8>"
+            echo "<title>Chock schemas v0</title>"
+            echo "<h1>Chock schemas, v0</h1>"
+            echo "<p>Published from"
+            echo "<a href=https://github.com/open-coder-ai/chock>open-coder-ai/chock</a>."
+            echo "These are the identifiers used in each schema's <code>\$id</code>."
+            echo "Validation resolves them offline; this copy exists so the URIs are not dead.</p><ul>"
+            for f in _site/schemas/v0/*.json; do
+              n=$(basename "$f"); echo "<li><a href=schemas/v0/$n>$n</a></li>"
+            done
+            echo "</ul>"
+          } > _site/index.html
+
+      - name: Fail if a staged file is not valid JSON
+        run: |
+          for f in _site/schemas/v0/*.json; do
+            python -c "import json,sys; json.load(open(sys.argv[1]))" "$f"
+          done
+
+      # `enablement: true` turns Pages on via the API if it is not already configured, rather
+      # than failing and waiting for someone to find the setting.
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

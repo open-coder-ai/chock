@@ -1,0 +1,685 @@
+{
+  "title": "MITRE ATLAS",
+  "controls": [
+    {
+      "id": "AML.T0000",
+      "title": "Search Open Technical Databases"
+    },
+    {
+      "id": "AML.T0000.000",
+      "title": "Journals and Conference Proceedings"
+    },
+    {
+      "id": "AML.T0000.001",
+      "title": "Pre-Print Repositories"
+    },
+    {
+      "id": "AML.T0000.002",
+      "title": "Technical Blogs"
+    },
+    {
+      "id": "AML.T0001",
+      "title": "Search Open AI Vulnerability Analysis"
+    },
+    {
+      "id": "AML.T0002",
+      "title": "Acquire Public AI Artifacts"
+    },
+    {
+      "id": "AML.T0002.000",
+      "title": "Datasets"
+    },
+    {
+      "id": "AML.T0002.001",
+      "title": "Models"
+    },
+    {
+      "id": "AML.T0002.002",
+      "title": "AI Agent Configuration"
+    },
+    {
+      "id": "AML.T0003",
+      "title": "Search Victim-Owned Websites"
+    },
+    {
+      "id": "AML.T0004",
+      "title": "Search Application Repositories"
+    },
+    {
+      "id": "AML.T0005",
+      "title": "Create Proxy AI Model"
+    },
+    {
+      "id": "AML.T0005.000",
+      "title": "Train Proxy via Gathered AI Artifacts"
+    },
+    {
+      "id": "AML.T0005.001",
+      "title": "Train Proxy via Replication"
+    },
+    {
+      "id": "AML.T0005.002",
+      "title": "Use Pre-Trained Model"
+    },
+    {
+      "id": "AML.T0006",
+      "title": "Active Scanning"
+    },
+    {
+      "id": "AML.T0007",
+      "title": "Discover AI Artifacts"
+    },
+    {
+      "id": "AML.T0008",
+      "title": "Acquire Infrastructure"
+    },
+    {
+      "id": "AML.T0008.000",
+      "title": "AI Development Workspaces"
+    },
+    {
+      "id": "AML.T0008.001",
+      "title": "Consumer Hardware"
+    },
+    {
+      "id": "AML.T0008.002",
+      "title": "Domains"
+    },
+    {
+      "id": "AML.T0008.003",
+      "title": "Physical Countermeasures"
+    },
+    {
+      "id": "AML.T0008.004",
+      "title": "Serverless"
+    },
+    {
+      "id": "AML.T0008.005",
+      "title": "AI Service Proxies"
+    },
+    {
+      "id": "AML.T0010",
+      "title": "AI Supply Chain Compromise"
+    },
+    {
+      "id": "AML.T0010.000",
+      "title": "Hardware"
+    },
+    {
+      "id": "AML.T0010.001",
+      "title": "AI Software"
+    },
+    {
+      "id": "AML.T0010.002",
+      "title": "Data"
+    },
+    {
+      "id": "AML.T0010.003",
+      "title": "Model"
+    },
+    {
+      "id": "AML.T0010.004",
+      "title": "Container Registry"
+    },
+    {
+      "id": "AML.T0010.005",
+      "title": "AI Agent Tool"
+    },
+    {
+      "id": "AML.T0011",
+      "title": "User Execution"
+    },
+    {
+      "id": "AML.T0011.000",
+      "title": "Unsafe AI Artifacts"
+    },
+    {
+      "id": "AML.T0011.001",
+      "title": "Malicious Package"
+    },
+    {
+      "id": "AML.T0011.002",
+      "title": "Poisoned AI Agent Tool"
+    },
+    {
+      "id": "AML.T0011.003",
+      "title": "Malicious Link"
+    },
+    {
+      "id": "AML.T0012",
+      "title": "Valid Accounts"
+    },
+    {
+      "id": "AML.T0013",
+      "title": "Discover AI Model Ontology"
+    },
+    {
+      "id": "AML.T0014",
+      "title": "Discover AI Model Family"
+    },
+    {
+      "id": "AML.T0015",
+      "title": "Evade AI Model"
+    },
+    {
+      "id": "AML.T0016",
+      "title": "Obtain Capabilities"
+    },
+    {
+      "id": "AML.T0016.000",
+      "title": "Adversarial AI Attack Implementations"
+    },
+    {
+      "id": "AML.T0016.001",
+      "title": "Software Tools"
+    },
+    {
+      "id": "AML.T0016.002",
+      "title": "Generative AI"
+    },
+    {
+      "id": "AML.T0017",
+      "title": "Develop Capabilities"
+    },
+    {
+      "id": "AML.T0017.000",
+      "title": "Adversarial AI Attacks"
+    },
+    {
+      "id": "AML.T0018",
+      "title": "Manipulate AI Model"
+    },
+    {
+      "id": "AML.T0018.000",
+      "title": "Poison AI Model"
+    },
+    {
+      "id": "AML.T0018.001",
+      "title": "Modify AI Model Architecture"
+    },
+    {
+      "id": "AML.T0018.002",
+      "title": "Embed Malware"
+    },
+    {
+      "id": "AML.T0019",
+      "title": "Publish Poisoned Datasets"
+    },
+    {
+      "id": "AML.T0020",
+      "title": "Poison Training Data"
+    },
+    {
+      "id": "AML.T0021",
+      "title": "Establish Accounts"
+    },
+    {
+      "id": "AML.T0024",
+      "title": "Exfiltration via AI Inference API"
+    },
+    {
+      "id": "AML.T0024.000",
+      "title": "Infer Training Data Membership"
+    },
+    {
+      "id": "AML.T0024.001",
+      "title": "Invert AI Model"
+    },
+    {
+      "id": "AML.T0024.002",
+      "title": "Extract AI Model"
+    },
+    {
+      "id": "AML.T0025",
+      "title": "Exfiltration via Cyber Means"
+    },
+    {
+      "id": "AML.T0029",
+      "title": "Denial of AI Service"
+    },
+    {
+      "id": "AML.T0031",
+      "title": "Erode AI Model Integrity"
+    },
+    {
+      "id": "AML.T0034",
+      "title": "Cost Harvesting"
+    },
+    {
+      "id": "AML.T0034.000",
+      "title": "Excessive Queries"
+    },
+    {
+      "id": "AML.T0034.001",
+      "title": "Resource-Intensive Queries"
+    },
+    {
+      "id": "AML.T0034.002",
+      "title": "Agentic Resource Consumption"
+    },
+    {
+      "id": "AML.T0035",
+      "title": "AI Artifact Collection"
+    },
+    {
+      "id": "AML.T0036",
+      "title": "Data from Information Repositories"
+    },
+    {
+      "id": "AML.T0037",
+      "title": "Data from Local System"
+    },
+    {
+      "id": "AML.T0040",
+      "title": "AI Model Inference API Access"
+    },
+    {
+      "id": "AML.T0041",
+      "title": "Physical Environment Access"
+    },
+    {
+      "id": "AML.T0042",
+      "title": "Verify Attack"
+    },
+    {
+      "id": "AML.T0043",
+      "title": "Craft Adversarial Data"
+    },
+    {
+      "id": "AML.T0043.000",
+      "title": "White-Box Optimization"
+    },
+    {
+      "id": "AML.T0043.001",
+      "title": "Black-Box Optimization"
+    },
+    {
+      "id": "AML.T0043.002",
+      "title": "Black-Box Transfer"
+    },
+    {
+      "id": "AML.T0043.003",
+      "title": "Manual Modification"
+    },
+    {
+      "id": "AML.T0043.004",
+      "title": "Insert Backdoor Trigger"
+    },
+    {
+      "id": "AML.T0044",
+      "title": "Full AI Model Access"
+    },
+    {
+      "id": "AML.T0046",
+      "title": "Spamming AI System with Chaff Data"
+    },
+    {
+      "id": "AML.T0047",
+      "title": "AI-Enabled Product or Service"
+    },
+    {
+      "id": "AML.T0048",
+      "title": "External Harms"
+    },
+    {
+      "id": "AML.T0048.000",
+      "title": "Financial Harm"
+    },
+    {
+      "id": "AML.T0048.001",
+      "title": "Reputational Harm"
+    },
+    {
+      "id": "AML.T0048.002",
+      "title": "Societal Harm"
+    },
+    {
+      "id": "AML.T0048.003",
+      "title": "User Harm"
+    },
+    {
+      "id": "AML.T0048.004",
+      "title": "AI Intellectual Property Theft"
+    },
+    {
+      "id": "AML.T0049",
+      "title": "Exploit Public-Facing Application"
+    },
+    {
+      "id": "AML.T0050",
+      "title": "Command and Scripting Interpreter"
+    },
+    {
+      "id": "AML.T0051",
+      "title": "LLM Prompt Injection"
+    },
+    {
+      "id": "AML.T0051.000",
+      "title": "Direct"
+    },
+    {
+      "id": "AML.T0051.001",
+      "title": "Indirect"
+    },
+    {
+      "id": "AML.T0051.002",
+      "title": "Triggered"
+    },
+    {
+      "id": "AML.T0052",
+      "title": "Phishing"
+    },
+    {
+      "id": "AML.T0052.000",
+      "title": "Spearphishing via Social Engineering LLM"
+    },
+    {
+      "id": "AML.T0052.001",
+      "title": "Deepfake-Assisted Phishing"
+    },
+    {
+      "id": "AML.T0053",
+      "title": "AI Agent Tool Invocation"
+    },
+    {
+      "id": "AML.T0054",
+      "title": "LLM Jailbreak"
+    },
+    {
+      "id": "AML.T0055",
+      "title": "Unsecured Credentials"
+    },
+    {
+      "id": "AML.T0056",
+      "title": "Extract LLM System Prompt"
+    },
+    {
+      "id": "AML.T0057",
+      "title": "LLM Data Leakage"
+    },
+    {
+      "id": "AML.T0058",
+      "title": "Publish Poisoned Models"
+    },
+    {
+      "id": "AML.T0059",
+      "title": "Erode Dataset Integrity"
+    },
+    {
+      "id": "AML.T0060",
+      "title": "Publish Hallucinated Entities"
+    },
+    {
+      "id": "AML.T0061",
+      "title": "LLM Prompt Self-Replication"
+    },
+    {
+      "id": "AML.T0062",
+      "title": "Discover LLM Hallucinations"
+    },
+    {
+      "id": "AML.T0063",
+      "title": "Discover AI Model Outputs"
+    },
+    {
+      "id": "AML.T0064",
+      "title": "Gather RAG-Indexed Targets"
+    },
+    {
+      "id": "AML.T0065",
+      "title": "LLM Prompt Crafting"
+    },
+    {
+      "id": "AML.T0066",
+      "title": "Retrieval Content Crafting"
+    },
+    {
+      "id": "AML.T0067",
+      "title": "LLM Trusted Output Components Manipulation"
+    },
+    {
+      "id": "AML.T0067.000",
+      "title": "Citations"
+    },
+    {
+      "id": "AML.T0068",
+      "title": "LLM Prompt Obfuscation"
+    },
+    {
+      "id": "AML.T0069",
+      "title": "Discover LLM System Information"
+    },
+    {
+      "id": "AML.T0069.000",
+      "title": "Special Character Sets"
+    },
+    {
+      "id": "AML.T0069.001",
+      "title": "System Instruction Keywords"
+    },
+    {
+      "id": "AML.T0069.002",
+      "title": "System Prompt"
+    },
+    {
+      "id": "AML.T0070",
+      "title": "RAG Poisoning"
+    },
+    {
+      "id": "AML.T0071",
+      "title": "False RAG Entry Injection"
+    },
+    {
+      "id": "AML.T0072",
+      "title": "Reverse Shell"
+    },
+    {
+      "id": "AML.T0073",
+      "title": "Impersonation"
+    },
+    {
+      "id": "AML.T0074",
+      "title": "Masquerading"
+    },
+    {
+      "id": "AML.T0075",
+      "title": "Cloud Service Discovery"
+    },
+    {
+      "id": "AML.T0076",
+      "title": "Corrupt AI Model"
+    },
+    {
+      "id": "AML.T0077",
+      "title": "LLM Response Rendering"
+    },
+    {
+      "id": "AML.T0078",
+      "title": "Drive-by Compromise"
+    },
+    {
+      "id": "AML.T0079",
+      "title": "Stage Capabilities"
+    },
+    {
+      "id": "AML.T0080",
+      "title": "AI Agent Context Poisoning"
+    },
+    {
+      "id": "AML.T0080.000",
+      "title": "Memory"
+    },
+    {
+      "id": "AML.T0080.001",
+      "title": "Thread"
+    },
+    {
+      "id": "AML.T0081",
+      "title": "Modify AI Agent Configuration"
+    },
+    {
+      "id": "AML.T0082",
+      "title": "RAG Credential Harvesting"
+    },
+    {
+      "id": "AML.T0083",
+      "title": "Credentials from AI Agent Configuration"
+    },
+    {
+      "id": "AML.T0084",
+      "title": "Discover AI Agent Configuration"
+    },
+    {
+      "id": "AML.T0084.000",
+      "title": "Embedded Knowledge"
+    },
+    {
+      "id": "AML.T0084.001",
+      "title": "Tool Definitions"
+    },
+    {
+      "id": "AML.T0084.002",
+      "title": "Activation Triggers"
+    },
+    {
+      "id": "AML.T0084.003",
+      "title": "Call Chains"
+    },
+    {
+      "id": "AML.T0085",
+      "title": "Data from AI Services"
+    },
+    {
+      "id": "AML.T0085.000",
+      "title": "RAG Databases"
+    },
+    {
+      "id": "AML.T0085.001",
+      "title": "AI Agent Tools"
+    },
+    {
+      "id": "AML.T0086",
+      "title": "Exfiltration via AI Agent Tool Invocation"
+    },
+    {
+      "id": "AML.T0087",
+      "title": "Gather Victim Identity Information"
+    },
+    {
+      "id": "AML.T0088",
+      "title": "Generate Deepfakes"
+    },
+    {
+      "id": "AML.T0089",
+      "title": "Process Discovery"
+    },
+    {
+      "id": "AML.T0090",
+      "title": "OS Credential Dumping"
+    },
+    {
+      "id": "AML.T0091",
+      "title": "Use Alternate Authentication Material"
+    },
+    {
+      "id": "AML.T0091.000",
+      "title": "Application Access Token"
+    },
+    {
+      "id": "AML.T0092",
+      "title": "Manipulate User LLM Chat History"
+    },
+    {
+      "id": "AML.T0093",
+      "title": "Prompt Infiltration via Public-Facing Application"
+    },
+    {
+      "id": "AML.T0094",
+      "title": "Delay Execution of LLM Instructions"
+    },
+    {
+      "id": "AML.T0095",
+      "title": "Search Open Websites/Domains"
+    },
+    {
+      "id": "AML.T0095.000",
+      "title": "Code Repositories"
+    },
+    {
+      "id": "AML.T0096",
+      "title": "AI Service API"
+    },
+    {
+      "id": "AML.T0097",
+      "title": "Virtualization/Sandbox Evasion"
+    },
+    {
+      "id": "AML.T0098",
+      "title": "AI Agent Tool Credential Harvesting"
+    },
+    {
+      "id": "AML.T0099",
+      "title": "AI Agent Tool Data Poisoning"
+    },
+    {
+      "id": "AML.T0100",
+      "title": "AI Agent Clickbait"
+    },
+    {
+      "id": "AML.T0101",
+      "title": "Data Destruction via AI Agent Tool Invocation"
+    },
+    {
+      "id": "AML.T0102",
+      "title": "Generate Malicious Commands"
+    },
+    {
+      "id": "AML.T0103",
+      "title": "Deploy AI Agent"
+    },
+    {
+      "id": "AML.T0104",
+      "title": "Publish Poisoned AI Agent Tool"
+    },
+    {
+      "id": "AML.T0105",
+      "title": "Escape to Host"
+    },
+    {
+      "id": "AML.T0106",
+      "title": "Exploitation for Credential Access"
+    },
+    {
+      "id": "AML.T0107",
+      "title": "Exploitation for Defense Evasion"
+    },
+    {
+      "id": "AML.T0108",
+      "title": "AI Agent"
+    },
+    {
+      "id": "AML.T0109",
+      "title": "AI Supply Chain Rug Pull"
+    },
+    {
+      "id": "AML.T0110",
+      "title": "AI Agent Tool Poisoning"
+    },
+    {
+      "id": "AML.T0111",
+      "title": "AI Supply Chain Reputation Inflation"
+    },
+    {
+      "id": "AML.T0112",
+      "title": "Machine Compromise"
+    },
+    {
+      "id": "AML.T0112.000",
+      "title": "Local AI Agent"
+    },
+    {
+      "id": "AML.T0112.001",
+      "title": "AI Artifacts"
+    }
+  ]
+}

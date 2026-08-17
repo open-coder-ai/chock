@@ -1,0 +1,165 @@
+{
+  "lockfile_version": "1",
+  "engine": ">=0.1,<0.2",
+  "packs": [
+    {
+      "id": "agent-discipline",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "a6ef3b64c691125216489893b75e89a1b6526d6f18be3aa58fadd4b10a133c1d",
+      "source": "local",
+      "artifacts_sha256": "36d131cd7df7edbcd57a0e117de79fa144a2bd1fb10b95edcc3c0404ba9533d4"
+    },
+    {
+      "id": "block-destructive-commands",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "da9d040f1ba4465b7c48723006d1e083274e2172e63957a0a3290e7b9729e632",
+      "source": "local",
+      "artifacts_sha256": "acb1f52fa14f585d2aa4426005bfe3ea1fd701034ccc4d03c2b422261e4e461f"
+    },
+    {
+      "id": "block-invisible-unicode",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "7f91cd6622361e3b6405d40c344d81ca30c25b2822ce06939dc09382567212e0",
+      "source": "local",
+      "artifacts_sha256": "70cf827a82e1bac2b5498638c7ba1023885ced312bf0e723f7273f333c684efe"
+    },
+    {
+      "id": "block-no-verify",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "a7a3c30424f24effc8c380db2dd812be7fd6ab9535f02d920937bfed3ee8093d",
+      "source": "local",
+      "artifacts_sha256": "491579374bd5de263340811cb7769d43c27df54d50f63b4cdb8c5f857b2d6893"
+    },
+    {
+      "id": "block-wildcard-agent-permissions",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "e6db5048e50f512a158509809191592319bca63c4d5232148a131957de6e625e",
+      "source": "local",
+      "artifacts_sha256": "ddd945c816d02f55c9666fbbb1aece36491c92168f58ff4f4c2aed01a5f9ad72"
+    },
+    {
+      "id": "code-safety",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "6d4b71e8039fcccf63881d1694117386b8cf4a252707b184b03b4f5fbab8c718",
+      "source": "local",
+      "artifacts_sha256": "ee9959b8e6478f2c6ea47a8143211dce7fb6894674fbc37fea92ee04db5f91e8"
+    },
+    {
+      "id": "context-hygiene",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "c3831e7254d68442ebf93fe8e8164d1e55a3369a56aeb02100eba8380d512b3a",
+      "source": "local",
+      "artifacts_sha256": "f85d4575557544366e98ca4d2a468511ae370064048a8fecb1a89d44b7ba4117"
+    },
+    {
+      "id": "git-safety",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "29b80ab4e0a4490b5154de10dc914ecd7da4b324ef2a7e196b51439561caaac9",
+      "source": "local",
+      "artifacts_sha256": "e1660f2d351f13203fa59f6d1a40d6eb8f2b6af0f93af5cb090512bedfa975e3"
+    },
+    {
+      "id": "injection-defense",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "87c7d7187d2e432d61f48b5c4243dcdbeba3701543627c6717ac10481a1d79d5",
+      "source": "local",
+      "artifacts_sha256": "c76a9bd12792ccecc411093054f16aac210953f3324b054586f3c8af3f7a0034"
+    },
+    {
+      "id": "memory-discipline",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "24bf7d6e5c5edebd8061e635a57cff5e4d7b34b3ee3d391dc142aa4c36744870",
+      "source": "local",
+      "artifacts_sha256": "2b08e1876e9536a5ffdda1c671fc9908fc967f5c790a6b03f96d4e580483b533"
+    },
+    {
+      "id": "minimal-content",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "0be9365f661d0a63e3b565a434ca9bd865818baecef425fbfe320cc77a6a2ce7",
+      "source": "local",
+      "artifacts_sha256": "318e534a8fbca46a300a7dc0d6ee0c3f2c5d9bbd5952999a188bf19ee092c29f"
+    },
+    {
+      "id": "pre-generated-scripts",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "3605fe3806364cc16407d81c6522783ab855c950c630dd464b196067b7fce136",
+      "source": "local",
+      "artifacts_sha256": "36bb984d05a83a67c124d6c85c97de3fa35b362d3e3514dccb3a59f6f3436224"
+    },
+    {
+      "id": "protect-agent-config",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "97575a77aec7c1491f7e1ba4973281579953946432d84cc79363d83dccd5f3a7",
+      "source": "local",
+      "artifacts_sha256": "c48397d2932000dcfb05798bab2ea0bc2ecd0df0f880e88a516e2fb3f13c2348"
+    },
+    {
+      "id": "protect-commit-privacy",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "3b709592f79125721b93798cc1b9f1d74a052dbaae2b982ae493b167d512ad1b",
+      "source": "local",
+      "artifacts_sha256": "9259a38b7d9cf2be000cf106c45ac87495cd54effb0931488beee144ace34ca1"
+    },
+    {
+      "id": "protect-main-branch",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "a0127e9af62bc9809960a286fab93dcaa634aba4a147b13cc5e59c4584b794b9",
+      "source": "local",
+      "artifacts_sha256": "1692297b1c1f19c59e1057d4a1b419927270d513735b88e832ed639bd782995d"
+    },
+    {
+      "id": "scan-secrets",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "dd8756e91c9f429c31ee5c39b1901dcb2f74b61c9a209ea268561f24b2742123",
+      "source": "local",
+      "artifacts_sha256": "1a5c75548e3cbc28bc3e1bfc4f27658b155cef00d0088947639adc17aedd82b0"
+    },
+    {
+      "id": "token-efficiency",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "30b3f6027a54dc347ed0600469d5244432ffc4ae24722ae696d2dbffd3953428",
+      "source": "local",
+      "artifacts_sha256": "0511b29645130a4e9e6819b6e0c7a75953d616b7624e90d3d5639a0d429d5e9d"
+    },
+    {
+      "id": "verify-dependency-exists",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "e82b6dccf87a16d7790d3cba882bf05679a5ff66c644e05ca5b9e88436b9b24e",
+      "source": "local"
+    },
+    {
+      "id": "verify-framework-conformance",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "d8d03b846cef3bcfc66ed036e3d69b3abd6762c1ff2f60b8ecc7c3d7da3e9609",
+      "source": "local",
+      "artifacts_sha256": "ea12f0f8a86bcab67484585b30d72226a6be554c4dc51a0e2f66d6c29d38d897"
+    },
+    {
+      "id": "yagni",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "2546154d5eb24bbfa8510b69c809b19bb5546ae112bae29be2de26e492a42437",
+      "source": "local",
+      "artifacts_sha256": "80297724a9306b6a8a3278780a02e7bbdcb8dafd7b197e66fed8ba301ef090ab"
+    }
+  ]
+}

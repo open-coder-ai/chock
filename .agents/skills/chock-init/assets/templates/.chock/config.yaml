@@ -1,0 +1,19 @@
+chock:
+  version: "0.0.1"
+  supported_agents: {agents}
+  agent_agnostic: {agent_agnostic}
+  onboarded_at: {onboarded_at}
+  defaults:
+    # Only keys a policy actually resolves belong here. This block also advertised
+    # verification_command, immutable_paths, context_budget and file_read_budget; nothing
+    # in the codebase read any of them, so editing one changed nothing and warned about
+    # nothing -- which teaches adopters the whole file is decorative.
+    # A key earns its place by being named in some manifest's `config_key`.
+    protected_branches: [main, master]
+
+policies:
+  # Nothing is installed by default. If you install verify-dependency-exists from the
+  # catalog, keep it disabled until .chock/dependency-allowlist.txt is populated -- it
+  # blocks every dependency not on that list. Then `chock enable verify-dependency-exists`.
+  disabled: [verify-dependency-exists]
+  overrides: {{}}

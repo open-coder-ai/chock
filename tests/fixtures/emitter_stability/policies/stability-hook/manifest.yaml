@@ -1,0 +1,49 @@
+# Frozen fixture: exercises the hook emitters (git-hook, ci-gate, pre-tool-use,
+# ambient-rule, managed-setting). Do not "improve" this policy -- its only job is to
+# be compiled identically by every patch release. See test_emitter_stability.py.
+id: stability-hook
+name: "Emitter Stability Hook"
+version: "0.0.1"
+description: >
+  Fixture policy for the emitter-stability guarantee. Blocks pushes to a frozen ref so
+  every gate-bearing surface has output worth comparing byte-for-byte across releases.
+artifact: hook
+enforcement: block
+effects:
+- read_only
+approval:
+  required: false
+
+hook:
+  gate:
+    kind: forbidden_ref
+    "on": [commit, push]
+    action: block
+    message: >
+      Direct commits/pushes to a protected branch ({refs}) are blocked.
+      Create a feature branch and open a pull request.
+    params:
+      refs: [main]
+      config_key: chock.defaults.protected_branches
+
+provenance:
+  author: "chock-core"
+  created_at: "2026-08-15T00:00:00Z"
+  updated_at: "2026-08-15T00:00:00Z"
+  source_repo: "https://github.com/open-coder-ai/chock"
+  license: "Apache-2.0"
+  trust_tier: "community"
+
+lifecycle:
+  status: draft
+  reviewed_by:
+    - "chock-core"
+
+security:
+  content_instructions: never-obey
+
+changelog:
+- version: 0.0.1
+  date: '2026-08-15'
+  changes:
+  - "Frozen emitter-stability fixture."

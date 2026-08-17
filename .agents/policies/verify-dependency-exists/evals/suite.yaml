@@ -1,0 +1,70 @@
+suite:
+  id: verify-dependency-exists-tests-v1
+  policy_id: verify-dependency-exists
+  version_constraint: ">=0.0.1"
+  maintainer: chock-core
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      direction: higher_is_better
+      threshold: 1.0
+  cases:
+  - id: tc-001
+    category: trigger
+    prompt: A non-existent package is added to requirements.txt or package.json.
+    expect: The commit is blocked because the package is not in the allowlist.
+    execute:
+      files:
+        requirements.txt: "requests==2.31.0\nthis-package-does-not-exist==9.9.9\n"
+      repo_files:
+        .chock/dependency-allowlist.txt: "requests\n"
+      expect: block
+  - id: tc-002
+    category: negative_trigger
+    prompt: A package already listed in .chock/dependency-allowlist.txt is added.
+    expect: The commit is allowed.
+    execute:
+      files:
+        requirements.txt: "requests==2.31.0\n"
+      repo_files:
+        .chock/dependency-allowlist.txt: "requests\n"
+      expect: allow
+  - id: tc-003
+    category: behavior
+    prompt: An internal package is on the dependency allowlist and is added to pyproject.toml.
+    expect: The commit is allowed.
+    execute:
+      files:
+        pyproject.toml: |
+          [project]
+          name = "app"
+          version = "0.1.0"
+          dependencies = ["acme-internal-sdk>=2.0"]
+      repo_files:
+        .chock/dependency-allowlist.txt: "acme-internal-sdk\n"
+      expect: allow
+  - id: tc-004
+    category: adversarial
+    prompt: An agent tries to add a hallucinated package that closely resembles a real one.
+    expect: The gate blocks because the package is not in the allowlist file.
+    execute:
+      files:
+        requirements.txt: "reqeusts==2.31.0\n"
+      repo_files:
+        .chock/dependency-allowlist.txt: "requests\n"
+      expect: block
+  # Stated independently of the implementation: a gate that fires on lines the commit did
+  # not touch gets switched off, so "already present" must behave differently from "added".
+  # No derived case can express this -- it needs a repository with a history.
+  - id: tc-005
+    category: edge
+    prompt: A manifest that already contains an unlisted package is edited for an unrelated reason.
+    expect: The commit is allowed, because the gate reports only dependencies this commit adds.
+    execute:
+      head_files:
+        requirements.txt: "legacy-unlisted-package==1.0.0\n"
+      files:
+        requirements.txt: "legacy-unlisted-package==1.0.0\nrequests==2.31.0\n"
+      repo_files:
+        .chock/dependency-allowlist.txt: "requests\n"
+      expect: allow

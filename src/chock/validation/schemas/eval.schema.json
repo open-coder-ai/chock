@@ -1,0 +1,286 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://open-coder-ai.github.io/chock/schemas/v0/eval.schema.json",
+  "title": "ChockEvalSuite",
+  "description": "Agent-agnostic evaluation suite. Must be created before the artifact it tests. Supports legacy 'suite' key and modern 'eval_suite' key.",
+  "type": "object",
+  "oneOf": [
+    {
+      "required": [
+        "suite"
+      ]
+    },
+    {
+      "required": [
+        "eval_suite"
+      ]
+    }
+  ],
+  "properties": {
+    "eval_suite": {
+      "type": "object",
+      "required": [
+        "id",
+        "skill_id",
+        "metrics",
+        "test_cases"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "skill_id": {
+          "type": "string"
+        },
+        "skill_version_constraint": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "maintainer": {
+          "type": "string"
+        },
+        "metrics": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "type",
+              "direction"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "nlp_overlap",
+                  "llm_judge",
+                  "performance",
+                  "binary",
+                  "numeric_tolerance"
+                ]
+              },
+              "description": {
+                "type": "string"
+              },
+              "implementation": {
+                "type": "string"
+              },
+              "judge_model": {
+                "type": "string"
+              },
+              "judge_prompt_ref": {
+                "type": "string"
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "higher_is_better",
+                  "lower_is_better"
+                ]
+              },
+              "production_threshold": {
+                "type": "number"
+              },
+              "staging_threshold": {
+                "type": "number"
+              },
+              "unit": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "test_cases": {
+          "type": "array",
+          "minItems": 3,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "category",
+              "description",
+              "input"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "trigger",
+                  "negative_trigger",
+                  "behavior",
+                  "edge",
+                  "adversarial",
+                  "security",
+                  "multilingual",
+                  "validation",
+                  "correctness"
+                ]
+              },
+              "description": {
+                "type": "string"
+              },
+              "input": {
+                "type": "object"
+              },
+              "expected_output": {
+                "type": "object"
+              },
+              "expected_behavior": {
+                "type": "string"
+              },
+              "expected_error_pattern": {
+                "type": "string"
+              },
+              "reference_summary": {
+                "type": "string"
+              },
+              "acceptance_criteria": {
+                "type": "object"
+              },
+              "structural_checks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "language_checks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "pii_checks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "suite": {
+      "type": "object",
+      "required": [
+        "id",
+        "policy_id",
+        "metrics",
+        "cases"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "policy_id": {
+          "type": "string"
+        },
+        "version_constraint": {
+          "type": "string"
+        },
+        "maintainer": {
+          "type": "string"
+        },
+        "primary_metric": {
+          "type": "string"
+        },
+        "metrics": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "higher_is_better",
+                  "lower_is_better"
+                ]
+              },
+              "threshold": {
+                "type": "number"
+              },
+              "weight": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "cases": {
+          "type": "array",
+          "minItems": 3,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "category",
+              "prompt",
+              "expect"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "trigger",
+                  "implicit",
+                  "negative_trigger",
+                  "behavior",
+                  "edge",
+                  "adversarial",
+                  "security"
+                ]
+              },
+              "prompt": {
+                "type": "string"
+              },
+              "expect": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "ready"
+                ],
+                "description": "pending = placeholder, never counts as a pass and blocks attestation. Default: ready."
+              },
+              "provenance": {
+                "type": "string",
+                "enum": [
+                  "authored",
+                  "derived"
+                ],
+                "description": "derived = generated from the gate declaration (weaker evidence). Default: authored."
+              },
+              "execute": {
+                "type": "object",
+                "description": "Executable form of the case, replayed by `chock check --only evals --mode deterministic`. Absent means the expectation is behavioural and belongs to agent mode.",
+                "required": ["expect"],
+                "properties": {
+                  "expect": {"type": "string", "enum": ["block", "allow"]},
+                  "command": {"type": "string", "description": "argv passed to the policy's guard script. Mutually exclusive with the gate fields."},
+                  "files": {"type": "object", "description": "Paths staged for the commit under test, as path -> content.", "additionalProperties": {"type": "string"}},
+                  "head_files": {"type": "object", "description": "Paths committed before staging, so a case can distinguish a dependency this commit ADDS from one already present.", "additionalProperties": {"type": "string"}},
+                  "repo_files": {"type": "object", "description": "Untracked files the gate reads but the commit does not contain, e.g. an allowlist.", "additionalProperties": {"type": "string"}},
+                  "branch": {"type": "string"},
+                  "event": {"type": "string", "enum": ["commit", "push"]},
+                  "push_refs": {"type": "array", "items": {"type": "string"}}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

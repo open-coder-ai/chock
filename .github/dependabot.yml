@@ -1,0 +1,34 @@
+version: 2
+
+# A governance project with no dependency automation is a fair thing for a reviewer to point
+# at, and the runtime dependency surface here is deliberately tiny -- pyyaml, jsonschema,
+# referencing -- so the noise is low and a bump is genuinely reviewable.
+#
+# Weekly, not daily: this is a solo-maintained repo, and a PR stream nobody reads is worse
+# than no automation, because it trains everyone to ignore the one that matters.
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies]
+    groups:
+      # One PR for the routine patch churn, individual PRs for anything that could change
+      # behaviour. Validation depends on jsonschema's resolution semantics, so a minor bump
+      # there deserves its own review rather than being buried in a batch.
+      patch-updates:
+        patterns: ["*"]
+        update-types: [patch]
+
+  # The workflows carry `id-token: write` for PyPI Trusted Publishing and `pages: write` for
+  # the schema publish. A stale action version in a job holding those permissions is the
+  # supply-chain risk that actually matters here, more than any library bump.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies, ci]

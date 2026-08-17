@@ -1,0 +1,66 @@
+id: block-invisible-unicode
+name: "Block Invisible Unicode"
+version: "0.0.1"
+description: >
+  Pre-commit gate for the mechanizable slice of prompt-injection defense: invisible
+  and direction-override Unicode in staged changes. Bidi controls make code read
+  differently than it parses (Trojan Source, CVE-2021-42574); Unicode tag-block
+  characters smuggle instructions that are invisible to a human reviewer but fully
+  legible to the agent reading the file. Zero-width joiners and bidi marks
+  (ZWJ/ZWNJ/LRM/RLM) are deliberately NOT matched -- they are legitimate in emoji
+  sequences and in Persian, Arabic and Indic text -- so ordinary internationalised
+  content passes; only the override/embed/isolate controls and the tag block, which
+  have no honest use in a source tree, are blocked. Escape:
+  'pragma: allowlist invisible-unicode' on the same line.
+artifact: hook
+enforcement: block
+mandatory: false
+effects:
+- read_only
+approval:
+  required: false
+
+hook:
+  gate:
+    kind: content_regex
+    "on": [commit]
+    action: block
+    message: >
+      Invisible or direction-override Unicode detected in staged changes. These
+      characters change how code reads to a human or hide instructions an agent will
+      still obey. Remove them, or add 'pragma: allowlist invisible-unicode' on the
+      same line for a documented exception (e.g. a test fixture).
+    params:
+      scan: added_lines
+      allowlist_pragma: 'pragma:\s*allowlist\s+invisible-unicode'
+      # \u escapes, never literal characters: the pattern must not carry the bytes it
+      # blocks, or committing this policy folder would trip its own gate (#32 class).
+      content_pattern: '[\u202A-\u202E\u2066-\u2069\U000E0001-\U000E007F]'
+
+compliance:
+  owasp_asi:
+  - control: ASI01
+    coverage: partial
+    note: "blocks the hidden-character slice of goal-hijack payloads a diff can show; semantic injection defense remains advisory (injection-defense, owasp-asi01-agent-goal-hijack)"
+
+provenance:
+  author: "chock-core"
+  created_at: "2026-08-16T00:00:00Z"
+  updated_at: "2026-08-16T00:00:00Z"
+  source_repo: "https://github.com/open-coder-ai/chock-catalog"
+  license: "Apache-2.0"
+  trust_tier: "community"
+
+lifecycle:
+  status: draft
+  reviewed_by:
+    - "chock-core"
+
+security:
+  content_instructions: never-obey
+
+changelog:
+- version: 0.0.1
+  date: '2026-08-16'
+  changes:
+  - "Initial release. Anchors: OWASP LLM01/ASI01, MITRE ATLAS AML.T0051 (indirect), CVE-2021-42574 (Trojan Source)."

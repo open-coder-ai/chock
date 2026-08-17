@@ -1,0 +1,70 @@
+suite:
+  id: block-wildcard-agent-permissions-tests-v1
+  policy_id: block-wildcard-agent-permissions
+  version_constraint: ">=0.0.1"
+  maintainer: chock-core
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      direction: higher_is_better
+      threshold: 1.0
+  # Hot payload lines carry the runtime pragma as a YAML comment so committing this
+  # suite to a repo that runs the gate stays possible (#32 pattern); inside the
+  # throwaway eval repo the staged file has no pragma and blocks as declared.
+  cases:
+  - id: tc-001
+    category: trigger
+    prompt: A staged Claude settings file allows every tool.
+    expect: The hook blocks the commit.
+    execute:
+      files:
+        .claude/settings.json: "{\"permissions\": {\"allow\": [\"*\"]}}\n"  # pragma: allowlist broad-agency
+      expect: block
+  - id: tc-002
+    category: trigger
+    prompt: A staged settings file grants unrestricted shell via a bare wildcard.
+    expect: The hook blocks the commit.
+    execute:
+      files:
+        .claude/settings.json: "{\"permissions\": {\"allow\": [\"Bash(*)\"]}}\n"  # pragma: allowlist broad-agency
+      expect: block
+  - id: tc-003
+    category: trigger
+    prompt: A staged MCP client config always-allows every tool of a server.
+    expect: The hook blocks the commit.
+    execute:
+      files:
+        mcp.json: "{\"mcpServers\": {\"s\": {\"alwaysAllow\": [\"*\"]}}}\n"  # pragma: allowlist broad-agency
+      expect: block
+  - id: tc-004
+    category: negative_trigger
+    prompt: A staged settings file grants a scoped shell command.
+    expect: The hook allows the commit.
+    execute:
+      files:
+        .claude/settings.json: "{\"permissions\": {\"allow\": [\"Bash(git status:*)\"]}}\n"
+      expect: allow
+  - id: tc-005
+    category: negative_trigger
+    prompt: A staged settings file names specific tools.
+    expect: The hook allows the commit.
+    execute:
+      files:
+        .claude/settings.json: "{\"permissions\": {\"allow\": [\"Read\", \"Grep\"]}}\n"
+      expect: allow
+  - id: tc-006
+    category: negative_trigger
+    prompt: A staged file mentions a glob star outside a permission grant.
+    expect: The hook allows the commit; a wildcard alone is not a grant.
+    execute:
+      files:
+        build.md: "Run pytest tests/* before pushing.\n"
+      expect: allow
+  - id: tc-007
+    category: behavior
+    prompt: A reviewed exception carries the pragma on the same line as the grant.
+    expect: The hook allows the commit; the escape is visible in the diff.
+    execute:
+      files:
+        .claude/settings.json: "{\"permissions\": {\"allow\": [\"Bash(*)\"]}}  // pragma: allowlist broad-agency\n"  # pragma: allowlist broad-agency
+      expect: allow

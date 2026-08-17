@@ -1,0 +1,13 @@
+{
+  "kind": "content_regex",
+  "on": [
+    "commit"
+  ],
+  "action": "block",
+  "message": "Invisible or direction-override Unicode detected in staged changes. These characters change how code reads to a human or hide instructions an agent will still obey. Remove them, or add 'pragma: allowlist invisible-unicode' on the same line for a documented exception (e.g. a test fixture).",
+  "params": {
+    "scan": "added_lines",
+    "allowlist_pragma": "pragma:\\s*allowlist\\s+invisible-unicode",
+    "content_pattern": "[\\u202A-\\u202E\\u2066-\\u2069\\U000E0001-\\U000E007F]"
+  }
+}

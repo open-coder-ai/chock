@@ -1,0 +1,48 @@
+id: {id}
+name: "{name}"
+version: "0.0.1"
+description: >
+  TODO: one-line description of what this policy guards and why.
+artifact: hook
+enforcement: block
+effects:
+- read_only
+approval:
+  required: false
+
+hook:
+  gate:
+    kind: content_regex
+    "on": [commit]
+    action: block
+    message: >
+      Blocked: staged changes matched this policy's content pattern.
+      Update the content_pattern or remove the triggering content.
+    params:
+      scan: added_lines
+      content_pattern: 'TODO'
+
+provenance:
+  author: "unknown"
+  author_email: "author@example.com"
+  created_at: "{now}"
+  updated_at: "{now}"
+  source_repo: "https://example.com"
+  license: "Apache-2.0"
+  # sandbox is the authoring default. If you change `artifact` to `rule`, the rule text is
+  # wired into agent context, and SEC-5 requires trust_tier >= community (after review) or
+  # an explicit `ambient_override: true` with a documented rationale.
+  trust_tier: "sandbox"
+
+lifecycle:
+  status: draft
+  reviewed_by: []
+
+security:
+  content_instructions: never-obey
+
+changelog:
+- version: 0.0.1
+  date: '{date}'
+  changes:
+  - "Initial draft."

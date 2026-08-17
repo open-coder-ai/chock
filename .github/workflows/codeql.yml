@@ -1,0 +1,48 @@
+name: CodeQL
+
+# Static analysis of the framework's own Python. A project that ships guardrails should be
+# able to say what it runs against itself, and "nothing" is a poor answer.
+#
+# CodeQL needs the repository to be public, or GitHub Advanced Security on a private one. The
+# job below is guarded on `private == false` rather than left to fail, because a workflow that
+# is red on every push teaches everyone to ignore red workflows -- which is the same failure
+# mode as a guard that cannot be satisfied. It starts working by itself the day the repo flips.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, off-hours on a Monday. The value of a scheduled run is catching advisories
+    # published after the last commit, which is a weekly-scale event, not a per-push one.
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze Python
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: python
+          # security-and-quality over the default: the default suite is tuned to keep noise
+          # low on large codebases. This one is small, solo-reviewed, and its whole claim is
+          # carefulness, so the broader suite is affordable and appropriate.
+          queries: security-and-quality
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:python"

@@ -1,0 +1,15 @@
+{
+  "deny": [
+    {
+      "type": "file",
+      "pattern": "\\.(env|pem|key|p12|pfx)$",
+      "message": "Credential files are denied in the workspace."
+    },
+    {
+      "type": "text",
+      "pattern": "(?i)(AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{36}|eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]*|-----BEGIN .* PRIVATE KEY-----)",
+      "message": "Credential-like values are denied in generated or edited files."
+    }
+  ],
+  "ask": []
+}

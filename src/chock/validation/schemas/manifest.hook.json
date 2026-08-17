@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.hook.json",
+  "title": "ChockHookPayload",
+  "description": "V3 hook payload: compiled gate DSL under 'hook.gate'.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "gate"
+  ],
+  "properties": {
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "on",
+        "action",
+        "message",
+        "params"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "content_regex",
+            "forbidden_ref",
+            "dependency_allowlist"
+          ]
+        },
+        "on": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "commit",
+              "push",
+              "tool_use"
+            ]
+          }
+        },
+        "action": {
+          "type": "string",
+          "const": "block"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "params": {
+          "type": "object",
+          "description": "Per-kind params are validated by checks_gate."
+        }
+      }
+    }
+  }
+}

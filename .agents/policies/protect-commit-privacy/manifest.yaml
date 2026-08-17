@@ -1,0 +1,44 @@
+id: protect-commit-privacy
+name: "Protect Commit Privacy"
+version: "0.0.1"
+description: >
+  Keep the development conversation out of git history. Agent-authored commits narrate by
+  default -- who asked for what, which discussion decided it, what the plan was -- and on a
+  public repo that narration is published forever. The guard refuses git commit commands
+  whose message (inline -m/--message or the file behind -F/--file) contains process-leak
+  markers; the rule tells the agent to describe the change, not the conversation, and to
+  propose sensitive messages to the human before committing. Best-effort: markers are a
+  narrow deny-list, and a message the human explicitly approves can say anything -- edit
+  the marker list in the guard, the content is yours.
+artifact: rule
+enforcement: advise
+rule:
+  text: |
+    commit_message|pr_description: describe(change); never(narrate: conversation|plan|who_asked|user_quotes|session_refs|internal_doc_paths)
+    if(sensitive_context): propose_message_to_human; await(approval) before(commit)  # history is published forever
+effects:
+- read_only
+approval:
+  required: false
+
+provenance:
+  author: "chock-core"
+  created_at: "2026-08-16T00:00:00Z"
+  updated_at: "2026-08-16T00:00:00Z"
+  source_repo: "https://github.com/open-coder-ai/chock"
+  license: "Apache-2.0"
+  trust_tier: "community"
+
+lifecycle:
+  status: draft
+  reviewed_by:
+    - "chock-core"
+
+security:
+  content_instructions: never-obey
+
+changelog:
+- version: 0.0.1
+  date: '2026-08-16'
+  changes:
+  - "Initial release, authored from a live incident: this catalog's own maintainer found agent-written commit messages narrating private decisions that were headed for a public repo."

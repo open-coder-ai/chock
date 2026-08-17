@@ -1,0 +1,14 @@
+{
+  "kind": "forbidden_ref",
+  "on": [
+    "commit",
+    "push"
+  ],
+  "action": "block",
+  "message": "Direct commits/pushes to a protected branch (main) are blocked. Create a feature branch and open a pull request.",
+  "params": {
+    "refs": [
+      "main"
+    ]
+  }
+}

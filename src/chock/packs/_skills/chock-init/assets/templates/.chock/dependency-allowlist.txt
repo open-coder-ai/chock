@@ -1,0 +1,16 @@
+# Allowlist for the `verify-dependency-exists` policy.
+#
+# One package name per line. Blank lines and lines starting with '#' are ignored.
+# Matching is case-insensitive and applies to the package NAME only, not the version.
+#
+# This file is REQUIRED before enabling the policy: an absent or empty allowlist
+# means every dependency added to requirements.txt is treated as unknown and blocked.
+#
+# Populate it with your existing dependencies first:
+#   grep -oE '^[A-Za-z0-9._-]+' requirements.txt >> .chock/dependency-allowlist.txt
+#
+# Then enable the policy:
+#   chock enable verify-dependency-exists
+#
+# Before adding a package here, confirm it actually exists on the official index --
+# that verification is the entire point of the control.

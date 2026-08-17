@@ -1,0 +1,37 @@
+{
+  "source": "https://agentskills.io/specification.md",
+  "description": "Agent Skills open standard",
+  "skill_name": {
+    "max_length": 64,
+    "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+    "must_match_parent_dir": true,
+    "no_leading_hyphen": true,
+    "no_trailing_hyphen": true,
+    "no_consecutive_hyphens": true
+  },
+  "skill_description": {
+    "max_length": 1024,
+    "min_length": 1
+  },
+  "compatibility": {
+    "max_length": 500
+  },
+  "skill_md_body": {
+    "max_lines": 500,
+    "max_tokens": 5000
+  },
+  "references": {
+    "one_level_deep_from_skill_md": true
+  },
+  "directories": {
+    "required": [
+      "SKILL.md"
+    ],
+    "optional": [
+      "scripts/",
+      "references/",
+      "assets/"
+    ]
+  },
+  "fetched_at": "2026-07-12T22:02:48.892798+00:00"
+}

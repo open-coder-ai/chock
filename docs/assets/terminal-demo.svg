@@ -1,0 +1,59 @@
+<svg viewBox="0 0 800 570" width="800" xmlns="http://www.w3.org/2000/svg" role="img"
+     aria-label="Terminal demo: chock init, chock add protect-main-branch, chock sync, then a blocked commit to main and a successful feature-branch commit">
+  <!-- Animated replay of a real session (same capture as the catalog README's
+       verbatim console block; paths elided as …). Regenerate by editing the
+       <text> lines and keeping the keyframe stagger. Loops every 22s. -->
+  <style>
+    .t { font: 15px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #cdd6f4; }
+    .dim { fill: #7f849c; }
+    .grn { fill: #a6e3a1; }
+    .red { fill: #f38ba8; }
+    .gld { fill: #f9e2af; }
+    .l { opacity: 0; animation: 22s linear infinite; }
+    @keyframes k1  { 0%,3%   {opacity:0} 4%,93%  {opacity:1} 97%,100% {opacity:0} }
+    @keyframes k2  { 0%,8%   {opacity:0} 9%,93%  {opacity:1} 97%,100% {opacity:0} }
+    @keyframes k3  { 0%,11%  {opacity:0} 12%,93% {opacity:1} 97%,100% {opacity:0} }
+    @keyframes k4  { 0%,14%  {opacity:0} 15%,93% {opacity:1} 97%,100% {opacity:0} }
+    @keyframes k5  { 0%,20%  {opacity:0} 21%,93% {opacity:1} 97%,100% {opacity:0} }
+    @keyframes k6  { 0%,24%  {opacity:0} 25%,93% {opacity:1} 97%,100% {opacity:0} }
+    @keyframes k7  { 0%,27%  {opacity:0} 28%,93% {opacity:1} 97%,100% {opacity:0} }
+    @keyframes k8  { 0%,33%  {opacity:0} 34%,93% {opacity:1} 97%,100% {opacity:0} }
+    @keyframes k9  { 0%,37%  {opacity:0} 38%,93% {opacity:1} 97%,100% {opacity:0} }
+    @keyframes k10 { 0%,45%  {opacity:0} 46%,93% {opacity:1} 97%,100% {opacity:0} }
+    @keyframes k11 { 0%,51%  {opacity:0} 52%,93% {opacity:1} 97%,100% {opacity:0} }
+    @keyframes k12 { 0%,53%  {opacity:0} 54%,93% {opacity:1} 97%,100% {opacity:0} }
+    @keyframes k13 { 0%,55%  {opacity:0} 56%,93% {opacity:1} 97%,100% {opacity:0} }
+    @keyframes k14 { 0%,65%  {opacity:0} 66%,93% {opacity:1} 97%,100% {opacity:0} }
+    @keyframes k15 { 0%,71%  {opacity:0} 72%,93% {opacity:1} 97%,100% {opacity:0} }
+    @keyframes k16 { 0%,77%  {opacity:0} 78%,93% {opacity:1} 97%,100% {opacity:0} }
+    @media (prefers-reduced-motion: reduce) { .l { animation: none; opacity: 1; } }
+  </style>
+
+  <!-- terminal chrome -->
+  <rect x="4" y="4" width="792" height="562" rx="14" fill="#1e1e2e" stroke="#313244" stroke-width="2"/>
+  <rect x="4" y="4" width="792" height="40" rx="14" fill="#181825"/>
+  <rect x="4" y="30" width="792" height="14" fill="#181825"/>
+  <circle cx="30" cy="24" r="6" fill="#f38ba8"/>
+  <circle cx="52" cy="24" r="6" fill="#f9e2af"/>
+  <circle cx="74" cy="24" r="6" fill="#a6e3a1"/>
+  <text x="400" y="29" text-anchor="middle" class="t dim" style="font-size:13px">your-repo — chock</text>
+
+  <g transform="translate(32, 78)">
+    <text class="t l" style="animation-name:k1"  y="0"><tspan class="gld">$ </tspan>pip install chock</text>
+    <text class="t l" style="animation-name:k2"  y="30"><tspan class="gld">$ </tspan>chock init .</text>
+    <text class="t l dim" style="animation-name:k3"  y="58">Installed pre-commit dispatcher to …/.git/hooks/pre-commit</text>
+    <text class="t l dim" style="animation-name:k4"  y="86">Policies: none. This repo enforces nothing yet.</text>
+    <text class="t l" style="animation-name:k5"  y="124"><tspan class="gld">$ </tspan>chock add protect-main-branch</text>
+    <text class="t l dim" style="animation-name:k6"  y="152">Added protect-main-branch to .agents/policies/protect-main-branch</text>
+    <text class="t l dim" style="animation-name:k7"  y="180">Compiled. Run `chock sync .` to activate commit-time enforcement.</text>
+    <text class="t l" style="animation-name:k8"  y="218"><tspan class="gld">$ </tspan>chock sync .</text>
+    <text class="t l dim" style="animation-name:k9"  y="246">Registered 1 pre-commit policy implementation(s)</text>
+    <text class="t l" style="animation-name:k10" y="284"><tspan class="gld">$ </tspan>git commit -m "quick fix straight to main"</text>
+    <text class="t l red" style="animation-name:k11" y="312">Direct commits/pushes to a protected branch (main|master) are</text>
+    <text class="t l red" style="animation-name:k12" y="340">blocked. Create a feature branch and open a pull request.</text>
+    <text class="t l red" style="animation-name:k13" y="368">  - main</text>
+    <text class="t l" style="animation-name:k14" y="406"><tspan class="gld">$ </tspan>git checkout -b feature/x</text>
+    <text class="t l" style="animation-name:k15" y="434"><tspan class="gld">$ </tspan>git commit -m "safe on a feature branch"</text>
+    <text class="t l grn" style="animation-name:k16" y="462">[PASS] All checks passed.</text>
+  </g>
+</svg>

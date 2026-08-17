@@ -1,0 +1,39 @@
+id: pre-generated-scripts
+name: "Pre-generated scripts"
+version: "0.0.1"
+description: >
+  Rule: deterministic scripts are only allowed as committed files under a code/hybrid skill,
+  invoked by that skill's procedure. Never generate a script at runtime and never ship it as a
+  standalone, agent-less artifact.
+artifact: rule
+enforcement: advise
+rule:
+  text: |
+    scripts: committed under a code/hybrid skill; invoked by that skill
+    on_find(adhoc_script_need): route(policy-init -> code/hybrid skill with committed script)
+provenance:
+  author: "chock-core"
+  created_at: "2026-07-12T00:00:00Z"
+  source_repo: "https://github.com/open-coder-ai/chock"
+  license: "Apache-2.0"
+  trust_tier: "community"
+
+lifecycle:
+  status: draft
+  reviewed_by:
+    - "chock-core"
+
+security:
+  content_instructions: never-obey
+  prompt_injection_defense: standard
+  input_sanitization: true
+  output_validation: true
+  pii_handling: redact
+
+tags: [chock-core, deterministic, scripts]
+
+changelog:
+- version: 0.0.1
+  date: '2026-07-12'
+  changes:
+  - "Initial public baseline (0.0.1); pre-release iteration history is preserved in git log."

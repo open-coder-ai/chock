@@ -1,0 +1,59 @@
+input_schema:
+  type: object
+  properties:
+    request:
+      type: string
+      description: Developer request describing the policy to create.
+    target_path:
+      type: string
+      description: Directory where the policy deliverable folder should be created.
+    artifact_hint:
+      type: string
+      enum:
+      - skill
+      - hook
+      - rule
+      - workflow
+      description: Optional artifact class hint.
+  required:
+  - request
+  additionalProperties: false
+output_schema:
+  type: object
+  properties:
+    artifact_path:
+      type: string
+      description: Path to the created deliverable folder.
+    artifact_type:
+      type: string
+      enum:
+      - skill
+      - hook
+      - rule
+      - workflow
+      description: artifact_type field
+    warnings:
+      type: array
+      items:
+        type: string
+      description: warnings field
+    outcome:
+      type: string
+      enum:
+      - success
+      - failure
+      - needs_handoff
+      description: Overall execution outcome of the artifact.
+  required:
+  - outcome
+  - artifact_path
+  - artifact_type
+  additionalProperties: false
+evaluation:
+  test_suite_ref: evals/suite.yaml
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      weight: 1.0
+      threshold: 0.9
+      direction: higher_is_better

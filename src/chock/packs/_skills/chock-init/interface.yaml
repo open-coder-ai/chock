@@ -1,0 +1,70 @@
+input_schema:
+  type: object
+  properties:
+    repo_path:
+      type: string
+      description: Path to the repo to onboard.
+    agents:
+      type: array
+      items:
+        type: string
+        enum:
+        - claude
+        - cursor
+        - windsurf
+        - devin
+        - codex
+        - grok
+        - kimi-code
+        - copilot
+        - gemini
+        - vscode
+        - aider
+        - replit
+        - tabnine
+      description: Agents to support (the --agents vocabulary; unknown names abort).
+    agent_agnostic:
+      type: boolean
+      default: false
+      description: Create wrappers for all supported agents.
+  required:
+  - repo_path
+  additionalProperties: false
+output_schema:
+  type: object
+  properties:
+    onboarded:
+      type: boolean
+      description: onboarded field
+    created_files:
+      type: array
+      items:
+        type: string
+      description: created_files field
+    validation_result:
+      type: string
+      enum:
+      - pass
+      - fail
+      description: validation_result field
+    outcome:
+      type: string
+      enum:
+      - success
+      - failure
+      - needs_handoff
+      description: Overall execution outcome of the artifact.
+  required:
+  - outcome
+  - onboarded
+  - created_files
+  - validation_result
+  additionalProperties: false
+evaluation:
+  test_suite_ref: evals/suite.yaml
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      weight: 1.0
+      threshold: 0.8
+      direction: higher_is_better

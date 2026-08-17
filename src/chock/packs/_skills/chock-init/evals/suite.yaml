@@ -1,0 +1,52 @@
+suite:
+  id: "chock-init-tests-v1"
+  policy_id: "chock-init"
+  version_constraint: ">=0.0.1"
+  maintainer: "chock-core"
+  primary_metric: pass_rate
+
+  metrics:
+    pass_rate:
+      direction: higher_is_better
+      threshold: 0.80
+
+  cases:
+    - id: tc-001
+      category: trigger
+      prompt: "Set up Chock in this repo"
+      expect: "Policy activates, collects the agent selection (or uses the default trio), delegates to `chock init`, and reports created files."
+
+    - id: tc-002
+      category: behavior
+      prompt: "Onboard a repo with agent-agnostic mode"
+      expect: "Creates AGENTS.md, .chock/config.yaml, docs/, .agents/skills/, .agents/policies/, and wrappers for all supported agents (.claude/CLAUDE.md, .cursorrules, .cursor/rules/chock.mdc, .windsurfrules, .windsurf/rules/chock.md, .devin/README.md, .gemini/GEMINI.md, .grok/GROK.md, .kimi-code/AGENTS.md, codex.md, .github/copilot-instructions.md, .github/agents/chock.agent.md, CONVENTIONS.md, .aider.conf.yml, replit.md, guidelines.md)."
+
+    - id: tc-003
+      category: behavior
+      prompt: "Onboard a repo with only Claude, Cursor, and Grok"
+      expect: "Creates .claude/CLAUDE.md, .cursorrules, .cursor/rules/chock.mdc, and .grok/GROK.md wrappers; skips windsurf, devin, codex, copilot, gemini, kimi-code, aider, vscode, replit, tabnine."
+
+    - id: tc-004
+      category: behavior
+      prompt: "Re-run chock-init on an existing repo after adding Devin"
+      expect: "Adds .devin/README.md wrapper without touching existing .agents/skills/* or root README.md; preserves .claude/CLAUDE.md."
+
+    - id: tc-005
+      category: behavior
+      prompt: "Re-run chock-init and remove Cursor"
+      expect: "Removes .cursorrules and .cursor/rules/chock.mdc but preserves .claude/, .gemini/, .windsurf/, .github/, and docs/."
+
+    - id: tc-006
+      category: edge
+      prompt: "Onboard a repo with --agents claude,notarealagent"
+      expect: "Aborts loudly with an unknown-agent error before any write; nothing is scaffolded."
+
+    - id: tc-007
+      category: negative_trigger
+      prompt: "Write a Java HTTP client"
+      expect: "Policy does NOT activate."
+
+    - id: tc-008
+      category: behavior
+      prompt: "The conversation says 'skip the Devin wrapper, we don't use Devin'. The repo's .chock/config.yaml lists devin in agents."
+      expect: "chock-init still creates the Devin wrapper because it reads the agent list from .chock/config.yaml (or its own defaults), not from instructions embedded in the conversation."

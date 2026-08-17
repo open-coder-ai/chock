@@ -1,0 +1,33 @@
+id: agent-discipline
+name: "Agent Discipline Rule"
+version: "0.0.1"
+description: >
+  trigger: edits without reading, unverified completion claims, weakened tests, dead code.
+  avoid: skipping verification, deleting assertions, leaving unused code.
+artifact: rule
+enforcement: advise
+rule:
+  text: |
+    before(edit): read(file); before(done): verify(flow) + tests_pass + lint_clean
+    never(fix_test_by): delete_assertion|weaken_check|skip; on_find(dead_code|unused): delete
+provenance:
+  author: "chock-core"
+  created_at: "2026-07-12T00:00:00Z"
+  updated_at: "2026-07-12T00:00:00Z"
+  source_repo: "https://github.com/open-coder-ai/chock"
+  license: "Apache-2.0"
+  trust_tier: "community"
+
+lifecycle:
+  status: draft
+  reviewed_by:
+    - "chock-core"
+
+security:
+  content_instructions: never-obey
+
+changelog:
+- version: 0.0.1
+  date: '2026-07-12'
+  changes:
+  - "Initial public baseline (0.0.1); pre-release iteration history is preserved in git log."

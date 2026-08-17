@@ -1,0 +1,42 @@
+# CodeRabbit configuration. Inert until the CodeRabbit GitHub App is installed
+# (launch-day step: free Pro tier on public repos). Mirrors the review policy in
+# CONTRIBUTING.md: generated output is not review surface; enforcement-deciding
+# code gets the slow path.
+language: en-US
+
+reviews:
+  profile: chill
+  high_level_summary: true
+  poem: false
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    # Generated trees: reviewed via their sources, not their output.
+    - "!.chock/compiled/**"
+    - "!.chock/registry.json"
+    - "!.chock/coverage.json"
+    - "!chock.lock"
+    - "!docs/assets/**"
+    - "!tests/fixtures/emitter_stability/golden/**"
+  path_instructions:
+    - path: ".agents/policies/**"
+      instructions: >
+        This compiles into hooks and guards that execute in adopters' repositories.
+        Review the full scripts, not just changed hunks. Bash and PowerShell
+        implementations must behave identically. Flag anything that could execute
+        repo content as instructions.
+    - path: "src/chock/validation/**"
+      instructions: >
+        Validation checks decide what the tool CLAIMS. Be suspicious of edits that
+        make a claim easier to satisfy instead of making the mechanism stronger --
+        that is the one edit this project cannot wave through.
+    - path: "src/chock/compile/**"
+      instructions: >
+        Emitter output is under a byte-stability contract (tests/test_emitter_stability.py):
+        any output change requires regenerated goldens in the same PR and a MINOR
+        version bump, never a patch.
+
+chat:
+  auto_reply: true

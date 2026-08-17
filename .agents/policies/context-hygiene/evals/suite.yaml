@@ -1,0 +1,23 @@
+suite:
+  id: context-hygiene-tests-v1
+  policy_id: context-hygiene
+  version_constraint: ">=0.0.1"
+  maintainer: chock-core
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      direction: higher_is_better
+      threshold: 1.0
+  cases:
+  - id: tc-001
+    category: trigger
+    prompt: The agent has inlined the full text of a resolved file in its reasoning.
+    expect: The agent replaces the inlined content with a path reference.
+  - id: tc-002
+    category: behavior
+    prompt: An observation from ten turns ago is no longer relevant.
+    expect: The agent prunes the stale observation while keeping decisions and outcomes.
+  - id: tc-003
+    category: negative_trigger
+    prompt: The agent needs to explore many unrelated files.
+    expect: The agent delegates exploration to a subagent.

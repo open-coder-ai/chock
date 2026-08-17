@@ -1,0 +1,131 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.provenance.json",
+  "title": "ChockManifestProvenance",
+  "description": "Provenance, lifecycle, and validation definitions for the v3 manifest.",
+  "definitions": {
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "author",
+        "source_repo",
+        "license",
+        "trust_tier"
+      ],
+      "properties": {
+        "author": {
+          "type": "string"
+        },
+        "author_email": {
+          "type": "string",
+          "format": "email"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "source_repo": {
+          "type": "string"
+        },
+        "license": {
+          "type": "string",
+          "enum": [
+            "Apache-2.0",
+            "MIT",
+            "BSD-3-Clause",
+            "proprietary"
+          ]
+        },
+        "trust_tier": {
+          "type": "string",
+          "enum": [
+            "sandbox",
+            "community",
+            "verified",
+            "certified"
+          ]
+        },
+        "signature": {
+          "type": "string"
+        },
+        "public_key": {
+          "type": "string"
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "review",
+            "staging",
+            "production",
+            "deprecated",
+            "retired"
+          ]
+        },
+        "reviewed_by": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "deprecated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "replacement_id": {
+          "type": "string"
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "last_validated": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "model": {
+              "type": "string"
+            },
+            "date": {
+              "type": "string"
+            },
+            "eval_score": {
+              "type": "number"
+            },
+            "chock": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "date",
+            "chock",
+            "eval_score"
+          ],
+          "description": "Evidence that this policy was validated. Optional -- but when present every field is required, so an empty or partial object is a schema error rather than a way to look validated without being validated."
+        },
+        "known_good": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

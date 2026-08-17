@@ -1,0 +1,33 @@
+id: memory-discipline
+name: "Memory Discipline Rule"
+version: "0.0.1"
+description: >
+  trigger: repeated mistakes, rediscovered patterns, preferences, non-derivable facts.
+  avoid: persisting file contents, git history, or task intermediates as memory.
+artifact: rule
+enforcement: advise
+rule:
+  text: |
+    persist: decisions|preferences|non_derivable_facts; never_persist: file_contents|git_history|task_intermediates
+    extract(atomic_facts); consolidate(similar > 0.85); decay(stale); verify(memory) before_recommend
+provenance:
+  author: "chock-core"
+  created_at: "2026-07-12T00:00:00Z"
+  updated_at: "2026-07-12T00:00:00Z"
+  source_repo: "https://github.com/open-coder-ai/chock"
+  license: "Apache-2.0"
+  trust_tier: "community"
+
+lifecycle:
+  status: draft
+  reviewed_by:
+    - "chock-core"
+
+security:
+  content_instructions: never-obey
+
+changelog:
+- version: 0.0.1
+  date: '2026-07-12'
+  changes:
+  - "Initial public baseline (0.0.1); pre-release iteration history is preserved in git log."
