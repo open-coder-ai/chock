@@ -112,7 +112,7 @@ jobs:
         run: |
           awk '/^## /{if (p) exit; p=1; print; next} p{print}' CHANGELOG.md > release_notes.md
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           name: ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
