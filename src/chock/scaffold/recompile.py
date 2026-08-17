@@ -14,11 +14,10 @@ from chock.compile.surfaces import DISABLED
 from chock.config import load_config, policy_status
 from chock.emit import write_generated_json
 
-# Re-exported: callers historically import these from here, and the re-export keeps the
-# import direction downward (their real homes are lower layers).
-from chock.policies import discover_policy_dirs as discover_policy_dirs
-from chock.vendored import VENDORED_RUNTIMES as VENDORED_RUNTIMES
-from chock.vendored import vendored_differences as vendored_differences
+# Used here and historically imported from here by callers; importing from this module
+# keeps the import direction downward (their real homes are lower layers).
+from chock.policies import discover_policy_dirs
+from chock.vendored import vendored_differences
 
 
 class BookkeepingError(RuntimeError):
