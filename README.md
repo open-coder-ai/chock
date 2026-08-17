@@ -15,15 +15,12 @@ Copilot, Codex, Gemini, Aider and seven more. Not prose an agent can ignore. Exi
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![Status: Early Access](https://img.shields.io/badge/status-v0.0.1%20early%20access-orange.svg)](#-roadmap)
-<!-- 🚀 Launch day — uncomment once the public repo exists and Scorecard has run once:
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/open-coder-ai/chock/badge)](https://scorecard.dev/viewer/?uri=github.com/open-coder-ai/chock)
 [![PyPI](https://img.shields.io/pypi/v/chock)](https://pypi.org/project/chock/)
--->
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/open-coder-ai/chock/badge)](https://scorecard.dev/viewer/?uri=github.com/open-coder-ai/chock)
 
 [Quick start](#-quick-start) · [How it works](#-how-it-works) · [Policy catalog](https://github.com/open-coder-ai/chock-catalog) · [Docs](docs/README.md) · [Roadmap](#-roadmap)
 
-<img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/terminal-demo.svg" alt="Terminal demo: chock init, chock add protect-main-branch, chock sync — then a commit straight to main is blocked, and a feature-branch commit passes" width="760">
+<img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/demo.gif" alt="Terminal demo: chock init, chock add protect-main-branch, chock sync — then a commit straight to main is blocked, and a feature-branch commit passes" width="760">
 
 *A real session, replayed. Install, adopt one policy, and the next commit straight
 to `main` exits non-zero — no matter which agent, or which human, typed it.*
