@@ -106,6 +106,8 @@ def _mark_bridge(link: Path) -> None:
         if not marker.exists():
             marker.write_text(_BRIDGE_MARKER_BODY, encoding="utf-8")
     except OSError:
+        # Best-effort: a missing marker fails safe -- the sweep treats the entry as
+        # adopter-authored and never deletes it.
         pass
 
 

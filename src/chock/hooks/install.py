@@ -35,6 +35,24 @@ from chock.hooks.installers import (  # noqa: F401
     relocate_existing_hook,
 )
 
+# The re-exported surface, spelled out so static analysis knows the imports above are
+# this module's API rather than dead code.
+__all__ = [
+    "DISPATCHER_TEMPLATE",
+    "GENERATED_MARKER",
+    "INTERPRETER_PLACEHOLDER",
+    "NOT_A_GIT_REPO",
+    "_discover_policy_hooks",
+    "_render_hook",
+    "_repo_relative",
+    "get_hooks_dir",
+    "install_dispatcher",
+    "install_policy_hooks",
+    "install_validate_hook",
+    "is_git_repo",
+    "relocate_existing_hook",
+]
+
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Install Chock git hooks")

@@ -11,7 +11,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import yaml
 
@@ -21,6 +21,12 @@ from chock.manifest import ManifestSourceError, load_manifest
 from chock.policies import discover_policy_dirs
 from chock.scaffold.adapters import parse_agent_selection
 from chock.scaffold.recompile import BookkeepingError, recompile
+
+
+def _parser_fail(parser: argparse.ArgumentParser, message: str) -> NoReturn:
+    """`parser.error()` raises SystemExit; the raise below makes that provable statically."""
+    parser.error(message)
+    raise SystemExit(2)
 
 
 def _load_manifest(pack_dir: Path) -> dict[str, Any]:
@@ -188,14 +194,14 @@ def recompile_main(argv: list[str] | None) -> int:
         try:
             agents = _agents_from_config(repo_root)
         except ValueError as exc:
-            parser.error(str(exc))
+            _parser_fail(parser, str(exc))
     else:
         try:
             agents = parse_agent_selection(args.agents)
         except ValueError as exc:
-            parser.error(str(exc))
+            _parser_fail(parser, str(exc))
         if not agents:
-            parser.error("--agents requires at least one agent name")
+            _parser_fail(parser, "--agents requires at least one agent name")
 
     if args.check:
         from chock.scaffold.recompile import compiled_differences

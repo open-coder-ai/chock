@@ -93,7 +93,7 @@ def test_compile_defaults_to_configured_agents(tmp_path, monkeypatch):
     # A repo pinned to a subset must not have a bare `compile` rewrite coverage for all
     # thirteen agents -- that put the repo into drift `sync --check` then failed. Goes
     # through the CLI so the --repo-based config resolution itself is what is pinned.
-    import chock.compile.compiler as compiler_mod
+    from chock.compile import compiler as compiler_mod
 
     (tmp_path / ".chock").mkdir()
     (tmp_path / ".chock" / "config.yaml").write_text("chock:\n  supported_agents: [claude, gemini]\n", encoding="utf-8")

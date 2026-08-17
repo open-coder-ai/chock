@@ -16,8 +16,9 @@ from chock.emit import write_generated_json
 
 # Re-exported: callers historically import these from here, and the re-export keeps the
 # import direction downward (their real homes are lower layers).
-from chock.policies import discover_policy_dirs  # noqa: F401
-from chock.vendored import VENDORED_RUNTIMES, vendored_differences  # noqa: F401
+from chock.policies import discover_policy_dirs as discover_policy_dirs
+from chock.vendored import VENDORED_RUNTIMES as VENDORED_RUNTIMES
+from chock.vendored import vendored_differences as vendored_differences
 
 
 class BookkeepingError(RuntimeError):

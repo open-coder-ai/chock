@@ -7,7 +7,7 @@ import json
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import yaml
 
@@ -47,6 +47,12 @@ class CompileResult:
     policy_id: str
     artifacts: dict[str, list[Path]] = field(default_factory=dict)
     coverage: dict[str, dict[str, str]] = field(default_factory=dict)
+
+
+def _parser_fail(parser: argparse.ArgumentParser, message: str) -> NoReturn:
+    """`parser.error()` raises SystemExit; the raise below makes that provable statically."""
+    parser.error(message)
+    raise SystemExit(2)
 
 
 def _load_manifest(policy_dir: Path) -> dict[str, Any]:
@@ -208,14 +214,14 @@ def main(argv: list[str] | None = None) -> int:
         try:
             agents = agents_from_config(repo_root)
         except ValueError as exc:
-            parser.error(str(exc))
+            _parser_fail(parser, str(exc))
     else:
         try:
             agents = parse_agent_selection(args.agents)
         except ValueError as exc:
-            parser.error(str(exc))
+            _parser_fail(parser, str(exc))
         if not agents:
-            parser.error("--agents requires at least one agent name")
+            _parser_fail(parser, "--agents requires at least one agent name")
 
     policy_dir = Path(args.policy_dir) if args.policy_dir else repo_root / ".agents/policies" / args.policy_id
     if not policy_dir.exists():
