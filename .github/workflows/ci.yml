@@ -34,7 +34,7 @@ on:
 permissions:
   contents: read
 
-
+jobs:
   # Every PR commit must carry a Signed-off-by trailer (Developer Certificate of
   # Origin -- see CONTRIBUTING.md). Checked here rather than via the DCO GitHub App
   # so it works while the repo is private; the App can be added after launch.
