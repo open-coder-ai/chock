@@ -29,6 +29,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
       - name: Set up Python
@@ -54,6 +55,10 @@ jobs:
           sed -i -E "s#<img src=\"docs/assets/#<img src=\"https://raw.githubusercontent.com/${REPO}/${REF}/docs/assets/#g" README.md
       - name: Build sdist and wheel
         run: python -m build
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@8beda2b7ed98355c0e97c0a63bec38ae472e66c4  # v4
+        with:
+          subject-path: dist/*
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # release/v1
         with:
