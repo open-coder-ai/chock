@@ -37,7 +37,7 @@ dev = [
     "pytest-bdd>=8.0",
     # Pin the minor: ruff's formatter changes behavior across minors (0.16 began
     # formatting Python inside Markdown), which silently breaks CI on unrelated PRs.
-    "ruff>=0.16,<0.17",
+    "ruff>=0.16.3,<0.17",
 ]
 build = [
     "build>=1.0",
