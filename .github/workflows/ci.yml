@@ -80,7 +80,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --require-hashes --upgrade -r requirements/pip.txt
           pip install -e '.[dev,build]'
 
       - name: Lint (ruff)
@@ -155,7 +155,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --require-hashes --upgrade -r requirements/pip.txt
           pip install -e '.[build]'
 
       - name: Build one-file binary
@@ -194,6 +194,8 @@ jobs:
       # Deliberately NOT `pip install -e .`: this job must exercise the built wheel, not
       # the source tree. The suite builds and installs it itself.
       - name: Install build tooling
-        run: python -m pip install --upgrade pip build pytest pytest-bdd
+        run: |
+          python -m pip install --require-hashes --upgrade -r requirements/pip.txt
+          python -m pip install --require-hashes -r requirements/ci-tools.txt
       - name: Run acceptance suite
         run: python -m pytest acceptance/ -q -c acceptance/pytest.ini --rootdir=acceptance
