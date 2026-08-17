@@ -37,7 +37,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install build tools
-        run: pip install build
+        run: pip install --require-hashes -r requirements/build.txt
       - name: Point README images at raw URLs
         # README.md is the PyPI long_description; PyPI cannot resolve repo-relative
         # image paths, so the published page would open on a broken-image placeholder.
