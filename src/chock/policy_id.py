@@ -29,7 +29,9 @@ def validate_policy_id(policy_id: str, folder_name: str) -> None:
     execute or write outside the tree. Requiring id == folder also closes the lock-attestation
     gap, where a divergent id left `artifacts_sha256` silently unpinned.
     """
-    if not isinstance(policy_id, str) or not POLICY_ID_RE.match(policy_id):
+    # fullmatch, not match: `$` matches before a trailing newline, so `.match` accepted
+    # "some-id\n" -- a newline headed into emitted bash. Found by the property suite.
+    if not isinstance(policy_id, str) or not POLICY_ID_RE.fullmatch(policy_id):
         raise InvalidPolicyId(
             f"policy id {policy_id!r} is not a valid identifier (must match {POLICY_ID_RE.pattern}); "
             "refusing to use it as a filesystem path or command token"
