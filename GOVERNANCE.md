@@ -47,7 +47,7 @@ Single-maintainer projects owe their users an answer to "what if you vanish":
 - **Commitment**: if the project is visibly unmaintained (no maintainer activity for
   six months) and someone credible wants to continue it, the maintainer intends to
   add maintainers or transfer stewardship rather than let it rot. Forks are also a
-  legitimate continuity path — the Apache-2.0 license guarantees it.
+  legitimate continuity path — the Apache-2.0 license permits it.
 
 ## Changing this document
 

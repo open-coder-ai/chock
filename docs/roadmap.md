@@ -9,8 +9,10 @@ the issues are the source of truth.
 
 - **MCP-gateway surface** ([#32](https://github.com/open-coder-ai/chock/issues/32)) —
   the largest available coverage jump: route MCP-capable agents' tool calls through a
-  repo-governed gateway, raising them above `advisory` with the same witness-based
-  coverage rules as every other surface.
+  repo-governed gateway. Scope is exactly MCP-routed tool calls — shell commands and
+  non-MCP tools stay at whatever tier their own surface earns — and the tier rises
+  above `advisory` only with the same install witnesses as every other surface
+  (gateway installed *and* the agent's MCP client configured to route through it).
 - **More native pre-tool-use adapters** — agents gain a hook API, their tier rises
   without policy changes. Adapter contributions are a labeled
   [good first issue](https://github.com/open-coder-ai/chock/issues/11).
