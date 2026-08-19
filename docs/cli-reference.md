@@ -210,10 +210,9 @@ Grok Build. A guard policy's plugin carries the guard and the stdlib-only PreToo
 adapter and is session-enforced where the host honours the hook — failing **open** when
 `python3` is absent, a posture each emitted description states verbatim. This format
 requires `--out-dir` (plugins land in `<out-dir>/plugins/<id>/`); in-place output is
-refused so a policy folder can never be mistaken for a published plugin.
-
-`--policies-dir` packages a published directory (a catalog needs this); `--check` reports
-stale output without writing.
+refused so a policy folder can never be mistaken for a published plugin. `--policies-dir`
+packages a published directory (a catalog needs this); `--check` reports stale output
+without writing.
 
 ### `marketplace build` — index a built plugin tree
 
@@ -222,11 +221,10 @@ chock marketplace build [--dist .] [--name chock] [--check]
 ```
 
 Scans `<dist>/plugins/*/.claude-plugin/plugin.json` and writes the marketplace index to
-`.claude-plugin/marketplace.json` and `.github/plugin/marketplace.json` (byte-identical —
-the path Copilot CLI reads; its official marketplace symlinks one to the other, we emit a
-copy so Windows checkouts stay exact). Entries are derived from the built manifests, never
-hand-listed. An empty tree exits 2 rather than writing an index that delists everything;
-`--check` reports drift without writing.
+`.claude-plugin/marketplace.json` and `.github/plugin/marketplace.json` (byte-identical
+copies — the second is the path Copilot CLI reads). Entries are derived from the built
+manifests, never hand-listed. An empty tree exits 2 rather than writing an index that
+delists everything; `--check` reports drift without writing.
 
 ### `review` — record and check what a review rests on
 
