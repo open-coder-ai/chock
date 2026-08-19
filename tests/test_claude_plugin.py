@@ -1,0 +1,181 @@
+"""Claude-format packaging: layout, verbatim copies, and the fail-posture statement.
+
+The layout is mechanical; two properties matter. First, the adapter and guard ship as
+byte-identical copies of their sources -- a plugin that parses payloads differently from a
+repo install is two enforcement systems wearing one name. Second, every emitted
+description states its fail posture out loud: a Claude plugin's PreToolUse hook fails OPEN
+when python3 is missing, and a policy without a guard is advisory text however it is
+packaged. A marketplace listing that overclaims enforcement is the one failure this
+project cannot ship.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+import yaml
+
+import chock.gate.pretooluse as adapter_module
+from chock.plugin.build import build_skill
+from chock.plugin.claude import (
+    POSTURE_ADVISORY,
+    POSTURE_ENFORCED,
+    build_claude_plugin,
+    claude_plugin_differences,
+    claude_plugin_files,
+)
+from chock.plugin.cli import main as plugin_main
+
+GUARD_MANIFEST = {
+    "id": "block-destructive-commands",
+    "name": "Block Destructive Commands",
+    "version": "0.0.1",
+    "description": "Block rm -rf and friends before they run.",
+    "artifact": "hook",
+    "enforcement": "block",
+    "provenance": {
+        "author": "chock-core",
+        "license": "Apache-2.0",
+        "source_repo": "https://github.com/open-coder-ai/chock",
+    },
+}
+
+RULE_MANIFEST = {
+    "id": "code-safety",
+    "name": "Code Safety Rule",
+    "version": "0.0.1",
+    "description": "Advisory rule with no gate.",
+    "artifact": "rule",
+    "enforcement": "advise",
+    "rule": {"text": "never(commit): secrets|keys|tokens"},
+}
+
+GUARD_BODY = "#!/usr/bin/env bash\nexit 0  # test fixture guard\n"
+
+
+@pytest.fixture
+def policy(tmp_path: Path):
+    def _make(manifest: dict, guard: bool = False) -> Path:
+        pack = tmp_path / ".agents" / "policies" / manifest["id"]
+        pack.mkdir(parents=True)
+        (pack / "manifest.yaml").write_text(yaml.safe_dump(manifest), encoding="utf-8")
+        if guard:
+            impl = pack / "implementations"
+            impl.mkdir()
+            (impl / f"{manifest['id']}.sh").write_text(GUARD_BODY, encoding="utf-8")
+        return pack
+
+    return _make
+
+
+def test_guard_policy_ships_hooks_adapter_and_guard(policy, tmp_path: Path) -> None:
+    pack = policy(GUARD_MANIFEST, guard=True)
+    out = tmp_path / "dist" / "plugins" / "block-destructive-commands"
+    build_claude_plugin(pack, GUARD_MANIFEST, tmp_path, out)
+
+    hooks = json.loads((out / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+    entry = hooks["hooks"]["PreToolUse"][0]
+    assert entry["matcher"] == "Bash"
+    command = entry["hooks"][0]["command"]
+    assert "${CLAUDE_PLUGIN_ROOT}/scripts/pretooluse.py" in command
+    assert "${CLAUDE_PLUGIN_ROOT}/scripts/block-destructive-commands.sh" in command
+
+
+def test_adapter_and_guard_are_verbatim_copies(policy, tmp_path: Path) -> None:
+    """Byte-identity is the contract, not similarity.
+
+    The adapter's own docstring promises "copied verbatim"; a plugin copy that drifted from
+    the module would parse payloads differently from every repo install and the difference
+    would surface only in someone else's session.
+    """
+    pack = policy(GUARD_MANIFEST, guard=True)
+    out = tmp_path / "out"
+    build_claude_plugin(pack, GUARD_MANIFEST, tmp_path, out)
+
+    source = Path(adapter_module.__file__).read_text(encoding="utf-8")
+    assert (out / "scripts" / "pretooluse.py").read_text(encoding="utf-8") == source
+    assert (out / "scripts" / "block-destructive-commands.sh").read_text(encoding="utf-8") == GUARD_BODY
+
+
+def test_descriptions_state_the_fail_posture(policy, tmp_path: Path) -> None:
+    guarded = policy(GUARD_MANIFEST, guard=True)
+    bare = policy(RULE_MANIFEST)
+
+    guarded_manifest = claude_plugin_files(guarded, GUARD_MANIFEST, tmp_path)[Path(".claude-plugin/plugin.json")]
+    bare_manifest = claude_plugin_files(bare, RULE_MANIFEST, tmp_path)[Path(".claude-plugin/plugin.json")]
+
+    assert POSTURE_ENFORCED in json.loads(guarded_manifest)["description"]
+    assert POSTURE_ADVISORY in json.loads(bare_manifest)["description"]
+    assert "fails open" in POSTURE_ENFORCED, "the caveat is the load-bearing clause"
+
+
+def test_rule_policy_gets_no_hooks_or_scripts(policy, tmp_path: Path) -> None:
+    """A policy with no guard must not grow one in packaging.
+
+    Emitting an empty hooks file would read as "this plugin enforces" to anyone listing the
+    directory -- the packaged version of the stale-surface-table overclaim.
+    """
+    pack = policy(RULE_MANIFEST)
+    files = claude_plugin_files(pack, RULE_MANIFEST, tmp_path)
+    assert set(files) == {Path(".claude-plugin/plugin.json"), Path("skills/code-safety/SKILL.md")}
+
+
+def test_skill_is_the_shared_builder_output(policy, tmp_path: Path) -> None:
+    """Both formats render the skill through `build_skill`, so they cannot drift."""
+    pack = policy(GUARD_MANIFEST, guard=True)
+    files = claude_plugin_files(pack, GUARD_MANIFEST, tmp_path)
+    assert files[Path("skills/block-destructive-commands/SKILL.md")] == build_skill(pack, GUARD_MANIFEST, tmp_path)
+
+
+def test_output_is_byte_stable(policy, tmp_path: Path) -> None:
+    pack = policy(GUARD_MANIFEST, guard=True)
+    out = tmp_path / "out"
+    build_claude_plugin(pack, GUARD_MANIFEST, tmp_path, out)
+    first = {p: p.read_bytes() for p in sorted(out.rglob("*")) if p.is_file()}
+    build_claude_plugin(pack, GUARD_MANIFEST, tmp_path, out)
+    assert {p: p.read_bytes() for p in sorted(out.rglob("*")) if p.is_file()} == first
+
+
+def test_check_detects_drift_and_writes_nothing(policy, tmp_path: Path) -> None:
+    pack = policy(GUARD_MANIFEST, guard=True)
+    out = tmp_path / "out"
+    assert claude_plugin_differences(pack, GUARD_MANIFEST, tmp_path, out), "unbuilt tree should read as missing"
+    assert not out.exists(), "--check must not create the tree it reports as missing"
+
+    build_claude_plugin(pack, GUARD_MANIFEST, tmp_path, out)
+    assert not claude_plugin_differences(pack, GUARD_MANIFEST, tmp_path, out)
+
+    (out / "hooks" / "hooks.json").write_text("{}", encoding="utf-8")
+    assert any("differs" in d for d in claude_plugin_differences(pack, GUARD_MANIFEST, tmp_path, out))
+
+
+def test_cli_claude_format_requires_out_dir(policy, tmp_path: Path, capsys) -> None:
+    """In-place claude output is refused, not defaulted.
+
+    A `.claude-plugin/` directory inside a policy folder would be discovered by any client
+    pointed at the repo and installed as a plugin nobody published.
+    """
+    policy(GUARD_MANIFEST, guard=True)
+    assert plugin_main(["build", "--repo", str(tmp_path), "--format", "claude"]) == 2
+    assert "--out-dir" in capsys.readouterr().err
+
+
+def test_cli_builds_a_distribution_tree(policy, tmp_path: Path) -> None:
+    policy(GUARD_MANIFEST, guard=True)
+    policy(RULE_MANIFEST)
+    dist = tmp_path / "dist"
+
+    assert plugin_main(["build", "--repo", str(tmp_path), "--format", "all", "--out-dir", str(dist)]) == 0
+    for plugin_id in ("block-destructive-commands", "code-safety"):
+        root = dist / "plugins" / plugin_id
+        assert (root / "plugin.json").exists(), "Agent Plugins manifest rides along in every directory"
+        assert (root / ".claude-plugin" / "plugin.json").exists()
+        assert (root / "skills" / plugin_id / "SKILL.md").exists()
+    assert (dist / "plugins" / "block-destructive-commands" / "hooks" / "hooks.json").exists()
+    assert not (dist / "plugins" / "code-safety" / "hooks").exists()
+
+    assert plugin_main(["build", "--repo", str(tmp_path), "--format", "all", "--out-dir", str(dist), "--check"]) == 0
+    (dist / "plugins" / "code-safety" / "plugin.json").write_text("{}", encoding="utf-8")
+    assert plugin_main(["build", "--repo", str(tmp_path), "--format", "all", "--out-dir", str(dist), "--check"]) == 1

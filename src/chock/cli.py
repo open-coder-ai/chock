@@ -61,7 +61,11 @@ AUTHORING = {
     "registry": (_module_main("chock.registry.cli"), "Scan/list/resolve the artifact registry"),
     "plugin": (
         _module_main("chock.plugin.cli"),
-        "Package policies as Agent Plugins 1.0.0 (plugin build [--check])",
+        "Package policies as installable plugins (plugin build [--format claude] [--check])",
+    ),
+    "marketplace": (
+        _module_main("chock.plugin.marketplace"),
+        "Emit marketplace index files over a built plugin tree (marketplace build --dist <dir>)",
     ),
     "review": (
         _module_main("chock.review.cli"),

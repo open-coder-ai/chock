@@ -192,18 +192,41 @@ chock registry resolve <id>
 `scan` recomputes the registry, including a `sha256` of every deterministic script. CI
 diffs the result to catch a stale registry. See [Registry & Lockfile](registry-and-lockfile.md).
 
-### `plugin build` — package policies as Agent Plugins
+### `plugin build` — package policies as installable plugins
 
 ```bash
-chock plugin build [--repo .] [--policies-dir base] [--check]
+chock plugin build [--repo .] [--policies-dir base] [--format agent-plugins|claude|all] [--out-dir DIST] [--check]
 ```
 
-Writes an [Agent Plugins 1.0.0](https://agent-plugins.org) package into each policy
-folder. Additive — `manifest.yaml` stays the source of truth. A packaged policy is
-`advisory` wherever it is read: Agent Plugins v1 defines no enforcement semantics, so
-enforcement still comes from `sync`, and packaging changes no value in `coverage.json`.
+Renders each policy as a plugin. The default `agent-plugins` format writes an
+[Agent Plugins 1.0.0](https://agent-plugins.org) package into each policy folder —
+additive, `manifest.yaml` stays the source of truth, and a packaged policy is `advisory`
+wherever it is read: v1 defines no enforcement semantics, so packaging changes no value in
+`coverage.json`.
+
+`--format claude` emits Claude Code's plugin layout (`.claude-plugin/plugin.json`,
+`hooks/`, `skills/`, `scripts/`), read natively by Claude Code, Copilot CLI, VS Code, and
+Grok Build. A guard policy's plugin carries the guard and the stdlib-only PreToolUse
+adapter and is session-enforced where the host honours the hook — failing **open** when
+`python3` is absent, a posture each emitted description states verbatim. This format
+requires `--out-dir` (plugins land in `<out-dir>/plugins/<id>/`); in-place output is
+refused so a policy folder can never be mistaken for a published plugin.
+
 `--policies-dir` packages a published directory (a catalog needs this); `--check` reports
 stale output without writing.
+
+### `marketplace build` — index a built plugin tree
+
+```bash
+chock marketplace build [--dist .] [--name chock] [--check]
+```
+
+Scans `<dist>/plugins/*/.claude-plugin/plugin.json` and writes the marketplace index to
+`.claude-plugin/marketplace.json` and `.github/plugin/marketplace.json` (byte-identical —
+the path Copilot CLI reads; its official marketplace symlinks one to the other, we emit a
+copy so Windows checkouts stay exact). Entries are derived from the built manifests, never
+hand-listed. An empty tree exits 2 rather than writing an index that delists everything;
+`--check` reports drift without writing.
 
 ### `review` — record and check what a review rests on
 
