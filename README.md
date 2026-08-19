@@ -17,6 +17,7 @@ Copilot, Codex, Gemini, Aider and seven more. Not prose an agent can ignore. Exi
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![PyPI](https://img.shields.io/pypi/v/chock)](https://pypi.org/project/chock/)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/open-coder-ai/chock/badge)](https://scorecard.dev/viewer/?uri=github.com/open-coder-ai/chock)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14155/badge)](https://www.bestpractices.dev/projects/14155)
 
 [Quick start](#-quick-start) · [How it works](#-how-it-works) · [Policy catalog](https://github.com/open-coder-ai/chock-catalog) · [Docs](docs/README.md) · [Roadmap](#-roadmap)
 
