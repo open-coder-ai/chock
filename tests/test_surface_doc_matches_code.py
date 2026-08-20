@@ -25,7 +25,12 @@ COLUMNS = [
     Surface.MANAGED_SETTING,
 ]
 #: Display names that differ from the agent key.
-ALIAS = {"claude code": "claude", "kimi code": "kimi-code", "vs code": "vscode"}
+ALIAS = {
+    "claude code": "claude",
+    "kimi code": "kimi-code",
+    "vs code": "vscode",
+    "antigravity cli": "antigravity",
+}
 
 
 def _rows() -> dict[str, list[bool]]:
