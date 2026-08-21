@@ -6,6 +6,7 @@ Templates live in `assets/templates/`. Substitute `{{repo_name}}` at generation 
 |---|---|---|---|
 | `.chock/config.yaml` | `.chock/config.yaml` | machine-readable config | |
 | `AGENTS.md` | `AGENTS.md` | machine-readable rules | Single source of truth |
+| `.agents/rules/chock.md` | `.agents/rules/chock.md` | agent wrapper | Antigravity workspace rule |
 | `.claude/CLAUDE.md` | `.claude/CLAUDE.md` | agent wrapper | Loaded at session start |
 | `.cursorrules` | `.cursorrules` | agent wrapper | Legacy root fallback |
 | `.cursor/rules/chock.mdc` | `.cursor/rules/chock.mdc` | agent wrapper | Modern Cursor rules (YAML frontmatter, `alwaysApply: true`) |

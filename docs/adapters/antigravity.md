@@ -10,6 +10,8 @@ Verified against: https://antigravity.google/docs/rules-workflows (Antigravity R
 
 Antigravity CLI discovers rules hierarchically in `.agents/rules/*.md`, `GEMINI.md`, and `AGENTS.md`.
 
+Antigravity's current [best-practices documentation](https://antigravity.google/docs/cli/best-practices/) states that the agent automatically parses a workspace `AGENTS.md` on startup.
+
 ## Pointers
 
 - Core rules: `AGENTS.md`
