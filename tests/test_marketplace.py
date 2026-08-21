@@ -16,7 +16,7 @@ import pytest
 import yaml
 
 from chock.plugin.cli import main as plugin_main
-from chock.plugin.marketplace import INDEX_PATHS
+from chock.plugin.marketplace import DESCRIPTION, INDEX_PATHS
 from chock.plugin.marketplace import main as marketplace_main
 
 MANIFESTS = [
@@ -68,6 +68,10 @@ def test_entries_are_derived_from_the_built_manifests(dist: Path) -> None:
     index = json.loads((dist / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
 
     assert index["name"] == "chock"
+    # `claude plugin validate` warns without it, and it is what a browsing user reads
+    # before trusting the source -- so it names the origin and the enforcement caveat.
+    assert index["description"] == DESCRIPTION
+    assert "advisory" in DESCRIPTION, "the caveat belongs in the first thing a user reads"
     assert [e["name"] for e in index["plugins"]] == ["block-destructive-commands", "code-safety"], "sorted"
     for entry in index["plugins"]:
         assert entry["source"] == f"./claude/{entry['name']}"

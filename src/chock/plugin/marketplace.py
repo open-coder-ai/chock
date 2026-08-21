@@ -58,8 +58,23 @@ def collect_entries(dist_root: Path) -> list[dict[str, Any]]:
     return entries
 
 
+#: `claude plugin validate` warns when a marketplace has no description, and the field is
+#: what a browsing user reads before deciding to trust the source. It states the two things
+#: that matter for that decision: where the content comes from, and that installing a plugin
+#: is not the same as adopting Chock in a repository.
+DESCRIPTION = (
+    "Chock policies packaged as installable plugins. Generated from the chock-catalog; "
+    "each plugin states whether it enforces in this client or is advisory."
+)
+
+
 def build_index(dist_root: Path, name: str) -> dict[str, Any]:
-    return {"name": name, "owner": OWNER, "plugins": collect_entries(dist_root)}
+    return {
+        "name": name,
+        "owner": OWNER,
+        "description": DESCRIPTION,
+        "plugins": collect_entries(dist_root),
+    }
 
 
 def index_differences(dist_root: Path, name: str) -> list[str]:
