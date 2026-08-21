@@ -23,6 +23,21 @@ Confirmed vulnerabilities are fixed in a patch release, credited to the reporter
 unless they prefer otherwise, with a `SEC-*` entry in the enforcement matrix when
 a new invariant is required.
 
+## Verifying a release
+
+Releases are published to PyPI by the tag-triggered release workflow via Trusted
+Publishing (OIDC — no long-lived tokens), and every release's artifacts carry a
+Sigstore build-provenance attestation generated in the same run. To verify that a
+distribution you downloaded was built by this repository's release workflow:
+
+```bash
+gh attestation verify chock-<version>-py3-none-any.whl --repo open-coder-ai/chock
+```
+
+The attestation binds the artifact's digest to the exact source commit and workflow
+that produced it. The full security argument, including what this does and does not
+protect against, is in [docs/assurance-case.md](docs/assurance-case.md).
+
 ## Threat model
 
 The framework's security invariants (SEC-1..7, DET-1..4, EXE-1..7, EFF-1) and the
