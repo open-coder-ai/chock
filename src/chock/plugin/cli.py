@@ -11,6 +11,7 @@ client pointed at the repo and read as a plugin nobody published.
 from __future__ import annotations
 
 import argparse
+import shutil
 import sys
 from pathlib import Path
 
@@ -93,6 +94,11 @@ def main(argv: list[str] | None = None) -> int:
 
     differences: list[str] = []
     written = 0
+    # Two policy folders can declare the same manifest id -- the id is not required to match
+    # the folder name in every catalog layout. They would map to one distribution directory,
+    # the second silently overwriting the first while the run reported both as packaged, and
+    # the index would list one package built from a mixture of two policies' files.
+    seen: dict[str, Path] = {}
     for policy_dir in policy_dirs:
         manifest = _load_manifest(policy_dir)
         if not manifest:
@@ -100,6 +106,14 @@ def main(argv: list[str] | None = None) -> int:
         try:
             policy_id = str(manifest.get("id") or policy_dir.name)
             name = plugin_name(policy_id)
+            if name in seen:
+                print(
+                    f"[ERROR] duplicate policy id {policy_id!r}: {seen[name]} and {policy_dir} "
+                    f"would package into the same directory. Give them distinct ids.",
+                    file=sys.stderr,
+                )
+                return 2
+            seen[name] = policy_dir
             for fmt in formats:
                 # One subtree per format, never a shared directory. The formats disagree by
                 # design: a Claude package that ships hooks says the policy is enforced here,
@@ -124,6 +138,22 @@ def main(argv: list[str] | None = None) -> int:
         except PluginNameError as exc:
             print(f"[ERROR] {policy_dir}: {exc}", file=sys.stderr)
             return 2
+
+    # A policy removed or renamed upstream leaves its directory behind. Nothing would rebuild
+    # it, nothing would report it, and `marketplace build` would keep indexing it -- so a
+    # withdrawn policy stays installable forever, which is the yank procedure failing
+    # silently. Only formats that were actually built are reconciled.
+    if out_root is not None:
+        for fmt in formats:
+            tree = out_root / fmt
+            if not tree.is_dir():
+                continue
+            for stale_dir in sorted(d for d in tree.iterdir() if d.is_dir() and d.name not in seen):
+                if args.check:
+                    differences.append(f"stale: {fmt}/{stale_dir.name} (no policy produces it)")
+                else:
+                    shutil.rmtree(stale_dir)
+                    print(f"  removed {fmt}/{stale_dir.name}: no policy produces it any more")
 
     if args.check:
         if differences:

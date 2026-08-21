@@ -142,6 +142,29 @@ def claude_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
     return files
 
 
+#: Everything the Claude emitter may write. Reconciliation needs this list because the set
+#: of files a policy produces CHANGES: a policy that loses its guard script stops emitting
+#: hooks.json and scripts/, and a build that only writes current files would leave the old
+#: hook in place -- a package that still denies commands while its own manifest and skill
+#: now say it is advisory. That is the overclaim this project exists to refuse, arriving by
+#: omission rather than by assertion.
+OWNED_SUBTREES = ("hooks", "scripts")
+
+
+def stale_claude_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, out_dir: Path) -> list[Path]:
+    """Files under this package that the current manifest would no longer produce."""
+    out_dir = Path(out_dir)
+    if not out_dir.is_dir():
+        return []
+    expected = set(claude_plugin_files(Path(policy_dir), manifest, Path(repo_root)))
+    stale: list[Path] = []
+    for sub in OWNED_SUBTREES:
+        for path in sorted((out_dir / sub).rglob("*")) if (out_dir / sub).is_dir() else []:
+            if path.is_file() and path.relative_to(out_dir) not in expected:
+                stale.append(path)
+    return stale
+
+
 def build_claude_plugin(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, out_dir: Path) -> list[Path]:
     """Write the Claude-format package for one policy into a distribution directory.
 
@@ -155,6 +178,15 @@ def build_claude_plugin(policy_dir: Path, manifest: dict[str, Any], repo_root: P
         dest.parent.mkdir(parents=True, exist_ok=True)
         write_generated(dest, content)
         written.append(dest)
+
+    # A guard removed upstream must take its hook with it. Writing only current files would
+    # leave a package enforcing what its manifest no longer claims.
+    for stale in stale_claude_files(policy_dir, manifest, repo_root, out_dir):
+        stale.unlink()
+        parent = stale.parent
+        while parent != Path(out_dir) and parent.is_dir() and not any(parent.iterdir()):
+            parent.rmdir()
+            parent = parent.parent
     return written
 
 
@@ -168,4 +200,6 @@ def claude_plugin_differences(policy_dir: Path, manifest: dict[str, Any], repo_r
             differences.append(f"missing: {policy_id}/{rel.as_posix()}")
         elif dest.read_text(encoding="utf-8") != content:
             differences.append(f"differs: {policy_id}/{rel.as_posix()}")
+    for stale in stale_claude_files(policy_dir, manifest, repo_root, out_dir):
+        differences.append(f"stale: {policy_id}/{Path(stale).relative_to(Path(out_dir)).as_posix()}")
     return differences

@@ -12,6 +12,7 @@ project cannot ship.
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -207,3 +208,71 @@ def test_cli_builds_a_distribution_tree(policy, tmp_path: Path) -> None:
     assert plugin_main(["build", "--repo", str(tmp_path), "--format", "all", "--out-dir", str(dist), "--check"]) == 0
     (dist / "agent-plugins" / "code-safety" / "plugin.json").write_text("{}", encoding="utf-8")
     assert plugin_main(["build", "--repo", str(tmp_path), "--format", "all", "--out-dir", str(dist), "--check"]) == 1
+
+
+def test_losing_a_guard_removes_its_hook(policy, tmp_path: Path) -> None:
+    """A policy that stops shipping a guard must stop shipping the hook that ran it.
+
+    Writing only current files would leave the old `hooks/hooks.json` and script in place:
+    a package still denying commands while its own manifest and skill say it is advisory.
+    That is this project's central failure -- a claim and a mechanism disagreeing -- arriving
+    by omission rather than by assertion.
+    """
+    pack = policy(GUARD_MANIFEST, guard=True)
+    out = tmp_path / "out"
+    build_claude_plugin(pack, GUARD_MANIFEST, tmp_path, out)
+    assert (out / "hooks" / "hooks.json").exists()
+
+    (pack / "implementations" / "block-destructive-commands.sh").unlink()
+    assert claude_plugin_differences(pack, GUARD_MANIFEST, tmp_path, out), "check reports the stale hook"
+
+    build_claude_plugin(pack, GUARD_MANIFEST, tmp_path, out)
+    assert not (out / "hooks").exists(), "the hook is gone, not merely unreferenced"
+    assert not (out / "scripts").exists()
+    assert not claude_plugin_differences(pack, GUARD_MANIFEST, tmp_path, out)
+
+
+def test_check_reports_a_stale_hook_without_deleting_it(policy, tmp_path: Path) -> None:
+    """`--check` judges; it does not repair. A check that fixed what it measured could not fail."""
+    pack = policy(GUARD_MANIFEST, guard=True)
+    out = tmp_path / "out"
+    build_claude_plugin(pack, GUARD_MANIFEST, tmp_path, out)
+    (pack / "implementations" / "block-destructive-commands.sh").unlink()
+
+    assert any("stale" in d for d in claude_plugin_differences(pack, GUARD_MANIFEST, tmp_path, out))
+    assert (out / "hooks" / "hooks.json").exists(), "check must not delete what it reports"
+
+
+def test_a_removed_policy_stops_being_published(policy, tmp_path: Path) -> None:
+    """A withdrawn policy must leave the distribution, or the yank procedure fails silently."""
+    policy(GUARD_MANIFEST, guard=True)
+    bare = policy(RULE_MANIFEST)
+    dist = tmp_path / "dist"
+    assert plugin_main(["build", "--repo", str(tmp_path), "--format", "all", "--out-dir", str(dist)]) == 0
+    assert (dist / "claude" / "code-safety").is_dir()
+
+    shutil.rmtree(bare)
+    assert plugin_main(["build", "--repo", str(tmp_path), "--format", "all", "--out-dir", str(dist), "--check"]) == 1
+
+    assert plugin_main(["build", "--repo", str(tmp_path), "--format", "all", "--out-dir", str(dist)]) == 0
+    assert not (dist / "claude" / "code-safety").exists()
+    assert not (dist / "agent-plugins" / "code-safety").exists()
+    assert (dist / "claude" / "block-destructive-commands").is_dir(), "the surviving policy is untouched"
+
+
+def test_duplicate_policy_ids_are_refused(policy, tmp_path: Path, capsys) -> None:
+    """Two folders declaring one id would package into one directory, the second winning.
+
+    The run would report both as packaged while the distribution contained a single package
+    built from a mixture of the two -- so this refuses rather than picking a winner.
+    """
+    policy(GUARD_MANIFEST, guard=True)
+    twin = dict(RULE_MANIFEST)
+    twin["id"] = "block-destructive-commands"
+    pack = tmp_path / ".agents" / "policies" / "a-different-folder"
+    pack.mkdir(parents=True)
+    (pack / "manifest.yaml").write_text(yaml.safe_dump(twin), encoding="utf-8")
+
+    dist = tmp_path / "dist"
+    assert plugin_main(["build", "--repo", str(tmp_path), "--format", "all", "--out-dir", str(dist)]) == 2
+    assert "duplicate policy id" in capsys.readouterr().err
