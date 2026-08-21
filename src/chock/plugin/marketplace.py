@@ -31,6 +31,12 @@ INDEX_PATHS = (
 
 OWNER = {"name": "open-coder-ai", "url": "https://github.com/open-coder-ai"}
 
+#: The index describes the Claude-format tree specifically. `chock plugin build` writes one
+#: subtree per format, and only this one carries the hooks these clients read; pointing the
+#: index at a shared directory would list packages whose skill text was written for a
+#: different client's capabilities.
+CLAUDE_TREE = "claude"
+
 
 def collect_entries(dist_root: Path) -> list[dict[str, Any]]:
     """Index entries from the built plugin manifests, sorted by directory name.
@@ -39,11 +45,11 @@ def collect_entries(dist_root: Path) -> list[dict[str, Any]]:
     and a reordering diff would bury the real change in every release.
     """
     entries: list[dict[str, Any]] = []
-    for manifest_path in sorted(Path(dist_root).glob("plugins/*/.claude-plugin/plugin.json")):
+    for manifest_path in sorted(Path(dist_root).glob(f"{CLAUDE_TREE}/*/.claude-plugin/plugin.json")):
         data = json.loads(manifest_path.read_text(encoding="utf-8"))
         entry: dict[str, Any] = {
             "name": data["name"],
-            "source": f"./plugins/{manifest_path.parent.parent.name}",
+            "source": f"./{CLAUDE_TREE}/{manifest_path.parent.parent.name}",
             "description": data.get("description", ""),
         }
         if data.get("version"):
@@ -90,7 +96,9 @@ def main(argv: list[str] | None = None) -> int:
         # An empty index is not a valid release: a publish pipeline that finds no plugins
         # has pointed at the wrong tree or run its stages out of order, and emitting an
         # index that delists everything would propagate that mistake to every client.
-        print(f"No plugin manifests under {dist_root / 'plugins'}; refusing to write an empty index.", file=sys.stderr)
+        print(
+            f"No plugin manifests under {dist_root / CLAUDE_TREE}; refusing to write an empty index.", file=sys.stderr
+        )
         return 2
 
     if args.check:

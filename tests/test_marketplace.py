@@ -70,9 +70,9 @@ def test_entries_are_derived_from_the_built_manifests(dist: Path) -> None:
     assert index["name"] == "chock"
     assert [e["name"] for e in index["plugins"]] == ["block-destructive-commands", "code-safety"], "sorted"
     for entry in index["plugins"]:
-        assert entry["source"] == f"./plugins/{entry['name']}"
+        assert entry["source"] == f"./claude/{entry['name']}"
         built = json.loads(
-            (dist / "plugins" / entry["name"] / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
+            (dist / "claude" / entry["name"] / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
         )
         assert entry["description"] == built["description"], "the index repeats the manifest, never rewrites it"
         assert entry["version"] == built["version"]

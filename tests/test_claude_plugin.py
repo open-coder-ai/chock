@@ -72,7 +72,7 @@ def policy(tmp_path: Path):
 
 def test_guard_policy_ships_hooks_adapter_and_guard(policy, tmp_path: Path) -> None:
     pack = policy(GUARD_MANIFEST, guard=True)
-    out = tmp_path / "dist" / "plugins" / "block-destructive-commands"
+    out = tmp_path / "dist" / "claude" / "block-destructive-commands"
     build_claude_plugin(pack, GUARD_MANIFEST, tmp_path, out)
 
     hooks = json.loads((out / "hooks" / "hooks.json").read_text(encoding="utf-8"))
@@ -108,7 +108,11 @@ def test_descriptions_state_the_fail_posture(policy, tmp_path: Path) -> None:
 
     assert POSTURE_ENFORCED in json.loads(guarded_manifest)["description"]
     assert POSTURE_ADVISORY in json.loads(bare_manifest)["description"]
+    # Both fail-open conditions must be named. The guards are bash scripts and the adapter
+    # allows when it cannot find a usable bash, so a posture line mentioning only python3
+    # would describe one of the two ways this plugin silently stops enforcing.
     assert "fails open" in POSTURE_ENFORCED, "the caveat is the load-bearing clause"
+    assert "python3" in POSTURE_ENFORCED and "bash" in POSTURE_ENFORCED
 
 
 def test_rule_policy_gets_no_hooks_or_scripts(policy, tmp_path: Path) -> None:
@@ -122,11 +126,26 @@ def test_rule_policy_gets_no_hooks_or_scripts(policy, tmp_path: Path) -> None:
     assert set(files) == {Path(".claude-plugin/plugin.json"), Path("skills/code-safety/SKILL.md")}
 
 
-def test_skill_is_the_shared_builder_output(policy, tmp_path: Path) -> None:
-    """Both formats render the skill through `build_skill`, so they cannot drift."""
+def test_advisory_skill_is_the_shared_builder_output(policy, tmp_path: Path) -> None:
+    """A guardless policy's skill is the shared builder's output, unmodified."""
+    pack = policy(RULE_MANIFEST)
+    files = claude_plugin_files(pack, RULE_MANIFEST, tmp_path)
+    assert files[Path("skills/code-safety/SKILL.md")] == build_skill(pack, RULE_MANIFEST, tmp_path)
+
+
+def test_enforcing_package_skill_does_not_call_itself_advisory(policy, tmp_path: Path) -> None:
+    """The packaged skill must not contradict the hook shipped beside it.
+
+    `build_skill` closes with "this skill is advisory: the client reading it has no mechanism
+    to enforce it" -- true of the Agent Plugins package, false inside a Claude package that
+    ships hooks.json. A file claiming nothing enforces this, sitting next to the thing that
+    does, is a claim that does not match its own directory even though it under-claims.
+    """
     pack = policy(GUARD_MANIFEST, guard=True)
-    files = claude_plugin_files(pack, GUARD_MANIFEST, tmp_path)
-    assert files[Path("skills/block-destructive-commands/SKILL.md")] == build_skill(pack, GUARD_MANIFEST, tmp_path)
+    skill = claude_plugin_files(pack, GUARD_MANIFEST, tmp_path)[Path("skills/block-destructive-commands/SKILL.md")]
+    assert "advisory: the client reading it has no mechanism to enforce it" not in skill
+    assert "enforced in this client by a PreToolUse hook" in skill
+    assert "`chock sync`" in skill, "repo-wide enforcement still has to be pointed at"
 
 
 def test_output_is_byte_stable(policy, tmp_path: Path) -> None:
@@ -169,13 +188,22 @@ def test_cli_builds_a_distribution_tree(policy, tmp_path: Path) -> None:
 
     assert plugin_main(["build", "--repo", str(tmp_path), "--format", "all", "--out-dir", str(dist)]) == 0
     for plugin_id in ("block-destructive-commands", "code-safety"):
-        root = dist / "plugins" / plugin_id
-        assert (root / "plugin.json").exists(), "Agent Plugins manifest rides along in every directory"
-        assert (root / ".claude-plugin" / "plugin.json").exists()
-        assert (root / "skills" / plugin_id / "SKILL.md").exists()
-    assert (dist / "plugins" / "block-destructive-commands" / "hooks" / "hooks.json").exists()
-    assert not (dist / "plugins" / "code-safety" / "hooks").exists()
+        # Each format owns its own subtree. They cannot share one: the Claude package of a
+        # guard policy states the policy is enforced here, and the hookless Agent Plugins
+        # package of the same policy states it is advisory. Both are true of their own
+        # package, so a shared `skills/<id>/SKILL.md` would have to lie to one client.
+        claude_root = dist / "claude" / plugin_id
+        assert (claude_root / ".claude-plugin" / "plugin.json").exists()
+        assert (claude_root / "skills" / plugin_id / "SKILL.md").exists()
+        assert not (claude_root / "plugin.json").exists(), "the generic manifest lives in its own tree"
+
+        generic_root = dist / "agent-plugins" / plugin_id
+        assert (generic_root / "plugin.json").exists()
+        assert (generic_root / "skills" / plugin_id / "SKILL.md").exists()
+        assert not (generic_root / "hooks").exists(), "the standard defines no hooks"
+    assert (dist / "claude" / "block-destructive-commands" / "hooks" / "hooks.json").exists()
+    assert not (dist / "claude" / "code-safety" / "hooks").exists()
 
     assert plugin_main(["build", "--repo", str(tmp_path), "--format", "all", "--out-dir", str(dist), "--check"]) == 0
-    (dist / "plugins" / "code-safety" / "plugin.json").write_text("{}", encoding="utf-8")
+    (dist / "agent-plugins" / "code-safety" / "plugin.json").write_text("{}", encoding="utf-8")
     assert plugin_main(["build", "--repo", str(tmp_path), "--format", "all", "--out-dir", str(dist), "--check"]) == 1

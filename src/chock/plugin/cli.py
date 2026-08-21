@@ -67,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--out-dir",
         default=None,
-        help="Distribution root: plugins are written to <out-dir>/plugins/<id>/ (required for claude format)",
+        help="Distribution root: plugins are written to <out-dir>/<format>/<id>/ (required for claude format)",
     )
     parser.add_argument(
         "--check",
@@ -99,8 +99,15 @@ def main(argv: list[str] | None = None) -> int:
             continue
         try:
             policy_id = str(manifest.get("id") or policy_dir.name)
-            target = out_root / "plugins" / plugin_name(policy_id) if out_root else None
+            name = plugin_name(policy_id)
             for fmt in formats:
+                # One subtree per format, never a shared directory. The formats disagree by
+                # design: a Claude package that ships hooks says the policy is enforced here,
+                # while the same policy in the hookless Agent Plugins format is advisory. Both
+                # statements are true of their own package and false of the other, so sharing
+                # `skills/<id>/SKILL.md` would force one of them to lie -- and a generic client
+                # reading a shared tree would see an enforcement claim for hooks it ignores.
+                target = out_root / fmt / name if out_root else None
                 if fmt == "agent-plugins":
                     if args.check:
                         differences.extend(plugin_differences(policy_dir, manifest, repo_root, target))

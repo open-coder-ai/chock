@@ -25,13 +25,34 @@ from typing import Any
 import chock.gate.pretooluse as _adapter_module
 from chock.compile.emitters.claude_pretooluse import MATCHER, TIMEOUT_SECONDS, _guard_script
 from chock.emit import write_generated
-from chock.plugin.build import _author, _keywords, _one_line, build_skill, plugin_name
+from chock.plugin.build import _ADVISORY_NOTE, _author, _keywords, _one_line, build_skill, plugin_name
 
 #: Stated verbatim in the emitted description. "session-enforced" and "advisory" are the
 #: coverage taxonomy's words, used with their taxonomy meaning -- the description is a
 #: coverage claim, so it uses the vocabulary the rest of the project is held to.
-POSTURE_ENFORCED = "Session-enforced via a PreToolUse hook; fails open if python3 is not on PATH."
+#:
+#: Both fail-open conditions are named, not just the interpreter. The guards are bash
+#: scripts and the adapter probes for a bash that can resolve the guard path; when it finds
+#: none it reports "not checked" and ALLOWS. On a Windows machine without Git Bash that is
+#: the common case, not an edge case -- so a posture line naming only python3 would describe
+#: one of the two ways this plugin silently stops enforcing.
+POSTURE_ENFORCED = (
+    "Session-enforced via a PreToolUse hook; fails open (allows) if python3 or a usable bash is unavailable."
+)
 POSTURE_ADVISORY = "Advisory skill only; enforcement needs chock installed in the repo."
+
+#: Replaces the packaged skill's closing note when the package carries a working hook.
+#: `build_skill` ends every skill with "this skill is advisory: the client reading it has no
+#: mechanism to enforce it" -- true of the Agent Plugins package, which has no hooks, and
+#: false inside a Claude package that ships one. Shipping a file that says nothing enforces
+#: this next to a hook that does is a claim that does not match its own directory, even
+#: though it errs toward under-claiming.
+_ENFORCED_NOTE = (
+    "This policy is enforced in this client by a PreToolUse hook installed with the plugin, "
+    "subject to the fail-open condition stated in the plugin description. Repo-wide "
+    "enforcement across every commit and in CI still needs `chock sync`. "
+    "See https://github.com/open-coder-ai/chock"
+)
 
 
 def _adapter_source() -> str:
@@ -90,12 +111,19 @@ def claude_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
     name = plugin_name(str(policy_id))
     script = _guard_script(policy_dir, str(policy_id))
 
+    skill = build_skill(policy_dir, manifest, Path(repo_root))
+    if script:
+        # The shared builder's closing note is written for a format with no hooks. This
+        # package has one, so the note is replaced rather than appended: leaving both would
+        # make the file contradict itself inside the reader's own directory.
+        skill = skill.replace(_ADVISORY_NOTE, _ENFORCED_NOTE)
+
     files: dict[Path, str] = {
         Path(".claude-plugin/plugin.json"): json.dumps(
             build_claude_manifest(manifest, policy_dir, enforced=script is not None), indent=2
         )
         + "\n",
-        Path("skills") / name / "SKILL.md": build_skill(policy_dir, manifest, Path(repo_root)),
+        Path("skills") / name / "SKILL.md": skill,
     }
     if script:
         hooks = {
