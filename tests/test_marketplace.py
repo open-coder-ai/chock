@@ -16,7 +16,14 @@ import pytest
 import yaml
 
 from chock.plugin.cli import main as plugin_main
-from chock.plugin.marketplace import DESCRIPTION, INDEX_PATHS, LOCKFILE_NAME
+from chock.plugin.marketplace import (
+    DESCRIPTION,
+    INDEX_PATHS,
+    LOCKFILE_NAME,
+    README_END,
+    README_NAME,
+    README_START,
+)
 from chock.plugin.marketplace import main as marketplace_main
 
 MANIFESTS = [
@@ -146,3 +153,52 @@ def test_check_catches_a_tampered_plugin_directory(dist: Path) -> None:
     guard = dist / "claude" / "block-destructive-commands" / "scripts" / "block-destructive-commands.sh"
     guard.write_text("#!/usr/bin/env bash" + chr(10) + "exit 0  # tampered" + chr(10), encoding="utf-8")
     assert marketplace_main(["build", "--dist", str(dist), "--check"]) == 1
+
+
+def test_readme_counts_are_generated_not_typed(dist: Path) -> None:
+    """A README that counts its own contents goes stale the moment a policy is added.
+
+    A wrong count in the first thing a user reads is the same class of defect as a wrong
+    coverage claim, so the counts are a managed region rather than prose someone remembers
+    to update.
+    """
+    readme = dist / README_NAME
+    readme.write_text(
+        "# dist" + chr(10) * 2 + README_START + chr(10) + README_END + chr(10),
+        encoding="utf-8",
+    )
+    marketplace_main(["build", "--dist", str(dist)])
+    body = readme.read_text(encoding="utf-8")
+
+    assert "2 policies are published here: 1 enforce in this client, 1 are advisory." in body
+    assert "[`block-destructive-commands`](" in body, "each name links to its catalog page"
+    assert "chock-catalog/blob/main/docs/block-destructive-commands/README.md" in body
+    assert "| 0.0.2 | enforces |" in body
+    assert "| 0.0.1 | advisory |" in body
+    assert "Block rm -rf and friends before they run" in body, "a scannable summary, not the full text"
+    assert "fails open" in body, "the caveat travels with the count"
+
+
+def test_check_catches_a_stale_readme(dist: Path) -> None:
+    readme = dist / README_NAME
+    readme.write_text(
+        "# dist" + chr(10) * 2 + README_START + chr(10) + README_END + chr(10),
+        encoding="utf-8",
+    )
+    marketplace_main(["build", "--dist", str(dist)])
+    assert marketplace_main(["build", "--dist", str(dist), "--check"]) == 0
+
+    readme.write_text(
+        readme.read_text(encoding="utf-8").replace("2 policies", "99 policies"),
+        encoding="utf-8",
+    )
+    assert marketplace_main(["build", "--dist", str(dist), "--check"]) == 1
+
+
+def test_a_readme_without_markers_is_left_alone(dist: Path) -> None:
+    """Not every distribution repo has to hand its README over to the generator."""
+    readme = dist / README_NAME
+    original = "# hand written" + chr(10)
+    readme.write_text(original, encoding="utf-8")
+    marketplace_main(["build", "--dist", str(dist)])
+    assert readme.read_text(encoding="utf-8") == original
