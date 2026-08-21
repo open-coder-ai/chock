@@ -1,5 +1,24 @@
 # Chock changelog
 
+## 0.1.1 — Hardening and governance PATCH
+
+Compiled output is byte-identical to 0.1.0 (golden-suite enforced); everything here is
+validation, supply chain, documentation, and tests.
+
+- **Fix**: policy-id validation now uses `fullmatch` — ids with a trailing newline
+  (e.g. `"a00
+"`) were accepted by Python's `$`-before-newline matching. Found by the
+  new property-based suite.
+- **Supply chain**: every GitHub Action pinned to a commit SHA; least-privilege
+  `permissions:` on all workflows; pip installs hash-pinned via compiled requirements;
+  release artifacts now carry build provenance attestations; weekly coverage-guided
+  fuzzing (atheris) of the id and selection parsers.
+- **Governance docs**: GOVERNANCE.md (decision-making, roles, access continuity) and a
+  public roadmap index; SECURITY.md gains advisory URL and response timelines.
+- **Tests**: property-based suite for id validation and agent selection; unit suites
+  for the lifecycle umbrellas and frontier ingestion (statement coverage 78% → 81%).
+- **Marketplace**: the GitHub Action is listed as "Chock Governance Check" with branding.
+
 ## 0.1.0 — First public release
 
 Everything below is the launch surface; `0.0.1a0` was a name-claiming pre-release, so this
