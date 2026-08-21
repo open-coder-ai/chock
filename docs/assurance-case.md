@@ -56,6 +56,41 @@ Threat classes defended against:
 | An agent cannot widen its own permissions (T1) | `protect-agent-config` pre-tool-use guard blocks shell writes to agent config, hooks, and compiled trees without human approval | guard evals; exercised daily in this repo's own sessions |
 | Chock's own supply chain is pinned (T6) | Every GitHub Action pinned to a commit SHA; workflow tokens least-privilege; pip installs hash-pinned (`--require-hashes`); publishing via OIDC Trusted Publishing (no stored secrets); releases carry Sigstore build-provenance attestations | Scorecard (public), CodeQL on every PR, the release workflow itself |
 
+## Secure design principles, as applied
+
+- **Least privilege**: workflow tokens are read-only by default, write scopes granted
+  per job; the tool itself requests no credentials and holds no keys.
+- **Fail-safe defaults**: gates fail closed — an unresolvable CI base ref exits
+  non-zero rather than passing; the hook installer bakes an absolute interpreter path,
+  because a missing interpreter meant exit 127, which a host reads as *allow*; an
+  uninstalled surface claims nothing rather than assuming success.
+- **Complete mediation**: the CI gate re-runs the same compiled gates server-side,
+  where a local `--no-verify` cannot reach; `check --only verify` re-derives hashes
+  rather than trusting a prior result.
+- **Economy of mechanism**: one gate definition compiles to every surface, so there is
+  a single place to reason about behavior — and a single place a bypass would show up.
+- **Separation of data and instructions**: repository and web content the tool
+  processes is data, never commands; this is stated in the policies themselves and in
+  the guards' own headers.
+- **Open design**: no security property depends on secrecy — the invariants, the
+  mechanisms, and the residual risks are all public, and the coverage report is
+  computed from witnessed mechanisms rather than asserted.
+
+## Common implementation weaknesses, countered
+
+| Weakness class | Counter | Evidence |
+|---|---|---|
+| Command/argument injection (CWE-77/78) | No `eval`/`exec` anywhere; subprocess calls use explicit argument lists without shell interpretation; policy ids that reach emitted scripts are allowlist-validated first | `tests/test_manifest_id_safety.py` |
+| Path traversal (CWE-22) | Ids restricted to one path component and required to equal their folder; catalog paths confined to the catalog root; `--force` removal paths checked against escape | `tests/test_manifest_id_safety.py` |
+| Improper input validation (CWE-20) | Anchored `fullmatch` patterns, JSON Schema validation, fixed agent allowlist, https-only scheme check | property suite + weekly atheris fuzzing |
+| Insecure transport (CWE-319) | https enforced at the fetch boundary; other schemes refused, not downgraded | `tests/test_frontier_ingest.py` |
+| Improper handling of exceptional conditions (CWE-703) | Fail-closed gate paths; bookkeeping failures raise rather than warn | `tests/test_gate_bypasses.py`, `tests/test_adopter_safety.py` |
+| Untrusted content interpreted as instructions (prompt injection) | Content treated as data by policy; invisible/direction-override Unicode blocked at commit | `block-invisible-unicode` gate + evals |
+| Hardcoded credentials (CWE-798) | No credentials in the codebase; secret scanning plus the project's own `scan-secrets` gate on every commit | GitHub secret scanning, gate evals |
+
+Static analysis (CodeQL security queries, Ruff security rules) runs on every pull
+request as a standing check against this class of defect, with findings triaged to zero.
+
 ## Residual risks, stated
 
 - **No catalog signing.** `chock add` is trust-on-first-use with hash pinning —
