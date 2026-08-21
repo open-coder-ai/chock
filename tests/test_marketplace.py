@@ -16,7 +16,7 @@ import pytest
 import yaml
 
 from chock.plugin.cli import main as plugin_main
-from chock.plugin.marketplace import DESCRIPTION, INDEX_PATHS
+from chock.plugin.marketplace import DESCRIPTION, INDEX_PATHS, LOCKFILE_NAME
 from chock.plugin.marketplace import main as marketplace_main
 
 MANIFESTS = [
@@ -106,3 +106,43 @@ def test_output_is_byte_stable(dist: Path) -> None:
     first = [(dist / rel).read_bytes() for rel in INDEX_PATHS]
     marketplace_main(["build", "--dist", str(dist)])
     assert [(dist / rel).read_bytes() for rel in INDEX_PATHS] == first
+
+
+def test_lockfile_content_addresses_every_published_directory(dist: Path) -> None:
+    """One sha256 per plugin directory, across every format tree.
+
+    This is what lets an auditor or a `require_sha` fleet check that the directory they
+    received is the one that was published, without trusting the index or the commit
+    history to have been honest about it.
+    """
+    import json as _json
+
+    marketplace_main(["build", "--dist", str(dist)])
+    lock = _json.loads((dist / LOCKFILE_NAME).read_text(encoding="utf-8"))
+
+    assert lock["lockfile_version"] == 1
+    assert set(lock["plugins"]) == {
+        "claude/block-destructive-commands",
+        "claude/code-safety",
+        "agent-plugins/block-destructive-commands",
+        "agent-plugins/code-safety",
+    }, "every tree is covered, not just the one the index points at"
+    assert all(len(h) == 64 for h in lock["plugins"].values())
+    assert (
+        lock["plugins"]["claude/block-destructive-commands"]
+        != lock["plugins"]["agent-plugins/block-destructive-commands"]
+    ), "the same policy in two formats is two different artifacts"
+
+
+def test_check_catches_a_tampered_plugin_directory(dist: Path) -> None:
+    """The lockfile must fail when content changes, not only when the index does.
+
+    A hand-edited guard script is exactly what the generated-only invariant exists to
+    catch, and the index would not notice it: the manifest it reads is unchanged.
+    """
+    marketplace_main(["build", "--dist", str(dist)])
+    assert marketplace_main(["build", "--dist", str(dist), "--check"]) == 0
+
+    guard = dist / "claude" / "block-destructive-commands" / "scripts" / "block-destructive-commands.sh"
+    guard.write_text("#!/usr/bin/env bash" + chr(10) + "exit 0  # tampered" + chr(10), encoding="utf-8")
+    assert marketplace_main(["build", "--dist", str(dist), "--check"]) == 1

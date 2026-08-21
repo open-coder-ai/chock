@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from chock.emit import write_generated
+from chock.lock import compute_pack_hash
 
 #: Both paths carry identical bytes; see module docstring for why a copy, not a symlink.
 INDEX_PATHS = (
@@ -77,6 +78,43 @@ def build_index(dist_root: Path, name: str) -> dict[str, Any]:
     }
 
 
+#: Content-addresses the whole release: one sha256 per published plugin directory, over
+#: every tree. Clients that can pin (Claude, Copilot, Codex, Grok, Kimi) pin a commit; this
+#: is what lets anyone -- an org auditor, a `require_sha` fleet, or the generated-only CI --
+#: check that the directory they received is the directory that was published, without
+#: trusting the index or the commit history to have been honest about it.
+LOCKFILE_NAME = "chock-market.lock"
+
+#: Written explicitly so generated files end with a trailing newline on every platform.
+NEWLINE = chr(10)
+
+
+def build_lock(dist_root: Path) -> dict[str, Any]:
+    """Hash every plugin directory in every format tree, sorted for a stable diff.
+
+    Reuses `compute_pack_hash` rather than defining a second hashing rule: two hash
+    definitions in one project eventually disagree, and the disagreement surfaces as an
+    integrity failure nobody can explain.
+    """
+    dist_root = Path(dist_root)
+    plugins: dict[str, str] = {}
+    for manifest in sorted(dist_root.glob("*/*/")):
+        if not manifest.is_dir() or manifest.parts[-2].startswith("."):
+            continue
+        rel = manifest.relative_to(dist_root).as_posix()
+        plugins[rel] = compute_pack_hash(manifest)
+    return {"lockfile_version": 1, "plugins": plugins}
+
+
+def lock_differences(dist_root: Path) -> list[str]:
+    """Report where the on-disk lockfile disagrees with the tree it describes."""
+    content = json.dumps(build_lock(dist_root), indent=2, sort_keys=True) + NEWLINE
+    dest = Path(dist_root) / LOCKFILE_NAME
+    if not dest.exists():
+        return [f"missing: {LOCKFILE_NAME}"]
+    return [] if dest.read_text(encoding="utf-8") == content else [f"differs: {LOCKFILE_NAME}"]
+
+
 def index_differences(dist_root: Path, name: str) -> list[str]:
     """Report where the on-disk index files disagree with the plugin tree."""
     content = json.dumps(build_index(dist_root, name), indent=2) + "\n"
@@ -117,7 +155,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     if args.check:
-        differences = index_differences(dist_root, args.name)
+        differences = index_differences(dist_root, args.name) + lock_differences(dist_root)
         if differences:
             print(f"Marketplace index is out of date ({len(differences)} difference(s)):")
             for line in differences:
@@ -132,5 +170,10 @@ def main(argv: list[str] | None = None) -> int:
         dest = dist_root / rel
         dest.parent.mkdir(parents=True, exist_ok=True)
         write_generated(dest, content)
+
+    lock = json.dumps(build_lock(dist_root), indent=2, sort_keys=True) + NEWLINE
+    write_generated(dist_root / LOCKFILE_NAME, lock)
+
     print(f"Indexed {len(entries)} plugins into {' and '.join(p.as_posix() for p in INDEX_PATHS)}")
+    print(f"Wrote {LOCKFILE_NAME}: sha256 per published plugin directory")
     return 0
