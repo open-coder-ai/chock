@@ -33,6 +33,18 @@ def main(argv: list[str] | None = None) -> int:
     if target is None:
         print(f"Unknown policy: {args.policy_id}", file=sys.stderr)
         return 2
+    # An unreadable manifest is not permission to delete. `_load_manifest` reports the parse
+    # failure and returns {}, which reads as "not mandatory" -- so a mandatory policy whose
+    # manifest had a typo would be removed on the strength of a file nobody could parse.
+    # This is deletion in someone else's repository; the honest answer to "I cannot tell" is
+    # to refuse, not to proceed.
+    if not manifest:
+        print(
+            f"Refusing to remove {args.policy_id}: its manifest could not be read, so whether "
+            f"it is mandatory cannot be determined. Fix the manifest, or delete the folder by hand.",
+            file=sys.stderr,
+        )
+        return 2
     if manifest.get("mandatory"):
         print(f"Cannot remove mandatory policy: {args.policy_id}", file=sys.stderr)
         return 2
