@@ -60,6 +60,7 @@ Which surfaces each agent supports today (from `src/chock/compile/surfaces.py`):
 | Replit | ✅ | ✅ | ✅ | — | — |
 | Tabnine | ✅ | ✅ | ✅ | — | — |
 | VS Code | ✅ | ✅ | ✅ | — | — |
+| Antigravity CLI | ✅ | ✅ | ✅ | — | — |
 
 Claude Code is the reference target with the deepest enforcement primitives; the rest get the shared
 hard floor plus advisory rules until their own native controls are wired in.

@@ -38,6 +38,7 @@ SURFACE_AGENTS: dict[str, set[Surface]] = {
     "replit": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
     "tabnine": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
     "vscode": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
+    "antigravity": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
 }
 
 

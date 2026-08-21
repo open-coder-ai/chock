@@ -8,7 +8,7 @@ Chock keeps `AGENTS.md` as the single source of truth and auto-generates thin wr
 
 | Category | Agents | Auto-discovers `AGENTS.md`? | Files generated |
 |---|---|---|---|
-| Standard adopters | codex, cursor, windsurf, devin, grok, kimi-code (also qwen, jules, goose, amp, cody — native `AGENTS.md` readers with no wrapper and no `--agents` name) | Yes | `AGENTS.md` only; optional wrappers for cursor/windsurf and optional pointers for devin, grok, kimi-code |
+| Standard adopters | codex, cursor, windsurf, devin, grok, kimi-code, antigravity (also qwen, jules, goose, amp, cody — native `AGENTS.md` readers with no wrapper and no `--agents` name) | Yes | `AGENTS.md` only; optional wrappers for cursor/windsurf/antigravity and optional pointers for devin, grok, kimi-code |
 | Proprietary holdouts | claude, copilot, gemini, replit | No | `.claude/CLAUDE.md`, `.github/copilot-instructions.md`, `.gemini/GEMINI.md`, `replit.md` |
 | Config-dependent | aider, vscode, tabnine | Conditional | `CONVENTIONS.md` + `.aider.conf.yml`, `.github/agents/*.agent.md`, `guidelines.md` |
 
@@ -19,6 +19,7 @@ Chock keeps `AGENTS.md` as the single source of truth and auto-generates thin wr
 - **Windsurf**: modern rules live in `.windsurf/rules/*.md` with YAML frontmatter (`trigger: always_on`). Legacy `.windsurfrules` root file is still supported.
 - **GitHub Copilot**: project-wide instructions from `.github/copilot-instructions.md`; path-specific instructions via `.github/instructions/*.instructions.md`.
 - **Gemini CLI**: `GEMINI.md` files are loaded hierarchically (global, project root, `.gemini/`, subdirectories).
+- **Antigravity CLI**: reads rules hierarchically from `.agents/rules/*.md`, `GEMINI.md`, and `AGENTS.md`. Optional `.agents/rules/chock.md` rule.
 - **Aider**: `CONVENTIONS.md` is a read-only context file; load with `/read CONVENTIONS.md`, `aider --read CONVENTIONS.md`, or auto-load via `.aider.conf.yml` (`read: CONVENTIONS.md`).
 - **VS Code**: custom agents are `.agent.md` files in `.github/agents/` (workspace scope) or `.claude/agents/` (Claude format), with YAML frontmatter.
 - **Grok Build**: reads `AGENTS.md` natively; also compatible with `CLAUDE.md` and `.claude/` content. Optional `.grok/GROK.md` pointer.
