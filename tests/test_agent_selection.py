@@ -157,3 +157,12 @@ def test_config_duplicate_agents_are_deduped(tmp_path):
         "chock:\n  supported_agents: [claude, claude, cursor]\n", encoding="utf-8"
     )
     assert agents_from_config(tmp_path) == ["claude", "cursor"]
+
+
+def test_antigravity_agent_selection(tmp_path):
+    repo = tmp_path / "repo"
+    cmd_init([str(repo), "--skip-hooks", "--agents", "antigravity"])
+    assert (repo / ".agents" / "rules" / "chock.md").exists()
+    content = (repo / ".agents" / "rules" / "chock.md").read_text(encoding="utf-8")
+    assert "always_on" in content
+    assert "AGENTS.md" in content

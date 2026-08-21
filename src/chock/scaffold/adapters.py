@@ -25,6 +25,7 @@ AGENT_FILES: dict[str, list[str]] = {
     "aider": ["CONVENTIONS.md", ".aider.conf.yml"],
     "replit": ["replit.md"],
     "tabnine": ["guidelines.md"],
+    "antigravity": [".agents/rules/chock.md"],
 }
 
 

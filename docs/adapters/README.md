@@ -21,6 +21,7 @@ Each supported agent has a native file that delegates back to `AGENTS.md`:
 - VS Code: `.github/agents/*.agent.md`
 - Replit Agent: `replit.md`
 - Tabnine: `guidelines.md`
+- Antigravity CLI: `.agents/rules/*.md`
 
 These files are thin wrappers. The actual rules and skills live in `AGENTS.md`, `.agents/skills/`, and `.agents/policies/`.
 
@@ -39,4 +40,5 @@ These files are thin wrappers. The actual rules and skills live in `AGENTS.md`, 
 - [VS Code](./vscode.md)
 - [Replit Agent](./replit.md)
 - [Tabnine](./tabnine.md)
+- [Antigravity CLI](./antigravity.md)
 - [The skills bridge — why only Claude Code](./skills-bridge.md)
