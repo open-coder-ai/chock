@@ -177,11 +177,21 @@ def test_check_catches_a_stale_catalog_page(dist: Path) -> None:
 
 
 def test_readme_is_never_touched(dist: Path) -> None:
-    """The repository's rules put README.md off limits to tooling; honour it in both modes."""
+    """The repository's rules put README.md off limits to tooling; honour it in both modes.
+
+    Checked through `stat()` rather than by reading the file, because a test that opened
+    README.md to prove nothing opens README.md would be the very thing it is asserting
+    against. Size and modification time change on any rewrite, including one that produced
+    identical bytes.
+    """
     readme = dist / "README.md"
-    original = "# hand written" + chr(10)
-    readme.write_text(original, encoding="utf-8")
+    readme.write_bytes(b"# hand written" + bytes([10]))
+    before = readme.stat()
 
     marketplace_main(["build", "--dist", str(dist)])
-    assert readme.read_text(encoding="utf-8") == original
+    after_build = readme.stat()
+    assert (after_build.st_size, after_build.st_mtime_ns) == (before.st_size, before.st_mtime_ns)
+
     assert marketplace_main(["build", "--dist", str(dist), "--check"]) == 0
+    after_check = readme.stat()
+    assert (after_check.st_size, after_check.st_mtime_ns) == (before.st_size, before.st_mtime_ns)
