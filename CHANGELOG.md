@@ -5,10 +5,9 @@
 Compiled output is byte-identical to 0.1.0 (golden-suite enforced); everything here is
 validation, supply chain, documentation, and tests.
 
-- **Fix**: policy-id validation now uses `fullmatch` — ids with a trailing newline
-  (e.g. `"a00
-"`) were accepted by Python's `$`-before-newline matching. Found by the
-  new property-based suite.
+- **Fix**: policy-id validation now uses `fullmatch` — an id with a trailing newline
+  was accepted by Python's `$`-before-newline matching. Found by the new
+  property-based suite.
 - **Supply chain**: every GitHub Action pinned to a commit SHA; least-privilege
   `permissions:` on all workflows; pip installs hash-pinned via compiled requirements;
   release artifacts now carry build provenance attestations; weekly coverage-guided
