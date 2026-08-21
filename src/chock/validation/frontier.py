@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from chock.validation.frontier_ingest import STANDARDS_DIR
 from chock.validation.loading import (
     count_lines,
 )
@@ -25,8 +26,10 @@ def load_frontier_standard(agent: str) -> dict[str, Any] | None:
         "openai": "agentskills",
     }
     standard_name = standard_map.get(agent, agent)
-    standards_dir = Path(__file__).parent / "frontier_standards"
-    path = standards_dir / f"{standard_name}.json"
+    # The directory ingest writes is the directory validation reads. Recomputing the path
+    # here made that a coincidence of two identical expressions rather than a stated fact,
+    # and left validation reading a location no test could redirect.
+    path = STANDARDS_DIR / f"{standard_name}.json"
     if not path.exists():
         return None
     data = json.loads(path.read_text(encoding="utf-8"))

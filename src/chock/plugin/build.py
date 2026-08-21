@@ -244,12 +244,18 @@ def build_plugin(
     return written
 
 
-def plugin_differences(policy_dir: Path, manifest: dict[str, Any], repo_root: Path) -> list[str]:
-    """Report where the on-disk plugin disagrees with what the manifest would produce."""
+def plugin_differences(
+    policy_dir: Path, manifest: dict[str, Any], repo_root: Path, target: Path | None = None
+) -> list[str]:
+    """Report where the on-disk plugin disagrees with what the manifest would produce.
+
+    `target` mirrors `build_plugin`'s `out_dir`: in place by default, a distribution
+    directory when packaging into one -- so check and build always judge the same tree.
+    """
     policy_id = manifest.get("id") or Path(policy_dir).name
     differences: list[str] = []
     for rel, content in plugin_files(Path(policy_dir), manifest, Path(repo_root)).items():
-        dest = Path(policy_dir) / rel
+        dest = Path(target if target is not None else policy_dir) / rel
         if not dest.exists():
             differences.append(f"missing: {policy_id}/{rel.as_posix()}")
         elif dest.read_text(encoding="utf-8") != content:
