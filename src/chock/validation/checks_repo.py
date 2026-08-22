@@ -199,7 +199,9 @@ def check_release_consistency(root: Path, report: Report) -> None:
         # CHANGELOG topped by `0.0.1a0` against a pyproject on `0.0.1` also captured `0.0.1`,
         # compared equal, and PASSED. A release-gating check that fails open on the version it
         # exists to compare is worse than no check.
-        match = re.search(r"^##\s+(\d\S*)", changelog.read_text(encoding="utf-8"), re.MULTILINE)
+        # Bracketed Keep-a-Changelog headings (## [1.2.3]) never matched the bare
+        # pattern, so the check silently passed -- the same fail-open shape as above.
+        match = re.search(r"^##\s+\[?(\d[^\s\]]*)\]?", changelog.read_text(encoding="utf-8"), re.MULTILINE)
         if match and match.group(1) != version:
             report.add(
                 Finding(

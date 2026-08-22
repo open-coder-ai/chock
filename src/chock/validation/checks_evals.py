@@ -55,8 +55,20 @@ def check_eval_first(artifact_dir: Path, manifest: dict[str, Any], artifact_type
         report.add(Finding(str(suite_file), "eval_first", "error", f"Invalid YAML: {exc}"))
         return
 
+    # A top-level list (or any non-mapping shape) used to raise AttributeError here and
+    # take down the entire validate run -- a parse-shaped problem must be a finding.
+    if not isinstance(doc, dict):
+        report.add(Finding(str(suite_file), "eval_first", "error", "Eval suite must be a YAML mapping."))
+        return
     suite = doc.get("eval_suite", doc.get("suite", {}))
+    if not isinstance(suite, dict):
+        report.add(Finding(str(suite_file), "eval_first", "error", "eval_suite must be a mapping."))
+        return
     cases = suite.get("cases", suite.get("test_cases", []))
+    if not isinstance(cases, list):
+        report.add(Finding(str(suite_file), "eval_first", "error", "cases must be a list."))
+        return
+    cases = [c for c in cases if isinstance(c, dict)]
     categories = [str(c.get("category", c.get("type", ""))).lower() for c in cases]
     if len(cases) < BUDGETS["eval_suite_min_cases"]:
         report.add(
