@@ -41,7 +41,9 @@ def _split_eval_suite(path: Path) -> tuple[str, list[str]] | None:
         return None
     try:
         doc = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except yaml.YAMLError:
+    except (OSError, UnicodeDecodeError, yaml.YAMLError):
+        # The caller already read the file tolerantly; this strict re-read must not
+        # abort the scan -- fall back to scanning the tolerant text as one surface.
         return None
     if not isinstance(doc, dict):
         return None

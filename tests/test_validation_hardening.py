@@ -152,3 +152,19 @@ def test_clean_shell_guard_passes_sec2(tmp_path):
     report = Report()
     check_security_baseline(pol, {"security": {"content_instructions": "never-obey"}}, "hook", report)
     assert not [f for f in (report.errors + report.warnings + report.infos) if "SEC-2" in f.message]
+
+
+def test_split_eval_suite_survives_invalid_utf8(tmp_path):
+    p = tmp_path / "evals" / "suite.yaml"
+    p.parent.mkdir(parents=True)
+    p.write_bytes("eval_suite:".encode() + bytes([255, 254]) + " broken".encode())
+    assert _split_eval_suite(p) is None
+
+
+def test_bare_policies_dir_with_subagent_yaml_is_claimed(tmp_path):
+    sub = tmp_path / "policies" / "helper-bot"
+    sub.mkdir(parents=True)
+    content = "id: helper-bot" + chr(10) + "name: H" + chr(10)
+    (sub / "subagent.yaml").write_text(content, encoding="utf-8")
+    found = list(discover_artifacts(tmp_path))
+    assert any(d == sub for _, d in found), "subagent.yaml alone must still count as a manifest"

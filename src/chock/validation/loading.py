@@ -167,7 +167,7 @@ def discover_artifacts(root: Path) -> Iterable[tuple[str, Path]]:
             # folder names. Claiming them without evidence hard-failed SEC-1 against
             # unrelated code, so outside the .agents/ namespace a subfolder is only an
             # artifact when it carries a recognizable manifest.
-            if not chock_namespace and find_manifest(sub, default_type or "") is None:
+            if not chock_namespace and find_manifest(sub, default_type or "subagent") is None:
                 continue
             yield from _yield_policy_dir(sub, default_type)
 
