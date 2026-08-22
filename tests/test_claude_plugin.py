@@ -82,6 +82,18 @@ def test_guard_policy_ships_hooks_adapter_and_guard(policy, tmp_path: Path) -> N
     command = entry["hooks"][0]["command"]
     assert "${CLAUDE_PLUGIN_ROOT}/scripts/pretooluse.py" in command
     assert "${CLAUDE_PLUGIN_ROOT}/scripts/block-destructive-commands.sh" in command
+    # The EXACT command, not properties of it. Property checks (no ||, one invocation)
+    # still admitted a pipeline: `python3 ... | cat` would swallow the adapter's exit 2.
+    # One interpreter invocation is load-bearing -- a fallback chain converts a real
+    # denial into the next leg's behaviour (on Debian-class machines with no `python`
+    # name, into 127, which Claude Code treats as allow), and the first leg that runs
+    # consumes the stdin payload so a fallback could never re-adjudicate anyway. Both
+    # verified empirically. Any change to this string is a change to enforcement and
+    # must be a reviewed decision, which is exactly what an exact-match assertion forces.
+    assert command == (
+        'python3 "${CLAUDE_PLUGIN_ROOT}/scripts/pretooluse.py" '
+        '--guard "${CLAUDE_PLUGIN_ROOT}/scripts/block-destructive-commands.sh"'
+    )
 
 
 def test_adapter_and_guard_are_verbatim_copies(policy, tmp_path: Path) -> None:
@@ -112,8 +124,10 @@ def test_descriptions_state_the_fail_posture(policy, tmp_path: Path) -> None:
     # Both fail-open conditions must be named. The guards are bash scripts and the adapter
     # allows when it cannot find a usable bash, so a posture line mentioning only python3
     # would describe one of the two ways this plugin silently stops enforcing.
-    assert "fails open" in POSTURE_ENFORCED, "the caveat is the load-bearing clause"
-    assert "python3" in POSTURE_ENFORCED and "bash" in POSTURE_ENFORCED
+    # Clients disagree about hook errors (Claude Code allows, VS Code denies), so the
+    # posture must name both directions rather than promising fail-open to everyone.
+    assert "fail-open" in POSTURE_ENFORCED and "fail-closed" in POSTURE_ENFORCED
+    assert "Python" in POSTURE_ENFORCED and "bash" in POSTURE_ENFORCED
 
 
 def test_rule_policy_gets_no_hooks_or_scripts(policy, tmp_path: Path) -> None:

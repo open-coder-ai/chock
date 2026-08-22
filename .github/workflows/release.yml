@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
       - name: Verify tag matches pyproject version
         run: |
           pyproject_version=$(grep -oP '^version\s*=\s*"\K[^"]+' pyproject.toml)
@@ -32,6 +34,8 @@ jobs:
       attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
@@ -76,6 +80,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
@@ -104,11 +110,16 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
       - name: Download all binary artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
         with:
           path: dist/
           pattern: chock-*
+          # Without this, each artifact extracts into dist/chock-<os>/ and the
+          # dist/chock* release glob matches directories instead of files.
+          merge-multiple: true
       - name: Compute checksums
         run: |
           cd dist
@@ -117,11 +128,9 @@ jobs:
         run: |
           awk '/^## /{if (p) exit; p=1; print; next} p{print}' CHANGELOG.md > release_notes.md
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228  # v3
-        with:
-          name: ${{ github.ref_name }}
-          tag_name: ${{ github.ref_name }}
-          body_path: release_notes.md
-          files: |
-            dist/**/chock*
-            dist/checksums.txt
+        # The runner's own gh CLI, not a third-party action: one less external party in
+        # the job that publishes releases, flagged by zizmor's superfluous-actions audit.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME"             --title "$GITHUB_REF_NAME"             --notes-file release_notes.md             dist/chock* dist/checksums.txt

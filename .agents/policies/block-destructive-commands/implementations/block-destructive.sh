@@ -5,7 +5,16 @@ set -eu
 
 is_dangerous_target() {
     local t="$1"
-    [[ "$t" == "/" || "$t" == "~" || "$t" == "." || "$t" == ".." || "$t" == /* || "$t" == ~/* ]]
+    # The tilde MUST be quoted on the pattern side. Unquoted `~/*` inside [[ ]] undergoes
+    # tilde expansion, so the pattern became the caller's own home path and could never
+    # match the literal "~/..." an agent actually types -- `rm -rf ~/anything` was allowed
+    # for as long as this guard has existed, while `rm -rf ~` was caught.
+    #
+    # `$HOME/...` is checked literally for a different reason: the guard inspects the
+    # command BEFORE a shell expands it, so it sees the variable, not the path it becomes.
+    # At execution time it expands to an absolute path and deletes exactly what `/*` was
+    # meant to stop.
+    [[ "$t" == "/" || "$t" == "~" || "$t" == "." || "$t" == ".."         || "$t" == /* || "$t" == "~"/*         || "$t" == '$HOME' || "$t" == '${HOME}'         || "$t" == '$HOME'/* || "$t" == '${HOME}'/* ]]
 }
 
 # Flatten arguments for membership checks.
@@ -26,7 +35,7 @@ for arg in "$@"; do
         fi
     else
         case "$arg" in
-            git|rm|kubectl|terraform) ;;
+            git|rm|kubectl|terraform|aws|helm|docker|gcloud|dropdb) ;;
             push|reset|clean|delete|destroy|checkout)
                 if [[ -z "$subcommand" ]]; then subcommand="$arg"; fi
                 ;;
@@ -101,6 +110,50 @@ fi
 # terraform destroy
 if has_command "terraform" && [[ "$subcommand" == "destroy" ]]; then
     echo "BLOCKED: terraform destroy is not allowed without approval." >&2
+    exit 1
+fi
+
+# aws s3 rm --recursive; aws s3 rb --force. A single-object `aws s3 rm` stays allowed --
+# blocking it would make the guard unsatisfiable for routine cleanup.
+if has_command "aws" && has_command "s3"; then
+    if has_command "rm" && has_flag "--recursive"; then
+        echo "BLOCKED: aws s3 rm --recursive is not allowed without approval." >&2
+        exit 1
+    fi
+    if has_command "rb" && has_flag "--force"; then
+        echo "BLOCKED: aws s3 rb --force is not allowed without approval." >&2
+        exit 1
+    fi
+fi
+
+# dropdb: the command's only job is deleting a database.
+if has_command "dropdb"; then
+    echo "BLOCKED: dropdb is not allowed without approval." >&2
+    exit 1
+fi
+
+# helm uninstall (and its v2 alias `helm delete`) removes every resource in the release.
+if has_command "helm" && { has_command "uninstall" || has_command "delete"; }; then
+    echo "BLOCKED: helm uninstall/delete is not allowed without approval." >&2
+    exit 1
+fi
+
+# docker: volume rm / volume prune destroy data; system prune sweeps broadly.
+if has_command "docker"; then
+    if has_command "volume" && { has_command "rm" || has_command "prune"; }; then
+        echo "BLOCKED: docker volume rm/prune is not allowed without approval." >&2
+        exit 1
+    fi
+    if has_command "system" && has_command "prune"; then
+        echo "BLOCKED: docker system prune is not allowed without approval." >&2
+        exit 1
+    fi
+fi
+
+# gcloud … delete, across services. `--filter=delete` is a flag, not the word, and does
+# not trip this.
+if has_command "gcloud" && has_command "delete"; then
+    echo "BLOCKED: gcloud delete is not allowed without approval." >&2
     exit 1
 fi
 

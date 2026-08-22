@@ -1,6 +1,6 @@
 id: block-no-verify
 name: "Block No-Verify"
-version: "0.0.1"
+version: "0.0.2"
 description: >
   Best-effort guard against bypassing git hooks via git commit/push --no-verify or -n.
   Known bypass classes include aliases, wrapper scripts, and non-standard clients.
@@ -37,3 +37,7 @@ changelog:
   date: '2026-07-12'
   changes:
   - "Initial public baseline (0.0.1); pre-release iteration history is preserved in git log."
+- version: 0.0.2
+  date: '2026-08-22'
+  changes:
+  - "Block git -c core.hooksPath=... (case-insensitive, matched only as the -c value): disabling hooks by config is the same act as --no-verify. Bare valueless form deliberately unmatched; git rejects it with rc=128 before any hook runs."

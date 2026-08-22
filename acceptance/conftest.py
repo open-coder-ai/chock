@@ -114,7 +114,10 @@ class Adopter:
         for entry in settings.get("hooks", {}).get("PreToolUse", []):
             for hook in entry.get("hooks", []):
                 cmd = hook["command"].replace("${CLAUDE_PROJECT_DIR}", str(self.repo))
-                proc = subprocess.run(
+                # This harness runs the installed hook COMMAND STRING exactly as the
+                # client does, shell interpretation included; an argv list would test
+                # a different mechanism than the one adopters get.
+                proc = subprocess.run(  # nosemgrep: chock-no-subprocess-shell
                     cmd,
                     cwd=str(self.repo),
                     shell=True,

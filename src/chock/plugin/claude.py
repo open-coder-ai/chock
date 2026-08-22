@@ -36,8 +36,15 @@ from chock.plugin.build import _ADVISORY_NOTE, _author, _keywords, _one_line, bu
 #: none it reports "not checked" and ALLOWS. On a Windows machine without Git Bash that is
 #: the common case, not an edge case -- so a posture line naming only python3 would describe
 #: one of the two ways this plugin silently stops enforcing.
+#: Both failure directions are named because clients disagree about them: Claude Code
+#: allows on a hook error (silently unenforced), VS Code denies on one (matched commands
+#: refuse until Python exists). Promising "fails open" unconditionally was true for one
+#: client and false for the other; a posture line that is wrong for somebody is worse
+#: than one that is longer.
 POSTURE_ENFORCED = (
-    "Session-enforced via a PreToolUse hook; fails open (allows) if python3 or a usable bash is unavailable."
+    "Session-enforced via a PreToolUse hook; needs python3 and a usable bash. Without them, "
+    "fail-open clients allow silently; fail-closed clients refuse matched commands. On Windows, "
+    "disable the python3 Store alias or install Python."
 )
 POSTURE_ADVISORY = "Advisory skill only; enforcement needs chock installed in the repo."
 
@@ -67,6 +74,26 @@ def _adapter_source() -> str:
 
 
 def _hook_command(script: str) -> str:
+    """One interpreter invocation, deliberately without a fallback chain.
+
+    A `python3 ... || python ...` chain was tried and is unsound in both directions,
+    each verified empirically before this docstring was written:
+
+    - `||` fires on ANY non-zero exit. On a machine where python3 is real but the
+      fallback names are absent (Debian-family Linux, the majority install), a real
+      denial (exit 2) cascades into the missing leg's 127 -- which Claude Code treats
+      as allow. The chain silently disabled enforcement on the most common platform.
+    - Fallbacks cannot re-adjudicate anyway: the first leg that actually runs consumes
+      the stdin payload, so any later leg sees an empty one.
+
+    The residual limitation is Windows machines where `python3` is the Microsoft Store
+    alias stub: the hook errors there, and the client's own error posture applies
+    (Claude Code allows silently; VS Code refuses matched commands until Python is
+    installed or the stub alias is disabled). That is stated in POSTURE_ENFORCED
+    rather than papered over -- a loud failure beats silently lost enforcement, and the
+    real fix is a per-client emitter that knows each client's hook shell, not a shell
+    trick that trades one platform's correctness for another's.
+    """
     adapter = "${CLAUDE_PLUGIN_ROOT}/scripts/pretooluse.py"
     guard = f"${{CLAUDE_PLUGIN_ROOT}}/scripts/{script}"
     return f'python3 "{adapter}" --guard "{guard}"'

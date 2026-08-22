@@ -20,7 +20,7 @@
       {
         "id": "block-destructive-commands",
         "artifact": "rule",
-        "version": "0.0.1",
+        "version": "0.0.4",
         "name": "Block Destructive Commands",
         "description": "Best-effort guard against destructive commands: rm -rf targeting absolute, home, or root-adjacent paths; git push --force (not --force-with-lease); git reset --hard; git clean -f; kubectl delete; terraform destroy. Known bypass classes include aliases, quoted arguments, non-standard clients, and scripts that invoke these commands indirectly. This is friction, not a security boundary.",
         "path": ".agents/policies/block-destructive-commands",
@@ -50,7 +50,7 @@
       {
         "id": "block-no-verify",
         "artifact": "rule",
-        "version": "0.0.1",
+        "version": "0.0.2",
         "name": "Block No-Verify",
         "description": "Best-effort guard against bypassing git hooks via git commit/push --no-verify or -n. Known bypass classes include aliases, wrapper scripts, and non-standard clients. Fix the underlying hook failure instead of skipping validation.",
         "path": ".agents/policies/block-no-verify",

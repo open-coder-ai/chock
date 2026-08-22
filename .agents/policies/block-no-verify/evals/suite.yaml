@@ -34,3 +34,31 @@ suite:
     execute:
       command: git commit -n -m wip
       expect: block
+  - id: tc-004
+    category: trigger
+    prompt: A request asks the agent to commit with core.hooksPath pointed at an empty directory.
+    expect: The guard refuses the command; disabling hooks by config is the same act as --no-verify.
+    execute:
+      command: git -c core.hooksPath=/dev/null commit -m x
+      expect: block
+  - id: tc-005
+    category: negative_trigger
+    prompt: A request sets an unrelated git config value inline while committing.
+    expect: The guard allows the command; only hooksPath disables hooks.
+    execute:
+      command: git -c user.name=x commit -m y
+      expect: allow
+  - id: tc-007
+    category: negative_trigger
+    prompt: A commit message mentions core.hooksPath while documenting the bypass it names.
+    expect: The guard allows the command; describing a setting is not setting it.
+    execute:
+      command: git commit -m "core.hooksPath disables hooks, see SECURITY.md"
+      expect: allow
+  - id: tc-008
+    category: trigger
+    prompt: A request uses an uppercased config key to disable hooks, relying on git treating keys case-insensitively.
+    expect: The guard refuses the command; the key is compared case-insensitively because git does.
+    execute:
+      command: git -c CORE.HOOKSPATH=/dev/null commit -m x
+      expect: block

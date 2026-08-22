@@ -49,6 +49,8 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
 
       # The `$id` inside each document is the contract, so lay the files out at exactly the
       # path it names. `test_schema_identity.py` pins `$id` to CANONICAL_BASE + filename,

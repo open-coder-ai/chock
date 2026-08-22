@@ -12,6 +12,11 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    # A one-week cooldown before adopting a fresh release is the xz-class counter:
+    # a poisoned version is usually caught within days, and nothing here needs a
+    # dependency the hour it ships. Security advisories bypass this via alerts.
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     labels: [dependencies]
     groups:
@@ -30,6 +35,11 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    # A one-week cooldown before adopting a fresh release is the xz-class counter:
+    # a poisoned version is usually caught within days, and nothing here needs a
+    # dependency the hour it ships. Security advisories bypass this via alerts.
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     labels: [dependencies, ci]
     groups:
