@@ -24,22 +24,42 @@ def _is_script_file(path: Path) -> bool:
     return path.is_file() and path.suffix in code_suffixes
 
 
-def _is_adversarial_eval_file(path: Path) -> bool:
-    """Return True if path is an eval suite whose cases legitimately contain injection strings."""
+def _split_eval_suite(path: Path) -> tuple[str, list[str]] | None:
+    """Split an eval suite into (non-adversarial remainder, adversarial case texts).
+
+    One adversarial case used to exempt the ENTIRE file from the SEC-4 scan -- a
+    smuggling channel: any payload passed unscanned by riding in a suite with one
+    legitimately adversarial case. Eval cases of every category are test payloads by
+    nature (injection-defense's own *trigger* case carries the injection string) and
+    are replayed visibly by the eval runner, so cases downgrade to info -- but the
+    non-case remainder (metadata, descriptions) stays an error surface.
+    Returns None when the file is not a parseable eval suite with cases.
+    """
     if path.name not in ("suite.yaml", "suite.yml"):
-        return False
+        return None
     if "evals" not in path.parts:
-        return False
+        return None
     try:
-        doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
     except yaml.YAMLError:
-        return False
+        return None
+    if not isinstance(doc, dict):
+        return None
     suite = doc.get("eval_suite", doc.get("suite", {}))
-    cases = suite.get("cases", suite.get("test_cases", []))
-    for case in cases:
-        if str(case.get("category", "")).lower() in ("adversarial", "security"):
-            return True
-    return False
+    if not isinstance(suite, dict):
+        return None
+    cases_key = "cases" if "cases" in suite else "test_cases"
+    cases = suite.get(cases_key, [])
+    if not isinstance(cases, list):
+        return None
+    if not cases:
+        return None
+    case_texts = [yaml.safe_dump(case, sort_keys=False) for case in cases]
+    remainder_doc = dict(doc)
+    remainder_suite = dict(suite)
+    remainder_suite[cases_key] = []
+    remainder_doc["eval_suite" if "eval_suite" in doc else "suite"] = remainder_suite
+    return yaml.safe_dump(remainder_doc, sort_keys=False), case_texts
 
 
 def _scan_text_surfaces(artifact_dir: Path, manifest: dict[str, Any], artifact_type: str, report: Report) -> None:
@@ -63,20 +83,28 @@ def _scan_text_surfaces(artifact_dir: Path, manifest: dict[str, Any], artifact_t
             text = path.read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
-        # Adversarial/security eval cases legitimately contain injection strings;
-        # they are the test payload, not a finding (SEC-4 exemption).
-        if _is_adversarial_eval_file(path):
-            continue
-        for pattern in INJECTION_PATTERNS:
-            if re.search(pattern, text, re.IGNORECASE):
-                report.add(
-                    Finding(
-                        str(path),
-                        "security",
-                        "error",
-                        f"Prompt-injection-like pattern matched in {path.name}: '{pattern}' (SEC-4).",
+        # Adversarial/security eval cases legitimately contain injection strings --
+        # they are the test payload. Only those cases are downgraded (to info); the
+        # rest of the suite stays an error surface (SEC-4).
+        split = _split_eval_suite(path)
+        if split is not None:
+            remainder, adversarial_cases = split
+            surfaces = [(remainder, "error", "")] + [
+                (case_text, "info", " in an eval case") for case_text in adversarial_cases
+            ]
+        else:
+            surfaces = [(text, "error", "")]
+        for surface_text, severity, where in surfaces:
+            for pattern in INJECTION_PATTERNS:
+                if re.search(pattern, surface_text, re.IGNORECASE):
+                    report.add(
+                        Finding(
+                            str(path),
+                            "security",
+                            severity,
+                            f"Prompt-injection-like pattern matched in {path.name}{where}: '{pattern}' (SEC-4).",
+                        )
                     )
-                )
 
 
 def check_security_baseline(artifact_dir: Path, manifest: dict[str, Any], artifact_type: str, report: Report) -> None:
@@ -93,13 +121,16 @@ def check_security_baseline(artifact_dir: Path, manifest: dict[str, Any], artifa
 
     # SEC-2: deterministic scripts must not call LLMs or the network.
     skill_type = (manifest.get("skill") or {}).get("skill_type") or manifest.get("skill_type")
-    check_scripts = False
-    scripts_dir = None
+    script_dirs: list[Path] = []
     if artifact_type == "skill" and skill_type in {"code", "hybrid"}:
-        check_scripts = True
-        scripts_dir = artifact_dir / "scripts"
+        script_dirs.append(artifact_dir / "scripts")
+    # Hook implementations are the enforcement-critical scripts a policy ships; they
+    # were never scanned, so the one directory whose compromise defeats the guard was
+    # the one directory SEC-2 skipped.
+    if artifact_type == "hook":
+        script_dirs.append(artifact_dir / "implementations")
 
-    if check_scripts and scripts_dir and scripts_dir.exists():
+    for scripts_dir in (d for d in script_dirs if d.exists()):
         for script in scripts_dir.rglob("*"):
             if not _is_script_file(script):
                 continue

@@ -108,8 +108,11 @@ def test_adversarial_eval_exempt_from_injection_scan(tmp_path):
     )
     report = validator.Report()
     validator._scan_text_surfaces(skill_dir, {}, "skill", report)
-    # Adversarial suites are silently exempt: the payload is the test, not a finding.
-    assert not report.errors and not report.warnings and not report.infos
+    # The payload is the test, so it is not an error -- but it is no longer silently
+    # exempt either: since the #49 hardening (I2), case payloads surface as info and
+    # only the non-case remainder of the suite stays an error surface.
+    assert not report.errors and not report.warnings
+    assert report.infos and all("eval case" in f.message for f in report.infos)
 
 
 def test_external_content_requires_adversarial_eval_case(tmp_path):

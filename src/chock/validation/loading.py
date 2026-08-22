@@ -103,6 +103,12 @@ def discover_artifacts(root: Path) -> Iterable[tuple[str, Path]]:
         if art:
             yield (art, root)
             return
+        # A manifest with no `artifact` used to make the folder invisible to validate
+        # while `chock compile` still discovered it (any dir with manifest.yaml) -- an
+        # artifact that enforces without ever being validated. Yield it as unknown so
+        # the schema check reports the missing field instead.
+        yield ("unknown", root)
+        return
 
     candidates = [
         (".agents/skills", "skill"),
@@ -126,13 +132,13 @@ def discover_artifacts(root: Path) -> Iterable[tuple[str, Path]]:
                 continue
             try:
                 data = yaml.safe_load(manifest.read_text(encoding="utf-8"))
-                art = data.get("artifact")
-                if art:
-                    yield (art, sub)
-                    break
+                art = (data or {}).get("artifact")
             except yaml.YAMLError:
                 yield ("unknown", sub)
                 break
+            # Same gap as the root form: no `artifact` means unknown, not invisible.
+            yield (art or "unknown", sub)
+            break
 
     for rel_dir, default_type in candidates:
         base = root / rel_dir
@@ -141,11 +147,27 @@ def discover_artifacts(root: Path) -> Iterable[tuple[str, Path]]:
 
         if default_type == "eval":
             for eval_file in base.rglob("suite.yaml"):
+                # A bare evals/ dir is also a common adopter folder name; outside the
+                # .agents/ namespace only claim files that parse as an eval suite.
+                if not rel_dir.startswith(".agents/"):
+                    try:
+                        doc = yaml.safe_load(eval_file.read_text(encoding="utf-8"))
+                    except (yaml.YAMLError, OSError):
+                        continue
+                    if not isinstance(doc, dict) or not ("eval_suite" in doc or "suite" in doc):
+                        continue
                 yield ("eval", eval_file.parent)
             continue
 
+        chock_namespace = rel_dir.startswith(".agents/")
         for sub in base.iterdir():
             if not sub.is_dir():
+                continue
+            # Bare root dirs (hooks/, skills/, rules/, subagents/) are common adopter
+            # folder names. Claiming them without evidence hard-failed SEC-1 against
+            # unrelated code, so outside the .agents/ namespace a subfolder is only an
+            # artifact when it carries a recognizable manifest.
+            if not chock_namespace and find_manifest(sub, default_type or "") is None:
                 continue
             yield from _yield_policy_dir(sub, default_type)
 
