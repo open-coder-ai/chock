@@ -47,9 +47,9 @@ from chock.validation.checks_repo import (  # noqa: F401
     check_release_consistency,
 )
 from chock.validation.checks_security import (  # noqa: F401
-    _is_adversarial_eval_file,
     _is_script_file,
     _scan_text_surfaces,
+    _split_eval_suite,
     check_ambient_tier,
     check_effects_and_approval,
     check_security_baseline,
