@@ -86,7 +86,11 @@ def test_guard_policy_ships_hooks_adapter_and_guard(policy, tmp_path: Path) -> N
     # that errors without running anything, and a client that treats a hook error as deny
     # (VS Code) then refuses every shell command. `||` is valid in sh, bash and cmd alike.
     assert command.startswith("python3 ")
-    assert ' || python "' in command
+    assert ' || python "' in command and ' || py "' in command
+    assert "exit 0" not in command, (
+        "|| fires on ANY non-zero exit, so an exit-0 tail would also fire on a real "
+        "denial and convert exit 2 into allow -- erasing every block"
+    )
 
 
 def test_adapter_and_guard_are_verbatim_copies(policy, tmp_path: Path) -> None:
@@ -117,7 +121,9 @@ def test_descriptions_state_the_fail_posture(policy, tmp_path: Path) -> None:
     # Both fail-open conditions must be named. The guards are bash scripts and the adapter
     # allows when it cannot find a usable bash, so a posture line mentioning only python3
     # would describe one of the two ways this plugin silently stops enforcing.
-    assert "fails open" in POSTURE_ENFORCED, "the caveat is the load-bearing clause"
+    # Clients disagree about hook errors (Claude Code allows, VS Code denies), so the
+    # posture must name both directions rather than promising fail-open to everyone.
+    assert "fail-open" in POSTURE_ENFORCED and "fail-closed" in POSTURE_ENFORCED
     assert "Python" in POSTURE_ENFORCED and "bash" in POSTURE_ENFORCED
 
 

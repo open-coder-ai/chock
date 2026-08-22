@@ -36,8 +36,14 @@ from chock.plugin.build import _ADVISORY_NOTE, _author, _keywords, _one_line, bu
 #: none it reports "not checked" and ALLOWS. On a Windows machine without Git Bash that is
 #: the common case, not an edge case -- so a posture line naming only python3 would describe
 #: one of the two ways this plugin silently stops enforcing.
+#: Both failure directions are named because clients disagree about them: Claude Code
+#: allows on a hook error (silently unenforced), VS Code denies on one (matched commands
+#: refuse until Python exists). Promising "fails open" unconditionally was true for one
+#: client and false for the other; a posture line that is wrong for somebody is worse
+#: than one that is longer.
 POSTURE_ENFORCED = (
-    "Session-enforced via a PreToolUse hook; fails open (allows) if Python or a usable bash is unavailable."
+    "Session-enforced via a PreToolUse hook; needs Python and a usable bash. Without them, "
+    "fail-open clients allow silently; fail-closed clients refuse matched commands."
 )
 POSTURE_ADVISORY = "Advisory skill only; enforcement needs chock installed in the repo."
 
@@ -73,13 +79,20 @@ def _hook_command(script: str) -> str:
     install prompt and exits non-zero without running anything. A client that treats a
     hook error as deny (VS Code does) then refuses EVERY shell command the moment this
     plugin is installed -- observed in the field on 2026-08-22, safe probes and all. The
-    `||` fallback to `python` is valid in sh, bash and cmd alike, and the guards are
+    `||` fallback chain is valid in sh, bash and cmd alike, and the guards are
     read-only and deterministic, so the one redundant case -- a real deny (exit 2)
-    triggering the fallback and reaching the same verdict twice -- is harmless.
+    triggering a later leg and reaching the same verdict again -- is harmless.
+
+    The chain deliberately does NOT end in `|| exit 0` to force fail-open: `||` fires on
+    any non-zero exit, so that tail would also fire on a real denial and convert exit 2
+    into 0 -- erasing every block (verified empirically). With no Python at all, the
+    residual behaviour is the client's own error posture, and the description states both
+    directions rather than promising one of them.
     """
     adapter = "${CLAUDE_PLUGIN_ROOT}/scripts/pretooluse.py"
     guard = f"${{CLAUDE_PLUGIN_ROOT}}/scripts/{script}"
-    return f'python3 "{adapter}" --guard "{guard}" || python "{adapter}" --guard "{guard}"'
+    legs = [f'{exe} "{adapter}" --guard "{guard}"' for exe in ("python3", "python", "py")]
+    return " || ".join(legs)
 
 
 def build_claude_manifest(manifest: dict[str, Any], policy_dir: Path, enforced: bool) -> dict[str, Any]:
