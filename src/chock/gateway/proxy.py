@@ -55,6 +55,8 @@ def _force_utf8(stream: Any) -> None:
     try:
         stream.reconfigure(encoding="utf-8", errors="replace")
     except (AttributeError, ValueError, OSError):
+        # Best-effort: a stream that cannot be reconfigured (already detached, or not a
+        # standard text wrapper) keeps its current encoding. Nothing to recover here.
         pass
 
 
@@ -100,26 +102,45 @@ class Gateway:
         try:
             sys.stdin.close()
         except (OSError, ValueError):
+            # Closing stdin from this thread is a best-effort nudge to unblock the reader;
+            # if the platform refuses it, serve()'s _downstream_ended check still ends the
+            # loop on the next line.
             pass
 
-    def _screen(self, payload: Any) -> tuple[Any, str] | None:
-        """First blocked (id, message) across a request or batch, else None.
+    def _block_message(self, item: Any) -> str | None:
+        """Block message for a single request object, or None to allow it.
 
-        Handles a JSON-RPC batch (a list) by screening each element -- a malicious
-        tools/call wrapped in a one-element array must not skip the gate. A tools/call
-        whose params is not an object is refused rather than crashing (non-object params
-        are legal JSON-RPC but uninspectable here)."""
-        items = payload if isinstance(payload, list) else [payload]
-        for item in items:
-            if not isinstance(item, dict) or item.get("method") != "tools/call":
-                continue
-            params = item.get("params")
-            if not isinstance(params, dict):
-                return item.get("id"), "tools/call params is not an object; refusing (fail closed)"
-            message = evaluate(self.gates, str(params.get("name", "")), params.get("arguments"))
-            if message is not None:
-                return item.get("id"), message
-        return None
+        A tools/call whose params is not an object is refused rather than crashing
+        (non-object params are legal JSON-RPC but uninspectable here)."""
+        if not isinstance(item, dict) or item.get("method") != "tools/call":
+            return None
+        params = item.get("params")
+        if not isinstance(params, dict):
+            return "tools/call params is not an object; refusing (fail closed)"
+        return evaluate(self.gates, str(params.get("name", "")), params.get("arguments"))
+
+    def _refusal_for(self, payload: Any) -> str | None:
+        """The JSON-RPC response to write back if `payload` is refused, else None.
+
+        A batch (list) is screened element by element -- a malicious tools/call wrapped
+        in a one-element array must not skip the gate. If ANY element is blocked the whole
+        batch is refused (fail closed), but every request id in it still gets an error
+        response so the client is not left waiting on the permitted siblings."""
+        if isinstance(payload, list):
+            per_item = [(item, self._block_message(item)) for item in payload]
+            if not any(msg is not None for _, msg in per_item):
+                return None
+            errors = []
+            for item, msg in per_item:
+                if isinstance(item, dict) and "id" in item:
+                    reason = msg or "batch refused: another element in this batch was blocked (fail closed)"
+                    errors.append(json.loads(_blocked_response(item.get("id"), reason)))
+            return json.dumps(errors)
+        message = self._block_message(payload)
+        if message is None:
+            return None
+        request_id = payload.get("id") if isinstance(payload, dict) else None
+        return _blocked_response(request_id, message)
 
     def handle_line(self, line: str, out: TextIO) -> bool:
         """Evaluate one client line. Returns True when it was forwarded downstream."""
@@ -130,10 +151,9 @@ class Gateway:
             except json.JSONDecodeError:
                 payload = None
             if payload is not None:
-                blocked = self._screen(payload)
-                if blocked is not None:
-                    request_id, message = blocked
-                    self._write_out(_blocked_response(request_id, message), out)
+                refusal = self._refusal_for(payload)
+                if refusal is not None:
+                    self._write_out(refusal, out)
                     return False
         if self.process and self.process.stdin:
             try:
@@ -156,6 +176,8 @@ class Gateway:
                     break
                 self.handle_line(line, sys.stdout)
         except (KeyboardInterrupt, BrokenPipeError, OSError, ValueError):
+            # Interrupt or a closed/broken stdio stream ends the session; the finally
+            # block below terminates the downstream and the exit code is derived from it.
             pass
         finally:
             if self.process and self.process.poll() is None:

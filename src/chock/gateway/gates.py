@@ -31,6 +31,15 @@ _AUTHORITY_RE = re.compile(
     re.IGNORECASE,
 )
 
+# A string argument that IS a bare endpoint (`evil.io`, `www.evil.io:8080`, `evil.io/x`)
+# with no scheme -- common for MCP fetch/shell tools. Anchored to the whole trimmed value
+# so a domain mentioned mid-prose ("see evil.io for docs") is NOT matched: only a value
+# that stands alone as an endpoint. Requires a dotted name with a 2+ letter final label.
+_BARE_ENDPOINT_RE = re.compile(
+    r"""^(?:[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?\.)+[a-z]{2,}(?::\d+)?(?:/[^\s]*)?$""",
+    re.IGNORECASE,
+)
+
 
 def load_gates(repo_root: Path) -> list[dict[str, Any]]:
     """Every compiled gateway gate in the repo, with its policy id attached."""
@@ -76,18 +85,26 @@ def _hosts_in(text: str) -> Iterator[str]:
     it closed rather than skip it.
     """
     seen: set[str] = set()
+
+    def _emit(authority: str) -> Iterator[str]:
+        authority = authority.rsplit("@", 1)[-1]  # drop any userinfo
+        if authority.startswith("["):  # IPv6 literal [::1]:port
+            host = authority[1:].split("]", 1)[0]
+        else:
+            host = authority.split(":", 1)[0]  # drop :port
+        host = host.lower()
+        key = host or "\x00no-host"
+        if key not in seen:
+            seen.add(key)
+            yield host
+
     for hay in (text, unquote(text)):
         for match in _AUTHORITY_RE.finditer(hay):
-            authority = match.group(1).rsplit("@", 1)[-1]  # drop any userinfo
-            if authority.startswith("["):  # IPv6 literal [::1]:port
-                host = authority[1:].split("]", 1)[0]
-            else:
-                host = authority.split(":", 1)[0]  # drop :port
-            host = host.lower()
-            key = host or "\x00no-host"
-            if key not in seen:
-                seen.add(key)
-                yield host
+            yield from _emit(match.group(1))
+        # A whole value that is itself a bare host/endpoint (no scheme, no `//`).
+        stripped = hay.strip()
+        if _BARE_ENDPOINT_RE.match(stripped):
+            yield from _emit(stripped.split("/", 1)[0])
 
 
 def _eval_content_regex(spec: dict[str, Any], arguments: Any) -> str | None:

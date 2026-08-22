@@ -33,7 +33,10 @@ def main(argv: list[str] | None = None) -> int:
         parser.print_help()
         return 0 if args.command is None else 2
 
-    downstream = [a for a in args.downstream if a != "--"]
+    # Drop only the leading `--` separator, not every occurrence: a downstream command
+    # can legitimately contain `--` (e.g. `-- npx server -- --inner-flag`), and stripping
+    # them all would rewrite the server's own arguments.
+    downstream = args.downstream[1:] if args.downstream and args.downstream[0] == "--" else list(args.downstream)
     if not downstream:
         print("gateway: no downstream command given; put the real MCP server after `--`", file=sys.stderr)
         return 2

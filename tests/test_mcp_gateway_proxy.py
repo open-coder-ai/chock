@@ -93,12 +93,25 @@ def test_proxy_blocks_matching_call_and_forwards_the_rest(tmp_path):
             gw.process.terminate()
 
 
-def test_proxy_passes_malformed_lines_through(tmp_path):
+_RECEIPT_SERVER = textwrap.dedent(
+    """
+    import sys
+    for line in sys.stdin:
+        sys.stdout.write("GOT:" + line)
+        sys.stdout.flush()
+    """
+)
+
+
+def test_proxy_forwards_malformed_lines_to_downstream(tmp_path):
+    # A non-JSON line must actually reach the downstream, not merely return True.
     repo = _compiled_repo(tmp_path)
-    gw = Gateway(repo, [sys.executable, "-c", "import sys\nfor _ in sys.stdin: pass"])
-    gw.start_downstream()
+    gw = Gateway(repo, [sys.executable, "-c", _RECEIPT_SERVER])
+    gw.start_downstream(pipe_output=False)
     try:
         assert gw.handle_line("not json at all\n", io.StringIO()) is True
+        assert gw.process is not None and gw.process.stdout is not None
+        assert gw.process.stdout.readline() == "GOT:not json at all\n"
     finally:
         if gw.process:
             gw.process.terminate()

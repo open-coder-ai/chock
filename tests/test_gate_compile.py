@@ -78,3 +78,22 @@ def test_declarative_shim_probes_for_python_interpreter(tmp_path: Path) -> None:
     assert "exec python3 " not in text, "shim must not hardcode a python3 invocation"
     assert "for c in python3 python py" in text
     assert '.chock/bin/gate.py" run' in text
+
+
+def test_no_emission_removes_a_stale_surface_dir(tmp_path: Path) -> None:
+    """A gateway gate that stops opting in must not leave its old gateway-gate.json behind.
+
+    Review finding on #54: single-policy compile into an existing tree left the stale
+    file, which the gateway would still load. The compiler now removes any surface dir an
+    emitter produced nothing for.
+    """
+    from chock.compile.surfaces import Surface as _S
+
+    policy_dir = baseline_policy("protect-main-branch")  # forbidden_ref: never a gateway kind
+    output_root = tmp_path / ".chock" / "compiled"
+    surface_dir = output_root / "protect-main-branch" / _S.MCP_GATEWAY.value
+    surface_dir.mkdir(parents=True)
+    (surface_dir / "gateway-gate.json").write_text('{"kind": "egress_allowlist"}', encoding="utf-8")
+
+    compile_policy(policy_dir, targets=[_S.MCP_GATEWAY.value], output_root=output_root)
+    assert not surface_dir.exists(), "stale gateway surface dir/file survived recompile"

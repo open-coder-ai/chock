@@ -124,8 +124,7 @@ def test_content_regex_empty_pattern_fails_closed():
     assert gateway_gates.evaluate(gates, "write_file", {"content": "anything"}) is not None
 
 
-def test_batch_request_is_screened_element_by_element():
-
+def test_batch_with_a_blocked_element_errors_every_id():
     gw = Gateway.__new__(Gateway)
     gw.gates = [_gate("egress_allowlist", {"allowed_hosts": ["example.com"]})]
     batch = [
@@ -134,19 +133,30 @@ def test_batch_request_is_screened_element_by_element():
             "id": 3,
             "method": "tools/call",
             "params": {"name": "fetch", "arguments": {"url": "https://evil.io/x"}},
-        }
+        },
+        {
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "tools/call",
+            "params": {"name": "fetch", "arguments": {"url": "https://example.com/ok"}},
+        },
     ]
-    blocked = gw._screen(batch)
-    assert blocked is not None and blocked[0] == 3
+    refusal = gw._refusal_for(batch)
+    assert refusal is not None
+    responses = json.loads(refusal)
+    # Every request id gets an error response -- the permitted sibling (id 4) is not left
+    # hanging just because a batch mate (id 3) was blocked (review finding).
+    ids = {r["id"] for r in responses}
+    assert ids == {3, 4}
+    assert all(r["error"]["code"] == -32000 for r in responses)
 
 
 def test_non_object_params_are_refused_not_crashed():
-
     gw = Gateway.__new__(Gateway)
     gw.gates = []
     for bad in ([1], "x", 5, True):
-        blocked = gw._screen({"jsonrpc": "2.0", "id": 9, "method": "tools/call", "params": bad})
-        assert blocked is not None and "params is not an object" in blocked[1]
+        refusal = gw._refusal_for({"jsonrpc": "2.0", "id": 9, "method": "tools/call", "params": bad})
+        assert refusal is not None and "params is not an object" in refusal
 
 
 def test_egress_blocks_unlisted_host_allows_listed_and_subdomains():
@@ -178,6 +188,20 @@ def test_egress_catches_second_host_embedded_in_query():
 def test_egress_catches_percent_encoded_host():
     gates = [_gate("egress_allowlist", {"allowed_hosts": ["example.com"]})]
     assert gateway_gates.evaluate(gates, "fetch", {"u": "redirect=http%3A%2F%2Fevil.io%2Fx"}) is not None
+
+
+def test_egress_catches_schemeless_bare_host():
+    # A fetch/shell tool argument that is a bare endpoint with no scheme (review finding).
+    gates = [_gate("egress_allowlist", {"allowed_hosts": ["example.com"]})]
+    assert gateway_gates.evaluate(gates, "fetch", {"url": "evil.io/steal"}) is not None
+    assert gateway_gates.evaluate(gates, "fetch", {"url": "www.evil.io"}) is not None
+    assert gateway_gates.evaluate(gates, "fetch", {"url": "www.example.com/ok"}) is None
+
+
+def test_egress_does_not_block_a_domain_mentioned_in_prose():
+    # Only a value that IS an endpoint is matched; a domain inside a sentence is not.
+    gates = [_gate("egress_allowlist", {"allowed_hosts": ["example.com"]})]
+    assert gateway_gates.evaluate(gates, "write_file", {"content": "see evil.io for the docs"}) is None
 
 
 def test_unknown_gate_kind_fails_closed():
