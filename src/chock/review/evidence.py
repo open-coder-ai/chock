@@ -130,7 +130,10 @@ def run_check(root: Path, argv: list[str]) -> tuple[str, str]:
 
         buffer = io.StringIO()
         with contextlib.redirect_stdout(buffer), contextlib.redirect_stderr(buffer):
-            code = cli_main(resolved)
+            try:
+                code = cli_main(resolved)
+            except SystemExit as exc:  # argparse errors exit 2; keep the buffered explanation
+                code = exc.code if isinstance(exc.code, int) else 1
         out = buffer.getvalue()
     first = next((line for line in out.splitlines() if line.strip()), "")
     return ("pass" if code == 0 else "fail"), first[:2000]
