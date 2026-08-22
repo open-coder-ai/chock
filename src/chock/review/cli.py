@@ -39,7 +39,9 @@ def _emit(args: argparse.Namespace) -> int:
     # Said every time, because an empty attested list is the normal output of a machine and
     # must not read as "nothing needed judging".
     print("  attested: 0 -- a machine cannot attest. Add judgement claims before requesting review.")
-    return 0
+    # The evidence file is still written -- a record of failure is evidence too -- but the
+    # exit code must say what happened: a failing check exiting 0 is a fail-open CLI.
+    return 1 if failed else 0
 
 
 def _verify(args: argparse.Namespace) -> int:
