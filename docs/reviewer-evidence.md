@@ -8,6 +8,10 @@ chock review emit --base origin/main --kind agent --by claude-code
 chock review verify .chock/evidence/<sha>.json
 ```
 
+`emit` writes the evidence file either way -- a record of failure is evidence too --
+but exits non-zero when any check fails, so CI and scripts cannot mistake a
+failing run for a clean one.
+
 ## Two kinds of claim, kept apart
 
 This is the whole format:
