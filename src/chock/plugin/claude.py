@@ -37,7 +37,7 @@ from chock.plugin.build import _ADVISORY_NOTE, _author, _keywords, _one_line, bu
 #: the common case, not an edge case -- so a posture line naming only python3 would describe
 #: one of the two ways this plugin silently stops enforcing.
 POSTURE_ENFORCED = (
-    "Session-enforced via a PreToolUse hook; fails open (allows) if python3 or a usable bash is unavailable."
+    "Session-enforced via a PreToolUse hook; fails open (allows) if Python or a usable bash is unavailable."
 )
 POSTURE_ADVISORY = "Advisory skill only; enforcement needs chock installed in the repo."
 
@@ -67,9 +67,19 @@ def _adapter_source() -> str:
 
 
 def _hook_command(script: str) -> str:
+    """The hook invocation, with an interpreter fallback that is not decoration.
+
+    On Windows, `python3` is routinely the Microsoft Store alias stub, which prints an
+    install prompt and exits non-zero without running anything. A client that treats a
+    hook error as deny (VS Code does) then refuses EVERY shell command the moment this
+    plugin is installed -- observed in the field on 2026-08-22, safe probes and all. The
+    `||` fallback to `python` is valid in sh, bash and cmd alike, and the guards are
+    read-only and deterministic, so the one redundant case -- a real deny (exit 2)
+    triggering the fallback and reaching the same verdict twice -- is harmless.
+    """
     adapter = "${CLAUDE_PLUGIN_ROOT}/scripts/pretooluse.py"
     guard = f"${{CLAUDE_PLUGIN_ROOT}}/scripts/{script}"
-    return f'python3 "{adapter}" --guard "{guard}"'
+    return f'python3 "{adapter}" --guard "{guard}" || python "{adapter}" --guard "{guard}"'
 
 
 def build_claude_manifest(manifest: dict[str, Any], policy_dir: Path, enforced: bool) -> dict[str, Any]:

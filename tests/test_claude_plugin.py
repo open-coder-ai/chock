@@ -82,6 +82,11 @@ def test_guard_policy_ships_hooks_adapter_and_guard(policy, tmp_path: Path) -> N
     command = entry["hooks"][0]["command"]
     assert "${CLAUDE_PLUGIN_ROOT}/scripts/pretooluse.py" in command
     assert "${CLAUDE_PLUGIN_ROOT}/scripts/block-destructive-commands.sh" in command
+    # The fallback is load-bearing: on Windows, python3 is routinely the Store alias stub
+    # that errors without running anything, and a client that treats a hook error as deny
+    # (VS Code) then refuses every shell command. `||` is valid in sh, bash and cmd alike.
+    assert command.startswith("python3 ")
+    assert ' || python "' in command
 
 
 def test_adapter_and_guard_are_verbatim_copies(policy, tmp_path: Path) -> None:
@@ -113,7 +118,7 @@ def test_descriptions_state_the_fail_posture(policy, tmp_path: Path) -> None:
     # allows when it cannot find a usable bash, so a posture line mentioning only python3
     # would describe one of the two ways this plugin silently stops enforcing.
     assert "fails open" in POSTURE_ENFORCED, "the caveat is the load-bearing clause"
-    assert "python3" in POSTURE_ENFORCED and "bash" in POSTURE_ENFORCED
+    assert "Python" in POSTURE_ENFORCED and "bash" in POSTURE_ENFORCED
 
 
 def test_rule_policy_gets_no_hooks_or_scripts(policy, tmp_path: Path) -> None:
