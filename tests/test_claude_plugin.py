@@ -82,15 +82,15 @@ def test_guard_policy_ships_hooks_adapter_and_guard(policy, tmp_path: Path) -> N
     command = entry["hooks"][0]["command"]
     assert "${CLAUDE_PLUGIN_ROOT}/scripts/pretooluse.py" in command
     assert "${CLAUDE_PLUGIN_ROOT}/scripts/block-destructive-commands.sh" in command
-    # The fallback is load-bearing: on Windows, python3 is routinely the Store alias stub
-    # that errors without running anything, and a client that treats a hook error as deny
-    # (VS Code) then refuses every shell command. `||` is valid in sh, bash and cmd alike.
+    # Exactly ONE interpreter invocation, no fallback chain and no exit-0 tail. `||`
+    # fires on any non-zero exit, so a fallback leg converts a real denial (exit 2) into
+    # the next leg's behaviour -- on Debian-class machines with no `python` name, into
+    # 127, which Claude Code treats as allow. And the first leg that runs consumes the
+    # stdin payload, so a fallback could never re-adjudicate anyway. Both verified
+    # empirically before this assertion was written.
     assert command.startswith("python3 ")
-    assert ' || python "' in command and ' || py "' in command
-    assert "exit 0" not in command, (
-        "|| fires on ANY non-zero exit, so an exit-0 tail would also fire on a real "
-        "denial and convert exit 2 into allow -- erasing every block"
-    )
+    assert "||" not in command and "&&" not in command and ";" not in command
+    assert command.count("pretooluse.py") == 1
 
 
 def test_adapter_and_guard_are_verbatim_copies(policy, tmp_path: Path) -> None:

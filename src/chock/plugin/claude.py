@@ -42,8 +42,9 @@ from chock.plugin.build import _ADVISORY_NOTE, _author, _keywords, _one_line, bu
 #: client and false for the other; a posture line that is wrong for somebody is worse
 #: than one that is longer.
 POSTURE_ENFORCED = (
-    "Session-enforced via a PreToolUse hook; needs Python and a usable bash. Without them, "
-    "fail-open clients allow silently; fail-closed clients refuse matched commands."
+    "Session-enforced via a PreToolUse hook; needs python3 and a usable bash. Without them, "
+    "fail-open clients allow silently; fail-closed clients refuse matched commands. On Windows, "
+    "disable the python3 Store alias or install Python."
 )
 POSTURE_ADVISORY = "Advisory skill only; enforcement needs chock installed in the repo."
 
@@ -73,26 +74,29 @@ def _adapter_source() -> str:
 
 
 def _hook_command(script: str) -> str:
-    """The hook invocation, with an interpreter fallback that is not decoration.
+    """One interpreter invocation, deliberately without a fallback chain.
 
-    On Windows, `python3` is routinely the Microsoft Store alias stub, which prints an
-    install prompt and exits non-zero without running anything. A client that treats a
-    hook error as deny (VS Code does) then refuses EVERY shell command the moment this
-    plugin is installed -- observed in the field on 2026-08-22, safe probes and all. The
-    `||` fallback chain is valid in sh, bash and cmd alike, and the guards are
-    read-only and deterministic, so the one redundant case -- a real deny (exit 2)
-    triggering a later leg and reaching the same verdict again -- is harmless.
+    A `python3 ... || python ...` chain was tried and is unsound in both directions,
+    each verified empirically before this docstring was written:
 
-    The chain deliberately does NOT end in `|| exit 0` to force fail-open: `||` fires on
-    any non-zero exit, so that tail would also fire on a real denial and convert exit 2
-    into 0 -- erasing every block (verified empirically). With no Python at all, the
-    residual behaviour is the client's own error posture, and the description states both
-    directions rather than promising one of them.
+    - `||` fires on ANY non-zero exit. On a machine where python3 is real but the
+      fallback names are absent (Debian-family Linux, the majority install), a real
+      denial (exit 2) cascades into the missing leg's 127 -- which Claude Code treats
+      as allow. The chain silently disabled enforcement on the most common platform.
+    - Fallbacks cannot re-adjudicate anyway: the first leg that actually runs consumes
+      the stdin payload, so any later leg sees an empty one.
+
+    The residual limitation is Windows machines where `python3` is the Microsoft Store
+    alias stub: the hook errors there, and the client's own error posture applies
+    (Claude Code allows silently; VS Code refuses matched commands until Python is
+    installed or the stub alias is disabled). That is stated in POSTURE_ENFORCED
+    rather than papered over -- a loud failure beats silently lost enforcement, and the
+    real fix is a per-client emitter that knows each client's hook shell, not a shell
+    trick that trades one platform's correctness for another's.
     """
     adapter = "${CLAUDE_PLUGIN_ROOT}/scripts/pretooluse.py"
     guard = f"${{CLAUDE_PLUGIN_ROOT}}/scripts/{script}"
-    legs = [f'{exe} "{adapter}" --guard "{guard}"' for exe in ("python3", "python", "py")]
-    return " || ".join(legs)
+    return f'python3 "{adapter}" --guard "{guard}"'
 
 
 def build_claude_manifest(manifest: dict[str, Any], policy_dir: Path, enforced: bool) -> dict[str, Any]:
