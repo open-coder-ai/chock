@@ -75,5 +75,5 @@ jobs:
         # part of the verification surface. No Windows build exists, so triage for these
         # rules happens on CI rather than at the desk -- a documented gauntlet deviation.
         run: |
-          pip install semgrep==1.174.0
+          pip install --require-hashes -r requirements/semgrep.txt
           semgrep scan --config .semgrep/ --error --strict
