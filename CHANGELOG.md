@@ -16,6 +16,10 @@ MINOR: new features and adapters; compiled output for existing policies is uncha
 - **`chock marketplace build`**: derives the marketplace index, a content-addressed
   `chock-market.lock` (sha256 per published plugin directory), and a generated
   `PLUGINS.md` catalog page from the built packages — never hand-listed, drift-checked.
+- **Fix**: the emitted plugin hook command falls back from `python3` to `python` --
+  on Windows, `python3` is routinely the Microsoft Store stub, and a client that
+  treats a hook error as deny (VS Code) refused every shell command with an
+  enforcing plugin installed.
 - **Fix**: `chock remove` refuses when a policy's manifest cannot be read — an
   unreadable manifest previously read as "not mandatory" and allowed deletion.
 - **Fix**: `frontier_ingest` no longer prints and exits at import time; frontier
