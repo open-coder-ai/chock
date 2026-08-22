@@ -1,5 +1,29 @@
 # Chock changelog
 
+## 0.2.0 — First release with an external contribution
+
+MINOR: new features and adapters; compiled output for existing policies is unchanged
+(golden-suite verified), but new surfaces exist.
+
+- **Antigravity CLI adapter** — contributed by @alexsmolya, the project's first external
+  contribution: `.agents/rules/chock.md` workspace rule, ambient/git-hook/CI surfaces
+  (deliberately not pre-tool-use: no installer exists, so no claim is made).
+- **Claude-format plugin emitter**: `chock plugin build --format claude|all --out-dir`
+  renders each policy into Claude Code's plugin layout (read natively by Claude Code,
+  Copilot CLI, VS Code and Grok Build), with the fail posture stated verbatim in every
+  emitted description and per-format subtrees so no package has to lie for another
+  client. Stale-output reconciliation, duplicate-id refusal.
+- **`chock marketplace build`**: derives the marketplace index, a content-addressed
+  `chock-market.lock` (sha256 per published plugin directory), and a generated
+  `PLUGINS.md` catalog page from the built packages — never hand-listed, drift-checked.
+- **Fix**: `chock remove` refuses when a policy's manifest cannot be read — an
+  unreadable manifest previously read as "not mandatory" and allowed deletion.
+- **Fix**: `frontier_ingest` no longer prints and exits at import time; frontier
+  validation shares one `STANDARDS_DIR` with ingestion.
+- **Tests**: 749 (from 736); statement coverage 83%; new suites for the plugin
+  emitter, marketplace, `chock remove`, and the frontier validation modes.
+
+
 ## 0.1.1 — Hardening and governance PATCH
 
 Compiled output is byte-identical to 0.1.0 (golden-suite enforced); everything here is
