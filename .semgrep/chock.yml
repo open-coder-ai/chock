@@ -45,7 +45,9 @@ rules:
       frontier_ingest incident (2026-08). Raise inside main() or let the ImportError
       happen.
     patterns:
-      - pattern: raise SystemExit(...)
+      - pattern-either:
+          - pattern: raise SystemExit(...)
+          - pattern: sys.exit(...)
       - pattern-not-inside: |
           def $FUNC(...):
               ...
