@@ -1,0 +1,58 @@
+# Chock custom Semgrep rules: every rule here encodes an incident or a standing
+# invariant, so the class it names cannot ship again. Add a rule when an incident
+# closes; never delete one without a decision record.
+rules:
+  - id: chock-no-eval-exec
+    languages: [python]
+    severity: ERROR
+    message: >
+      eval/exec is banned in this codebase (code-safety policy). Whatever this is
+      doing, do it without executing strings.
+    patterns:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: exec(...)
+
+  - id: chock-no-subprocess-shell
+    languages: [python]
+    severity: ERROR
+    message: >
+      shell=True hands the string to a shell, and every guard and adapter in this
+      project exists because strings become commands. Use an argv list.
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.run(..., shell=True, ...)
+          - pattern: subprocess.Popen(..., shell=True, ...)
+          - pattern: subprocess.call(..., shell=True, ...)
+          - pattern: subprocess.check_output(..., shell=True, ...)
+
+  - id: chock-no-module-level-exit
+    languages: [python]
+    severity: ERROR
+    message: >
+      A module that exits at import time takes its importer down with it -- the
+      frontier_ingest incident (2026-08). Raise inside main() or let the ImportError
+      happen.
+    patterns:
+      - pattern: raise SystemExit(...)
+      - pattern-not-inside: |
+          def $FUNC(...):
+              ...
+      - pattern-not-inside: |
+          if __name__ == "__main__":
+              ...
+
+  - id: chock-guard-tilde-pattern-unquoted
+    languages: [generic]
+    severity: ERROR
+    paths:
+      include:
+        - "*.sh"
+    message: >
+      Unquoted tilde on the pattern side of a bash [[ ]] comparison undergoes tilde
+      expansion, so the pattern becomes the caller's own home path and never matches a
+      literal tilde argument. This shipped in 2026-08: recursive deletion under the home
+      directory was allowed while the bare home token was caught. Quote the tilde on the
+      pattern side.
+    patterns:
+      - pattern-regex: '==\s+~(/|\s|\])'

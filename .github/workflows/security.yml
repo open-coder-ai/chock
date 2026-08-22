@@ -55,3 +55,21 @@ jobs:
         run: |
           sudo apt-get update -q && sudo apt-get install -y -q shellcheck
           find . -name "*.sh" -not -path "./.git/*" -print0 | xargs -0 shellcheck --severity=warning
+
+  semgrep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Semgrep with the project rules
+        # The custom rules in .semgrep/ encode this project's own incidents -- each rule
+        # names the incident it prevents from recurring. Version pinned: the scanner is
+        # part of the verification surface. No Windows build exists, so triage for these
+        # rules happens on CI rather than at the desk -- a documented gauntlet deviation.
+        run: |
+          pip install semgrep==1.174.0
+          semgrep scan --config .semgrep/ --error --strict
