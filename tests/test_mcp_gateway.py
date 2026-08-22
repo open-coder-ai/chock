@@ -221,6 +221,14 @@ def test_egress_catches_bare_endpoint_with_query_or_fragment():
     assert gateway_gates.evaluate(gates, "fetch", {"url": "127.0.0.1:8000?q=1"}) is not None
 
 
+def test_egress_normalizes_trailing_dot_fqdn():
+    gates = [_gate("egress_allowlist", {"allowed_hosts": ["example.com"]})]
+    assert gateway_gates.evaluate(gates, "fetch", {"url": "evil.io."}) is not None
+    # A trailing-dot form of an allowlisted host still passes (FQDN root normalized).
+    assert gateway_gates.evaluate(gates, "fetch", {"url": "example.com."}) is None
+    assert gateway_gates.evaluate(gates, "fetch", {"url": "http://example.com./ok"}) is None
+
+
 def test_blocked_notification_gets_no_response():
     gw = Gateway.__new__(Gateway)
     gw.gates = [_gate("egress_allowlist", {"allowed_hosts": ["example.com"]})]

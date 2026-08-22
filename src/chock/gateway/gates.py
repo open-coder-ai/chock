@@ -36,7 +36,7 @@ _AUTHORITY_RE = re.compile(
 # for docs") is NOT matched: only a value that stands alone as an endpoint. Covers dotted
 # DNS names, IPv4, bracketed IPv6, and the single-label `localhost` / `host:port` forms (a
 # bare single label without a port is too prose-like to treat as a host).
-_DOTTED_DNS = r"(?:[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?\.)+[a-z]{2,}"
+_DOTTED_DNS = r"(?:[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?\.)+[a-z]{2,}\.?"  # trailing dot = FQDN root
 _IPV4 = r"\d{1,3}(?:\.\d{1,3}){3}"
 _IPV6 = r"\[[0-9a-f:]+\]"
 _BARE_ENDPOINT_RE = re.compile(
@@ -99,7 +99,7 @@ def _hosts_in(text: str) -> Iterator[str]:
             host = authority[1:].split("]", 1)[0]
         else:
             host = authority.split(":", 1)[0]  # drop :port
-        host = host.lower()
+        host = host.lower().rstrip(".")  # normalize FQDN root dot: evil.io. == evil.io
         key = host or "\x00no-host"
         if key not in seen:
             seen.add(key)
@@ -135,7 +135,7 @@ def _eval_content_regex(spec: dict[str, Any], arguments: Any) -> str | None:
 
 def _eval_egress_allowlist(spec: dict[str, Any], arguments: Any) -> str | None:
     params = spec.get("params") or {}
-    allowed = [h.lower().lstrip(".") for h in params.get("allowed_hosts") or []]
+    allowed = [h.lower().strip(".") for h in params.get("allowed_hosts") or []]
     if not allowed:
         # Silently allowing all egress under a policy named "allowlist" is the worse
         # failure; schema requires >=1 host, so a stripped list is tampering. Fail closed.
