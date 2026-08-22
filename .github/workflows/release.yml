@@ -117,6 +117,9 @@ jobs:
         with:
           path: dist/
           pattern: chock-*
+          # Without this, each artifact extracts into dist/chock-<os>/ and the
+          # dist/chock* release glob matches directories instead of files.
+          merge-multiple: true
       - name: Compute checksums
         run: |
           cd dist
