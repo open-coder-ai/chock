@@ -21,6 +21,8 @@ Copilot, Codex, Gemini, Aider and seven more. Not prose an agent can ignore. Exi
 
 [Quick start](#-quick-start) · [How it works](#-how-it-works) · [Policy catalog](https://github.com/open-coder-ai/chock-catalog) · [Docs](docs/README.md) · [Roadmap](#-roadmap)
 
+*Featured in [awesome-ai-agent-governance](https://github.com/systempromptio/awesome-ai-agent-governance) -- accepted after the maintainer source-verified the enforcement claims.*
+
 <img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/demo.gif" alt="Terminal demo: chock init, chock add protect-main-branch, chock sync — then a commit straight to main is blocked, and a feature-branch commit passes" width="760">
 
 *A real session, replayed. Install, adopt one policy, and the next commit straight
