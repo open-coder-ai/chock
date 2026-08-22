@@ -29,6 +29,11 @@ rules:
   - id: chock-no-module-level-exit
     languages: [python]
     severity: ERROR
+    paths:
+      exclude:
+        # raise SystemExit(main()) at module level is the canonical entry-module
+        # idiom: __main__.py only executes when the package is run, never on import.
+        - "**/__main__.py"
     message: >
       A module that exits at import time takes its importer down with it -- the
       frontier_ingest incident (2026-08). Raise inside main() or let the ImportError

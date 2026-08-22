@@ -117,6 +117,10 @@ class Adopter:
                 proc = subprocess.run(
                     cmd,
                     cwd=str(self.repo),
+                    # nosemgrep: chock-no-subprocess-shell -- this harness runs the
+                    # installed hook COMMAND STRING exactly as the client does, shell
+                    # interpretation included; an argv list would test a different
+                    # mechanism than the one adopters get.
                     shell=True,
                     capture_output=True,
                     text=True,
