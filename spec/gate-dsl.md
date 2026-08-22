@@ -47,8 +47,15 @@ no commit/push runtime, so `"on"` must not list commit or push (validated).
 |-------|----------|------|-------|
 | `allowed_hosts` | yes | list | hostnames; a listed host also allows its subdomains |
 
-Every `http(s)://` URL found in any string argument of a `tools/call` is parsed and its
-hostname compared against the list. An empty or stripped allowlist fails closed.
+Host detection is scheme-agnostic (any `scheme://host`, scheme-relative `//host`) and also
+recognizes a string argument that is *itself* a bare endpoint (`evil.io/x`, `127.0.0.1:8000`,
+`[::1]:8000`, `localhost:8000`), across the raw and percent-decoded text, with userinfo and
+FQDN root-dot normalized. An empty or stripped allowlist fails closed.
+
+Best-effort by design: this is regex-based host extraction over free-form tool arguments,
+not a full URL parser. Known gaps include IDN/punycode and alternate IP encodings (decimal
+or octal IPv4). Treat it as friction on an MCP fetch/egress tool, not an airtight boundary
+— pair it with a network-level control where the threat model requires one.
 
 ### `kind: dependency_allowlist`
 
