@@ -20,7 +20,20 @@ runs:
   steps:
     - name: Install Chock
       shell: bash
-      run: pipx install "chock==${{ inputs.version }}"
+      env:
+        # Inputs come from the ADOPTER's workflow, which may interpolate untrusted text
+        # (a PR title, an issue body). Expanded by the runner into shell source they
+        # become code in the adopter's repo -- through the environment they stay data.
+        CHOCK_VERSION: ${{ inputs.version }}
+      run: pipx install "chock==$CHOCK_VERSION"
     - name: Run Chock
       shell: bash
-      run: chock ${{ inputs.command }}
+      env:
+        CHOCK_COMMAND: ${{ inputs.command }}
+      run: |
+        # Unquoted on purpose: the input is an argv string ("check --only validate") and
+        # must word-split. Word-splitting an expansion cannot execute metacharacters --
+        # a ; or && inside a variable is an argument, not a separator -- and set -f
+        # disables the one remaining hazard, glob expansion.
+        set -f
+        chock $CHOCK_COMMAND
