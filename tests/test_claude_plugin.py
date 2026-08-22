@@ -82,15 +82,18 @@ def test_guard_policy_ships_hooks_adapter_and_guard(policy, tmp_path: Path) -> N
     command = entry["hooks"][0]["command"]
     assert "${CLAUDE_PLUGIN_ROOT}/scripts/pretooluse.py" in command
     assert "${CLAUDE_PLUGIN_ROOT}/scripts/block-destructive-commands.sh" in command
-    # Exactly ONE interpreter invocation, no fallback chain and no exit-0 tail. `||`
-    # fires on any non-zero exit, so a fallback leg converts a real denial (exit 2) into
-    # the next leg's behaviour -- on Debian-class machines with no `python` name, into
-    # 127, which Claude Code treats as allow. And the first leg that runs consumes the
-    # stdin payload, so a fallback could never re-adjudicate anyway. Both verified
-    # empirically before this assertion was written.
-    assert command.startswith("python3 ")
-    assert "||" not in command and "&&" not in command and ";" not in command
-    assert command.count("pretooluse.py") == 1
+    # The EXACT command, not properties of it. Property checks (no ||, one invocation)
+    # still admitted a pipeline: `python3 ... | cat` would swallow the adapter's exit 2.
+    # One interpreter invocation is load-bearing -- a fallback chain converts a real
+    # denial into the next leg's behaviour (on Debian-class machines with no `python`
+    # name, into 127, which Claude Code treats as allow), and the first leg that runs
+    # consumes the stdin payload so a fallback could never re-adjudicate anyway. Both
+    # verified empirically. Any change to this string is a change to enforcement and
+    # must be a reviewed decision, which is exactly what an exact-match assertion forces.
+    assert command == (
+        'python3 "${CLAUDE_PLUGIN_ROOT}/scripts/pretooluse.py" '
+        '--guard "${CLAUDE_PLUGIN_ROOT}/scripts/block-destructive-commands.sh"'
+    )
 
 
 def test_adapter_and_guard_are_verbatim_copies(policy, tmp_path: Path) -> None:
