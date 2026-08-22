@@ -31,12 +31,19 @@ _AUTHORITY_RE = re.compile(
     re.IGNORECASE,
 )
 
-# A string argument that IS a bare endpoint (`evil.io`, `www.evil.io:8080`, `evil.io/x`)
-# with no scheme -- common for MCP fetch/shell tools. Anchored to the whole trimmed value
-# so a domain mentioned mid-prose ("see evil.io for docs") is NOT matched: only a value
-# that stands alone as an endpoint. Requires a dotted name with a 2+ letter final label.
+# A string argument that IS a bare endpoint with no scheme -- common for MCP fetch/shell
+# tools. Anchored to the whole trimmed value so a domain mentioned mid-prose ("see evil.io
+# for docs") is NOT matched: only a value that stands alone as an endpoint. Covers dotted
+# DNS names, IPv4, bracketed IPv6, and the single-label `localhost` / `host:port` forms (a
+# bare single label without a port is too prose-like to treat as a host).
+_DOTTED_DNS = r"(?:[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?\.)+[a-z]{2,}"
+_IPV4 = r"\d{1,3}(?:\.\d{1,3}){3}"
+_IPV6 = r"\[[0-9a-f:]+\]"
 _BARE_ENDPOINT_RE = re.compile(
-    r"""^(?:[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?\.)+[a-z]{2,}(?::\d+)?(?:/[^\s]*)?$""",
+    rf"^(?:(?:{_DOTTED_DNS}|{_IPV4}|{_IPV6})(?::\d+)?"
+    rf"|localhost(?::\d+)?"
+    rf"|[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?:\d+)"
+    rf"(?:/[^\s]*)?$",
     re.IGNORECASE,
 )
 

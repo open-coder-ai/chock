@@ -141,8 +141,8 @@ def test_batch_with_a_blocked_element_errors_every_id():
             "params": {"name": "fetch", "arguments": {"url": "https://example.com/ok"}},
         },
     ]
-    refusal = gw._refusal_for(batch)
-    assert refusal is not None
+    block, refusal = gw._screen(batch)
+    assert block is True and refusal is not None
     responses = json.loads(refusal)
     # Every request id gets an error response -- the permitted sibling (id 4) is not left
     # hanging just because a batch mate (id 3) was blocked (review finding).
@@ -155,8 +155,8 @@ def test_non_object_params_are_refused_not_crashed():
     gw = Gateway.__new__(Gateway)
     gw.gates = []
     for bad in ([1], "x", 5, True):
-        refusal = gw._refusal_for({"jsonrpc": "2.0", "id": 9, "method": "tools/call", "params": bad})
-        assert refusal is not None and "params is not an object" in refusal
+        block, refusal = gw._screen({"jsonrpc": "2.0", "id": 9, "method": "tools/call", "params": bad})
+        assert block is True and refusal is not None and "params is not an object" in refusal
 
 
 def test_egress_blocks_unlisted_host_allows_listed_and_subdomains():
@@ -202,6 +202,36 @@ def test_egress_does_not_block_a_domain_mentioned_in_prose():
     # Only a value that IS an endpoint is matched; a domain inside a sentence is not.
     gates = [_gate("egress_allowlist", {"allowed_hosts": ["example.com"]})]
     assert gateway_gates.evaluate(gates, "write_file", {"content": "see evil.io for the docs"}) is None
+    assert gateway_gates.evaluate(gates, "write_file", {"content": "just-a-word"}) is None
+
+
+def test_egress_catches_schemeless_ip_and_localhost():
+    gates = [_gate("egress_allowlist", {"allowed_hosts": ["example.com"]})]
+    for endpoint in ("127.0.0.1:8000", "127.0.0.1:8000/x", "[::1]:8000", "localhost:8000", "localhost"):
+        assert gateway_gates.evaluate(gates, "fetch", {"url": endpoint}) is not None, endpoint
+    # And an IP that is in the allowlist passes.
+    ip_gates = [_gate("egress_allowlist", {"allowed_hosts": ["127.0.0.1"]})]
+    assert gateway_gates.evaluate(ip_gates, "fetch", {"url": "127.0.0.1:8000"}) is None
+
+
+def test_blocked_notification_gets_no_response():
+    gw = Gateway.__new__(Gateway)
+    gw.gates = [_gate("egress_allowlist", {"allowed_hosts": ["example.com"]})]
+    # No "id" => JSON-RPC notification: block it, but do not respond.
+    block, response = gw._screen(
+        {"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "fetch", "arguments": {"url": "evil.io"}}}
+    )
+    assert block is True and response is None
+
+
+def test_batch_of_only_notifications_writes_no_response():
+    gw = Gateway.__new__(Gateway)
+    gw.gates = [_gate("egress_allowlist", {"allowed_hosts": ["example.com"]})]
+    batch = [
+        {"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "fetch", "arguments": {"url": "evil.io"}}},
+    ]
+    block, response = gw._screen(batch)
+    assert block is True and response is None
 
 
 def test_unknown_gate_kind_fails_closed():

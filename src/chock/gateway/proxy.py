@@ -119,28 +119,31 @@ class Gateway:
             return "tools/call params is not an object; refusing (fail closed)"
         return evaluate(self.gates, str(params.get("name", "")), params.get("arguments"))
 
-    def _refusal_for(self, payload: Any) -> str | None:
-        """The JSON-RPC response to write back if `payload` is refused, else None.
+    def _screen(self, payload: Any) -> tuple[bool, str | None]:
+        """(block?, response-to-write). A blocked notification blocks with no response.
 
         A batch (list) is screened element by element -- a malicious tools/call wrapped
         in a one-element array must not skip the gate. If ANY element is blocked the whole
-        batch is refused (fail closed), but every request id in it still gets an error
-        response so the client is not left waiting on the permitted siblings."""
+        batch is refused (fail closed), but every *request* id in it still gets an error
+        response so the client is not left waiting on the permitted siblings. A request
+        with no id is a JSON-RPC notification: block it, but send nothing back (servers
+        must not respond to notifications), so an all-notification batch writes no reply."""
         if isinstance(payload, list):
             per_item = [(item, self._block_message(item)) for item in payload]
             if not any(msg is not None for _, msg in per_item):
-                return None
+                return False, None
             errors = []
             for item, msg in per_item:
                 if isinstance(item, dict) and "id" in item:
                     reason = msg or "batch refused: another element in this batch was blocked (fail closed)"
                     errors.append(json.loads(_blocked_response(item.get("id"), reason)))
-            return json.dumps(errors)
+            return True, (json.dumps(errors) if errors else None)
         message = self._block_message(payload)
         if message is None:
-            return None
-        request_id = payload.get("id") if isinstance(payload, dict) else None
-        return _blocked_response(request_id, message)
+            return False, None
+        if not (isinstance(payload, dict) and "id" in payload):
+            return True, None  # blocked notification: no response
+        return True, _blocked_response(payload.get("id"), message)
 
     def handle_line(self, line: str, out: TextIO) -> bool:
         """Evaluate one client line. Returns True when it was forwarded downstream."""
@@ -151,9 +154,10 @@ class Gateway:
             except json.JSONDecodeError:
                 payload = None
             if payload is not None:
-                refusal = self._refusal_for(payload)
-                if refusal is not None:
-                    self._write_out(refusal, out)
+                block, response = self._screen(payload)
+                if block:
+                    if response is not None:
+                        self._write_out(response, out)
                     return False
         if self.process and self.process.stdin:
             try:
