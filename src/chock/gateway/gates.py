@@ -43,7 +43,7 @@ _BARE_ENDPOINT_RE = re.compile(
     rf"^(?:(?:{_DOTTED_DNS}|{_IPV4}|{_IPV6})(?::\d+)?"
     rf"|localhost(?::\d+)?"
     rf"|[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?:\d+)"
-    rf"(?:/[^\s]*)?$",
+    rf"(?:[/?#][^\s]*)?$",  # path, query, or fragment suffix
     re.IGNORECASE,
 )
 
@@ -111,7 +111,8 @@ def _hosts_in(text: str) -> Iterator[str]:
         # A whole value that is itself a bare host/endpoint (no scheme, no `//`).
         stripped = hay.strip()
         if _BARE_ENDPOINT_RE.match(stripped):
-            yield from _emit(stripped.split("/", 1)[0])
+            authority = re.split(r"[/?#]", stripped, maxsplit=1)[0]
+            yield from _emit(authority)
 
 
 def _eval_content_regex(spec: dict[str, Any], arguments: Any) -> str | None:
