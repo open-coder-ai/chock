@@ -1,6 +1,6 @@
 id: block-destructive-commands
 name: "Block Destructive Commands"
-version: "0.0.1"
+version: "0.0.4"
 description: >
   Best-effort guard against destructive commands: rm -rf targeting absolute, home, or
   root-adjacent paths; git push --force (not --force-with-lease); git reset --hard;
@@ -10,6 +10,10 @@ description: >
 artifact: rule
 enforcement: advise
 compliance:
+  mitre_atlas:
+  - control: AML.T0101
+    coverage: partial
+    note: "refuses destructive tool commands before they run; non-shell destruction paths are out of scope"
   owasp_asi:
   - ASI02
 rule:
@@ -42,3 +46,15 @@ changelog:
   date: '2026-07-12'
   changes:
   - "Initial public baseline (0.0.1); pre-release iteration history is preserved in git log."
+- version: 0.0.2
+  date: '2026-08-13'
+  changes:
+  - "Five command families from #11: aws s3 rm --recursive / rb --force, dropdb, helm uninstall|delete, docker volume rm|prune and system prune, gcloud delete. Each ships with a near-miss case that must stay allowed."
+- version: 0.0.3
+  date: '2026-08-16'
+  changes:
+  - "Add compliance claims (mitre_atlas); no mechanism change."
+- version: 0.0.4
+  date: '2026-08-22'
+  changes:
+  - "Block rm -rf against ~/... and $HOME/... forms: the unquoted tilde in the guard's pattern underwent tilde expansion, so home-directory deletions were allowed while the bare ~ was caught."

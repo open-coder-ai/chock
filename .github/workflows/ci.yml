@@ -44,20 +44,25 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
+          persist-credentials: false
           fetch-depth: 0
       # Range is origin/<base>..HEAD rather than the event's head SHA:
       # test_workflow_safety forbids the head-sha marker anywhere in a workflow,
       # because next to a privileged trigger it reads as an untrusted-ref checkout.
       - name: Check Signed-off-by on every PR commit
+        env:
+          # Expanded by the runner into shell text, a branch name is code injection waiting
+          # for a branch with metacharacters in its name; through the environment it is data.
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          git fetch --quiet origin "${{ github.base_ref }}"
+          git fetch --quiet origin "$BASE_REF"
           missing=0
           while read -r sha; do
             if ! git log -1 --format=%B "$sha" | grep -qi '^Signed-off-by: .\+<.\+@.\+>'; then
               echo "::error::commit $sha lacks a Signed-off-by trailer (git commit -s)"
               missing=1
             fi
-          done < <(git rev-list --no-merges "origin/${{ github.base_ref }}..HEAD")
+          done < <(git rev-list --no-merges "origin/$BASE_REF..HEAD")
           exit "$missing"
 
   validate:
@@ -72,6 +77,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
@@ -147,6 +154,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
@@ -188,6 +197,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
           python-version: "3.12"

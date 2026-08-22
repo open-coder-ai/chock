@@ -1,0 +1,79 @@
+name: Security checks
+
+# The pressure-testing tier: static analysis of the surfaces our other checks do not read.
+# zizmor audits the workflows themselves (template injection, credential persistence,
+# dangerous triggers -- all three found real issues on adoption day); actionlint checks
+# workflow correctness; ShellCheck lints the guard scripts, which are this project's
+# actual enforcement code and were previously linted by nothing.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  zizmor:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+      - uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054  # v0.6.2
+        with:
+          min-severity: low
+
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+      - name: Run actionlint
+        # Version-pinned through the Go module checksum database rather than a floating
+        # release download.
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          "$(go env GOPATH)/bin/actionlint" -color
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+      - name: ShellCheck every shell script
+        # The guards ARE the product; a quoting or word-splitting bug here is an
+        # enforcement bug. ShellCheck does not read intent (verified: it passes the
+        # 2026-08 tilde-pattern bug), so the behavioral probe matrices remain the primary
+        # defense -- this closes the mechanical classes cheaply.
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q shellcheck
+          # Discovery by shebang, not extension: the dispatcher ships as an
+          # extensionless executable (src/chock/hooks/data/pre-commit) and a *.sh
+          # glob silently skipped it -- an unlinted file on the validation path is
+          # exactly the gap this job exists to close. NUL separators throughout.
+          git grep -zlE '^#!/(usr/)?bin/(env )?(ba)?sh' -- . | xargs -0 shellcheck --severity=warning
+
+  semgrep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Semgrep with the project rules
+        # The custom rules in .semgrep/ encode this project's own incidents -- each rule
+        # names the incident it prevents from recurring. Version pinned: the scanner is
+        # part of the verification surface. No Windows build exists, so triage for these
+        # rules happens on CI rather than at the desk -- a documented gauntlet deviation.
+        run: |
+          pip install semgrep==1.174.0
+          semgrep scan --config .semgrep/ --error --strict
