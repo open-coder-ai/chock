@@ -17,6 +17,7 @@ from chock.compile.emitters import (
     claude_managed,
     claude_pretooluse,
     git_hook,
+    mcp_gateway,
 )
 from chock.compile.surfaces import SURFACE_AGENTS, Surface, coverage_level, parse_agent_selection
 from chock.config import agents_from_config
@@ -39,6 +40,7 @@ EMITTERS: dict[Surface, Any] = {
     Surface.PRE_TOOL_USE: claude_pretooluse,
     Surface.MANAGED_SETTING: claude_managed,
     Surface.AMBIENT_RULE: ambient,
+    Surface.MCP_GATEWAY: mcp_gateway,
 }
 
 
@@ -144,6 +146,14 @@ def compile_policy(
         surface_dir.mkdir(parents=True, exist_ok=True)
         emitted = emitter.emit(policy_dir, surface_dir, manifest)
         artifacts[surface.value] = emitted
+        # An emitter that produced nothing (e.g. a gate that does not opt into the
+        # gateway) must not leave an empty surface directory behind -- it is confusing
+        # in the compiled tree and reads as coverage that is not there.
+        if not emitted:
+            try:
+                surface_dir.rmdir()
+            except OSError:
+                pass
 
     # Only surfaces that actually produced a file count. The loop above records a key for
     # every attempted surface, including emitters that returned nothing, so keying off

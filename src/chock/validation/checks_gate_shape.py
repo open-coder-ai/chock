@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from chock.gate.runner import KINDS
-from chock.gate.schema import KIND_PARAM_SCHEMAS
+from chock.gate.schema import GATEWAY_ONLY_KINDS, KIND_PARAM_SCHEMAS
 from chock.validation.loading import schema_validator
 from chock.validation.report import Finding, Report
 
@@ -17,11 +17,21 @@ def _validate_gate(gate: dict[str, Any], gate_ref: str, report: Report, *, tool_
         report.add(Finding(gate_ref, "manifest_gate_params", "error", "gate is missing 'kind'"))
         return
 
-    if kind not in KINDS:
+    if kind not in KINDS and kind not in GATEWAY_ONLY_KINDS:
         report.add(Finding(gate_ref, "manifest_gate_params", "error", f"unknown gate kind: {kind!r}"))
         return
 
     events = gate.get("on") or []
+    if kind in GATEWAY_ONLY_KINDS and any(e in ("commit", "push") for e in events):
+        report.add(
+            Finding(
+                gate_ref,
+                "manifest_gate_params",
+                "error",
+                f"{kind} has no commit/push runtime; it binds only at tool_use (mcp-gateway)",
+            )
+        )
+
     if not tool_use_allowed and any(e == "tool_use" for e in events):
         report.add(
             Finding(

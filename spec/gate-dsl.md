@@ -7,7 +7,7 @@ For `artifact: hook` policies, the gate is declared under `hook.gate` in `manife
 
 | field | required | type | notes |
 |-------|----------|------|-------|
-| `kind` | yes | string | `content_regex`, `forbidden_ref`, or `dependency_allowlist` |
+| `kind` | yes | string | `content_regex`, `forbidden_ref`, `dependency_allowlist`, or `egress_allowlist` (gateway-only) |
 | `on` | yes | list | events: `commit`, `push`, `tool_use`. The key must be quoted `"on"` in YAML. |
 | `action` | yes | string | `block`, `verify`, or `warn` |
 | `message` | yes | string | printed to stderr when the gate blocks |
@@ -22,6 +22,13 @@ For `artifact: hook` policies, the gate is declared under `hook.gate` in `manife
 | `forbidden_path_regex` | no | string | regex applied to staged file paths |
 | `allowlist_pragma` | no | string | regex matched on lines/blobs; matching content is ignored |
 
+**At the mcp-gateway** (when `"on"` includes `tool_use`): the gate is emitted to the
+`mcp-gateway` surface and evaluated against each `tools/call` argument string. Only
+`content_pattern` applies there; `scan`, `forbidden_path_regex`, and `allowlist_pragma`
+are git-diff concepts and are **not** honored by the gateway (the argument is live,
+attacker-controlled text with no reviewer, so a match always blocks). A gate with no
+`tool_use` in `"on"` is not emitted to the gateway at all.
+
 ### `kind: forbidden_ref`
 
 | param | required | type | notes |
@@ -30,6 +37,18 @@ For `artifact: hook` policies, the gate is declared under `hook.gate` in `manife
 | `config_key` | no | string | dot-separated key into `.chock/config.yaml` whose list value supplies `refs` |
 
 On `commit` the current branch is checked; on `push` the pushed refs from `stdin` are checked.
+
+### `kind: egress_allowlist`
+
+Gateway-only: evaluated by the mcp-gateway proxy against MCP tool-call arguments; it has
+no commit/push runtime, so `"on"` must not list commit or push (validated).
+
+| param | required | type | notes |
+|-------|----------|------|-------|
+| `allowed_hosts` | yes | list | hostnames; a listed host also allows its subdomains |
+
+Every `http(s)://` URL found in any string argument of a `tools/call` is parsed and its
+hostname compared against the list. An empty or stripped allowlist fails closed.
 
 ### `kind: dependency_allowlist`
 

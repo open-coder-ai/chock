@@ -50,4 +50,20 @@ KIND_PARAM_SCHEMAS: dict[str, dict] = {
             "allowlist_file": {"type": "string"},
         },
     },
+    # Gateway-only kind: evaluated by chock.gateway against MCP tool-call payloads, never
+    # by the vendored git runner (KINDS below stays git-only; checks_gate_shape unions the
+    # two sets for the known-kind check).
+    "egress_allowlist": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["allowed_hosts"],
+        "properties": {
+            "allowed_hosts": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        },
+    },
 }
+
+#: Kinds with no git-hook runtime: valid in a manifest, emitted only to the mcp-gateway
+#: surface. Kept beside the schemas so a new gateway kind cannot be added without a
+#: param schema.
+GATEWAY_ONLY_KINDS = frozenset({"egress_allowlist"})

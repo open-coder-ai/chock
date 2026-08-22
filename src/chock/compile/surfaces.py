@@ -12,6 +12,11 @@ class Surface(str, Enum):
     PRE_TOOL_USE = "pre-tool-use"
     MANAGED_SETTING = "managed-setting"
     GATEWAY = "gateway"
+    # MCP tool-call interception (chock#32). Distinct from GATEWAY, which stays reserved
+    # for budget/egress backstop controls. Deliberately absent from every SURFACE_AGENTS
+    # set: coverage_level can only credit surfaces an agent's set contains, so nothing is
+    # credited until P3c ships per-agent config witnesses -- emitted, not yet claimed.
+    MCP_GATEWAY = "mcp-gateway"
 
 
 # Surfaces each agent supports. Gateway is modeled now but emitted in P3.
