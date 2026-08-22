@@ -54,7 +54,11 @@ jobs:
         # defense -- this closes the mechanical classes cheaply.
         run: |
           sudo apt-get update -q && sudo apt-get install -y -q shellcheck
-          find . -name "*.sh" -not -path "./.git/*" -print0 | xargs -0 shellcheck --severity=warning
+          # Discovery by shebang, not extension: the dispatcher ships as an
+          # extensionless executable (src/chock/hooks/data/pre-commit) and a *.sh
+          # glob silently skipped it -- an unlinted file on the validation path is
+          # exactly the gap this job exists to close. NUL separators throughout.
+          git grep -zlE '^#!/(usr/)?bin/(env )?(ba)?sh' -- . | xargs -0 shellcheck --severity=warning
 
   semgrep:
     runs-on: ubuntu-latest
