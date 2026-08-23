@@ -2,10 +2,9 @@
 name: block-wildcard-agent-permissions
 description: "Pre-commit gate for the mechanizable slice of excessive agency: committed agent permission grants that allow everything. A settings file whose shell grant or allow-list is a bare wildcard hands the agent unlimited tool authority for every future session, in a file reviewers rarely read as code. The agent-world twin of block-wildcard-iam: scope grants to what the task needs (e.g. Bash(git status:*)). Escape: 'pragma: allowlist broad-agency' on the same line."
 metadata:
-  chock:
-    artifact: hook
-    enforcement: block
-    coverage_without_chock: advisory
+  chock.artifact: hook
+  chock.enforcement: block
+  chock.coverage_without_chock: advisory
 ---
 
 # Block Wildcard Agent Permissions

@@ -151,7 +151,7 @@ def test_the_skill_states_its_own_limits(policy, tmp_path: Path) -> None:
     skill = (pack / "skills" / "protect-main-branch" / "SKILL.md").read_text(encoding="utf-8")
 
     assert "advisory: the client reading it has no mechanism to enforce it" in skill
-    assert "coverage_without_chock: advisory" in skill
+    assert "chock.coverage_without_chock: advisory" in skill
 
 
 def test_the_skill_shows_the_resolved_gate_not_the_manifest_default(policy, tmp_path: Path) -> None:

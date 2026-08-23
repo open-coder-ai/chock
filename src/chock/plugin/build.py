@@ -168,7 +168,7 @@ _ADVISORY_NOTE = (
 )
 
 
-def build_skill(policy_dir: Path, manifest: dict[str, Any], repo_root: Path) -> str:
+def build_skill(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, hooks: str | None = None) -> str:
     """Render `SKILL.md` for a policy.
 
     The body comes from `advisory_lines` -- the same function that renders the AGENTS.md
@@ -176,6 +176,13 @@ def build_skill(policy_dir: Path, manifest: dict[str, Any], repo_root: Path) -> 
     contradict the resolved gate. That function reads the *resolved* gate spec, which is why
     a policy whose protected branches come from config renders the branches actually
     enforced rather than the manifest's defaults.
+
+    `hooks` is the package-relative path of a hook shipped BESIDE this skill, or None.
+    The frontmatter coverage claim must match the package it ships in: a hookless package
+    is advisory without chock, and says so; a hook-carrying package enforces without chock
+    in clients that read the hook, so it names the hook instead -- the same substitution
+    the hook emitters make in plugin.json. Leaving the advisory claim in a hooked package
+    made one file contradict its own directory.
     """
     policy_id = manifest.get("id") or Path(policy_dir).name
     description = _one_line(manifest.get("description")) or f"Chock policy {policy_id}"
@@ -186,15 +193,21 @@ def build_skill(policy_dir: Path, manifest: dict[str, Any], repo_root: Path) -> 
     # Frontmatter is hand-rendered rather than yaml.dump'd: the description is a single
     # already-collapsed line and the quoting rules for it are trivial, while yaml.dump would
     # reflow long values and reorder nothing usefully. Deterministic bytes matter more here.
+    #
+    # `metadata` is a flat string-to-string map because the Agent Skills spec (which Agent
+    # Plugins 1.0 defers to for SKILL.md) requires exactly that -- string keys to string
+    # values. The original nested `chock:` object was a spec violation that awesome-copilot's
+    # `vally` linter rejected ("Metadata values must be strings"). Dotted keys keep the
+    # namespacing the nesting used to provide.
+    coverage_line = f"  chock.hooks: {hooks}\n" if hooks else "  chock.coverage_without_chock: advisory\n"
     return (
         "---\n"
         f"name: {policy_id}\n"
         f"description: {json.dumps(description)}\n"
         "metadata:\n"
-        "  chock:\n"
-        f"    artifact: {manifest.get('artifact') or 'rule'}\n"
-        f"    enforcement: {manifest.get('enforcement') or 'advise'}\n"
-        "    coverage_without_chock: advisory\n"
+        f"  chock.artifact: {manifest.get('artifact') or 'rule'}\n"
+        f"  chock.enforcement: {manifest.get('enforcement') or 'advise'}\n"
+        f"{coverage_line}"
         "---\n"
         "\n"
         f"# {manifest.get('name') or policy_id}\n"
