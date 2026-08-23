@@ -150,6 +150,11 @@ def _run_guard(repo: Path, guard: Path, command: str) -> tuple[str, str]:
         return ERROR, f"case command has unbalanced quotes: {command}"
 
     try:
+        # Mirror the runtime adapter (gate/pretooluse.py): pass the untokenized command so
+        # a guard that reads CHOCK_RAW_COMMAND to recognise PowerShell/Windows syntax is
+        # tested the same way it runs. Without this, a PowerShell eval case would exercise
+        # only the mangled argv and never reach the raw-text branch.
+        env = {**os.environ, "CHOCK_RAW_COMMAND": command}
         proc = subprocess.run(
             [bash, str(guard), *args],
             cwd=str(repo),
@@ -158,6 +163,7 @@ def _run_guard(repo: Path, guard: Path, command: str) -> tuple[str, str]:
             encoding="utf-8",
             errors="replace",
             check=False,
+            env=env,
         )
     except OSError as exc:
         return ERROR, f"guard could not run: {exc}"
