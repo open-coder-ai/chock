@@ -30,6 +30,25 @@ pointed at the wrong repo, so `gateway run` **refuses to start** when `.chock/co
 is absent and prints the loaded-gate count to stderr on startup. One downstream server
 per gateway process; wrap N servers with N entries.
 
+> **What the gateway asks you to trust, stated plainly.** The proxy is a defensive
+> interceptor — a well-established pattern (Docker, GitHub, and others ship equivalents),
+> not a novel or secret technique. Three things bound what it can promise, and you should
+> know each before relying on it:
+>
+> - **It is only as trustworthy as write-access to `.chock/compiled`.** Whoever can write
+>   the gate files controls what the gateway allows or denies. Treat that directory as
+>   security-sensitive — the `protect-agent-config` policy guards exactly these paths, and
+>   the gateway is a reason to keep it enabled.
+> - **It runs with your privileges.** The client launches it as a subprocess under your
+>   account; it can do anything you can. That is why Chock releases are signed and
+>   attested (Sigstore) and why the install verification is pinned — a tampered Chock
+>   package is the realistic threat to a tool like this, far more than the published code
+>   being "misused." Verify what you install.
+> - **It governs MCP-routed tool calls only, best-effort.** Native shell and file tools
+>   never cross it; host detection is regex over free-form arguments with documented gaps
+>   (see `spec/gate-dsl.md`). It is friction on an MCP fetch/egress tool, not an airtight
+>   boundary — pair it with a network-level control where the threat model demands one.
+
 > **Cursor caveat, stated rather than glossed:** Cursor's Agent Hooks honour exit 2 as deny
 > (the same protocol as Claude's PreToolUse, spoken by the same vendored adapter through
 > `.cursor/hooks.json` `beforeShellExecution`), but Cursor **fails open** on any other
