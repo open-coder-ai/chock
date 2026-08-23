@@ -39,15 +39,30 @@ _COMMAND_KEYS = ("command",)
 def extract_command(payload: dict) -> str:
     """Return the shell command from a pre-execution payload, or "" when there is none.
 
-    Two payload shapes, one adapter: Claude Code's PreToolUse nests the command under
+    Three payload shapes, one adapter: Claude Code's PreToolUse nests the command under
     `tool_input`; Cursor's `beforeShellExecution` carries it at the top level (with `cwd`,
-    `hook_event_name`, ...). Both agents honour exit 2 as deny, so the shape is the only
-    difference worth handling here.
+    `hook_event_name`, ...); Copilot CLI and VS Code agent mode (both witnessed 2026-08-23)
+    put it under `toolArgs`, frequently as a JSON *string* that must be parsed again. All
+    honour exit 2 as deny, so the payload shape is the only difference worth handling here.
     """
     tool_input = payload.get("tool_input")
     if isinstance(tool_input, dict):
         for key in _COMMAND_KEYS:
             value = tool_input.get(key)
+            if isinstance(value, str) and value.strip():
+                return value
+        return ""
+    # Copilot CLI / VS Code agent mode: {toolName, toolArgs}. toolArgs is JSON, and is
+    # frequently a JSON string (double-encoded) rather than an object -- parse it once more.
+    tool_args = payload.get("toolArgs")
+    if isinstance(tool_args, str):
+        try:
+            tool_args = json.loads(tool_args)
+        except (ValueError, TypeError):
+            tool_args = None
+    if isinstance(tool_args, dict):
+        for key in _COMMAND_KEYS:
+            value = tool_args.get(key)
             if isinstance(value, str) and value.strip():
                 return value
         return ""

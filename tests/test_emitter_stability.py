@@ -90,5 +90,5 @@ def test_golden_tree_covers_every_surface_worth_freezing() -> None:
     # pretooluse.json/cursor-hooks.json joined the contract with the #49 K1 fix: the
     # session-enforcement emitters were the one surface the byte-stability promise
     # skipped, exactly where a silent output change hurts the most installed clients.
-    for required in ("gate.json", "ambient.md", "pretooluse.json", "cursor-hooks.json"):
+    for required in ("gate.json", "ambient.md", "pretooluse.json", "cursor-hooks.json", "agent-hooks.json"):
         assert any(required in n for n in names), f"golden tree lost its {required} coverage"

@@ -17,6 +17,11 @@ class Surface(str, Enum):
     # set: coverage_level can only credit surfaces an agent's set contains, so nothing is
     # credited until P3c ships per-agent config witnesses -- emitted, not yet claimed.
     MCP_GATEWAY = "mcp-gateway"
+    # Native pre-tool-use hooks for the GitHub-ecosystem agents (Copilot CLI, VS Code
+    # agent mode), read from `.github/hooks/*.json`. A distinct mechanism from PRE_TOOL_USE
+    # (which is Claude Code's settings.json + Cursor's .cursor/hooks.json), witnessed
+    # blocking on both clients 2026-08-23.
+    AGENT_HOOKS = "agent-hooks"
 
 
 # Surfaces each agent supports. Gateway is modeled now but emitted in P3.
@@ -32,7 +37,7 @@ SURFACE_AGENTS: dict[str, set[Surface]] = {
     # CLAUDE_PROJECT_DIR, so the vendored adapter enforces there natively. Caveat carried
     # in docs/enforcement-surfaces.md: Cursor fails OPEN on other non-zero exits.
     "cursor": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE, Surface.PRE_TOOL_USE},
-    "copilot": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
+    "copilot": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE, Surface.AGENT_HOOKS},
     "windsurf": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
     "devin": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
     "codex": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
@@ -42,7 +47,7 @@ SURFACE_AGENTS: dict[str, set[Surface]] = {
     "gemini": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
     "replit": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
     "tabnine": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
-    "vscode": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
+    "vscode": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE, Surface.AGENT_HOOKS},
     "antigravity": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
 }
 
@@ -60,7 +65,12 @@ INSTALLED_SURFACES: set[Surface] = {Surface.GIT_HOOK, Surface.CI_GATE, Surface.A
 
 
 def coverage_level(
-    emitted: set[Surface], agent: str, *, pre_tool_use_installed: bool = False, ci_gate_installed: bool = False
+    emitted: set[Surface],
+    agent: str,
+    *,
+    pre_tool_use_installed: bool = False,
+    ci_gate_installed: bool = False,
+    agent_hooks_installed: bool = False,
 ) -> str:
     """Return the enforcement level a policy actually achieves on an agent.
 
@@ -101,6 +111,11 @@ def coverage_level(
     # `enforced` means a hard control that runs BEFORE the action, in-agent. Emitting a
     # PreToolUse fragment does not achieve that while nothing installs it.
     if pre_tool_use_installed and Surface.PRE_TOOL_USE in active:
+        return "enforced"
+    # Copilot CLI / VS Code native hooks: same hard pre-execution tier, gated on the same
+    # kind of witness -- `.github/hooks/chock.json` must actually carry this policy's entry.
+    # Emitting the entry is not enough; without the installed file the client runs nothing.
+    if agent_hooks_installed and Surface.AGENT_HOOKS in active:
         return "enforced"
     # Unlike git-hook (wired up automatically by every `recompile`), nothing runs `install-ci`
     # on a policy's behalf -- crediting CI_GATE the moment it is merely compiled would repeat

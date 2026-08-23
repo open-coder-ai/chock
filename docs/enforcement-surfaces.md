@@ -11,13 +11,26 @@ each guarantee holds.
 | `git-hook` | Hard, at commit/push | Yes (`--no-verify`) | Pre-commit / pre-merge-commit / pre-push guard |
 | `ci-gate` | Hard, un-bypassable | No | The backstop for a skipped git hook |
 | `ambient-rule` | Advisory | Yes | Compiled `AGENTS.md` block the agent is asked to follow |
-| `pre-tool-use` | Hard, pre-execution | No | Blocks a command **before** the agent runs it (exit 2 = deny) |
+| `pre-tool-use` | Hard, pre-execution | No | Blocks a command **before** the agent runs it (exit 2 = deny) — Claude Code + Cursor |
+| `agent-hooks` | Hard, pre-execution | No | The same exit-2 deny for Copilot CLI + VS Code agent mode, from `.github/hooks/chock.json` (witnessed blocking on both, 2026-08-23) |
 | `managed-setting` | Hard, org-level | No | Admin-deployed allow/ask/deny rules |
 | `gateway` | Hard, un-circumventable | No | Budget/egress backstop — *modeled now, emitted later* |
 | `mcp-gateway` | Hard, **MCP-routed tools only** | Yes (P3c) | A stdio proxy the client launches instead of the real MCP server; refuses matching `tools/call` payloads. Emitted today; **credits no agent** until the per-client config witness ships |
 
-**`git-hook` + `ci-gate` are the universal hard floor** every agent shares. `pre-tool-use` is the
-premium tier available on agents that expose native controls — Claude Code and Cursor today.
+> **`agent-hooks` shell caveat, stated rather than glossed.** The surface genuinely
+> enforces: it runs the guard before the tool call and honours exit 2 as deny (witnessed on
+> both clients). But the shipped guards are *bash-oriented* — `block-destructive` matches
+> `rm -rf`, not PowerShell's `Remove-Item`. On Windows, Copilot and VS Code run **PowerShell**,
+> so the guard catches bash-syntax commands there but not PowerShell-native destructive
+> syntax, exactly the "non-standard shell" bypass class the guard already documents. `enforced`
+> means the hard control runs and can deny — the same meaning it carries for Claude — while a
+> PowerShell guard (tracked follow-up) is what closes the Windows coverage gap. The hook's
+> interpreter is resolved at run time (skipping the Windows Store `python3` alias stub) and
+> the repo root via `git rev-parse`, so the committed file is portable with no baked path.
+
+**`git-hook` + `ci-gate` are the universal hard floor** every agent shares. `pre-tool-use` and
+`agent-hooks` are the premium tier available on agents that expose native controls — Claude
+Code and Cursor via `pre-tool-use`, Copilot CLI and VS Code via `agent-hooks`.
 `gateway` is reserved for cost/egress controls on the roadmap. `mcp-gateway`
 ([#32](https://github.com/open-coder-ai/chock/issues/32)) governs exactly the MCP slice:
 tool calls routed through the proxy. An agent's native shell and file tools never cross

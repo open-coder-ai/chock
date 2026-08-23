@@ -1,5 +1,17 @@
 # Chock changelog
 
+## Unreleased
+
+- **`agent-hooks` enforcement surface**: `chock sync` now writes `.github/hooks/chock.json`,
+  the native pre-tool-use hook read by **Copilot CLI and VS Code agent mode**. Both honour
+  exit 2 as deny (witnessed blocking on both). The hook resolves its interpreter at run time
+  — skipping the Windows Store `python3` alias stub that made hooks error — and finds the
+  repo root with `git rev-parse`, so the committed file is portable with no baked path. One
+  adapter now parses all three payload shapes (Claude, Cursor, Copilot/VS Code). Coverage is
+  credited `enforced` for copilot/vscode only when the file is verifiably installed. Guards
+  are bash-oriented, so on Windows PowerShell they catch bash-syntax commands but not
+  PowerShell-native destructive syntax until a PowerShell guard ships (documented caveat).
+
 ## 0.2.0 — First release with an external contribution
 
 MINOR: new features and adapters; compiled output for existing policies is unchanged
