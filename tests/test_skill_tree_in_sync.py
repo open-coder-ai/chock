@@ -133,3 +133,21 @@ def test_check_writes_nothing(tmp_path: Path) -> None:
 def test_shipped_and_installed_are_different_trees() -> None:
     """Guard against a tautology: a check comparing a tree to itself can never fail."""
     assert shipped_root().resolve() != installed_root(ROOT).resolve()
+
+
+def test_shipped_skill_metadata_is_a_flat_string_map() -> None:
+    """Every shipped SKILL.md carries spec-conformant metadata: string keys, string values.
+
+    The Agent Skills spec (which Agent Plugins 1.0 defers to) requires exactly this
+    shape, and awesome-copilot's `vally` linter enforces it. The packaged POLICY skills
+    were fixed first while these authoring skills kept the nested `chock:` object --
+    two metadata dialects in one project, drifting apart. Typed fields ride the flat
+    encoding (lists comma-joined, booleans as "true"/"false") and manifest ingestion
+    decodes them, which test_manifest's round-trip covers.
+    """
+    import yaml
+
+    for skill_md in sorted(shipped_root().glob("*/SKILL.md")):
+        metadata = yaml.safe_load(skill_md.read_text(encoding="utf-8").split("---")[1]).get("metadata") or {}
+        offenders = {k: v for k, v in metadata.items() if not (isinstance(k, str) and isinstance(v, str))}
+        assert not offenders, f"{skill_md.parent.name}: non-string metadata entries {offenders}"

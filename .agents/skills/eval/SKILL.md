@@ -6,28 +6,22 @@ metadata:
   owner: chock-core
   version: 0.0.1
   status: draft
-  chock:
-    version: 0.0.1
-    artifact: skill
-    enforcement: advise
-    provenance:
-      author: chock-core
-      created_at: '2026-07-11T00:00:00Z'
-      source_repo: https://github.com/open-coder-ai/chock
-      license: Apache-2.0
-      trust_tier: community
-    lifecycle:
-      status: review
-      reviewed_by:
-      - open-coder-ai
-    security:
-      content_instructions: never-obey
-      pii_handling: redact
-    skill_type: nl
-    effects:
-    - read_only
-    name: Chock Eval
-    determinization_reviewed: true
+  chock.version: 0.0.1
+  chock.artifact: skill
+  chock.enforcement: advise
+  chock.provenance.author: chock-core
+  chock.provenance.created_at: "2026-07-11T00:00:00Z"
+  chock.provenance.source_repo: "https://github.com/open-coder-ai/chock"
+  chock.provenance.license: Apache-2.0
+  chock.provenance.trust_tier: community
+  chock.lifecycle.status: review
+  chock.lifecycle.reviewed_by: open-coder-ai
+  chock.security.content_instructions: never-obey
+  chock.security.pii_handling: redact
+  chock.skill_type: nl
+  chock.effects: read_only
+  chock.name: "Chock Eval"
+  chock.determinization_reviewed: "true"
 ---
 
 # Chock Eval

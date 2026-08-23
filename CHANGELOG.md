@@ -5,6 +5,13 @@
 MINOR: plugin packaging output changes (a spec fix and a new format); compiled
 enforcement surfaces are unchanged.
 
+- **Bundled authoring skills use the same flat metadata**: the five shipped skills
+  (chock-init, eval, optimize, policy-init, validate) carried the nested `chock:`
+  object the packaged-policy fix removed — two metadata dialects in one project.
+  Their frontmatter is now the same flat string map (lists comma-joined, booleans
+  as "true"/"false"), and manifest ingestion decodes the typed fields; the derived
+  manifests are proven identical. Old nested frontmatter still loads, so
+  third-party skills are unaffected.
 - **SKILL.md `metadata` spec fix**: the Agent Skills spec (which Agent Plugins 1.0
   defers to for SKILL.md) requires `metadata` to map string keys to string values;
   the packaged skills nested a `chock:` object there, which awesome-copilot's `vally`
