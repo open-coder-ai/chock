@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -17,6 +18,7 @@ from chock.compile.emitters import (
     claude_managed,
     claude_pretooluse,
     git_hook,
+    mcp_gateway,
 )
 from chock.compile.surfaces import SURFACE_AGENTS, Surface, coverage_level, parse_agent_selection
 from chock.config import agents_from_config
@@ -39,6 +41,7 @@ EMITTERS: dict[Surface, Any] = {
     Surface.PRE_TOOL_USE: claude_pretooluse,
     Surface.MANAGED_SETTING: claude_managed,
     Surface.AMBIENT_RULE: ambient,
+    Surface.MCP_GATEWAY: mcp_gateway,
 }
 
 
@@ -144,6 +147,14 @@ def compile_policy(
         surface_dir.mkdir(parents=True, exist_ok=True)
         emitted = emitter.emit(policy_dir, surface_dir, manifest)
         artifacts[surface.value] = emitted
+        # An emitter that produced nothing (e.g. a gate that no longer opts into the
+        # gateway) must not leave its surface directory behind -- an empty dir reads as
+        # coverage that is not there, and a STALE file (a gateway-gate.json left from when
+        # the policy did opt in) would still be loaded at runtime. Remove the whole
+        # surface dir so single-policy `compile` into an existing tree cannot serve a
+        # deleted gate.
+        if not emitted and surface_dir.exists():
+            shutil.rmtree(surface_dir, ignore_errors=True)
 
     # Only surfaces that actually produced a file count. The loop above records a key for
     # every attempted surface, including emitters that returned nothing, so keying off

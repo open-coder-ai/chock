@@ -7,7 +7,7 @@ For `artifact: hook` policies, the gate is declared under `hook.gate` in `manife
 
 | field | required | type | notes |
 |-------|----------|------|-------|
-| `kind` | yes | string | `content_regex`, `forbidden_ref`, or `dependency_allowlist` |
+| `kind` | yes | string | `content_regex`, `forbidden_ref`, `dependency_allowlist`, or `egress_allowlist` (gateway-only) |
 | `on` | yes | list | events: `commit`, `push`, `tool_use`. The key must be quoted `"on"` in YAML. |
 | `action` | yes | string | `block`, `verify`, or `warn` |
 | `message` | yes | string | printed to stderr when the gate blocks |
@@ -22,6 +22,13 @@ For `artifact: hook` policies, the gate is declared under `hook.gate` in `manife
 | `forbidden_path_regex` | no | string | regex applied to staged file paths |
 | `allowlist_pragma` | no | string | regex matched on lines/blobs; matching content is ignored |
 
+**At the mcp-gateway** (when `"on"` includes `tool_use`): the gate is emitted to the
+`mcp-gateway` surface and evaluated against each `tools/call` argument string. Only
+`content_pattern` applies there; `scan`, `forbidden_path_regex`, and `allowlist_pragma`
+are git-diff concepts and are **not** honored by the gateway (the argument is live,
+attacker-controlled text with no reviewer, so a match always blocks). A gate with no
+`tool_use` in `"on"` is not emitted to the gateway at all.
+
 ### `kind: forbidden_ref`
 
 | param | required | type | notes |
@@ -30,6 +37,25 @@ For `artifact: hook` policies, the gate is declared under `hook.gate` in `manife
 | `config_key` | no | string | dot-separated key into `.chock/config.yaml` whose list value supplies `refs` |
 
 On `commit` the current branch is checked; on `push` the pushed refs from `stdin` are checked.
+
+### `kind: egress_allowlist`
+
+Gateway-only: evaluated by the mcp-gateway proxy against MCP tool-call arguments; it has
+no commit/push runtime, so `"on"` must not list commit or push (validated).
+
+| param | required | type | notes |
+|-------|----------|------|-------|
+| `allowed_hosts` | yes | list | hostnames; a listed host also allows its subdomains |
+
+Host detection is scheme-agnostic (any `scheme://host`, scheme-relative `//host`) and also
+recognizes a string argument that is *itself* a bare endpoint (`evil.io/x`, `127.0.0.1:8000`,
+`[::1]:8000`, `localhost:8000`), across the raw and percent-decoded text, with userinfo and
+FQDN root-dot normalized. An empty or stripped allowlist fails closed.
+
+Best-effort by design: this is regex-based host extraction over free-form tool arguments,
+not a full URL parser. Known gaps include IDN/punycode and alternate IP encodings (decimal
+or octal IPv4). Treat it as friction on an MCP fetch/egress tool, not an airtight boundary
+— pair it with a network-level control where the threat model requires one.
 
 ### `kind: dependency_allowlist`
 

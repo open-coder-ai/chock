@@ -14,10 +14,40 @@ each guarantee holds.
 | `pre-tool-use` | Hard, pre-execution | No | Blocks a command **before** the agent runs it (exit 2 = deny) |
 | `managed-setting` | Hard, org-level | No | Admin-deployed allow/ask/deny rules |
 | `gateway` | Hard, un-circumventable | No | Budget/egress backstop — *modeled now, emitted later* |
+| `mcp-gateway` | Hard, **MCP-routed tools only** | Yes (P3c) | A stdio proxy the client launches instead of the real MCP server; refuses matching `tools/call` payloads. Emitted today; **credits no agent** until the per-client config witness ships |
 
 **`git-hook` + `ci-gate` are the universal hard floor** every agent shares. `pre-tool-use` is the
 premium tier available on agents that expose native controls — Claude Code and Cursor today.
-`gateway` is reserved for cost/egress controls on the roadmap.
+`gateway` is reserved for cost/egress controls on the roadmap. `mcp-gateway`
+([#32](https://github.com/open-coder-ai/chock/issues/32)) governs exactly the MCP slice:
+tool calls routed through the proxy. An agent's native shell and file tools never cross
+it, so shell-guard policies do not rise here -- content scanning on MCP writes and the
+`egress_allowlist` gate kind do. Fail posture: fail-closed on the paths that matter --
+a dead proxy means MCP calls error; an unreadable gate, an unknown kind, an empty
+allowlist or a stripped pattern all refuse; a non-object `tools/call` params or a batched
+request is screened, not skipped. The one gap the proxy cannot self-detect is being
+pointed at the wrong repo, so `gateway run` **refuses to start** when `.chock/compiled`
+is absent and prints the loaded-gate count to stderr on startup. One downstream server
+per gateway process; wrap N servers with N entries.
+
+> **What the gateway asks you to trust, stated plainly.** The proxy is a defensive
+> interceptor — a well-established pattern (Docker, GitHub, and others ship equivalents),
+> not a novel or secret technique. Three things bound what it can promise, and you should
+> know each before relying on it:
+>
+> - **It is only as trustworthy as write-access to `.chock/compiled`.** Whoever can write
+>   the gate files controls what the gateway allows or denies. Treat that directory as
+>   security-sensitive — the `protect-agent-config` policy guards exactly these paths, and
+>   the gateway is a reason to keep it enabled.
+> - **It runs with your privileges.** The client launches it as a subprocess under your
+>   account; it can do anything you can. That is why Chock releases are signed and
+>   attested (Sigstore) and why the install verification is pinned — a tampered Chock
+>   package is the realistic threat to a tool like this, far more than the published code
+>   being "misused." Verify what you install.
+> - **It governs MCP-routed tool calls only, best-effort.** Native shell and file tools
+>   never cross it; host detection is regex over free-form arguments with documented gaps
+>   (see `spec/gate-dsl.md`). It is friction on an MCP fetch/egress tool, not an airtight
+>   boundary — pair it with a network-level control where the threat model demands one.
 
 > **Cursor caveat, stated rather than glossed:** Cursor's Agent Hooks honour exit 2 as deny
 > (the same protocol as Claude's PreToolUse, spoken by the same vendored adapter through

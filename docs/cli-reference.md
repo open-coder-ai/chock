@@ -226,6 +226,10 @@ copies — the second is the path Copilot CLI reads). Entries are derived from t
 manifests, never hand-listed. An empty tree exits 2 rather than writing an index that
 delists everything; `--check` reports drift without writing.
 
+### `gateway run` -- the MCP gateway proxy
+
+`chock gateway run --repo . -- <cmd>` wraps one downstream MCP server, refusing matching `tools/call` requests; fails closed (no proxy, no MCP).
+
 ### `review` — record and check what a review rests on
 
 ```bash
@@ -261,14 +265,10 @@ claims controls in its manifest's `compliance:` block, keyed by framework name �
 framework names still validate, so private frameworks work with `--json` and your own
 control list.
 
----
-
 ## Pre-launch aliases
 
-The pre-consolidation command names (`validate`, `recompile`, `install-hooks`,
-`install-ci`, `refresh`, `verify`, `eval`, `check-matrix`, `policies`, `gate-log`) still
-dispatch, behave identically, and are deliberately absent from `--help`. They are
-removed at the first public release — scripts should use the verbs above.
+The pre-consolidation names (`validate`, `recompile`, `install-hooks`, `install-ci`, `refresh`,
+`verify`, `eval`, `check-matrix`, `policies`, `gate-log`) still dispatch, hidden from `--help`; use the verbs above.
 
 ## Typical workflows
 

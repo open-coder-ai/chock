@@ -67,6 +67,10 @@ AUTHORING = {
         _module_main("chock.plugin.marketplace"),
         "Emit marketplace index files over a built plugin tree (marketplace build --dist <dir>)",
     ),
+    "gateway": (
+        _module_main("chock.gateway.__main__"),
+        "Run the MCP gateway proxy (gateway run --repo . -- <server command>)",
+    ),
     "review": (
         _module_main("chock.review.cli"),
         "Produce or check reviewer evidence (review emit | review verify <file>)",
