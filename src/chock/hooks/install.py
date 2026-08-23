@@ -80,6 +80,7 @@ def main(argv=None) -> int:
     # PreToolUse fragments were compiled but never installed, so the policies that rely on
     # them enforced nothing while coverage reported otherwise. Cursor's hook config gets
     # the identical treatment: install both, then derive coverage once.
+    from chock.hooks.agenthooks_install import install_agent_hooks
     from chock.hooks.cursor_install import install_cursor_hooks
     from chock.hooks.pretooluse_install import install_pretooluse_hooks
 
@@ -99,6 +100,14 @@ def main(argv=None) -> int:
     else:
         if cursor_installed:
             print(f"Registered {len(cursor_installed)} Cursor hook entr(y/ies) in .cursor/hooks.json")
+            wired = True
+    try:
+        agent_installed = install_agent_hooks(repo_root)
+    except ValueError as exc:
+        print(f"[WARN] {exc}", file=sys.stderr)
+    else:
+        if agent_installed:
+            print(f"Registered {len(agent_installed)} agent hook(s) in .github/hooks/chock.json")
             wired = True
     if wired:
         # Installing changed what is enforced, and coverage is derived from that.

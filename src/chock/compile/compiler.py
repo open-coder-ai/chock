@@ -13,6 +13,7 @@ from typing import Any, NoReturn
 import yaml
 
 from chock.compile.emitters import (
+    agent_hooks,
     ambient,
     ci,
     claude_managed,
@@ -22,6 +23,7 @@ from chock.compile.emitters import (
 )
 from chock.compile.surfaces import SURFACE_AGENTS, Surface, coverage_level, parse_agent_selection
 from chock.config import agents_from_config
+from chock.hooks.agenthooks_install import installed_agent_hooks_policy_ids
 from chock.hooks.cursor_install import installed_cursor_policy_ids
 from chock.hooks.pretooluse_install import installed_pretooluse_policy_ids
 from chock.manifest import ManifestSourceError, load_manifest
@@ -42,6 +44,7 @@ EMITTERS: dict[Surface, Any] = {
     Surface.MANAGED_SETTING: claude_managed,
     Surface.AMBIENT_RULE: ambient,
     Surface.MCP_GATEWAY: mcp_gateway,
+    Surface.AGENT_HOOKS: agent_hooks,
 }
 
 
@@ -173,6 +176,9 @@ def compile_policy(
         "claude": policy_id in installed_pretooluse_policy_ids(root),
         "cursor": policy_id in installed_cursor_policy_ids(root),
     }
+    # Copilot and VS Code share one witness: their entry in .github/hooks/chock.json.
+    agent_hooks_ok = policy_id in installed_agent_hooks_policy_ids(root)
+    agent_hooks_for = {"copilot": agent_hooks_ok, "vscode": agent_hooks_ok}
     ci_installed = ci_workflow_installed(root)
     coverage: dict[str, dict[str, str]] = {policy_id: {}}
     for agent in agent_list:
@@ -181,6 +187,7 @@ def compile_policy(
             agent,
             pre_tool_use_installed=installed_for.get(agent, False),
             ci_gate_installed=ci_installed,
+            agent_hooks_installed=agent_hooks_for.get(agent, False),
         )
 
     coverage_path = output_root.parent / "coverage.json"

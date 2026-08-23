@@ -139,14 +139,18 @@ def test_repo_coverage_matches_actual_enforcement() -> None:
     demanded a git-hook gate for every claim; that was right until this repo's settings
     became committed and guard-script policies honestly reached `enforced` without one.)
     """
+    from chock.hooks.agenthooks_install import installed_agent_hooks_policy_ids
     from chock.hooks.cursor_install import installed_cursor_policy_ids
     from chock.hooks.pretooluse_install import installed_pretooluse_policy_ids
 
     coverage = json.loads((FRAMEWORK_ROOT / ".chock" / "coverage.json").read_text(encoding="utf-8"))
     compiled = FRAMEWORK_ROOT / ".chock" / "compiled"
+    agent_hooks_witness = installed_agent_hooks_policy_ids(FRAMEWORK_ROOT)
     witnesses = {
         "claude": installed_pretooluse_policy_ids(FRAMEWORK_ROOT),
         "cursor": installed_cursor_policy_ids(FRAMEWORK_ROOT),
+        "copilot": agent_hooks_witness,
+        "vscode": agent_hooks_witness,
     }
 
     for policy_id, agents in coverage.items():

@@ -39,15 +39,30 @@ _COMMAND_KEYS = ("command",)
 def extract_command(payload: dict) -> str:
     """Return the shell command from a pre-execution payload, or "" when there is none.
 
-    Two payload shapes, one adapter: Claude Code's PreToolUse nests the command under
+    Three payload shapes, one adapter: Claude Code's PreToolUse nests the command under
     `tool_input`; Cursor's `beforeShellExecution` carries it at the top level (with `cwd`,
-    `hook_event_name`, ...). Both agents honour exit 2 as deny, so the shape is the only
-    difference worth handling here.
+    `hook_event_name`, ...); Copilot CLI and VS Code agent mode (both witnessed 2026-08-23)
+    put it under `toolArgs`, frequently as a JSON *string* that must be parsed again. All
+    honour exit 2 as deny, so the payload shape is the only difference worth handling here.
     """
     tool_input = payload.get("tool_input")
     if isinstance(tool_input, dict):
         for key in _COMMAND_KEYS:
             value = tool_input.get(key)
+            if isinstance(value, str) and value.strip():
+                return value
+        return ""
+    # Copilot CLI / VS Code agent mode: {toolName, toolArgs}. toolArgs is JSON, and is
+    # frequently a JSON string (double-encoded) rather than an object -- parse it once more.
+    tool_args = payload.get("toolArgs")
+    if isinstance(tool_args, str):
+        try:
+            tool_args = json.loads(tool_args)
+        except (ValueError, TypeError):
+            tool_args = None
+    if isinstance(tool_args, dict):
+        for key in _COMMAND_KEYS:
+            value = tool_args.get(key)
             if isinstance(value, str) and value.strip():
                 return value
         return ""
@@ -127,8 +142,15 @@ def run_guard(guard: Path, command: str) -> bool | None:
     try:
         # Explicit encoding, not the locale's: a guard that prints a non-cp1252 byte would
         # otherwise raise UnicodeDecodeError on Windows and take the adapter down with it.
+        #
+        # CHOCK_RAW_COMMAND carries the untokenized command so a guard can pattern-match on
+        # text POSIX shlex mangles -- Windows paths lose their backslashes (C:\x -> C:x) and
+        # PowerShell long flags split into characters (-Recurse -> -R -e -c ...). A guard
+        # that needs to recognise PowerShell/Windows syntax reads the raw string; the argv
+        # stays the primary input, so guards that do not look at it are unaffected.
+        env = {**os.environ, "CHOCK_RAW_COMMAND": command}
         proc = subprocess.run(
-            [bash, str(guard), *args], capture_output=True, text=True, encoding="utf-8", errors="replace"
+            [bash, str(guard), *args], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env
         )
     except (OSError, UnicodeError) as exc:
         print(f"chock: guard could not run, not checked: {exc}", file=sys.stderr)
@@ -231,7 +253,8 @@ def main(argv: list[str] | None = None) -> int:
     # Logged only when the guard actually produced a verdict. `None` is "not checked", and
     # recording it as an outcome would manufacture the evidence this log exists to collect.
     if blocked is not None:
-        _log_outcome(guard, str(payload.get("tool_name") or ""), blocked)
+        # Claude/Cursor use tool_name; Copilot/VS Code use toolName -- record either.
+        _log_outcome(guard, str(payload.get("tool_name") or payload.get("toolName") or ""), blocked)
     # Claude Code blocks on exit code 2; stderr becomes the reason shown to the agent.
     return 2 if blocked else 0
 

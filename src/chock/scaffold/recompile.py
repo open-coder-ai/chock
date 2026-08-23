@@ -250,16 +250,22 @@ def recompile(repo_root: Path | str, agents: list[str], skip_hooks: bool = False
         # was derived -- so when wiring actually changed, coverage is derived again from a
         # throwaway compile (emitted artifacts do not depend on install state; only the
         # coverage verdict does).
+        from chock.hooks.agenthooks_install import install_agent_hooks, installed_agent_hooks_policy_ids
         from chock.hooks.cursor_install import install_cursor_hooks, installed_cursor_policy_ids
         from chock.hooks.pretooluse_install import install_pretooluse_hooks, installed_pretooluse_policy_ids
 
-        def _witness() -> tuple[set[str], set[str]]:
-            return installed_pretooluse_policy_ids(repo_root), installed_cursor_policy_ids(repo_root)
+        def _witness() -> tuple[set[str], set[str], set[str]]:
+            return (
+                installed_pretooluse_policy_ids(repo_root),
+                installed_cursor_policy_ids(repo_root),
+                installed_agent_hooks_policy_ids(repo_root),
+            )
 
         before = _witness()
         for label, installer in (
             ("PreToolUse hook(s) in .claude/settings.json", install_pretooluse_hooks),
             ("Cursor hook entr(y/ies) in .cursor/hooks.json", install_cursor_hooks),
+            ("agent hook(s) in .github/hooks/chock.json", install_agent_hooks),
         ):
             try:
                 installed = installer(repo_root)

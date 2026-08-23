@@ -18,7 +18,7 @@
     "aider": "advisory",
     "claude": "enforced",
     "codex": "advisory",
-    "copilot": "advisory",
+    "copilot": "enforced",
     "cursor": "enforced",
     "devin": "advisory",
     "gemini": "advisory",
@@ -26,7 +26,7 @@
     "kimi-code": "advisory",
     "replit": "advisory",
     "tabnine": "advisory",
-    "vscode": "advisory",
+    "vscode": "enforced",
     "windsurf": "advisory"
   },
   "block-invisible-unicode": {
@@ -48,7 +48,7 @@
     "aider": "advisory",
     "claude": "enforced",
     "codex": "advisory",
-    "copilot": "advisory",
+    "copilot": "enforced",
     "cursor": "enforced",
     "devin": "advisory",
     "gemini": "advisory",
@@ -56,7 +56,7 @@
     "kimi-code": "advisory",
     "replit": "advisory",
     "tabnine": "advisory",
-    "vscode": "advisory",
+    "vscode": "enforced",
     "windsurf": "advisory"
   },
   "block-wildcard-agent-permissions": {
@@ -183,7 +183,7 @@
     "aider": "advisory",
     "claude": "enforced",
     "codex": "advisory",
-    "copilot": "advisory",
+    "copilot": "enforced",
     "cursor": "enforced",
     "devin": "advisory",
     "gemini": "advisory",
@@ -191,14 +191,14 @@
     "kimi-code": "advisory",
     "replit": "advisory",
     "tabnine": "advisory",
-    "vscode": "advisory",
+    "vscode": "enforced",
     "windsurf": "advisory"
   },
   "protect-commit-privacy": {
     "aider": "advisory",
     "claude": "enforced",
     "codex": "advisory",
-    "copilot": "advisory",
+    "copilot": "enforced",
     "cursor": "enforced",
     "devin": "advisory",
     "gemini": "advisory",
@@ -206,7 +206,7 @@
     "kimi-code": "advisory",
     "replit": "advisory",
     "tabnine": "advisory",
-    "vscode": "advisory",
+    "vscode": "enforced",
     "windsurf": "advisory"
   },
   "protect-main-branch": {
