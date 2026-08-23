@@ -1,11 +1,14 @@
 """`chock plugin` -- package policies as installable plugin directories.
 
-Two formats from one source. `agent-plugins` (the default) emits the Agent Plugins 1.0.0
+Three formats from one source. `agent-plugins` (the default) emits the Agent Plugins 1.0.0
 manifest and skill in place, the spec authors' own add-portability-first migration.
 `claude` emits Claude Code's plugin layout -- read natively by Claude Code, Copilot CLI,
-VS Code, and Grok Build -- and always into a distribution tree (`--out-dir`), never in
-place: a `.claude-plugin/` directory inside a policy folder would be discovered by any
-client pointed at the repo and read as a plugin nobody published.
+VS Code, and Grok Build. `copilot` emits the Agent Plugins layout with the enforcing hook
+under `com.github.copilot/` -- the shape spec-validating marketplaces (awesome-copilot's
+`vally`) accept, which the Claude layout is not. The hook-carrying formats always build
+into a distribution tree (`--out-dir`), never in place: hook files dropped inside a policy
+folder would be discovered by any client pointed at the repo and read as a plugin nobody
+published.
 """
 
 from __future__ import annotations
@@ -25,9 +28,13 @@ from chock.plugin.build import (
     plugin_name,
 )
 from chock.plugin.claude import build_claude_plugin, claude_plugin_differences
+from chock.plugin.copilot import build_copilot_plugin, copilot_plugin_differences
 from chock.scaffold.recompile import discover_policy_dirs
 
-FORMATS = ("agent-plugins", "claude")
+FORMATS = ("agent-plugins", "claude", "copilot")
+
+#: Formats that can ship hooks and are therefore refused in place: discovery risk.
+HOOK_FORMATS = frozenset({"claude", "copilot"})
 
 
 def resolve_policy_dirs(repo_root: Path, policies_dir: str | None) -> list[Path]:
@@ -68,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--out-dir",
         default=None,
-        help="Distribution root: plugins are written to <out-dir>/<format>/<id>/ (required for claude format)",
+        help="Distribution root: plugins are written to <out-dir>/<format>/<id>/ (required for claude and copilot formats)",
     )
     parser.add_argument(
         "--check",
@@ -78,9 +85,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     formats = list(FORMATS) if args.format == "all" else [args.format]
-    if "claude" in formats and args.out_dir is None:
+    hook_formats = sorted(HOOK_FORMATS.intersection(formats))
+    if hook_formats and args.out_dir is None:
         print(
-            "--format claude requires --out-dir; see `chock plugin --help` for why in-place is refused.",
+            f"--format {hook_formats[0]} requires --out-dir; see `chock plugin --help` for why in-place is refused.",
             file=sys.stderr,
         )
         return 2
@@ -128,11 +136,16 @@ def main(argv: list[str] | None = None) -> int:
                     else:
                         build_plugin(policy_dir, manifest, repo_root, out_dir=target)
                 else:
-                    assert target is not None  # enforced above: claude format requires --out-dir
+                    assert target is not None  # enforced above: hook formats require --out-dir
+                    differ, build = (
+                        (claude_plugin_differences, build_claude_plugin)
+                        if fmt == "claude"
+                        else (copilot_plugin_differences, build_copilot_plugin)
+                    )
                     if args.check:
-                        differences.extend(claude_plugin_differences(policy_dir, manifest, repo_root, target))
+                        differences.extend(differ(policy_dir, manifest, repo_root, target))
                     else:
-                        build_claude_plugin(policy_dir, manifest, repo_root, target)
+                        build(policy_dir, manifest, repo_root, target)
             if not args.check:
                 written += 1
         except PluginNameError as exc:
@@ -172,5 +185,7 @@ def main(argv: list[str] | None = None) -> int:
         print(
             "  .claude-plugin/plugin.json + hooks/ + scripts/ per guard policy; fail posture stated in each description"
         )
+    if "copilot" in formats:
+        print("  root plugin.json + com.github.copilot/hooks/ per guard policy; same posture discipline")
     print("  Skills are advisory in any client. Repo-level enforcement still needs `chock sync`.")
     return 0

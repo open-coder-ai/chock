@@ -2,10 +2,9 @@
 name: protect-commit-privacy
 description: "Keep the development conversation out of git history. Agent-authored commits narrate by default -- who asked for what, which discussion decided it, what the plan was -- and on a public repo that narration is published forever. The guard refuses git commit commands whose message (inline -m/--message or the file behind -F/--file) contains process-leak markers; the rule tells the agent to describe the change, not the conversation, and to propose sensitive messages to the human before committing. Best-effort: markers are a narrow deny-list, and a message the human explicitly approves can say anything -- edit the marker list in the guard, the content is yours."
 metadata:
-  chock:
-    artifact: rule
-    enforcement: advise
-    coverage_without_chock: advisory
+  chock.artifact: rule
+  chock.enforcement: advise
+  chock.coverage_without_chock: advisory
 ---
 
 # Protect Commit Privacy

@@ -126,6 +126,8 @@ def test_lockfile_content_addresses_every_published_directory(dist: Path) -> Non
         "claude/code-safety",
         "agent-plugins/block-destructive-commands",
         "agent-plugins/code-safety",
+        "copilot/block-destructive-commands",
+        "copilot/code-safety",
     }, "every tree is covered, not just the one the index points at"
     assert all(len(h) == 64 for h in lock["plugins"].values())
     assert (

@@ -1,5 +1,37 @@
 # Chock changelog
 
+## Unreleased
+
+MINOR: plugin packaging output changes (a spec fix and a new format); compiled
+enforcement surfaces are unchanged.
+
+- **SKILL.md `metadata` spec fix**: the Agent Skills spec (which Agent Plugins 1.0
+  defers to for SKILL.md) requires `metadata` to map string keys to string values;
+  the packaged skills nested a `chock:` object there, which awesome-copilot's `vally`
+  linter rejected ("Metadata values must be strings"). Now a flat map with dotted
+  keys (`chock.artifact`, `chock.enforcement`, `chock.coverage_without_chock`) —
+  same facts, spec-conformant shape. A parsed-not-substring test pins the constraint.
+- **Posture-aware skill frontmatter**: a hook-carrying package's SKILL.md used to
+  state `coverage_without_chock: advisory` next to the very hook that enforces —
+  one package stating and refuting a claim at once. The frontmatter now swaps the
+  advisory claim for the shipped hook's path (`chock.hooks`), the same substitution
+  the hook emitters already made in plugin.json and the closing note.
+- **`copilot` plugin format**: `chock plugin build --format copilot` emits the Agent
+  Plugins 1.0 layout — root `plugin.json`, `skills/` — with the enforcing PreToolUse
+  hook under `com.github.copilot/hooks/hooks.json`, the namespace directory VS Code
+  documents for Agent Plugins hook bundles and non-Copilot clients must ignore. This
+  is the shape spec-validating marketplaces (awesome-copilot) accept; the Claude
+  layout, which Copilot also reads, keeps its manifest in `.claude-plugin/` and fails
+  their intake. Hook command, adapter and guard are byte-identical to the Claude
+  package's (asserted in tests): two formats, one enforcement system. The posture is
+  scoped to this format's audience — generic Agent Plugins clients are required to
+  ignore `com.github.copilot`, so the description names where the hook enforces
+  (documented for VS Code agent mode) and that a namespace-ignoring client gets the
+  advisory skill only. Hook-carrying packages replace the `coverage_without_chock`
+  extension claim with the hook's location, and the dangling `manifest: manifest.yaml`
+  pointer (a file this out-of-place format never ships) is dropped — each package
+  carries only claims that are true of it. `--format all` now emits three trees.
+
 ## 0.3.0 — Native pre-tool-use for Copilot CLI and VS Code
 
 - **`agent-hooks` enforcement surface**: `chock sync` now writes `.github/hooks/chock.json`,

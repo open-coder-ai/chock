@@ -138,11 +138,13 @@ def claude_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
     name = plugin_name(str(policy_id))
     script = _guard_script(policy_dir, str(policy_id))
 
-    skill = build_skill(policy_dir, manifest, Path(repo_root))
+    # The frontmatter coverage claim and the closing note are both posture-dependent: a
+    # package that ships hooks/hooks.json must not carry a file stating it is advisory
+    # without chock. `build_skill` swaps the frontmatter claim for the hook's path; the
+    # closing note is replaced here for the same reason -- leaving either would make the
+    # file contradict itself inside the reader's own directory.
+    skill = build_skill(policy_dir, manifest, Path(repo_root), hooks="hooks/hooks.json" if script else None)
     if script:
-        # The shared builder's closing note is written for a format with no hooks. This
-        # package has one, so the note is replaced rather than appended: leaving both would
-        # make the file contradict itself inside the reader's own directory.
         skill = skill.replace(_ADVISORY_NOTE, _ENFORCED_NOTE)
 
     files: dict[Path, str] = {

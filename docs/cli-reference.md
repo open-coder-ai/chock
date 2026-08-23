@@ -195,7 +195,7 @@ diffs the result to catch a stale registry. See [Registry & Lockfile](registry-a
 ### `plugin build` — package policies as installable plugins
 
 ```bash
-chock plugin build [--repo .] [--policies-dir base] [--format agent-plugins|claude|all] [--out-dir DIST] [--check]
+chock plugin build [--repo .] [--policies-dir base] [--format agent-plugins|claude|copilot|all] [--out-dir DIST] [--check]
 ```
 
 Renders each policy as a plugin. The default `agent-plugins` format writes an
@@ -205,14 +205,14 @@ wherever it is read: v1 defines no enforcement semantics, so packaging changes n
 `coverage.json`.
 
 `--format claude` emits Claude Code's plugin layout (`.claude-plugin/plugin.json`,
-`hooks/`, `skills/`, `scripts/`), read natively by Claude Code, Copilot CLI, VS Code, and
-Grok Build. A guard policy's plugin carries the guard and the stdlib-only PreToolUse
-adapter and is session-enforced where the host honours the hook — failing **open** when
-`python3` is absent, a posture each emitted description states verbatim. This format
-requires `--out-dir` (plugins land in `<out-dir>/plugins/<id>/`); in-place output is
-refused so a policy folder can never be mistaken for a published plugin. `--policies-dir`
-packages a published directory (a catalog needs this); `--check` reports stale output
-without writing.
+`hooks/`, `skills/`, `scripts/`), read natively by Claude Code, Copilot CLI, VS Code and
+Grok Build; `--format copilot` is the same enforcement — byte-identical hook, adapter
+and guard — in the Agent Plugins 1.0 layout (root `plugin.json`, hook under
+`com.github.copilot/hooks/`) that spec-validating marketplaces accept. A guard policy's
+plugin is session-enforced where the host honours the hook, failing **open** when
+`python3` is absent — a posture each description states verbatim. Both formats require
+`--out-dir`; in-place output is refused so a policy folder is never mistaken for a
+published plugin. `--policies-dir` packages a published directory; `--check` judges without writing.
 
 ### `marketplace build` — index a built plugin tree
 

@@ -2,10 +2,9 @@
 name: protect-agent-config
 description: "Guard against an agent hand-editing its own guardrails. Agent instruction files (AGENTS.md and the per-agent wrappers), permission files (.claude/settings.json, .mcp.json) and vendored enforcement (.chock/bin/, .chock/compiled/) define what the agent may do -- so a shell command that rewrites them is the agent modifying its own authority (MITRE ATLAS AML.T0081; the AIVSS self-modification factor). The guard refuses shell write-commands targeting those paths; reads pass, and regeneration through `chock sync` passes because the tool writes them itself rather than through shell editing. Best-effort and deliberately coarse: a compound command that both reads a protected file and writes elsewhere may be refused -- rewrite it in two steps. Escape for a human-approved change: include 'chock: approved-config-change' in the command."
 metadata:
-  chock:
-    artifact: rule
-    enforcement: advise
-    coverage_without_chock: advisory
+  chock.artifact: rule
+  chock.enforcement: advise
+  chock.coverage_without_chock: advisory
 ---
 
 # Protect Agent Config
