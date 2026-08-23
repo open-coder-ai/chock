@@ -7,6 +7,10 @@ from typing import Any
 
 import yaml
 
+# The frontmatter metadata codec lives in skill_metadata.py: the flat-string dialect
+# (dotted keys, comma-joined lists, "true"/"false" booleans) is decoded in one place.
+from chock.skill_metadata import _as_bool, _as_list, _chock_metadata
+
 CANONICAL_MANIFEST = "manifest.yaml"
 MANIFEST_NAMES: tuple[str, ...] = (CANONICAL_MANIFEST,)
 SKILL_MD = "SKILL.md"
@@ -15,46 +19,6 @@ INTERFACE_YAML = "interface.yaml"
 
 class ManifestSourceError(Exception):
     """A manifest directory has an ambiguous or incomplete source of truth."""
-
-
-def _expand_dotted_keys(data: dict[str, Any]) -> dict[str, Any]:
-    """Turn flat dotted keys into nested dicts, merging with existing nesting."""
-    tree: dict[str, Any] = {}
-    for raw_key, value in data.items():
-        if "." not in raw_key:
-            if raw_key in tree and isinstance(tree[raw_key], dict) and isinstance(value, dict):
-                tree[raw_key] = _merge_dicts(tree[raw_key], value)
-            else:
-                tree[raw_key] = value
-            continue
-
-        parts = raw_key.split(".")
-        node = tree
-        for part in parts[:-1]:
-            if part not in node or not isinstance(node[part], dict):
-                node[part] = {}
-            node = node[part]
-        node[parts[-1]] = value
-    return tree
-
-
-def _merge_dicts(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
-    result = dict(base)
-    for key, value in overlay.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = _merge_dicts(result[key], value)
-        else:
-            result[key] = value
-    return result
-
-
-def _chock_metadata(frontmatter: dict[str, Any]) -> dict[str, Any]:
-    """Extract the metadata.chock map, expanding dotted keys."""
-    metadata = frontmatter.get("metadata") or {}
-    if not isinstance(metadata, dict):
-        return {}
-    expanded = _expand_dotted_keys(metadata)
-    return expanded.get("chock") or {}
 
 
 def _set_or_default(
@@ -157,7 +121,7 @@ def _project_skill_frontmatter(
     skill_type = ac.get("skill_type")
     _set_or_default(data, "skill.skill_type", skill_type, "nl", warnings)
     data["skill"]["entry"] = manifest_path.name
-    _set_or_default(data, "skill.effects", ac.get("effects"), ["none"], warnings)
+    _set_or_default(data, "skill.effects", _as_list(ac.get("effects")), ["none"], warnings)
 
     if "approval" in ac:
         data["skill"]["approval"] = ac["approval"]
@@ -177,7 +141,12 @@ def _project_skill_frontmatter(
         "agent_specific_vocabulary",
     ]:
         if key in ac:
-            data[key] = ac[key]
+            # The two boolean carriers arrive as "true"/"false" strings in the
+            # flat-string metadata dialect; everything else passes through as-is.
+            if key in ("determinization_reviewed", "agent_specific_vocabulary"):
+                data[key] = _as_bool(ac[key])
+            else:
+                data[key] = ac[key]
 
     if "input_schema" in ac:
         data["input_schema"] = ac["input_schema"]
