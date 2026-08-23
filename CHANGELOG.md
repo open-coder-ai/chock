@@ -1,6 +1,6 @@
 # Chock changelog
 
-## Unreleased
+## 0.3.0 — Native pre-tool-use for Copilot CLI and VS Code
 
 - **`agent-hooks` enforcement surface**: `chock sync` now writes `.github/hooks/chock.json`,
   the native pre-tool-use hook read by **Copilot CLI and VS Code agent mode**. Both honour
