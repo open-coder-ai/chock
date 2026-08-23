@@ -72,6 +72,6 @@ def _as_bool(value: Any) -> Any:
     Only the exact spellings the flat dialect writes are decoded; anything else is
     returned untouched so schema validation reports it rather than a silent guess.
     """
-    if isinstance(value, str) and value.lower() in ("true", "false"):
-        return value.lower() == "true"
+    if isinstance(value, str) and value in ("true", "false"):
+        return value == "true"
     return value
