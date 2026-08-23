@@ -3,7 +3,7 @@ name = "chock"
 # Version contract (docs/compatibility.md): PATCH releases are emitter-byte-identical;
 # MINOR releases may change compiled output. 0.1.0 is the first public release; the
 # 0.0.1a0 pre-release exists only because PyPI names are claimed by uploading.
-version = "0.2.0"
+version = "0.3.0"
 description = "Governance-as-code for AI coding agents: write a rule once, enforce it on git hooks, CI, and every agent"
 readme = "README.md"
 # PEP 639 SPDX expression; needs setuptools >= 77 (pinned in build-system below).
