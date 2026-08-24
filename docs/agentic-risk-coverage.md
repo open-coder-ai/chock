@@ -4,9 +4,11 @@ This page answers the question people actually search — *"can something stop m
 from doing X?"* — one row per problem, each stating the mechanism Chock ships and the
 tier it honestly earns **today**. Rows that read `advisory`, `planned`, or `out of
 scope` stay on this page on purpose: a coverage claim you cannot verify is worse than a
-gap you know about. Tier words come from the coverage taxonomy the compiler itself
-reports (see [Enforcement Surfaces](enforcement-surfaces.md)); a tier is claimed only
-with an install witness, never because a fragment was merely compiled.
+gap you know about. The three enforcement levels — `enforced`, `enforced-at-commit`,
+`advisory` — are the compiler's own coverage taxonomy (see
+[Enforcement Surfaces](enforcement-surfaces.md)); `planned` and `out of scope` are
+statuses of this page, not compiler output. An enforcement level is claimed only with an
+install witness, never because a fragment was merely compiled.
 
 ## The tiers
 
@@ -15,8 +17,8 @@ with an install witness, never because a fragment was merely compiled.
 | `enforced` | A hard control runs **before** the action, inside the agent (`pre-tool-use`, `agent-hooks`), with an install witness. `managed-setting` is hard too but is deliberately excluded here until an install witness exists for it — the compiler credits no surface it cannot witness |
 | `enforced-at-commit` | A deterministic gate at commit/push (`git-hook`) with the `ci-gate` backstop — the action happened, the artifact cannot land |
 | `advisory` | Compiled rule text the agent is asked to follow — persuasion, not prevention, and labeled as such |
-| `planned` | A public [roadmap](roadmap.md) issue exists; nothing is claimed until it ships with witnesses |
-| `out of scope` | A deliberate non-goal — stated plainly, with a pointer to the layer that owns it |
+| `planned` | Page-only status: a public [roadmap](roadmap.md) issue exists; nothing is claimed until it ships with witnesses |
+| `out of scope` | Page-only status: a deliberate non-goal — stated plainly, with a pointer to the layer that owns it |
 
 ## The problems, in the words people search
 
@@ -40,7 +42,7 @@ with an install witness, never because a fragment was merely compiled.
 | ASI01 Agent Goal Hijack | partial | `block-invisible-unicode` (`enforced-at-commit` slice) + `injection-defense` (`advisory`) |
 | ASI02 Tool Misuse | partial | `block-destructive-commands` (`enforced` slice); [#58](https://github.com/open-coder-ai/chock/issues/58) extends to structured arguments |
 | ASI03 Identity & Privilege Abuse | out of scope | Identity providers and credential brokers own this layer; Chock governs repo-scoped behavior, not credentials |
-| ASI04 Agentic Supply Chain | partial | Hash-pinned installs + signed releases (`enforced` slice); [#15](https://github.com/open-coder-ai/chock/issues/15), [#57](https://github.com/open-coder-ai/chock/issues/57) deepen it |
+| ASI04 Agentic Supply Chain | partial | Hashes recorded at install, drift detected by `chock check`, rejection only with `chock add --verify-sha`; Chock's own releases are Sigstore-signed. Signed-catalog trust tiers and AI-BOM: `planned` ([#15](https://github.com/open-coder-ai/chock/issues/15), [#57](https://github.com/open-coder-ai/chock/issues/57)) |
 | ASI05 Unexpected Code Execution | partial | `code-safety` (`advisory`: no `eval`/`exec`, verify dependencies) + destructive-command gates (`enforced` slice) |
 | ASI06 Memory & Context Poisoning | advisory | `memory-discipline`, `context-hygiene` — stated honestly: efficiency-oriented, not a poisoning defense |
 | ASI07 Insecure Inter-Agent Comms | out of scope | Runtime message inspection belongs to the orchestration platform |
