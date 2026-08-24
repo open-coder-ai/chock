@@ -1,14 +1,25 @@
 """`chock plugin` -- package policies as installable plugin directories.
 
-Three formats from one source. `agent-plugins` (the default) emits the Agent Plugins 1.0.0
-manifest and skill in place, the spec authors' own add-portability-first migration.
-`claude` emits Claude Code's plugin layout -- read natively by Claude Code, Copilot CLI,
-VS Code, and Grok Build. `copilot` emits the Agent Plugins layout with the enforcing hook
-under `com.github.copilot/` -- the shape spec-validating marketplaces (awesome-copilot's
-`vally`) accept, which the Claude layout is not. The hook-carrying formats always build
-into a distribution tree (`--out-dir`), never in place: hook files dropped inside a policy
-folder would be discovered by any client pointed at the repo and read as a plugin nobody
-published.
+Five formats from one source, one enforcement system. Every hook-carrying format ships the
+byte-identical guard and adapter; only the envelope each vendor reads differs.
+
+- `agent-plugins` (the default) emits the Agent Plugins 1.0.0 manifest and skill in place,
+  the spec authors' own add-portability-first migration. Hookless: the standard carries no
+  hooks, so this package is advisory by construction.
+- `claude` emits Claude Code's plugin layout, read natively by Claude Code, Copilot CLI,
+  VS Code and Grok Build.
+- `copilot` emits the Agent Plugins layout with the enforcing hook under
+  `com.github.copilot/` -- the shape spec-validating marketplaces (awesome-copilot's
+  `vally`) accept, which the Claude layout is not.
+- `cursor` emits `.cursor-plugin/` with a `beforeShellExecution` hook. Cursor ignores Agent
+  Plugins hooks entirely, so this is the only format that enforces there.
+- `codex` emits `.codex-plugin/` with a `PreToolUse` hook. Codex can discover an
+  Agent-Plugins-format package but DISCARDS its hooks at load time, so the legacy
+  `.codex-plugin/` manifest is the only shape whose enforcement survives.
+
+The hook-carrying formats always build into a distribution tree (`--out-dir`), never in
+place: hook files dropped inside a policy folder would be discovered by any client pointed
+at the repo and read as a plugin nobody published.
 """
 
 from __future__ import annotations
@@ -28,13 +39,25 @@ from chock.plugin.build import (
     plugin_name,
 )
 from chock.plugin.claude import build_claude_plugin, claude_plugin_differences
+from chock.plugin.codex import build_codex_plugin, codex_plugin_differences
 from chock.plugin.copilot import build_copilot_plugin, copilot_plugin_differences
+from chock.plugin.cursor import build_cursor_plugin, cursor_plugin_differences
 from chock.scaffold.recompile import discover_policy_dirs
 
-FORMATS = ("agent-plugins", "claude", "copilot")
+FORMATS = ("agent-plugins", "claude", "copilot", "cursor", "codex")
 
 #: Formats that can ship hooks and are therefore refused in place: discovery risk.
-HOOK_FORMATS = frozenset({"claude", "copilot"})
+HOOK_FORMATS = frozenset({"claude", "copilot", "cursor", "codex"})
+
+#: Per-format (check, build) pair. A table rather than a chain of conditionals: each
+#: vendor's envelope differs, and one lookup keyed by the format name is what stops a
+#: new format from being silently routed to another vendor's emitter.
+HOOK_EMITTERS = {
+    "claude": (claude_plugin_differences, build_claude_plugin),
+    "copilot": (copilot_plugin_differences, build_copilot_plugin),
+    "cursor": (cursor_plugin_differences, build_cursor_plugin),
+    "codex": (codex_plugin_differences, build_codex_plugin),
+}
 
 
 def resolve_policy_dirs(repo_root: Path, policies_dir: str | None) -> list[Path]:
@@ -75,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--out-dir",
         default=None,
-        help="Distribution root: plugins are written to <out-dir>/<format>/<id>/ (required for claude and copilot formats)",
+        help="Distribution root: plugins are written to <out-dir>/<format>/<id>/ (required for every hook-carrying format)",
     )
     parser.add_argument(
         "--check",
@@ -137,11 +160,7 @@ def main(argv: list[str] | None = None) -> int:
                         build_plugin(policy_dir, manifest, repo_root, out_dir=target)
                 else:
                     assert target is not None  # enforced above: hook formats require --out-dir
-                    differ, build = (
-                        (claude_plugin_differences, build_claude_plugin)
-                        if fmt == "claude"
-                        else (copilot_plugin_differences, build_copilot_plugin)
-                    )
+                    differ, build = HOOK_EMITTERS[fmt]
                     if args.check:
                         differences.extend(differ(policy_dir, manifest, repo_root, target))
                     else:
@@ -187,5 +206,9 @@ def main(argv: list[str] | None = None) -> int:
         )
     if "copilot" in formats:
         print("  root plugin.json + com.github.copilot/hooks/ per guard policy; same posture discipline")
+    if "cursor" in formats:
+        print("  .cursor-plugin/plugin.json + hooks/ (beforeShellExecution) per guard policy")
+    if "codex" in formats:
+        print("  .codex-plugin/plugin.json + hooks/ (PreToolUse) per guard policy")
     print("  Skills are advisory in any client. Repo-level enforcement still needs `chock sync`.")
     return 0

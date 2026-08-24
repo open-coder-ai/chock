@@ -204,11 +204,11 @@ additive, `manifest.yaml` stays the source of truth, and a packaged policy is `a
 wherever it is read: v1 defines no enforcement semantics, so packaging changes no value in
 `coverage.json`.
 
-`--format claude` emits Claude Code's plugin layout (`.claude-plugin/plugin.json`,
-`hooks/`, `skills/`, `scripts/`), read natively by Claude Code, Copilot CLI, VS Code and
-Grok Build; `--format copilot` is the same enforcement — byte-identical hook, adapter
-and guard — in the Agent Plugins 1.0 layout (root `plugin.json`, hook under
-`com.github.copilot/hooks/`) that spec-validating marketplaces accept. A guard policy's
+The four hook formats ship a byte-identical guard and adapter; only the envelope
+differs. `claude` (`.claude-plugin/`) is read natively by Claude Code, Copilot CLI, VS Code
+and Grok Build; `copilot` is the Agent Plugins 1.0 layout with the hook under
+`com.github.copilot/hooks/`, which spec-validating marketplaces accept; `cursor`
+(`.cursor-plugin/`, `beforeShellExecution`) and `codex` (`.codex-plugin/`, `PreToolUse`) each reach a hook engine no other package can. A guard policy's
 plugin is session-enforced where the host honours the hook, failing **open** when
 `python3` is absent — a posture each description states verbatim. Both formats require
 `--out-dir`; in-place output is refused so a policy folder is never mistaken for a

@@ -73,6 +73,36 @@ def extract_command(payload: dict) -> str:
     return ""
 
 
+def is_codex_payload(payload: dict) -> bool:
+    """True for Codex's PreToolUse envelope.
+
+    Codex sends Claude's `tool_input` shape plus turn identifiers (`turn_id`,
+    `permission_mode`) that Claude Code does not. The distinction matters because the two
+    clients need OPPOSITE deny exits: Claude blocks on exit 2, while on Windows Codex
+    wraps hook commands in `powershell -Command`, which collapses exit 2 into 1 -- a
+    FAILED hook that fails open. Codex's only stdout-parsing arm is exit 0, so its deny
+    must ride in JSON with a clean exit. If this test ever misfires on a future Claude
+    payload the failure is benign: Claude Code honours the same exit-0
+    `permissionDecision` output.
+    """
+    return isinstance(payload, dict) and isinstance(payload.get("tool_input"), dict) and "turn_id" in payload
+
+
+def is_cursor_payload(payload: dict) -> bool:
+    """True for Cursor's `beforeShellExecution` envelope.
+
+    Cursor carries the command at the top level alongside `cwd`/`sandbox`, where Claude
+    nests it under `tool_input` and Copilot under `toolArgs`. Recognising the shape lets
+    the deny response be spoken in Cursor's dialect without changing what the other
+    clients receive.
+    """
+    if not isinstance(payload, dict):
+        return False
+    if isinstance(payload.get("tool_input"), dict) or payload.get("toolArgs") is not None:
+        return False
+    return isinstance(payload.get("command"), str) and ("cwd" in payload or "sandbox" in payload)
+
+
 # The guards exit 1 on a violation and 0 when clean. Every other outcome -- 127 for a
 # missing interpreter, an OSError, a crash -- means the check did not happen.
 GUARD_VIOLATION = 1
@@ -159,6 +189,13 @@ def run_guard(guard: Path, command: str) -> bool | None:
     if proc.returncode == GUARD_VIOLATION:
         sys.stderr.write(proc.stdout or "")
         sys.stderr.write(proc.stderr or "")
+        if not ((proc.stdout or "") + (proc.stderr or "")).strip():
+            # A deny with no reason is not universally a deny. Codex records exit 2 with an
+            # empty stderr as a FAILED hook ("did not write a blocking reason to stderr",
+            # codex-rs/hooks/src/events/pre_tool_use.rs) and lets the command through -- so a
+            # silent guard would become a silent ALLOW, the precise failure this project
+            # exists to refuse. Every other client simply shows this line.
+            print(f"chock: blocked by {Path(guard).name} (guard gave no reason)", file=sys.stderr)
         return True
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "").strip().splitlines()
@@ -231,7 +268,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--guard", required=True, help="Path to the guard script")
     args = parser.parse_args(argv)
 
-    raw = sys.stdin.read()
+    # Read BYTES and decode UTF-8 ourselves rather than letting `sys.stdin.read()` apply
+    # the platform locale. On Windows that locale is cp1252, which turned Cursor's
+    # UTF-8 BOM into the three characters 'ï»¿' -- json.loads then failed with
+    # "Expecting value: line 1 column 1", the adapter reported "not checked", and
+    # returned 0. Every command was ALLOWED while the package claimed enforcement.
+    # Witnessed on a real Cursor install, found only because the probe logged the raw
+    # payload instead of trusting the verdict. `utf-8-sig` also drops the BOM, and
+    # `errors="replace"` keeps a stray byte from silently disabling the guard.
+    try:
+        raw = sys.stdin.buffer.read().decode("utf-8-sig", errors="replace")
+    except (AttributeError, ValueError):  # no binary stdin (embedded/test harnesses)
+        raw = sys.stdin.read().lstrip("\ufeff")
     if not raw.strip():
         return 0  # nothing to inspect
     try:
@@ -255,6 +303,43 @@ def main(argv: list[str] | None = None) -> int:
     if blocked is not None:
         # Claude/Cursor use tool_name; Copilot/VS Code use toolName -- record either.
         _log_outcome(guard, str(payload.get("tool_name") or payload.get("toolName") or ""), blocked)
+    if blocked and not is_cursor_payload(payload) and isinstance(payload.get("tool_input"), dict):
+        # Claude protocol (Claude Code and Codex). Exit 2 alone was witnessed NOT blocking
+        # a trusted Codex plugin hook -- the command ran with the reason on stderr -- so the
+        # decision is stated explicitly as well. This is Claude Code's own documented
+        # PreToolUse output, which Codex implements, not a per-vendor special case.
+        print(
+            json.dumps(
+                {
+                    "hookSpecificOutput": {
+                        "hookEventName": "PreToolUse",
+                        "permissionDecision": "deny",
+                        "permissionDecisionReason": f"Blocked by chock policy: {guard.stem}",
+                    }
+                }
+            )
+        )
+    if blocked and is_cursor_payload(payload):
+        # Cursor documents exit 2 as "equivalent to returning permission: deny", but a
+        # plugin hook returning exit 2 was witnessed NOT blocking on a real install --
+        # the command ran. The stdout JSON is what Cursor actually honours, so both are
+        # sent: the JSON for Cursor, the exit code for every other client.
+        reason = f"Blocked by chock policy: {guard.stem}"
+        print(
+            json.dumps(
+                {
+                    "permission": "deny",
+                    "user_message": reason,
+                    "agent_message": f"{reason}. This command is refused by repository policy.",
+                }
+            )
+        )
+    if blocked and is_codex_payload(payload):
+        # The deny is already on stdout (hookSpecificOutput above). Exit 0 is the only
+        # arm of Codex's parser that reads it; exit 2 would be collapsed to 1 by the
+        # PowerShell wrapper Codex uses on Windows and discarded as a failed hook.
+        # Witnessed blocking with 0, witnessed running with 2.
+        return 0
     # Claude Code blocks on exit code 2; stderr becomes the reason shown to the agent.
     return 2 if blocked else 0
 
