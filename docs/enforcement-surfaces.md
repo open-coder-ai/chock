@@ -4,14 +4,14 @@ A **surface** is *where* a compiled control runs. The same policy is emitted to 
 each agent supports — that's how "author once, enforce everywhere" stays honest about *how* strongly
 each guarantee holds.
 
-## The six surfaces
+## The eight surfaces
 
 | Surface | Determinism | Bypassable? | What it is |
 | :--- | :--- | :--- | :--- |
 | `git-hook` | Hard, at commit/push | Yes (`--no-verify`) | Pre-commit / pre-merge-commit / pre-push guard |
 | `ci-gate` | Hard, un-bypassable | No | The backstop for a skipped git hook |
 | `ambient-rule` | Advisory | Yes | Compiled `AGENTS.md` block the agent is asked to follow |
-| `pre-tool-use` | Hard, pre-execution | No | Blocks a command **before** the agent runs it (exit 2 = deny) — Claude Code + Cursor |
+| `pre-tool-use` | Hard, pre-execution | No | Blocks a command **before** the agent runs it, in each client's own deny dialect — Claude Code + Cursor (see the Cursor caveat) |
 | `agent-hooks` | Hard, pre-execution | No | The same exit-2 deny for Copilot CLI + VS Code agent mode, from `.github/hooks/chock.json` (witnessed blocking on both, 2026-08-23) |
 | `managed-setting` | Hard, org-level | No | Admin-deployed allow/ask/deny rules |
 | `gateway` | Hard, un-circumventable | No | Budget/egress backstop — *modeled now, emitted later* |
@@ -23,8 +23,9 @@ each guarantee holds.
 > `rm -rf`, not PowerShell's `Remove-Item`. On Windows, Copilot and VS Code run **PowerShell**,
 > so the guard catches bash-syntax commands there but not PowerShell-native destructive
 > syntax, exactly the "non-standard shell" bypass class the guard already documents. `enforced`
-> means the hard control runs and can deny — the same meaning it carries for Claude — while a
-> PowerShell guard (tracked follow-up) is what closes the Windows coverage gap. The hook's
+> means the hard control runs and can deny — the same meaning it carries for Claude — and
+> `block-destructive-commands` 0.0.6 ships the PowerShell/cmd guard (matched against
+> `CHOCK_RAW_COMMAND`) that closes the Windows coverage gap. The hook's
 > interpreter is resolved at run time (skipping the Windows Store `python3` alias stub) and
 > the repo root via `git rev-parse`, so the committed file is portable with no baked path.
 
@@ -62,10 +63,12 @@ per gateway process; wrap N servers with N entries.
 >   (see `spec/gate-dsl.md`). It is friction on an MCP fetch/egress tool, not an airtight
 >   boundary — pair it with a network-level control where the threat model demands one.
 
-> **Cursor caveat, stated rather than glossed:** Cursor's Agent Hooks honour exit 2 as deny
-> (the same protocol as Claude's PreToolUse, spoken by the same vendored adapter through
-> `.cursor/hooks.json` `beforeShellExecution`), but Cursor **fails open** on any other
-> non-zero exit unless the hook entry sets `failClosed` — and `failClosed: true` would brick
+> **Cursor caveat, stated rather than glossed:** Cursor documents exit 2 as deny, but a
+> hook returning exit 2 alone was **witnessed NOT blocking** on a real install
+> (2026-08-24). The vendored adapter therefore also emits Cursor's stdout
+> `{"permission": "deny"}` response, which is what actually blocks (witnessed). Cursor
+> **fails open** on any other non-zero exit unless the hook entry sets `failClosed` —
+> and `failClosed: true` would brick
 > every shell command on a clone whose baked interpreter path does not resolve yet. Chock
 > ships fail-open entries and mitigates the gap the same way as Claude's exit-127 case:
 > install bakes an interpreter that provably runs. The guard covers shell commands
@@ -88,25 +91,26 @@ per gateway process; wrap N servers with N entries.
 
 Which surfaces each agent supports today (from `src/chock/compile/surfaces.py`):
 
-| Agent | ambient | git-hook | ci-gate | pre-tool-use | managed-setting |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Claude Code** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Cursor** | ✅ | ✅ | ✅ | ✅ | — |
-| Copilot | ✅ | ✅ | ✅ | — | — |
-| Codex | ✅ | ✅ | ✅ | — | — |
-| Gemini | ✅ | ✅ | ✅ | — | — |
-| Windsurf | ✅ | ✅ | ✅ | — | — |
-| Devin | ✅ | ✅ | ✅ | — | — |
-| Aider | ✅ | ✅ | ✅ | — | — |
-| Grok | ✅ | ✅ | ✅ | — | — |
-| Kimi Code | ✅ | ✅ | ✅ | — | — |
-| Replit | ✅ | ✅ | ✅ | — | — |
-| Tabnine | ✅ | ✅ | ✅ | — | — |
-| VS Code | ✅ | ✅ | ✅ | — | — |
-| Antigravity CLI | ✅ | ✅ | ✅ | — | — |
+| Agent | ambient | git-hook | ci-gate | pre-tool-use | managed-setting | agent-hooks |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Claude Code** | ✅ | ✅ | ✅ | ✅ | ✅ | — |
+| **Cursor** | ✅ | ✅ | ✅ | ✅ | — | — |
+| Copilot | ✅ | ✅ | ✅ | — | — | ✅ |
+| Codex | ✅ | ✅ | ✅ | — | — | — |
+| Gemini | ✅ | ✅ | ✅ | — | — | — |
+| Windsurf | ✅ | ✅ | ✅ | — | — | — |
+| Devin | ✅ | ✅ | ✅ | — | — | — |
+| Aider | ✅ | ✅ | ✅ | — | — | — |
+| Grok | ✅ | ✅ | ✅ | — | — | — |
+| Kimi Code | ✅ | ✅ | ✅ | — | — | — |
+| Replit | ✅ | ✅ | ✅ | — | — | — |
+| Tabnine | ✅ | ✅ | ✅ | — | — | — |
+| VS Code | ✅ | ✅ | ✅ | — | — | ✅ |
+| Antigravity CLI | ✅ | ✅ | ✅ | — | — | — |
 
-Claude Code is the reference target with the deepest enforcement primitives; the rest get the shared
-hard floor plus advisory rules until their own native controls are wired in.
+Claude Code and Cursor get `pre-tool-use`, Copilot CLI and VS Code get `agent-hooks`;
+the rest get the shared hard floor plus advisory rules until their own native controls
+are wired in.
 
 ## Coverage levels
 
@@ -114,7 +118,7 @@ For each policy × agent, the compiler records one of five levels in `.chock/cov
 
 | Level | Meaning |
 | :--- | :--- |
-| **`enforced`** | An installed, hard, pre-execution in-agent control — a Claude PreToolUse hook wired into `.claude/settings.json`. |
+| **`enforced`** | An installed, hard, pre-execution in-agent control — a hook wired into `.claude/settings.json`, `.cursor/hooks.json`, or `.github/hooks/chock.json`. |
 | **`enforced-at-commit`** | The policy emitted a git-hook (installed automatically) or a CI gate whose workflow `install-ci` has actually written — hard at commit time or over the PR's commit range, advisory in-agent. |
 | **`advisory`** | Only the ambient rule applies — compiled prose the agent is asked to follow. |
 | **`unsupported`** | Nothing the policy emitted reaches this agent. |
@@ -152,7 +156,8 @@ Example for `protect-main-branch` (targets git-hook + CI + PreToolUse + managed-
 
 A hook that must stop a command targets `git-hook` + `ci-gate` (the universal floor) and, where
 available, `pre-tool-use` + `managed-setting`. A hook whose `on:` includes `tool_use` is compiled to
-the `pre-tool-use` surface on agents that support it (Claude Code today). A best-practice rule with
+the `pre-tool-use` surface on agents that support it (Claude Code and Cursor; Copilot
+CLI and VS Code get the same guard via `agent-hooks`). A best-practice rule with
 no deterministic check compiles only to `ambient-rule`. The compiler always pairs a control with the
 **strongest available backstop** — e.g. a git hook plus a CI gate, because a git hook alone can be
 skipped with `--no-verify`.

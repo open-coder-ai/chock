@@ -65,7 +65,7 @@ code" would be remote code execution. Chock does not fight that boundary; it shr
 gap with three mechanisms, each consented where consent is required:
 
 1. **The ambient arm rule (every agent, zero setup).** The managed pointer block in
-   `AGENTS.md` — read by all thirteen adapters — tells the agent:
+   `AGENTS.md` — read by all fourteen adapters — tells the agent:
    `fresh_clone: git never clones hooks -> run(chock sync --repo .) before first commit`.
    A contributor's coding agent arms the hooks before it can trip them.
 2. **The SessionStart arm hook (Claude Code, automatic).** `chock sync` wires a

@@ -159,20 +159,18 @@ name: my-skill
 description: >
   One-line description. args(request) returns(outcome) invoke(intent) exclude(anti-intent)
 metadata:
+  # Flat string map (Agent Skills spec): dotted keys for nesting, lists comma-joined,
+  # booleans as "true"/"false". Ingestion decodes the typed fields.
   owner: team-platform
   version: "0.1.0"
   status: draft
-  chock:
-    id: my-skill
-    skill_type: code
-    effects: [read_only]
-    provenance:
-      author: team-platform
-      trust_tier: community
-    security:
-      content_instructions: never-obey
-    evaluation:
-      test_suite_ref: evals/suite.yaml
+  chock.id: my-skill
+  chock.skill_type: code
+  chock.effects: read_only
+  chock.provenance.author: team-platform
+  chock.provenance.trust_tier: community
+  chock.security.content_instructions: never-obey
+  chock.evaluation.test_suite_ref: evals/suite.yaml
 ---
 ```
 

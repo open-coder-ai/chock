@@ -164,7 +164,7 @@ chock compile <policy-id> [--repo .] [--targets SURFACE ...] [--agents AGENT ...
 ```
 
 Compiles one policy into the surfaces each target agent supports (git hook, CI gate,
-Claude PreToolUse / managed-settings, `AGENTS.md` rule) and updates the per-agent
+pre-tool-use, agent-hooks, managed-settings, `AGENTS.md` rule) and updates the per-agent
 coverage report. `--agents` takes the same comma- or space-separated names as `init`
 and `sync`, defaults to the repo's `supported_agents`, and rejects unknown names.
 `sync` runs this for every enabled policy; reach for `compile` directly only when
@@ -195,7 +195,7 @@ diffs the result to catch a stale registry. See [Registry & Lockfile](registry-a
 ### `plugin build` — package policies as installable plugins
 
 ```bash
-chock plugin build [--repo .] [--policies-dir base] [--format agent-plugins|claude|copilot|all] [--out-dir DIST] [--check]
+chock plugin build [--repo .] [--policies-dir base] [--format agent-plugins|claude|copilot|cursor|codex|all] [--out-dir DIST] [--check]
 ```
 
 Renders each policy as a plugin. The default `agent-plugins` format writes an
@@ -210,14 +210,14 @@ and Grok Build; `copilot` is the Agent Plugins 1.0 layout with the hook under
 `com.github.copilot/hooks/`, which spec-validating marketplaces accept; `cursor`
 (`.cursor-plugin/`, `beforeShellExecution`) and `codex` (`.codex-plugin/`, `PreToolUse`) each reach a hook engine no other package can. A guard policy's
 plugin is session-enforced where the host honours the hook, failing **open** when
-`python3` is absent — a posture each description states verbatim. Both formats require
+`python3` is absent — a posture each description states verbatim. The hook formats require
 `--out-dir`; in-place output is refused so a policy folder is never mistaken for a
 published plugin. `--policies-dir` packages a published directory; `--check` judges without writing.
 
 ### `marketplace build` — index a built plugin tree
 
 ```bash
-chock marketplace build [--dist .] [--name chock] [--check]
+chock marketplace build [--dist .] [--name chock] [--tree claude|cursor|codex] [--check]
 ```
 
 Scans `<dist>/plugins/*/.claude-plugin/plugin.json` and writes the marketplace index to

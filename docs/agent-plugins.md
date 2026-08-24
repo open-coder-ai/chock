@@ -133,7 +133,7 @@ The obvious implementation is a `Surface.AGENT_PLUGIN` registered beside `git-ho
 
 `Surface` is not a list of output formats. It is the input to `coverage_level()`, the function that
 answers what a policy actually enforces on a given agent. Adding a format with no enforcement
-semantics to that function either demands a 13-agent matrix column for something that enforces
+semantics to that function either demands a per-agent matrix column for something that enforces
 nothing, or inflates a coverage verdict — the exact overclaim
 [`INSTALLED_SURFACES`](enforcement-surfaces.md) was rewritten to make structurally impossible.
 
@@ -177,3 +177,23 @@ later work. If a standard component type for gates or rules lands, the gate move
 namespace into the portable core, `manifest.yaml` shrinks to whatever remains, and collapsing to a
 single file becomes real convergence rather than a cosmetic tidy-up. That is the trigger — not the
 mere presence of two files.
+
+## The hook-carrying vendor formats
+
+The Agent Plugins 1.0 standard carries no hooks, so an `agent-plugins` package is advisory
+by construction. Enforcement travels in four vendor plugin formats built from the same
+policies (`chock plugin build --format claude|copilot|cursor|codex`), each published in its
+own generated distribution repo and each **witnessed denying a destructive command on a
+real install**:
+
+| Vendor repo | Client(s) | Deny dialect |
+| :--- | :--- | :--- |
+| [chock-claude-plugins](https://github.com/open-coder-ai/chock-claude-plugins) | Claude Code | exit 2 |
+| [chock-copilot-plugins](https://github.com/open-coder-ai/chock-copilot-plugins) | Copilot CLI, VS Code | exit 2 |
+| [chock-cursor-plugins](https://github.com/open-coder-ai/chock-cursor-plugins) | Cursor | stdout `{"permission": "deny"}` |
+| [chock-codex-plugins](https://github.com/open-coder-ai/chock-codex-plugins) | Codex (after its per-hook trust review) | exit 0 + `permissionDecision` JSON |
+
+One guard, one adapter, byte-identical across all four — only the envelope each client
+reads differs. Codex additionally installs every hook **untrusted** until a human approves
+it, and that trust is bound to a hash of the hook command, so a plugin update silently
+voids it until re-approved.

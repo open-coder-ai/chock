@@ -97,7 +97,7 @@ Use the action in a workflow:
 - uses: open-coder-ai/chock@v1
   with:
     command: check
-    version: 0.1.0
+    version: 0.4.0
 ```
 
 The action installs the pinned version via `pipx` and runs the command. The `v1` major

@@ -23,7 +23,8 @@ supports**, across up to six [enforcement surfaces](enforcement-surfaces.md):
 
 - `git-hook` and `ci-gate` — the universal hard floor (every agent)
 - `ambient-rule` — the compiled `AGENTS.md` block (advisory)
-- `pre-tool-use` and `managed-setting` — agent-native hard controls (Claude Code today)
+- `pre-tool-use` (Claude Code, Cursor) and `agent-hooks` (Copilot CLI, VS Code) —
+  agent-native hard controls; `managed-setting` — compiled, not yet installed
 - `gateway` — modeled for budgets/egress (future)
 
 It also writes a **coverage report** (`.chock/coverage.json`) mapping every policy × agent to
