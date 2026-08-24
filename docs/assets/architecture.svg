@@ -74,8 +74,8 @@
 
     <rect x="540" y="188" width="0" height="0"/>
     <rect x="540" y="216" width="290" height="26" rx="6" fill="var(--accent-soft)"/>
-    <text x="554" y="233" class="label">Claude PreToolUse</text>
-    <text x="820" y="233" text-anchor="end" class="sub" font-size="10">Claude</text>
+    <text x="554" y="233" class="label">native hooks</text>
+    <text x="820" y="233" text-anchor="end" class="sub" font-size="9">Claude &#183; Cursor &#183; Copilot &#183; VS Code</text>
 
     <rect x="540" y="232" width="290" height="26" rx="6" fill="var(--accent-soft)"/>
     <text x="554" y="249" class="label">managed settings</text>

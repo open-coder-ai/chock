@@ -33,7 +33,8 @@ NARRATION = [
     (
         22.5,
         "The compiler turns it into the strongest control every agent supports. "
-        "Git hooks. C I gates. Native hooks in Claude Code and Cursor. Across thirteen agents.",
+        "Git hooks. C I gates. Native hooks in Claude Code, Cursor, Copilot, and V S Code. "
+        "Across fourteen agents.",
     ),
     (
         34.8,
