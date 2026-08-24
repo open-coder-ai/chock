@@ -7,6 +7,12 @@ vendored PreToolUse adapter changes -- the deny-dialect and payload-decoding fix
 mean an adopter's next `chock sync` rewrites it. Every other compiled enforcement
 surface is unchanged.
 
+- **Per-vendor marketplace indexing**: `chock marketplace build --tree cursor|codex`
+  indexes a vendor's own format tree with the index file its client actually reads --
+  Cursor's `.cursor-plugin/marketplace.json` in Cursor's schema, and for Codex the
+  legacy `.claude-plugin/marketplace.json` shape it was witnessed consuming from git
+  marketplaces -- so each vendor-named distribution repo carries exactly one vendor's
+  packages instead of every format tree. Default (`--tree claude`) is byte-unchanged.
 - **`cursor` and `codex` plugin formats**: `chock plugin build --format cursor|codex`
   packages a policy for Cursor and OpenAI Codex, with the enforcing hook each vendor
   actually reads. Same guard, same adapter, byte-identical to every other format --
