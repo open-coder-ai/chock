@@ -140,7 +140,7 @@ function scene3(lt, a) {
   const surfaces = [
     { n: 'git hook',            d: 'pre-commit · pre-push',      c: C.green },
     { n: 'CI gate',             d: 'commit-range backstop',      c: C.blue  },
-    { n: 'Claude PreToolUse',   d: 'blocks the tool call',       c: C.peach },
+    { n: 'Native agent hooks',  d: 'Claude · Cursor · Copilot · VS Code', c: C.peach },
     { n: 'AGENTS.md rules',     d: 'ambient, every agent',       c: C.yellow},
   ];
   const sx = 760, sw = 420, sh = 82, sgap = 22;
@@ -179,11 +179,11 @@ function scene3(lt, a) {
   });
 
   // agent badge row
-  const badges = ['Claude Code', 'Copilot', 'Cursor', 'Codex', 'Gemini', 'Aider', 'Windsurf', '+ 6 more'];
+  const badges = ['Claude Code', 'Cursor', 'Copilot', 'VS Code', 'Codex', 'Gemini', 'Aider', '+ 7 more'];
   const ba = ez(seg(lt, 8.4, 9.2));
   if (ba > 0) {
     ctx.save(); ctx.globalAlpha *= ba;
-    text('13 agents, one source of truth', 80, 592, `600 16px ${SANS}`, C.sub);
+    text('14 agents, one source of truth', 80, 592, `600 16px ${SANS}`, C.sub);
     ctx.font = `14px ${SANS}`;
     let bx = 80;
     badges.forEach((b, i) => {

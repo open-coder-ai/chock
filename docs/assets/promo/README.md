@@ -11,6 +11,8 @@ from source in this folder; no screen recording involved.
   or `range <t0> <t1>` to re-render a slice after an edit).
 - `gen_audio.py` — builds the soundtrack: Edge neural TTS narration, a synthesized
   music bed, and SFX, mixed to `audio.wav`. Requires network for the TTS.
+- `gen_captions.py` — derives `chock-promo.srt` from the same narration table, so
+  captions never drift from the audio. Feeds autoplay-muted platforms (LinkedIn, X).
 
 Assemble — no system ffmpeg needed; `imageio-ffmpeg` bundles a binary (it is *not* on
 `PATH`; the last line resolves its real location):

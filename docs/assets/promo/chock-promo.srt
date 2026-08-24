@@ -1,0 +1,31 @@
+1
+00:00:00,800 --> 00:00:10,160
+Open source has a new problem. Contributors' AI agents can write ten pull requests in a weekend — and you are still one human reading diffs.
+
+2
+00:00:12,500 --> 00:00:19,339
+Chock is governance as code. Write a policy once, commit it — and your rules travel with every fork.
+
+3
+00:00:22,500 --> 00:00:32,579
+The compiler turns it into the strongest control every agent supports. Git hooks. CI gates. Native hooks in Claude Code, Cursor, Copilot, and VS Code. Across fourteen agents.
+
+4
+00:00:34,799 --> 00:00:42,250
+So when a contributor's agent stages a credential — on their machine — it is blocked before the pull request exists.
+
+5
+00:00:42,500 --> 00:00:48,250
+What reaches you has already passed your gates — and your CI gate backs it up.
+
+6
+00:00:48,500 --> 00:00:56,780
+Every policy carries an eval suite, and a coverage report that tells you exactly where a guarantee holds — and where it doesn't.
+
+7
+00:00:58,500 --> 00:01:06,420
+A growing catalog of ready policies, including coverage of the full OWASP agentic security top ten — with its limits stated honestly.
+
+8
+00:01:09,000 --> 00:01:13,680
+Chock. Govern the agent. Review the policy once — not every pull request.
