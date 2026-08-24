@@ -23,6 +23,9 @@ COLUMNS = [
     Surface.CI_GATE,
     Surface.PRE_TOOL_USE,
     Surface.MANAGED_SETTING,
+    # agent-hooks joined the table with 0.4.0's docs sweep; listing it here means
+    # test_every_cell_matches_the_code now verifies that column against surfaces.py too.
+    Surface.AGENT_HOOKS,
 ]
 #: Display names that differ from the agent key.
 ALIAS = {
