@@ -202,6 +202,7 @@ Full developer documentation lives in [`docs/`](docs/README.md) — start with
 [CLI Reference](docs/cli-reference.md) ·
 [Authoring Policies](docs/authoring-policies.md) ·
 [Enforcement Surfaces](docs/enforcement-surfaces.md) ·
+[Agentic-Risk Coverage](docs/agentic-risk-coverage.md) ·
 [Validation](docs/validation.md) ·
 [Registry & Lockfile](docs/registry-and-lockfile.md) ·
 [Evals](docs/evals.md) ·
