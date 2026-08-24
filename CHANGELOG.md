@@ -2,8 +2,35 @@
 
 ## Unreleased
 
-MINOR: plugin packaging output changes (a spec fix and a new format); compiled
+MINOR: plugin packaging output changes (spec fixes and three new formats); compiled
 enforcement surfaces are unchanged.
+
+- **`cursor` and `codex` plugin formats**: `chock plugin build --format cursor|codex`
+  packages a policy for Cursor and OpenAI Codex, with the enforcing hook each vendor
+  actually reads. Same guard, same adapter, byte-identical to every other format --
+  only the envelope differs. `--format all` now emits five trees.
+  - **Cursor** (`.cursor-plugin/plugin.json` + flat `hooks/hooks.json`) subscribes to
+    `beforeShellExecution`, the shell-scoped event `chock sync` already installs, so a
+    plugin install and a repo install run the identical hook. No `matcher` is emitted:
+    under this event the matcher is a regex over the COMMAND TEXT, not a tool name, so
+    the other formats' `"Bash"` would match almost nothing and silently disable the
+    guard. Cursor ignores Agent Plugins hooks entirely, so this is the only format that
+    enforces there.
+  - **Codex** (`.codex-plugin/plugin.json` + nested `hooks/hooks.json`) subscribes to
+    `PreToolUse` with matcher `Bash` -- Claude's protocol exactly. The legacy
+    `.codex-plugin/` manifest is deliberate: Codex's loader DISCARDS hooks from an
+    Agent-Plugins-format manifest (`codex-rs/core-plugins/src/loader.rs`), so shipping
+    the Copilot package there would install a plugin whose enforcement is deleted at
+    load time while its description still claimed it.
+- **A silent guard can no longer become a silent allow**: the PreToolUse adapter now
+  guarantees a reason on stderr for every deny. Codex records exit 2 with an empty
+  stderr as a FAILED hook ("did not write a blocking reason to stderr",
+  `codex-rs/hooks/src/events/pre_tool_use.rs`) and lets the command run, so a guard that
+  denied without explaining itself would have enforced nothing there while every other
+  client showed a deny. Harmless elsewhere; load-bearing on Codex.
+- The marketplace lockfile test now derives its expected tree set from `FORMATS` rather
+  than an enumerated list -- the same under-coverage a hand-written list caused once
+  before, where a newly added tree escaped the check while it still read as complete.
 
 - **Bundled authoring skills use the same flat metadata**: the five shipped skills
   (chock-init, eval, optimize, policy-init, validate) carried the nested `chock:`

@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from chock.plugin.cli import FORMATS
 from chock.plugin.cli import main as plugin_main
 from chock.plugin.marketplace import CATALOG_PAGE, DESCRIPTION, INDEX_PATHS, LOCKFILE_NAME
 from chock.plugin.marketplace import main as marketplace_main
@@ -121,14 +122,11 @@ def test_lockfile_content_addresses_every_published_directory(dist: Path) -> Non
     lock = _json.loads((dist / LOCKFILE_NAME).read_text(encoding="utf-8"))
 
     assert lock["lockfile_version"] == 1
-    assert set(lock["plugins"]) == {
-        "claude/block-destructive-commands",
-        "claude/code-safety",
-        "agent-plugins/block-destructive-commands",
-        "agent-plugins/code-safety",
-        "copilot/block-destructive-commands",
-        "copilot/code-safety",
-    }, "every tree is covered, not just the one the index points at"
+    # Derived from FORMATS, never enumerated by hand: an enumerated list is how a newly
+    # added format silently escapes the lockfile while the check still reads as "covers
+    # everything" -- the same under-coverage the catalog's trees.py exists to prevent.
+    expected = {f"{fmt}/{manifest['id']}" for fmt in FORMATS for manifest in MANIFESTS}
+    assert set(lock["plugins"]) == expected, "every tree is covered, not just the one the index points at"
     assert all(len(h) == 64 for h in lock["plugins"].values())
     assert (
         lock["plugins"]["claude/block-destructive-commands"]

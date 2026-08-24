@@ -250,3 +250,25 @@ def test_end_to_end_installed_hooks_block_real_commands() -> None:
     assert blocked("git commit --no-verify -m x")
     assert not blocked("git push --force-with-lease origin main")
     assert not blocked("ls -la")
+
+
+def test_a_silent_guard_still_gives_a_deny_reason(tmp_path: Path) -> None:
+    """A guard that denies with empty output must not become a silent ALLOW.
+
+    Codex records a PreToolUse hook that exits 2 without writing a reason to stderr as a
+    FAILED hook ("did not write a blocking reason to stderr",
+    codex-rs/hooks/src/events/pre_tool_use.rs) and lets the command run. A guard that
+    denies without explaining itself would therefore enforce nothing there while every
+    other client showed a deny -- so the adapter supplies a reason when the guard gives
+    none. The exit code is unaffected; only stderr gains a fallback line.
+    """
+    silent = tmp_path / "silent-guard.sh"
+    # Exit 1 is a guard VIOLATION (GUARD_VIOLATION); the adapter translates it into
+    # the client-facing deny, exit 2. This guard denies and says nothing.
+    silent.write_text("#!/usr/bin/env bash\nexit 1\n", encoding="utf-8")
+
+    result = _adapter("rm -rf /", guard=silent)
+
+    assert result.returncode == 2, "a deny is still a deny"
+    assert result.stderr.strip(), "a deny with no reason is read as a failed hook by Codex"
+    assert "silent-guard.sh" in result.stderr, "the reason names the guard that denied"

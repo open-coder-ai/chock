@@ -159,6 +159,13 @@ def run_guard(guard: Path, command: str) -> bool | None:
     if proc.returncode == GUARD_VIOLATION:
         sys.stderr.write(proc.stdout or "")
         sys.stderr.write(proc.stderr or "")
+        if not ((proc.stdout or "") + (proc.stderr or "")).strip():
+            # A deny with no reason is not universally a deny. Codex records exit 2 with an
+            # empty stderr as a FAILED hook ("did not write a blocking reason to stderr",
+            # codex-rs/hooks/src/events/pre_tool_use.rs) and lets the command through -- so a
+            # silent guard would become a silent ALLOW, the precise failure this project
+            # exists to refuse. Every other client simply shows this line.
+            print(f"chock: blocked by {Path(guard).name} (guard gave no reason)", file=sys.stderr)
         return True
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "").strip().splitlines()
