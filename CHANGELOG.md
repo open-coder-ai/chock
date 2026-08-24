@@ -1,6 +1,6 @@
 # Chock changelog
 
-## Unreleased
+## 0.4.0 — Witnessed enforcement on Cursor and Codex
 
 MINOR: plugin packaging output changes (spec fixes and three new formats), and the
 vendored PreToolUse adapter changes -- the deny-dialect and payload-decoding fixes below
