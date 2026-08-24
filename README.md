@@ -8,8 +8,9 @@
 
 Your repo's rules become **deterministic guardrails** — for a team's private codebase or
 a public open-source project — compiled to git hooks, CI gates,
-native pre-execution hooks in **Claude Code and Cursor**, and `AGENTS.md` — read by
-Copilot, Codex, Gemini, Aider and seven more. Not prose an agent can ignore. Exit codes.
+native pre-execution hooks in **Claude Code, Cursor, Copilot CLI and VS Code**, and
+`AGENTS.md` — read by Codex, Gemini, Aider and seven more. Not prose an agent can
+ignore. Exit codes.
 
 [![CI](https://github.com/open-coder-ai/chock/actions/workflows/ci.yml/badge.svg)](https://github.com/open-coder-ai/chock/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
@@ -75,7 +76,8 @@ agent *before the code is written*, and what still arrives has already passed yo
 ## Highlights
 
 - **✍️ Author once, enforce everywhere** — one policy → git hook + CI gate + native
-  pre-execution hooks (Claude Code *and* Cursor) + `AGENTS.md`, across 13 agents. One
+  pre-execution hooks (Claude Code, Cursor, Copilot CLI, VS Code) + `AGENTS.md`,
+  across 14 agents. One
   `chock sync` wires all of it; the CI gate is opt-in (`chock sync --ci`) and
   [coverage only credits any surface once it is wired up](docs/enforcement-surfaces.md).
 - **🛡️ Real guardrails, one command away** — `chock add protect-main-branch` pulls from
@@ -88,9 +90,15 @@ agent *before the code is written*, and what still arrives has already passed yo
   suite (with adversarial cases) replayed against every policy's own mechanism on each build.
 - **📊 Coverage you can prove** — a per-agent report grading every policy *enforced* /
   *enforced-at-commit* / *advisory*, so nobody believes the tooling does more than it does.
-- **📦 Speaks the open packaging standard** — `chock plugin build` emits
-  [Agent Plugins 1.0.0](https://agent-plugins.org) packages any conformant client can read.
-  [What that badge does and does not mean](docs/agent-plugins.md).
+- **📦 Speaks the open packaging standard — and four vendor dialects** — `chock plugin
+  build` emits [Agent Plugins 1.0.0](https://agent-plugins.org) packages any conformant
+  client can read, plus hook-carrying plugin formats for
+  [Claude Code](https://github.com/open-coder-ai/chock-claude-plugins),
+  [Copilot](https://github.com/open-coder-ai/chock-copilot-plugins),
+  [Cursor](https://github.com/open-coder-ai/chock-cursor-plugins) and
+  [Codex](https://github.com/open-coder-ai/chock-codex-plugins) — each witnessed
+  denying a destructive command on a real install.
+  [What the badge does and does not mean](docs/agent-plugins.md).
 - **🧩 One CLI, eight verbs** — `init` · `add` · `remove` · `sync` · `check` · `status` ·
   `enable` · `disable`. If you've used `uv` or `poetry`, you already know them.
 
@@ -206,7 +214,8 @@ We're building in the open. Next up:
 
 - [x] **`chock add <id>`** — install a policy or skill from any catalog, public or private.
 - [x] **CI backstop** — `chock sync --ci` plus a commit-range gate mode, so a hook skipped with `--no-verify` is still caught on a pull request.
-- [ ] **Publish** — PyPI package and signed standalone binaries.
+- [x] **Publish** — [PyPI package](https://pypi.org/project/chock/), attested releases.
+- [ ] **Publish** — signed standalone binaries.
 - [ ] **Upgrades** — `chock upgrade`, three-way merge against a pinned `chock.lock`.
 - [ ] **Supply-chain & MCP packs** — block hallucinated ("slopsquatted") dependencies and un-approved MCP tools.
 - [ ] **Cost & autonomy governance** — token/spend circuit-breakers and human-in-the-loop approval tiers.

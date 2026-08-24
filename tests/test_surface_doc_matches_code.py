@@ -23,6 +23,9 @@ COLUMNS = [
     Surface.CI_GATE,
     Surface.PRE_TOOL_USE,
     Surface.MANAGED_SETTING,
+    # agent-hooks joined the table with 0.4.0's docs sweep; listing it here means
+    # test_every_cell_matches_the_code now verifies that column against surfaces.py too.
+    Surface.AGENT_HOOKS,
 ]
 #: Display names that differ from the agent key.
 ALIAS = {
@@ -43,6 +46,7 @@ def _rows() -> dict[str, list[bool]]:
             continue
         name = re.sub(r"\*+", "", cells[0]).lower()
         rows[ALIAS.get(name, name)] = [c == "✅" for c in cells[1:]]
+    assert rows, "matrix not parsed -- header or column count changed without updating COLUMNS"
     return rows
 
 

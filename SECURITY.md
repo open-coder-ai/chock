@@ -4,7 +4,7 @@
 
 | Version | Supported |
 |---|---|
-| 0.1.x (latest) | yes |
+| 0.4.x (latest) | yes |
 | older | no |
 
 ## Reporting a vulnerability
@@ -31,10 +31,10 @@ Sigstore build-provenance attestation generated in the same run. To verify that 
 distribution you downloaded was built by this repository's release workflow:
 
 ```bash
-gh attestation verify chock-0.1.1-py3-none-any.whl \
+gh attestation verify chock-0.4.0-py3-none-any.whl \
   --repo open-coder-ai/chock \
   --signer-workflow open-coder-ai/chock/.github/workflows/release.yml \
-  --source-ref refs/tags/v0.1.1
+  --source-ref refs/tags/v0.4.0
 ```
 
 Substitute the version you downloaded in both places. `--repo` alone would accept an
@@ -85,7 +85,8 @@ Signing is tracked as future work rather than quietly assumed.
 
 `git commit --no-verify` skips every git hook, and therefore every Chock
 gate. On Claude Code the `block-no-verify` policy refuses the flag before the
-command runs; on other agents, and for a human at a terminal, nothing stops it. Git
+command runs (Claude Code, Cursor, Copilot CLI and VS Code all have wired native
+hooks); on agents without hooks, and for a human at a terminal, nothing stops it. Git
 hooks also live in `.git/hooks`, which is not cloned — a fresh clone enforces
 nothing until someone runs `chock sync`.
 
