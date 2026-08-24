@@ -2,8 +2,10 @@
 
 ## Unreleased
 
-MINOR: plugin packaging output changes (spec fixes and three new formats); compiled
-enforcement surfaces are unchanged.
+MINOR: plugin packaging output changes (spec fixes and three new formats), and the
+vendored PreToolUse adapter changes -- the deny-dialect and payload-decoding fixes below
+mean an adopter's next `chock sync` rewrites it. Every other compiled enforcement
+surface is unchanged.
 
 - **`cursor` and `codex` plugin formats**: `chock plugin build --format cursor|codex`
   packages a policy for Cursor and OpenAI Codex, with the enforcing hook each vendor
