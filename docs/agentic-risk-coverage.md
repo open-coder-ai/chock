@@ -12,7 +12,7 @@ with an install witness, never because a fragment was merely compiled.
 
 | Tier | Meaning |
 | :--- | :--- |
-| `enforced` | A hard control runs **before** the action, inside the agent (`pre-tool-use`, `agent-hooks`), with an install witness |
+| `enforced` | A hard control runs **before** the action, inside the agent (`pre-tool-use`, `agent-hooks`), with an install witness. `managed-setting` is hard too but is deliberately excluded here until an install witness exists for it — the compiler credits no surface it cannot witness |
 | `enforced-at-commit` | A deterministic gate at commit/push (`git-hook`) with the `ci-gate` backstop — the action happened, the artifact cannot land |
 | `advisory` | Compiled rule text the agent is asked to follow — persuasion, not prevention, and labeled as such |
 | `planned` | A public [roadmap](roadmap.md) issue exists; nothing is claimed until it ships with witnesses |
@@ -22,11 +22,11 @@ with an install witness, never because a fragment was merely compiled.
 
 | "Can Chock stop…" | Mechanism | Coverage today |
 | :--- | :--- | :--- |
-| …my agent running `rm -rf` / destructive commands? | `block-destructive-commands` | `enforced` on Claude Code + Cursor (`pre-tool-use`) and Copilot CLI + VS Code agent mode (`agent-hooks`, PowerShell-native guard since 0.0.6); `enforced-at-commit` floor on every agent |
+| …my agent running `rm -rf` / destructive commands? | `block-destructive-commands` | `enforced` on Claude Code (`pre-tool-use`) and Copilot CLI + VS Code agent mode (`agent-hooks`, PowerShell-native guard since 0.0.6); on Cursor, `enforced` via the stdout deny response with the fail-open caveat stated in [Enforcement Surfaces](enforcement-surfaces.md); `enforced-at-commit` floor on every agent |
 | …secrets and `.env` contents landing in commits? | `scan-secrets` gate | `enforced-at-commit` + CI backstop. Runtime exfiltration over the network is **not** claimed — the `egress_allowlist` gate governs MCP-routed calls only and credits no agent until its per-client witness ships ([#32](https://github.com/open-coder-ai/chock/issues/32)) |
 | …prompt injection hidden in repo content? | `block-invisible-unicode` gate; `injection-defense` rule | Invisible/direction-override Unicode: `enforced-at-commit`. The broader instruction-in-content class: `advisory` (`data_not_command`) — no deterministic gate can read intent |
 | …an agent editing or disabling its own guardrails? | `protect-agent-config` | `enforced` where a pre-execution surface exists; `advisory` elsewhere; regeneration only via `chock sync` |
-| …a malicious policy or skill entering my repo? | `chock.lock` hash pinning, catalog provenance, Sigstore-signed releases | `enforced` at install: content is hash-pinned and divergence is reported by `chock check`. Signed catalog trust tiers: `planned` ([#15](https://github.com/open-coder-ai/chock/issues/15)); AI-BOM emission from enforced state: `planned` ([#57](https://github.com/open-coder-ai/chock/issues/57)) |
+| …a malicious policy or skill entering my repo? | `chock.lock` hash pinning, catalog provenance, Sigstore-signed releases | Hash **recorded** at install and drift **detected** by `chock check`; install-time *rejection* happens only when `chock add --verify-sha` supplies the expected hash — stated plainly rather than rounded up to enforcement. Signed catalog trust tiers: `planned` ([#15](https://github.com/open-coder-ai/chock/issues/15)); AI-BOM emission: `planned` ([#57](https://github.com/open-coder-ai/chock/issues/57)) |
 | …tool calls with dangerous arguments (path traversal, root deletes)? | shell slice via `block-destructive-commands`; structured-argument validation | Shell slice: `enforced` as above. General tool-argument constraints: `planned` ([#58](https://github.com/open-coder-ai/chock/issues/58)) |
 | …an agent poisoning its own long-term memory? | `memory-discipline` | `advisory` — and deliberately so here: write-path memory enforcement is a different system than a repo-scoped framework, and this page does not claim it |
 | …direct pushes to `main`, `--no-verify`, force-pushes? | `protect-main-branch` gate, `block-no-verify`, `git-safety` | `enforced-at-commit` (gate); the never-bypass-hooks discipline itself: `advisory` backed by the CI gate, which re-runs `chock check` on the PR head regardless of what was skipped locally |
