@@ -22,6 +22,38 @@ enforcement surfaces are unchanged.
     Agent-Plugins-format manifest (`codex-rs/core-plugins/src/loader.rs`), so shipping
     the Copilot package there would install a plugin whose enforcement is deleted at
     load time while its description still claimed it.
+- **Codex packages claim witnessed enforcement -- via JSON deny, not exit codes.**
+  Probed on a real Codex Desktop install (Windows 11): a trusted PreToolUse hook
+  returning the documented exit-2 deny ran the command three times, because Codex wraps
+  Windows hook commands in `powershell -Command`, which collapses exit 2 into 1 -- and
+  Codex's parser treats that as a failed hook and FAILS OPEN (its only stdout-parsing
+  arm is exit 0). With the deny carried in `hookSpecificOutput.permissionDecision` JSON
+  on a clean exit, the same command was witnessed BLOCKED (2026-08-24). The adapter now
+  speaks that dialect to Codex-shaped payloads (`turn_id` present); Claude Code keeps
+  its witnessed exit-2 path. Conditions stated in the package posture: Codex hooks are
+  UNTRUSTED on install until a human approves a per-hook trust review, that trust is
+  bound to a hash of the hook command so a plugin update silently voids it until
+  re-approved, and every hook failure fails open. The emitted hooks.json also carries no
+  top-level `description`: Codex < 0.143.0 rejects the whole file over that one key and
+  silently drops every hook in it (openai/codex#30397).
+- **Cursor packages DO claim enforcement**, witnessed blocking on a real install after the
+  two fixes below, with a benign command in the same session still allowed.
+- **Two silent fail-opens fixed, both found by probing a real Cursor install** (neither
+  is visible in any documentation, and each would have shipped a package that advertised
+  enforcement and delivered none):
+  - **Payload decoding.** Cursor prefixes its hook payload with a UTF-8 BOM, and
+    `sys.stdin.read()` decoded those bytes with the platform locale (cp1252 on Windows),
+    turning the BOM into three stray characters. `json.loads` then failed, the adapter
+    reported "not checked", and returned 0 -- every command ALLOWED. The payload is now
+    read as bytes and decoded `utf-8-sig`, which also stops non-ASCII paths being mangled.
+  - **Deny signalling.** Cursor documents exit 2 as "equivalent to returning
+    `permission: deny`". For plugin hooks that is false: a hook returning exit 2 with the
+    reason on stderr was witnessed NOT blocking -- the command ran. The adapter now also
+    emits Cursor's stdout response (`{"permission": "deny", "user_message",
+    "agent_message"}`) for Cursor-shaped payloads only; Claude and Copilot still get
+    exit 2 with an empty stdout, asserted by test.
+  Witnessed blocking on a real Cursor install after both fixes, with a benign command in
+  the same session still allowed.
 - **A silent guard can no longer become a silent allow**: the PreToolUse adapter now
   guarantees a reason on stderr for every deny. Codex records exit 2 with an empty
   stderr as a FAILED hook ("did not write a blocking reason to stderr",

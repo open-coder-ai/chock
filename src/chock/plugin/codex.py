@@ -60,23 +60,34 @@ MANIFEST_KEYS = (
     "hooks",
 )
 
-#: Codex is fail-open on a hook error like Claude, and additionally requires a reason on
-#: stderr for a deny to count -- which the adapter guarantees. Both conditions are named
-#: because a posture that omits either would describe a way this package silently stops
-#: enforcing.
+#: A witnessed claim with its conditions stated. Probed on a real Codex Desktop install
+#: (Windows 11, 2026-08-23/24): with the deny carried in stdout JSON and exit 0, the hook
+#: BLOCKED the command; with exit 2 -- both vendors' documented equivalent -- the same
+#: command ran three times, because Codex wraps Windows hook commands in
+#: `powershell -Command`, which collapses exit 2 into 1, a failed hook that fails open.
+#: The adapter therefore speaks the exit-0 JSON dialect to Codex. Conditions that still
+#: gate enforcement, all named below: hooks are UNTRUSTED on install until a human
+#: completes the per-hook trust review; that trust is bound to a hash of the hook
+#: command, so an update that changes it silently voids enforcement until re-trusted;
+#: and every hook failure (missing python3, timeout, unexpected exit) fails open.
+#: OpenAI's parity tracker (openai/codex#21753) lists PreToolUse coverage as Partial
+#: across surfaces, so the claim is pinned to what was witnessed.
 POSTURE_ENFORCED_CODEX = (
-    "Session-enforced in Codex by a PreToolUse hook: a matched command is denied before it "
-    "runs (exit 2 with the guard's reason). The hook needs python3 and a usable bash "
-    "resolved from PATH; without them Codex records a failed hook and allows the command, "
-    "so this fails OPEN. On Windows, disable the python3 Store alias or install Python. "
-    "Repo-wide enforcement at commit time and in CI still needs `chock sync`."
+    "Session-enforced in Codex by a PreToolUse hook: a matched command is denied before "
+    "it runs (witnessed blocking on Codex Desktop, Windows, 2026-08-24; the deny is "
+    "returned as hook JSON, not an exit code, which Codex's Windows shell wrapper "
+    "mangles). Codex requires a one-time trust review per hook -- the plugin is ADVISORY "
+    "until you approve its hook, and a plugin update voids that trust until re-approved. "
+    "The hook needs python3 on PATH; any hook failure fails OPEN. Repo-wide enforcement "
+    "at commit time and in CI still needs `chock sync`."
 )
 
 _ENFORCED_NOTE_CODEX = (
     "This policy is enforced in Codex by the PreToolUse hook shipped with this plugin, "
-    "subject to the fail-open condition stated in the plugin description. Repo-wide "
-    "enforcement across every commit and in CI still needs `chock sync`. "
-    "See https://github.com/open-coder-ai/chock"
+    "once its one-time trust review is approved (until then it is advisory, and a plugin "
+    "update voids the trust until re-approved). Subject to the fail-open conditions in "
+    "the plugin description. Repo-wide enforcement across every commit and in CI still "
+    "needs `chock sync`. See https://github.com/open-coder-ai/chock"
 )
 
 
@@ -139,11 +150,12 @@ def codex_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
         Path("skills") / name / "SKILL.md": skill,
     }
     if script:
-        # Claude's nested envelope, which Codex parses with `deny_unknown_fields` at the
-        # top level -- exactly `description` and `hooks`, nothing else. `async` is never
+        # Claude's nested envelope. NO top-level `description`: Codex < 0.143.0 rejects
+        # the whole hooks file over that one key and silently drops every hook in it
+        # (openai/codex#30397, fixed by #30229 in 0.143.0) -- a package that looks
+        # identical and enforces nothing on the versions most users run. `async` is never
         # emitted: Codex only honours a blocking decision from a synchronous hook.
         hooks = {
-            "description": "Chock policy enforcement",
             "hooks": {
                 EVENT: [
                     {

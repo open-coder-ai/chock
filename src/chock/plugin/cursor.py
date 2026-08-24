@@ -17,6 +17,11 @@ Three deliberate differences from the other hook formats, each load-bearing:
   COMMAND TEXT, not over a tool name -- the other formats' `MATCHER = "Bash"` would be
   read as a command regex here and match almost nothing, silently disabling the guard.
   Matching every shell command is what a policy guard wants.
+- The deny is spoken in Cursor's dialect by the shared adapter, not by this emitter.
+  Cursor documents exit 2 as "equivalent to returning permission: deny", and that is
+  false for plugin hooks: a hook returning exit 2 with the reason on stderr was
+  witnessed NOT blocking on a real install. The adapter emits Cursor's stdout response
+  as well, which is what actually blocks.
 - No `failClosed: true`. Cursor defaults to fail-open on a hook error, and that default is
   kept deliberately: a plugin resolves `python3` from PATH at run time (there is no install
   step to bake an interpreter, unlike the repo path), so fail-closed on a machine without
@@ -68,9 +73,9 @@ MANIFEST_KEYS = (
 #: project refuses.
 POSTURE_ENFORCED_CURSOR = (
     "Session-enforced in Cursor by a beforeShellExecution hook: a matched command is "
-    "denied before it runs. The hook needs python3 and a usable bash resolved from PATH; "
-    "without them Cursor allows the command silently (it treats any exit other than 2 as "
-    "proceed), so this fails OPEN. On Windows, disable the python3 Store alias or install "
+    "denied before it runs (witnessed blocking on a real install). The hook needs python3 "
+    "and a usable bash resolved from PATH; without them Cursor allows the command "
+    "silently, so this fails OPEN. On Windows, disable the python3 Store alias or install "
     "Python. Repo-wide enforcement at commit time and in CI still needs `chock sync`."
 )
 

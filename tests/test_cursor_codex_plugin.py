@@ -143,8 +143,9 @@ def test_codex_guard_policy_layout_and_hook(policy, tmp_path: Path) -> None:
     }
 
     hooks = json.loads(files[Path("hooks/hooks.json")])
-    # Codex parses the top level with deny_unknown_fields: exactly these two keys.
-    assert set(hooks) == {"description", "hooks"}
+    # ONLY the `hooks` key: Codex < 0.143.0 rejects the whole file over a top-level
+    # `description` and silently drops every hook in it (openai/codex#30397).
+    assert set(hooks) == {"hooks"}
     entry = hooks["hooks"]["PreToolUse"][0]
     assert entry["matcher"] == "Bash"
     inner = entry["hooks"][0]
@@ -207,8 +208,6 @@ def test_enforced_package_claims_match_the_package(
     """Description, skill frontmatter and closing note must all agree with the hook."""
     files = files_for(policy(GUARD_MANIFEST, guard=True), GUARD_MANIFEST, tmp_path)
     assert posture in json.loads(files[manifest_rel])["description"]
-    # Both vendors are fail-open, and saying so is the whole posture discipline.
-    assert "OPEN" in posture and "python3" in posture
 
     skill = files[Path("skills/block-destructive-commands/SKILL.md")]
     meta = yaml.safe_load(skill.split("---")[1])["metadata"]
@@ -253,3 +252,22 @@ def test_losing_a_guard_removes_the_hook(policy, tmp_path: Path, build, tree, ho
     build(pack, GUARD_MANIFEST, tmp_path, out)
     assert not (out / hook_rel).exists()
     assert not (out / "scripts").exists()
+
+
+def test_each_vendor_claims_only_what_was_witnessed(policy, tmp_path: Path) -> None:
+    """Cursor was witnessed blocking; Codex was witnessed NOT blocking. The packages say so.
+
+    Probed on real installs 2026-08-23/24. Both vendors block only after the adapter
+    speaks each one's actual dialect -- Cursor's `permission` JSON, Codex's exit-0
+    `permissionDecision` JSON (its Windows shell wrapper collapses exit 2 into a failed
+    hook) -- and both postures name their conditions: fail-open, and for Codex the
+    per-hook trust review whose hash binding a plugin update silently voids.
+    """
+    assert "Session-enforced in Cursor" in POSTURE_ENFORCED_CURSOR
+    assert "OPEN" in POSTURE_ENFORCED_CURSOR and "python3" in POSTURE_ENFORCED_CURSOR
+
+    assert "Session-enforced in Codex" in POSTURE_ENFORCED_CODEX, "witnessed 2026-08-24"
+    assert "trust review" in POSTURE_ENFORCED_CODEX, "hooks are inert until a human approves"
+    assert "update voids that trust" in POSTURE_ENFORCED_CODEX, "the upgrade fail-open must be named"
+    assert "OPEN" in POSTURE_ENFORCED_CODEX, "hook failures fail open and the posture says so"
+    assert "`chock sync`" in POSTURE_ENFORCED_CODEX, "repo-level enforcement still pointed at"

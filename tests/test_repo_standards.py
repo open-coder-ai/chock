@@ -34,6 +34,16 @@ EXEMPT = {
     # remedy is the worse trade, so the file is exempt and reviewed whole.
     "src/chock/gate/runner.py",
     ".chock/bin/gate.py",  # the vendored copy of the file above
+    # Same constraint as the gate runner, and the same remedy-less budget: the PreToolUse
+    # adapter is copied VERBATIM into every plugin package (claude, copilot, cursor, codex)
+    # and vendored into adopter repos as one stdlib-only file, so "split by activity" would
+    # break the promise that a consumer needs nothing but a Python interpreter -- and would
+    # let four shipped packages disagree about how a payload is parsed. It crossed the cap
+    # absorbing two silent fail-opens witnessed on a real Cursor install (a UTF-8 BOM
+    # decoded through the platform locale, and Cursor ignoring exit 2 for plugin hooks);
+    # those comments record why the code is shaped as it is.
+    "src/chock/gate/pretooluse.py",
+    ".chock/bin/pretooluse.py",  # the vendored copy of the file above
 }
 
 # Build output and tool caches are git-ignored artifacts, not reviewable source. Without
