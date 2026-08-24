@@ -195,3 +195,41 @@ def test_readme_is_never_touched(dist: Path) -> None:
     assert marketplace_main(["build", "--dist", str(dist), "--check"]) == 0
     after_check = readme.stat()
     assert (after_check.st_size, after_check.st_mtime_ns) == (before.st_size, before.st_mtime_ns)
+
+
+def test_cursor_tree_gets_cursors_own_index_schema(dist: Path) -> None:
+    """`--tree cursor` writes `.cursor-plugin/marketplace.json` in Cursor's schema.
+
+    Copied from cursor/plugins and cursor/plugin-template verbatim: description under
+    `metadata`, name-only owner, entries of exactly {name, source, description} with
+    sources pointing into the cursor tree. Cursor never reads the Claude index paths.
+    """
+    assert marketplace_main(["build", "--dist", str(dist), "--name", "chock-cursor", "--tree", "cursor"]) == 0
+    index = json.loads((dist / ".cursor-plugin" / "marketplace.json").read_text(encoding="utf-8"))
+
+    assert index["name"] == "chock-cursor"
+    assert index["owner"] == {"name": "open-coder-ai"}
+    assert index["metadata"]["description"]
+    assert "description" not in index, "cursor puts the description under metadata"
+    for entry in index["plugins"]:
+        assert set(entry) == {"name", "source", "description"}
+        assert entry["source"].startswith("./cursor/")
+
+
+def test_codex_tree_reuses_the_witnessed_legacy_index(dist: Path) -> None:
+    """`--tree codex` writes the legacy Claude-shape index with codex sources.
+
+    Codex reads `.claude-plugin/marketplace.json` from git marketplaces -- witnessed on a
+    real install (this machine's Codex pulled chock from exactly that file), not inferred
+    from documentation -- so the codex repo speaks the index dialect Codex is known to
+    consume, pointing at the `.codex-plugin` packages.
+    """
+    assert marketplace_main(["build", "--dist", str(dist), "--name", "chock-codex", "--tree", "codex"]) == 0
+    index = json.loads((dist / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
+
+    assert index["description"], "legacy shape keeps the top-level description"
+    sources = [entry["source"] for entry in index["plugins"]]
+    assert sources and all(s.startswith("./codex/") for s in sources)
+    # Only the legacy path is written for codex: the Copilot mirror belongs to the
+    # claude tree's clients.
+    assert not (dist / ".github" / "plugin" / "marketplace.json").exists()
