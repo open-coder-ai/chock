@@ -76,7 +76,8 @@ agent *before the code is written*, and what still arrives has already passed yo
 ## Highlights
 
 - **✍️ Author once, enforce everywhere** — one policy → git hook + CI gate + native
-  pre-execution hooks (Claude Code *and* Cursor) + `AGENTS.md`, across 13 agents. One
+  pre-execution hooks (Claude Code, Cursor, Copilot CLI, VS Code) + `AGENTS.md`,
+  across 14 agents. One
   `chock sync` wires all of it; the CI gate is opt-in (`chock sync --ci`) and
   [coverage only credits any surface once it is wired up](docs/enforcement-surfaces.md).
 - **🛡️ Real guardrails, one command away** — `chock add protect-main-branch` pulls from

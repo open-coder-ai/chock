@@ -94,7 +94,7 @@ chock init .
 Use the action in a workflow:
 
 ```yaml
-- uses: open-coder-ai/chock@v1
+- uses: open-coder-ai/chock@v0.4.0
   with:
     command: check
     version: 0.4.0

@@ -19,13 +19,12 @@ each guarantee holds.
 
 > **`agent-hooks` shell caveat, stated rather than glossed.** The surface genuinely
 > enforces: it runs the guard before the tool call and honours exit 2 as deny (witnessed on
-> both clients). But the shipped guards are *bash-oriented* — `block-destructive` matches
-> `rm -rf`, not PowerShell's `Remove-Item`. On Windows, Copilot and VS Code run **PowerShell**,
-> so the guard catches bash-syntax commands there but not PowerShell-native destructive
-> syntax, exactly the "non-standard shell" bypass class the guard already documents. `enforced`
-> means the hard control runs and can deny — the same meaning it carries for Claude — and
-> `block-destructive-commands` 0.0.6 ships the PowerShell/cmd guard (matched against
-> `CHOCK_RAW_COMMAND`) that closes the Windows coverage gap. The hook's
+> both clients). On Windows, Copilot and VS Code run **PowerShell**, and before
+> `block-destructive-commands` 0.0.6 the shipped guards were *bash-oriented* — they caught
+> bash-syntax commands but not PowerShell-native destructive syntax. 0.0.6 closes that gap
+> with a PowerShell/cmd guard matched against the raw command (`CHOCK_RAW_COMMAND`); other
+> guards remain pattern filters, so the "non-standard shell" bypass class they document
+> still applies to them. The hook's
 > interpreter is resolved at run time (skipping the Windows Store `python3` alias stub) and
 > the repo root via `git rev-parse`, so the committed file is portable with no baked path.
 

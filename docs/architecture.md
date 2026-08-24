@@ -19,7 +19,7 @@ policy is the single source of truth for one rule — you never copy it into per
 ### 2. Compile
 
 `chock compile <id>` reads the policy and **emits the strongest control each target agent
-supports**, across up to six [enforcement surfaces](enforcement-surfaces.md):
+supports**, across up to eight [enforcement surfaces](enforcement-surfaces.md):
 
 - `git-hook` and `ci-gate` — the universal hard floor (every agent)
 - `ambient-rule` — the compiled `AGENTS.md` block (advisory)

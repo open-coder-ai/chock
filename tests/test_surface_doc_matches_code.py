@@ -46,6 +46,7 @@ def _rows() -> dict[str, list[bool]]:
             continue
         name = re.sub(r"\*+", "", cells[0]).lower()
         rows[ALIAS.get(name, name)] = [c == "✅" for c in cells[1:]]
+    assert rows, "matrix not parsed -- header or column count changed without updating COLUMNS"
     return rows
 
 

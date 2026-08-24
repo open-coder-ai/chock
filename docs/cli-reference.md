@@ -164,7 +164,7 @@ chock compile <policy-id> [--repo .] [--targets SURFACE ...] [--agents AGENT ...
 ```
 
 Compiles one policy into the surfaces each target agent supports (git hook, CI gate,
-pre-tool-use, agent-hooks, managed-settings, `AGENTS.md` rule) and updates the per-agent
+pre-tool-use, agent-hooks, managed-setting, `AGENTS.md` rule) and updates the per-agent
 coverage report. `--agents` takes the same comma- or space-separated names as `init`
 and `sync`, defaults to the repo's `supported_agents`, and rejects unknown names.
 `sync` runs this for every enabled policy; reach for `compile` directly only when
@@ -220,11 +220,11 @@ published plugin. `--policies-dir` packages a published directory; `--check` jud
 chock marketplace build [--dist .] [--name chock] [--tree claude|cursor|codex] [--check]
 ```
 
-Scans `<dist>/plugins/*/.claude-plugin/plugin.json` and writes the marketplace index to
-`.claude-plugin/marketplace.json` and `.github/plugin/marketplace.json` (byte-identical
-copies — the second is the path Copilot CLI reads). Entries are derived from the built
-manifests, never hand-listed. An empty tree exits 2 rather than writing an index that
-delists everything; `--check` reports drift without writing.
+Scans `<dist>/<tree>/*/` and writes that vendor's index: claude →
+`.claude-plugin/marketplace.json` + `.github/plugin/marketplace.json` (Copilot CLI's
+path), cursor → `.cursor-plugin/marketplace.json`, codex → the legacy `.claude-plugin/`
+shape Codex reads from git marketplaces. Entries derive from built manifests, never
+hand-listed; an empty tree exits 2; `--check` reports drift without writing.
 
 ### `gateway run` -- the MCP gateway proxy
 

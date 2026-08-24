@@ -194,6 +194,8 @@ real install**:
 | [chock-codex-plugins](https://github.com/open-coder-ai/chock-codex-plugins) | Codex (after its per-hook trust review) | exit 0 + `permissionDecision` JSON |
 
 One guard, one adapter, byte-identical across all four — only the envelope each client
-reads differs. Codex additionally installs every hook **untrusted** until a human approves
+reads differs. The deny dialects are pinned by `tests/test_pretooluse_protocol.py` (every
+case there reproduces a witnessed failure), and the probe evidence is recorded in the
+0.4.0 CHANGELOG entry. Codex additionally installs every hook **untrusted** until a human approves
 it, and that trust is bound to a hash of the hook command, so a plugin update silently
 voids it until re-approved.
