@@ -2,12 +2,12 @@
   "deny": [
     {
       "type": "file",
-      "pattern": "\\.(env|pem|key|p12|pfx)$",
+      "pattern": "\\.(env|pem|key|p12|pfx|jks|keystore)$",
       "message": "Credential files are denied in the workspace."
     },
     {
       "type": "text",
-      "pattern": "(?i)(AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{36}|eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]*|-----BEGIN .* PRIVATE KEY-----)",
+      "pattern": "(?i)(AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{36}|xox[bpas]-[0-9A-Za-z-]{10,}|(sk|rk)_live_[0-9A-Za-z]{16,}|sk-ant-[0-9A-Za-z_-]{20,}|AIza[0-9A-Za-z_-]{35}|npm_[0-9A-Za-z]{36}|eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]*|-----BEGIN .* PRIVATE KEY-----)",
       "message": "Credential-like values are denied in generated or edited files."
     }
   ],

@@ -25,7 +25,15 @@ from typing import Any
 import chock.gate.pretooluse as _adapter_module
 from chock.compile.emitters.claude_pretooluse import MATCHER, TIMEOUT_SECONDS, _guard_script
 from chock.emit import write_generated
-from chock.plugin.build import _ADVISORY_NOTE, _author, _keywords, _one_line, build_skill, plugin_name
+from chock.plugin.build import (
+    _ADVISORY_NOTE_HOOK,
+    _ADVISORY_NOTE_RULE,
+    _author,
+    _keywords,
+    _one_line,
+    build_skill,
+    plugin_name,
+)
 
 #: Stated verbatim in the emitted description. "session-enforced" and "advisory" are the
 #: coverage taxonomy's words, used with their taxonomy meaning -- the description is a
@@ -145,7 +153,10 @@ def claude_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
     # file contradict itself inside the reader's own directory.
     skill = build_skill(policy_dir, manifest, Path(repo_root), hooks="hooks/hooks.json" if script else None)
     if script:
-        skill = skill.replace(_ADVISORY_NOTE, _ENFORCED_NOTE)
+        # A guard-script policy is rule-tier in its manifest, so build_skill emits the rule
+        # note; replace whichever advisory note is present, since the Claude plugin enforces
+        # this policy via its PreToolUse hook.
+        skill = skill.replace(_ADVISORY_NOTE_RULE, _ENFORCED_NOTE).replace(_ADVISORY_NOTE_HOOK, _ENFORCED_NOTE)
 
     files: dict[Path, str] = {
         Path(".claude-plugin/plugin.json"): json.dumps(
