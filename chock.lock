@@ -102,7 +102,7 @@
       "id": "protect-agent-config",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "be2c387524ff7d9d73fde17957e6eaec582df4de641ec3bca4473a5391afe512",
+      "sha256": "b98d5472c534d381b87e253086642675c71ce3947e2cfe01ed9fec5ed8b66295",
       "source": "local",
       "artifacts_sha256": "88a50994c1577b892616f9e8aba9a7507dd02e097117f77fbabc4435b6be67ae"
     },
@@ -110,7 +110,7 @@
       "id": "protect-commit-privacy",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "787f7bd50f3e3ede955edd1a33c34446832d64d7b4712c59e90eb97f6efc1bad",
+      "sha256": "281522db2b259ea9a12d76b30d57ed9993882089b04a1fb4ce9932bc15a3388f",
       "source": "local",
       "artifacts_sha256": "219cfc850dce1cbba0e9ceab6a910dcab7be6345ae3a642b6dabf661dbe5d08b"
     },
@@ -120,7 +120,7 @@
       "managed": false,
       "sha256": "a0127e9af62bc9809960a286fab93dcaa634aba4a147b13cc5e59c4584b794b9",
       "source": "local",
-      "artifacts_sha256": "1692297b1c1f19c59e1057d4a1b419927270d513735b88e832ed639bd782995d"
+      "artifacts_sha256": "18bb4772936ece0e374fb48e1a09fdbf946fb82381ed30687c0bcc8a10d4643c"
     },
     {
       "id": "scan-secrets",
@@ -128,7 +128,7 @@
       "managed": false,
       "sha256": "dd8756e91c9f429c31ee5c39b1901dcb2f74b61c9a209ea268561f24b2742123",
       "source": "local",
-      "artifacts_sha256": "1a5c75548e3cbc28bc3e1bfc4f27658b155cef00d0088947639adc17aedd82b0"
+      "artifacts_sha256": "cd7df13ded59738cd76aa24c19ec0600ca6847be5614536ec4c39f886f4f6e58"
     },
     {
       "id": "token-efficiency",

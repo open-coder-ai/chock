@@ -161,10 +161,19 @@ def build_manifest(manifest: dict[str, Any], policy_dir: Path) -> dict[str, Any]
 #: -- the standard defines none -- so a policy distributed this way reaches exactly as far as
 #: an ambient rule. Stating that in our own output costs nothing and is the whole reason the
 #: coverage taxonomy is believed elsewhere.
-_ADVISORY_NOTE = (
+# The note is conditional on the policy's artifact. A `hook` policy really does compile to a
+# non-zero-exit git hook, so it may say so; a `rule` (advise-tier) policy does NOT -- it ships
+# rule text and stays advisory even when compiled, and claiming a git hook here would be the
+# exact overclaim the coverage taxonomy exists to prevent.
+_ADVISORY_NOTE_HOOK = (
     "This skill is advisory: the client reading it has no mechanism to enforce it. "
     "The same policy compiled by `chock` becomes a git hook that exits non-zero. "
     "See https://github.com/open-coder-ai/chock"
+)
+_ADVISORY_NOTE_RULE = (
+    "This skill is advisory: the client reading it has no mechanism to enforce it, and this "
+    "policy stays advisory even when compiled by `chock` -- it ships rule text, not a blocking "
+    "hook. See https://github.com/open-coder-ai/chock"
 )
 
 
@@ -200,6 +209,7 @@ def build_skill(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, hoo
     # `vally` linter rejected ("Metadata values must be strings"). Dotted keys keep the
     # namespacing the nesting used to provide.
     coverage_line = f"  chock.hooks: {hooks}\n" if hooks else "  chock.coverage_without_chock: advisory\n"
+    advisory_note = _ADVISORY_NOTE_HOOK if (manifest.get("artifact") == "hook") else _ADVISORY_NOTE_RULE
     return (
         "---\n"
         f"name: {policy_id}\n"
@@ -218,7 +228,7 @@ def build_skill(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, hoo
         f"{body}\n"
         "```\n"
         "\n"
-        f"{_ADVISORY_NOTE}\n"
+        f"{advisory_note}\n"
     )
 
 

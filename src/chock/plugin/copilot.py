@@ -28,7 +28,14 @@ from typing import Any
 
 from chock.compile.emitters.claude_pretooluse import MATCHER, TIMEOUT_SECONDS, _guard_script
 from chock.emit import write_generated
-from chock.plugin.build import _ADVISORY_NOTE, NAMESPACE, build_manifest, build_skill, plugin_name
+from chock.plugin.build import (
+    _ADVISORY_NOTE_HOOK,
+    _ADVISORY_NOTE_RULE,
+    NAMESPACE,
+    build_manifest,
+    build_skill,
+    plugin_name,
+)
 from chock.plugin.claude import (
     POSTURE_ADVISORY,
     _adapter_source,
@@ -117,7 +124,9 @@ def copilot_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: 
     # hook-carrying package would make the file contradict its own directory.
     skill = build_skill(policy_dir, manifest, Path(repo_root), hooks=HOOKS_REL if script else None)
     if script:
-        skill = skill.replace(_ADVISORY_NOTE, _COPILOT_ENFORCED_NOTE)
+        skill = skill.replace(_ADVISORY_NOTE_RULE, _COPILOT_ENFORCED_NOTE).replace(
+            _ADVISORY_NOTE_HOOK, _COPILOT_ENFORCED_NOTE
+        )
 
     files: dict[Path, str] = {
         Path("plugin.json"): json.dumps(

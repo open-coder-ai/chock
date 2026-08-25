@@ -34,7 +34,15 @@ from typing import Any
 
 from chock.compile.emitters.claude_pretooluse import MATCHER, TIMEOUT_SECONDS, _guard_script
 from chock.emit import write_generated
-from chock.plugin.build import _ADVISORY_NOTE, _author, _keywords, _one_line, build_skill, plugin_name
+from chock.plugin.build import (
+    _ADVISORY_NOTE_HOOK,
+    _ADVISORY_NOTE_RULE,
+    _author,
+    _keywords,
+    _one_line,
+    build_skill,
+    plugin_name,
+)
 from chock.plugin.claude import POSTURE_ADVISORY, _adapter_source
 
 #: Codex's own plugin-root variable. `CLAUDE_PLUGIN_ROOT` is a documented compatibility
@@ -140,7 +148,9 @@ def codex_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
 
     skill = build_skill(policy_dir, manifest, Path(repo_root), hooks=HOOKS_REL if script else None)
     if script:
-        skill = skill.replace(_ADVISORY_NOTE, _ENFORCED_NOTE_CODEX)
+        skill = skill.replace(_ADVISORY_NOTE_RULE, _ENFORCED_NOTE_CODEX).replace(
+            _ADVISORY_NOTE_HOOK, _ENFORCED_NOTE_CODEX
+        )
 
     files: dict[Path, str] = {
         Path(".codex-plugin/plugin.json"): json.dumps(

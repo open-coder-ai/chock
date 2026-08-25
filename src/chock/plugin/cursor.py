@@ -39,7 +39,15 @@ from typing import Any
 
 from chock.compile.emitters.claude_pretooluse import TIMEOUT_SECONDS, _guard_script
 from chock.emit import write_generated
-from chock.plugin.build import _ADVISORY_NOTE, _author, _keywords, _one_line, build_skill, plugin_name
+from chock.plugin.build import (
+    _ADVISORY_NOTE_HOOK,
+    _ADVISORY_NOTE_RULE,
+    _author,
+    _keywords,
+    _one_line,
+    build_skill,
+    plugin_name,
+)
 from chock.plugin.claude import POSTURE_ADVISORY, _adapter_source
 
 #: Cursor's plugin-root variable, used verbatim by Cursor's own published plugins.
@@ -143,7 +151,9 @@ def cursor_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
     # must not carry a file saying it is advisory without chock.
     skill = build_skill(policy_dir, manifest, Path(repo_root), hooks=HOOKS_REL if script else None)
     if script:
-        skill = skill.replace(_ADVISORY_NOTE, _ENFORCED_NOTE_CURSOR)
+        skill = skill.replace(_ADVISORY_NOTE_RULE, _ENFORCED_NOTE_CURSOR).replace(
+            _ADVISORY_NOTE_HOOK, _ENFORCED_NOTE_CURSOR
+        )
 
     files: dict[Path, str] = {
         Path(".cursor-plugin/plugin.json"): json.dumps(

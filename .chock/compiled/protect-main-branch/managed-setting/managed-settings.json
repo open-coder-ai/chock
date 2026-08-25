@@ -1,10 +1,4 @@
 {
-  "deny": [
-    {
-      "type": "text",
-      "pattern": "commit.*\\b(main|master)\\b|push.*refs/heads/(main|master)",
-      "message": "Direct writes to main/master are denied; use a feature branch and pull request."
-    }
-  ],
+  "deny": [],
   "ask": []
 }

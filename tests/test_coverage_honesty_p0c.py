@@ -47,15 +47,39 @@ def test_commit_gate_still_enforced_at_commit(tmp_path: Path) -> None:
     assert result.coverage["protect-main-branch"]["claude"] == "enforced-at-commit"
 
 
-# ---- C2 (managed): the deny pattern is a real regex, not a literal backspace ----
-def test_managed_pattern_is_a_valid_regex(tmp_path: Path) -> None:
-    policy = baseline_policy("protect-main-branch")
-    out = tmp_path / ".chock" / "compiled"
-    compile_policy(policy, targets=[Surface.MANAGED_SETTING.value], output_root=out, agents=["claude"])
-    managed = json.loads((out / "protect-main-branch" / "managed-setting" / "managed-settings.json").read_text())
-    pattern = managed["deny"][0]["pattern"]
-    assert "\\b" in pattern, "must carry a literal \\b word-boundary"
-    assert "\b" not in pattern, "must not carry a U+0008 backspace byte"
+# ---- C2 (managed): branch protection emits no static deny; emitted patterns are real regexes ----
+def test_managed_patterns_are_honest_and_valid(tmp_path: Path) -> None:
+    import re
+
+    # protect-main-branch enforces by resolving the current branch, which a static managed
+    # setting cannot do -- so its managed deny is deliberately EMPTY, not a branch-blind
+    # command-text approximation that misses `git commit` on main and false-positives on
+    # "main" in a message.
+    pmb = tmp_path / ".chock" / "compiled"
+    compile_policy(
+        baseline_policy("protect-main-branch"),
+        targets=[Surface.MANAGED_SETTING.value],
+        output_root=pmb,
+        agents=["claude"],
+    )
+    pmb_managed = json.loads((pmb / "protect-main-branch" / "managed-setting" / "managed-settings.json").read_text())
+    assert pmb_managed["deny"] == [], "branch protection cannot be a static managed deny; must be empty"
+
+    # scan-secrets does emit credential patterns; each must be a valid regex carrying no raw
+    # U+0008 backspace byte (the original \\b-vs-backspace regression).
+    ss = tmp_path / ".chock-ss" / "compiled"
+    compile_policy(
+        baseline_policy("scan-secrets"),
+        targets=[Surface.MANAGED_SETTING.value],
+        output_root=ss,
+        agents=["claude"],
+    )
+    ss_managed = json.loads((ss / "scan-secrets" / "managed-setting" / "managed-settings.json").read_text())
+    assert ss_managed["deny"], "scan-secrets must emit managed deny patterns"
+    for entry in ss_managed["deny"]:
+        pattern = entry["pattern"]
+        assert "\b" not in pattern, "must not carry a U+0008 backspace byte"
+        re.compile(pattern)  # must be a valid regex
 
 
 # ---- auto_compile residual: a drop-in uses the repo's configured agents, not all 13 ----
