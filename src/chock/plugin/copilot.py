@@ -124,7 +124,9 @@ def copilot_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: 
     # hook-carrying package would make the file contradict its own directory.
     skill = build_skill(policy_dir, manifest, Path(repo_root), hooks=HOOKS_REL if script else None)
     if script:
-        skill = skill.replace(_ADVISORY_NOTE_RULE, _COPILOT_ENFORCED_NOTE).replace(_ADVISORY_NOTE_HOOK, _COPILOT_ENFORCED_NOTE)
+        skill = skill.replace(_ADVISORY_NOTE_RULE, _COPILOT_ENFORCED_NOTE).replace(
+            _ADVISORY_NOTE_HOOK, _COPILOT_ENFORCED_NOTE
+        )
 
     files: dict[Path, str] = {
         Path("plugin.json"): json.dumps(

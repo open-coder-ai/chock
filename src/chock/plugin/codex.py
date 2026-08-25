@@ -148,7 +148,9 @@ def codex_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
 
     skill = build_skill(policy_dir, manifest, Path(repo_root), hooks=HOOKS_REL if script else None)
     if script:
-        skill = skill.replace(_ADVISORY_NOTE_RULE, _ENFORCED_NOTE_CODEX).replace(_ADVISORY_NOTE_HOOK, _ENFORCED_NOTE_CODEX)
+        skill = skill.replace(_ADVISORY_NOTE_RULE, _ENFORCED_NOTE_CODEX).replace(
+            _ADVISORY_NOTE_HOOK, _ENFORCED_NOTE_CODEX
+        )
 
     files: dict[Path, str] = {
         Path(".codex-plugin/plugin.json"): json.dumps(

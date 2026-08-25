@@ -151,7 +151,9 @@ def cursor_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
     # must not carry a file saying it is advisory without chock.
     skill = build_skill(policy_dir, manifest, Path(repo_root), hooks=HOOKS_REL if script else None)
     if script:
-        skill = skill.replace(_ADVISORY_NOTE_RULE, _ENFORCED_NOTE_CURSOR).replace(_ADVISORY_NOTE_HOOK, _ENFORCED_NOTE_CURSOR)
+        skill = skill.replace(_ADVISORY_NOTE_RULE, _ENFORCED_NOTE_CURSOR).replace(
+            _ADVISORY_NOTE_HOOK, _ENFORCED_NOTE_CURSOR
+        )
 
     files: dict[Path, str] = {
         Path(".cursor-plugin/plugin.json"): json.dumps(

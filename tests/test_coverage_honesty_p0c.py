@@ -62,9 +62,7 @@ def test_managed_patterns_are_honest_and_valid(tmp_path: Path) -> None:
         output_root=pmb,
         agents=["claude"],
     )
-    pmb_managed = json.loads(
-        (pmb / "protect-main-branch" / "managed-setting" / "managed-settings.json").read_text()
-    )
+    pmb_managed = json.loads((pmb / "protect-main-branch" / "managed-setting" / "managed-settings.json").read_text())
     assert pmb_managed["deny"] == [], "branch protection cannot be a static managed deny; must be empty"
 
     # scan-secrets does emit credential patterns; each must be a valid regex carrying no raw
@@ -76,9 +74,7 @@ def test_managed_patterns_are_honest_and_valid(tmp_path: Path) -> None:
         output_root=ss,
         agents=["claude"],
     )
-    ss_managed = json.loads(
-        (ss / "scan-secrets" / "managed-setting" / "managed-settings.json").read_text()
-    )
+    ss_managed = json.loads((ss / "scan-secrets" / "managed-setting" / "managed-settings.json").read_text())
     assert ss_managed["deny"], "scan-secrets must emit managed deny patterns"
     for entry in ss_managed["deny"]:
         pattern = entry["pattern"]
