@@ -6,7 +6,7 @@
       "id": "agent-discipline",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "e4aeb77f57bd6796fe3ea825f0b9225f6e9f0725513ef19edb8b8742e776839b",
+      "sha256": "a6ef3b64c691125216489893b75e89a1b6526d6f18be3aa58fadd4b10a133c1d",
       "source": "local",
       "artifacts_sha256": "36d131cd7df7edbcd57a0e117de79fa144a2bd1fb10b95edcc3c0404ba9533d4"
     },
@@ -14,7 +14,7 @@
       "id": "block-destructive-commands",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "8e6ec1154f58514510a98f5bb4bac43e57efce42ddc142ed4ace84351554c297",
+      "sha256": "59fffb91c6f65710b461e87782d355c1403953f36700e05369fca065683821c0",
       "source": "local",
       "artifacts_sha256": "07d54a6e496481cb0dbf109e460c2c7c40dbdd007f6f78794e953ed0bc1c00ff"
     },
@@ -30,7 +30,7 @@
       "id": "block-no-verify",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "fc992b914b8176a0086702aee21be66bef38a62f697b6dfd4e85c49f06a9a5c4",
+      "sha256": "ef0d729c413086bd4ce77c7191bcc1393f4e0cdfcfc959b33a1ddb771afdf2b0",
       "source": "local",
       "artifacts_sha256": "0578183c1d506f90a816a2b85c883ac180454f210d9c1f68e1ae854dfed816a2"
     },
@@ -46,7 +46,7 @@
       "id": "code-safety",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "b7f456c5f8c271402557912319a82c712640ee614029b5d4cbdbf14770628141",
+      "sha256": "6d4b71e8039fcccf63881d1694117386b8cf4a252707b184b03b4f5fbab8c718",
       "source": "local",
       "artifacts_sha256": "ee9959b8e6478f2c6ea47a8143211dce7fb6894674fbc37fea92ee04db5f91e8"
     },
@@ -54,7 +54,7 @@
       "id": "context-hygiene",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "b428fd0fa0927e343a28334268cfdd214602a7eba0ee27176ec3205e93ffb7ad",
+      "sha256": "c3831e7254d68442ebf93fe8e8164d1e55a3369a56aeb02100eba8380d512b3a",
       "source": "local",
       "artifacts_sha256": "f85d4575557544366e98ca4d2a468511ae370064048a8fecb1a89d44b7ba4117"
     },
@@ -62,7 +62,7 @@
       "id": "git-safety",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "7c12f33d9fcaa7d9b5dc5bec4876c51da11893019e4fdfc82c821f6ab385cb69",
+      "sha256": "29b80ab4e0a4490b5154de10dc914ecd7da4b324ef2a7e196b51439561caaac9",
       "source": "local",
       "artifacts_sha256": "e1660f2d351f13203fa59f6d1a40d6eb8f2b6af0f93af5cb090512bedfa975e3"
     },
@@ -70,7 +70,7 @@
       "id": "injection-defense",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "79fc6f98c1aeeed63193932b2c17d11590de7a76d9c5b9a295b43e7caccbdd7c",
+      "sha256": "87c7d7187d2e432d61f48b5c4243dcdbeba3701543627c6717ac10481a1d79d5",
       "source": "local",
       "artifacts_sha256": "c76a9bd12792ccecc411093054f16aac210953f3324b054586f3c8af3f7a0034"
     },
@@ -78,7 +78,7 @@
       "id": "memory-discipline",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "dcd3d914a0b51da011b7968ba8ea0ccde914c4afd2ff4067f434c859c7a60ffe",
+      "sha256": "24bf7d6e5c5edebd8061e635a57cff5e4d7b34b3ee3d391dc142aa4c36744870",
       "source": "local",
       "artifacts_sha256": "2b08e1876e9536a5ffdda1c671fc9908fc967f5c790a6b03f96d4e580483b533"
     },
@@ -86,7 +86,7 @@
       "id": "minimal-content",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "fb0c85788ef4d636929d3078687f5bef6422b0c4f6ffc7e37f81d48940a3cc67",
+      "sha256": "0be9365f661d0a63e3b565a434ca9bd865818baecef425fbfe320cc77a6a2ce7",
       "source": "local",
       "artifacts_sha256": "318e534a8fbca46a300a7dc0d6ee0c3f2c5d9bbd5952999a188bf19ee092c29f"
     },
@@ -94,7 +94,7 @@
       "id": "pre-generated-scripts",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "8ef162f09f2d3ee521ce78976d4f31bfc9560a57933892c3dd5a4033f7242cbb",
+      "sha256": "3605fe3806364cc16407d81c6522783ab855c950c630dd464b196067b7fce136",
       "source": "local",
       "artifacts_sha256": "36bb984d05a83a67c124d6c85c97de3fa35b362d3e3514dccb3a59f6f3436224"
     },
@@ -118,7 +118,7 @@
       "id": "protect-main-branch",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "b84a9f0a9ffe6983fe93164f215cdd5490b1157ad26bdcf1eafad1dda06e9e3f",
+      "sha256": "a0127e9af62bc9809960a286fab93dcaa634aba4a147b13cc5e59c4584b794b9",
       "source": "local",
       "artifacts_sha256": "18bb4772936ece0e374fb48e1a09fdbf946fb82381ed30687c0bcc8a10d4643c"
     },
@@ -126,7 +126,7 @@
       "id": "scan-secrets",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "4bbd17f1f0a4b132347244b200664d359bde7ff21e06accba4595f3287b9fd40",
+      "sha256": "dd8756e91c9f429c31ee5c39b1901dcb2f74b61c9a209ea268561f24b2742123",
       "source": "local",
       "artifacts_sha256": "cd7df13ded59738cd76aa24c19ec0600ca6847be5614536ec4c39f886f4f6e58"
     },
@@ -134,7 +134,7 @@
       "id": "token-efficiency",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "9348dbabfdd087efa3f8993c06878d9fe0673ef61563d05c19c41e9386a96d9e",
+      "sha256": "30b3f6027a54dc347ed0600469d5244432ffc4ae24722ae696d2dbffd3953428",
       "source": "local",
       "artifacts_sha256": "0511b29645130a4e9e6819b6e0c7a75953d616b7624e90d3d5639a0d429d5e9d"
     },
@@ -142,14 +142,14 @@
       "id": "verify-dependency-exists",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "28f20995803a3b407a8ae6f19bde45076a9d42e287fd86bc368fcf5263d187d7",
+      "sha256": "e82b6dccf87a16d7790d3cba882bf05679a5ff66c644e05ca5b9e88436b9b24e",
       "source": "local"
     },
     {
       "id": "verify-framework-conformance",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "bc9485ae9be6998577a80c4645c945e6ceebf2772a8f496f1259ba9dc6b0e869",
+      "sha256": "d8d03b846cef3bcfc66ed036e3d69b3abd6762c1ff2f60b8ecc7c3d7da3e9609",
       "source": "local",
       "artifacts_sha256": "ea12f0f8a86bcab67484585b30d72226a6be554c4dc51a0e2f66d6c29d38d897"
     },
@@ -157,7 +157,7 @@
       "id": "yagni",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "bda182f5bc33516c0bfd30c5bde51df93086fa5d6fad6b73abdcbbf65d808de4",
+      "sha256": "2546154d5eb24bbfa8510b69c809b19bb5546ae112bae29be2de26e492a42437",
       "source": "local",
       "artifacts_sha256": "80297724a9306b6a8a3278780a02e7bbdcb8dafd7b197e66fed8ba301ef090ab"
     }
