@@ -28,7 +28,14 @@ from typing import Any
 
 from chock.compile.emitters.claude_pretooluse import MATCHER, TIMEOUT_SECONDS, _guard_script
 from chock.emit import write_generated
-from chock.plugin.build import _ADVISORY_NOTE_HOOK, _ADVISORY_NOTE_RULE, NAMESPACE, build_manifest, build_skill, plugin_name
+from chock.plugin.build import (
+    _ADVISORY_NOTE_HOOK,
+    _ADVISORY_NOTE_RULE,
+    NAMESPACE,
+    build_manifest,
+    build_skill,
+    plugin_name,
+)
 from chock.plugin.claude import (
     POSTURE_ADVISORY,
     _adapter_source,
