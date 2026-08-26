@@ -16,7 +16,7 @@
       "managed": false,
       "sha256": "59fffb91c6f65710b461e87782d355c1403953f36700e05369fca065683821c0",
       "source": "local",
-      "artifacts_sha256": "07d54a6e496481cb0dbf109e460c2c7c40dbdd007f6f78794e953ed0bc1c00ff"
+      "artifacts_sha256": "6d646e182c4aded33704c6b0118dd7fb463c9bd47f6c5e2bdfb1653a9654162a"
     },
     {
       "id": "block-invisible-unicode",
@@ -32,7 +32,7 @@
       "managed": false,
       "sha256": "ef0d729c413086bd4ce77c7191bcc1393f4e0cdfcfc959b33a1ddb771afdf2b0",
       "source": "local",
-      "artifacts_sha256": "0578183c1d506f90a816a2b85c883ac180454f210d9c1f68e1ae854dfed816a2"
+      "artifacts_sha256": "9c2d033dc280514f369c1469a25483a7a95e4ac448e3180834e1d2f04390042b"
     },
     {
       "id": "block-wildcard-agent-permissions",
@@ -104,7 +104,7 @@
       "managed": false,
       "sha256": "b98d5472c534d381b87e253086642675c71ce3947e2cfe01ed9fec5ed8b66295",
       "source": "local",
-      "artifacts_sha256": "88a50994c1577b892616f9e8aba9a7507dd02e097117f77fbabc4435b6be67ae"
+      "artifacts_sha256": "a411b389e02a5a964872f7fad18d884047b0da8ad1492b816d3f46f46b859ef2"
     },
     {
       "id": "protect-commit-privacy",
@@ -112,7 +112,7 @@
       "managed": false,
       "sha256": "281522db2b259ea9a12d76b30d57ed9993882089b04a1fb4ce9932bc15a3388f",
       "source": "local",
-      "artifacts_sha256": "219cfc850dce1cbba0e9ceab6a910dcab7be6345ae3a642b6dabf661dbe5d08b"
+      "artifacts_sha256": "619c364582c6daaabcaac00f5a071bb303389c515e67d42905739f40117f1a5b"
     },
     {
       "id": "protect-main-branch",

@@ -35,7 +35,7 @@ SHELL_MATCHER = "bash|powershell|pwsh|sh|shell"
 def _bash_command(adapter: str, guard: str) -> str:
     return (
         'repo="$(git rev-parse --show-toplevel)"; '
-        'PY="$(command -v python3 || command -v python)"; '
+        'PY="$(command -v python3 || command -v python || command -v py)"; '
         '[ -n "$PY" ] || { echo "chock: no python interpreter found" >&2; exit 1; }; '
         f'exec "$PY" "$repo/{adapter}" --guard "$repo/{guard}"'
     )

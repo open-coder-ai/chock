@@ -1,5 +1,21 @@
 # Chock changelog
 
+## 0.6.0 — Agent-hooks `py` fallback and INT-3 verb list
+
+MINOR: the agent-hooks emitter output changes, so an adopter's next `chock sync` /
+`chock plugin build` rewrites `.github/hooks/*.json`. No credited enforcement surface
+changes — the guard runs the same, just with one more way to find an interpreter.
+
+- **Agent-hooks Bash resolver adds the `py` launcher fallback.** The Bash branch resolved
+  `command -v python3 || command -v python`; the PowerShell branch already tried `py`. On a
+  Windows checkout where only the `py` launcher is on PATH (no `python3`/`python`), the Bash
+  hook exited "no python interpreter found" and the guard failed open. It now also tries
+  `py`, matching the PowerShell branch, so the two agree about where enforcement holds.
+- **INT-3 recognises `pin` as a verb.** `pin` was missing from the verb-prefix set, so a
+  policy id like `pin-github-actions` drew a spurious "does not start with a verb" warning
+  even though pinning is exactly what it does. Added `pin`; `block`/`protect`/`scan`/`verify`
+  were already there.
+
 ## 0.5.0 — Managed-setting and SKILL honesty
 
 MINOR: the Claude managed-setting emitter and the generated SKILL note change, so an

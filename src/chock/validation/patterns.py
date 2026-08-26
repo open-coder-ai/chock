@@ -73,6 +73,7 @@ _VERB_PREFIXES = frozenset(
         "install",
         "optimize",
         "parse",
+        "pin",
         "post",
         "preflight",
         "prevent",
