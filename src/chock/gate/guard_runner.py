@@ -92,7 +92,10 @@ def run_guard(guard: Path, command: str) -> bool | None:
     except ValueError:
         # Unbalanced quotes: we cannot faithfully reconstruct argv, so we must not pretend
         # to have checked it. Allow, and say so, rather than block on our own parse failure.
-        print(f"chock: could not parse command, not checked: {command}", file=sys.stderr)
+        # The command itself is not echoed here -- it routinely carries bearer tokens and
+        # passwords (same reasoning as log_outcome's redaction below), and a stderr line an
+        # agent's transcript can capture is not a safe place to repeat one back verbatim.
+        print("chock: could not parse command (unbalanced quotes), not checked", file=sys.stderr)
         return None
     if not args:
         return None

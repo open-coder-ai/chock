@@ -595,7 +595,7 @@ def run_guard(guard: _chock_Path, command: str) -> bool | None:
     try:
         args = _chock_shlex.split(command)
     except ValueError:
-        print(f'chock: could not parse command, not checked: {command}', file=sys.stderr)
+        print('chock: could not parse command (unbalanced quotes), not checked', file=sys.stderr)
         return None
     if not args:
         return None
