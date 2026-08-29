@@ -10,12 +10,17 @@ hooks.json`, a reverse-domain namespace directory a non-Copilot client MUST igno
 section 8.1) -- so a generic Agent Plugins client sees a valid advisory package and a
 Copilot client also gets the enforcing hook.
 
-The hook body, adapter, guard and posture text are claude.py's, imported rather than
-restated: VS Code's own Agent Plugins hook example uses the Claude hook shape and the
-`${CLAUDE_PLUGIN_ROOT}` variable verbatim, and one shared command string means the two
-formats can never disagree about what actually runs. VS Code parses the `matcher` field but
-currently ignores it, which is safe here: the adapter allows any payload it cannot extract a
-shell command from, so a hook fired on a non-shell tool is a no-op, not a denial.
+The hook's matcher shape, adapter, guard and posture text follow claude.py's -- but NOT the
+plugin-root token. Agent Plugins 1.0 resolves its own bundle root via `${PLUGIN_ROOT}`;
+`${CLAUDE_PLUGIN_ROOT}` is the Legacy Copilot format's spelling (agentseam's
+`packaging.PACKAGING["copilot"]`, sourced from microsoft/vscode-docs
+docs/agent-customization/agent-plugins.md). Importing claude.py's `_hook_command` verbatim
+used to reach for `${CLAUDE_PLUGIN_ROOT}`, a token this bundle format never sets -- a real
+bug, not a style choice, fixed by deriving the token from agentseam instead. The adapter and
+guard BYTES stay byte-identical to the Claude package's (same source, same file), only the
+token differs. VS Code parses the `matcher` field but currently ignores it, which is safe
+here: the adapter allows any payload it cannot extract a shell command from, so a hook fired
+on a non-shell tool is a no-op, not a denial.
 
 `manifest.yaml` stays canonical; every file here is derived and never hand-authored.
 """
@@ -25,6 +30,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
+
+from agentseam import packaging
 
 from chock.compile.emitters.claude_pretooluse import MATCHER, TIMEOUT_SECONDS, _guard_script
 from chock.emit import write_generated
@@ -36,16 +43,24 @@ from chock.plugin.build import (
     build_skill,
     plugin_name,
 )
-from chock.plugin.claude import (
-    POSTURE_ADVISORY,
-    _adapter_source,
-    _hook_command,
-)
+from chock.plugin.claude import POSTURE_ADVISORY, _adapter_source
 
-#: Spec section 8: client-specific content lives in a reverse-domain namespace directory.
-#: This is the exact path VS Code documents for Agent Plugins hook bundles.
+#: This format's package-layout knowledge comes from agentseam's PACKAGING row for
+#: "copilot" -- the Agent Plugins 1.0 marketplace bundle, distinct from vscode_copilot's
+#: repo-local hooks. Previously this module imported claude.py's `_hook_command` verbatim,
+#: which meant the hook referenced `${CLAUDE_PLUGIN_ROOT}` -- the LEGACY Copilot format's
+#: token. agentseam's vendor research (microsoft/vscode-docs
+#: docs/agent-customization/agent-plugins.md, read 2026-08-29) establishes that Agent
+#: Plugins 1.0 bundles resolve their own root via `${PLUGIN_ROOT}` only; `${CLAUDE_PLUGIN_ROOT}`
+#: is the Legacy Copilot format's spelling, alongside `${PLUGIN_ROOT}`, per the same vendor
+#: table -- so the old command silently referenced a token this bundle format never sets,
+#: which resolves to an empty string and breaks the script path. This is a real fix, not a
+#: cosmetic rename: see PACKAGING["copilot"]["notes"] in agentseam.
+_LAYOUT = packaging.layout("copilot")
+PLUGIN_ROOT = packaging.plugin_root("copilot")
 COPILOT_NAMESPACE = "com.github.copilot"
-HOOKS_REL = f"{COPILOT_NAMESPACE}/hooks/hooks.json"
+HOOKS_REL = packaging.supports("copilot", packaging.HOOKS)  # "com.github.copilot/hooks/hooks.json"
+_SCRIPTS_TEMPLATE = packaging.supports("copilot", packaging.EXECUTABLE)  # "scripts/{name}"
 
 #: The Claude package's POSTURE_ENFORCED is deliberately NOT reused here. This format's
 #: defining audience is generic Agent Plugins clients, and the spec REQUIRES them to
@@ -73,6 +88,18 @@ _COPILOT_ENFORCED_NOTE = (
     "namespace gets this text only. Repo-wide enforcement across every commit and in CI "
     "still needs `chock sync`. See https://github.com/open-coder-ai/chock"
 )
+
+
+def _hook_command(script: str) -> str:
+    """One interpreter invocation against the plugin's own bundled copies.
+
+    The adapter and guard bytes are still byte-identical to the Claude package's (see
+    `test_adapter_and_guard_are_verbatim_copies`) -- only the token that reaches them
+    differs, because this format defines its own plugin-root spelling.
+    """
+    adapter = packaging.executable_ref("copilot", _SCRIPTS_TEMPLATE.format(name="pretooluse.py"))
+    guard = packaging.executable_ref("copilot", _SCRIPTS_TEMPLATE.format(name=script))
+    return f'python3 "{adapter}" --guard "{guard}"'
 
 
 def build_copilot_manifest(manifest: dict[str, Any], policy_dir: Path, enforced: bool) -> dict[str, Any]:
@@ -129,16 +156,17 @@ def copilot_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: 
         )
 
     files: dict[Path, str] = {
-        Path("plugin.json"): json.dumps(
+        Path(_LAYOUT["manifest"]): json.dumps(
             build_copilot_manifest(manifest, policy_dir, enforced=script is not None), indent=2
         )
         + "\n",
-        Path("skills") / name / "SKILL.md": skill,
+        Path(packaging.supports("copilot", packaging.SKILL).format(name=name)): skill,
     }
     if script:
         # Claude's matcher shape, verbatim from VS Code's own Agent Plugins hook example.
-        # Scripts sit at the package root -- also the documented layout -- so the command
-        # string is byte-identical to the Claude package's and asserted so in tests.
+        # Scripts sit at the package root -- also the documented layout -- but the command
+        # references its own ${PLUGIN_ROOT} token, not Claude's ${CLAUDE_PLUGIN_ROOT} --
+        # see _hook_command.
         hooks = {
             "hooks": {
                 "PreToolUse": [
@@ -150,8 +178,10 @@ def copilot_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: 
             }
         }
         files[Path(HOOKS_REL)] = json.dumps(hooks, indent=2) + "\n"
-        files[Path("scripts/pretooluse.py")] = _adapter_source()
-        files[Path("scripts") / script] = (policy_dir / "implementations" / script).read_text(encoding="utf-8")
+        files[Path(_SCRIPTS_TEMPLATE.format(name="pretooluse.py"))] = _adapter_source()
+        files[Path(_SCRIPTS_TEMPLATE.format(name=script))] = (policy_dir / "implementations" / script).read_text(
+            encoding="utf-8"
+        )
     return files
 
 

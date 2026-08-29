@@ -28,6 +28,12 @@ dependencies = [
     "pyyaml>=6.0",
     "jsonschema>=4.18,<5",
     "referencing>=0.35,<0.38",
+    # Build-time only: chock's plugin packaging consumes agentseam's per-agent layout
+    # data (packaging.plan/supports/plugin_root/executable_ref) to render plugin bundles.
+    # It never ships to an adopter repo -- the vendored PreToolUse/SessionStart runners
+    # stay self-contained stdlib-only files, unaffected by this dependency. Pinned exact
+    # per plan/spine-a/contract.md: the wave boundary is the published PyPI artifact.
+    "agentseam==0.1.0",
 ]
 
 [project.optional-dependencies]

@@ -4,6 +4,39 @@ from __future__ import annotations
 
 from enum import Enum
 
+from agentseam import contract as _contract
+from agentseam import matrix as _matrix
+
+#: chock agent id -> the agentseam agent whose capability matrix governs whether that
+#: agent even HAS the surface (PRE_TOOL_USE / AGENT_HOOKS), replacing what used to be a
+#: second, hand-maintained copy of the same fact. Deliberately narrow: this settles
+#: membership (does the surface exist for this agent at all), not enforcement TIER --
+#: `coverage_level`'s four-value vocabulary is a contract `chock-catalog` (out of scope
+#: for this migration, not touched) renders, so it is not touched here. Per agentseam's
+#: own finding (recorded in its "for the next worker" notes): "copilot" has no live
+#: dispatch adapter of its own -- a Copilot CLI/VS Code payload always arrives as
+#: "vscode_copilot", the one wire dialect both chock ids share.
+_MATRIX_AGENT = {
+    "claude": "claude_code",
+    "cursor": "cursor",
+    "copilot": "vscode_copilot",
+    "vscode": "vscode_copilot",
+}
+
+
+def _matrix_can_block(chock_agent: str) -> bool:
+    """Whether agentseam's verified matrix confirms `chock_agent` can block a pre-tool call.
+
+    Used only to REPLACE a hardcoded True chock already asserted for claude/cursor
+    (PRE_TOOL_USE) and copilot/vscode (AGENT_HOOKS) with a live check against agentseam's
+    matrix, so the two projects cannot silently drift apart on whether the surface exists
+    at all. It is not consulted for any agent chock does not already claim this for, so it
+    can only confirm or -- were agentseam's verified data ever to disagree -- refuse an
+    existing claim, never manufacture a new one.
+    """
+    mapped = _MATRIX_AGENT.get(chock_agent)
+    return bool(mapped) and _matrix.can_block(mapped, _contract.PRE_TOOL)
+
 
 class Surface(str, Enum):
     AMBIENT_RULE = "ambient-rule"
@@ -30,14 +63,13 @@ SURFACE_AGENTS: dict[str, set[Surface]] = {
         Surface.AMBIENT_RULE,
         Surface.GIT_HOOK,
         Surface.CI_GATE,
-        Surface.PRE_TOOL_USE,
         Surface.MANAGED_SETTING,
     },
     # Cursor Agent Hooks (GA 2026): beforeShellExecution honours exit 2 as deny and sets
     # CLAUDE_PROJECT_DIR, so the vendored adapter enforces there natively. Caveat carried
     # in docs/enforcement-surfaces.md: Cursor fails OPEN on other non-zero exits.
-    "cursor": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE, Surface.PRE_TOOL_USE},
-    "copilot": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE, Surface.AGENT_HOOKS},
+    "cursor": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
+    "copilot": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
     "windsurf": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
     "devin": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
     "codex": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
@@ -47,9 +79,29 @@ SURFACE_AGENTS: dict[str, set[Surface]] = {
     "gemini": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
     "replit": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
     "tabnine": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
-    "vscode": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE, Surface.AGENT_HOOKS},
+    "vscode": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
     "antigravity": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
 }
+
+
+# PRE_TOOL_USE (claude, cursor) and AGENT_HOOKS (copilot, vscode) membership is verified
+# against agentseam's capability matrix rather than hand-duplicated a second time -- see
+# _matrix_can_block. A mismatch here is loud on purpose: silently losing (or silently
+# gaining) one of these claims is exactly the overclaim/underclaim class this module
+# exists to prevent, so it is a hard failure rather than a quiet fallback.
+for _agent, _surface in (
+    ("claude", Surface.PRE_TOOL_USE),
+    ("cursor", Surface.PRE_TOOL_USE),
+    ("copilot", Surface.AGENT_HOOKS),
+    ("vscode", Surface.AGENT_HOOKS),
+):
+    if not _matrix_can_block(_agent):
+        raise AssertionError(
+            f"agentseam's matrix no longer confirms {_agent!r} can block a pre-tool call; "
+            f"{_surface.value} membership here must be re-reviewed, not silently kept or dropped"
+        )
+    SURFACE_AGENTS[_agent].add(_surface)
+del _agent, _surface
 
 
 DISABLED = "disabled"
