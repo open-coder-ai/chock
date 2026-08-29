@@ -106,10 +106,27 @@ class Adopter:
 
     def tool_use(self, command: str) -> str:
         """The JSON payload Claude Code sends to a PreToolUse hook."""
-        return json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
+        return json.dumps(
+            {
+                "tool_name": "Bash",
+                "tool_input": {"command": command},
+                "hook_event_name": "PreToolUse",
+                "session_id": "acceptance",
+                "transcript_path": "/tmp/acceptance-transcript",
+                "permission_mode": "default",
+            }
+        )
 
     def fire_pretooluse(self, command: str) -> bool:
-        """Run every installed PreToolUse hook as Claude would. True if any blocks."""
+        """Run every installed PreToolUse hook as Claude would. True if any blocks.
+
+        The vendored claude_code runtime (agentseam's bundle, see
+        `gate/runtime_bundle.py`) carries its verdict entirely in the JSON body on a
+        clean exit -- verified against real Claude Code installs, see
+        agentseam's `claude_code.respond()` docstring for why exit 2 is deliberately not
+        used -- so the deny is read from `hookSpecificOutput.permissionDecision`, not the
+        exit code.
+        """
         settings = self.read_json(".claude/settings.json")
         for entry in settings.get("hooks", {}).get("PreToolUse", []):
             for hook in entry.get("hooks", []):
@@ -126,8 +143,13 @@ class Adopter:
                     input=self.tool_use(command),
                     env={**os.environ, "CLAUDE_PROJECT_DIR": str(self.repo)},
                 )
-                if proc.returncode == 2:
-                    return True
+                if proc.returncode == 0 and proc.stdout.strip():
+                    try:
+                        decision = json.loads(proc.stdout)
+                    except json.JSONDecodeError:
+                        continue
+                    if decision.get("hookSpecificOutput", {}).get("permissionDecision") == "deny":
+                        return True
         return False
 
 

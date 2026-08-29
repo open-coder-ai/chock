@@ -59,7 +59,7 @@ def build_entry(policy_dir: Path, manifest: dict[str, Any]) -> dict[str, Any] | 
     if not script:
         return None
     rel = _relative_to_repo(policy_dir)
-    adapter = ".chock/bin/pretooluse.py"
+    adapter = ".chock/bin/vscode_copilot.py"
     guard = f"{rel}/implementations/{script}"
     bash = _bash_command(adapter, guard)
     powershell = _powershell_command(adapter, guard)

@@ -113,7 +113,7 @@ def _hook_command(script: str) -> str:
     fires on ANY non-zero exit, so a real denial (exit 2) would cascade into the next
     leg's exit code and be read as allow.
     """
-    adapter = packaging.executable_ref("cursor", _SCRIPTS_TEMPLATE.format(name="pretooluse.py"))
+    adapter = packaging.executable_ref("cursor", _SCRIPTS_TEMPLATE.format(name="cursor.py"))
     guard = packaging.executable_ref("cursor", _SCRIPTS_TEMPLATE.format(name=script))
     return f'python3 "{adapter}" --guard "{guard}"'
 
@@ -182,7 +182,7 @@ def cursor_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
             "hooks": {EVENT: [{"command": _hook_command(script), "timeout": TIMEOUT_SECONDS}]},
         }
         files[Path(HOOKS_REL)] = json.dumps(hooks, indent=2) + "\n"
-        files[Path(_SCRIPTS_TEMPLATE.format(name="pretooluse.py"))] = _adapter_source()
+        files[Path(_SCRIPTS_TEMPLATE.format(name="cursor.py"))] = _adapter_source("cursor")
         files[Path(_SCRIPTS_TEMPLATE.format(name=script))] = (policy_dir / "implementations" / script).read_text(
             encoding="utf-8"
         )

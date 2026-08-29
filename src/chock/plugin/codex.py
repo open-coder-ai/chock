@@ -17,11 +17,14 @@ so shipping the Copilot package to Codex would install a plugin whose entire pur
 deleted at load time, while its description still claimed enforcement. The `.codex-plugin/`
 (Legacy) manifest is the only shape whose hooks are loaded at all.
 
-A second Codex-specific hazard is handled in the shared adapter rather than here: Codex
-records exit 2 with an EMPTY stderr as a failed hook ("PreToolUse hook exited with code 2
-but did not write a blocking reason to stderr", codex-rs/hooks/src/events/pre_tool_use.rs)
-and lets the command through. `gate.pretooluse` therefore guarantees a reason on every deny,
-so a silent guard cannot become a silent allow here.
+A second Codex-specific hazard is handled in the shared guard-running logic rather than
+here: Codex records exit 2 with an EMPTY stderr as a failed hook ("PreToolUse hook exited
+with code 2 but did not write a blocking reason to stderr",
+codex-rs/hooks/src/events/pre_tool_use.rs) and lets the command through.
+`gate.guard_runner.run_guard` therefore guarantees a reason on every deny, and
+agentseam's codex_cli adapter never uses the exit-code channel at all (see
+`gate/runtime_bundle.py`) -- the verdict rides entirely in JSON, so a silent guard cannot
+become a silent allow here.
 
 `manifest.yaml` stays canonical; every file here is derived and never hand-authored.
 """
@@ -119,7 +122,7 @@ def _hook_command(script: str) -> str:
     No fallback chain, for the reason measured in claude.py: `||` fires on ANY non-zero
     exit, so a real denial (exit 2) would cascade into the next leg and read as allow.
     """
-    adapter = packaging.executable_ref("codex_cli", _SCRIPTS_TEMPLATE.format(name="pretooluse.py"))
+    adapter = packaging.executable_ref("codex_cli", _SCRIPTS_TEMPLATE.format(name="codex_cli.py"))
     guard = packaging.executable_ref("codex_cli", _SCRIPTS_TEMPLATE.format(name=script))
     return f'python3 "{adapter}" --guard "{guard}"'
 
@@ -190,7 +193,7 @@ def codex_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
             },
         }
         files[Path(HOOKS_REL)] = json.dumps(hooks, indent=2) + "\n"
-        files[Path(_SCRIPTS_TEMPLATE.format(name="pretooluse.py"))] = _adapter_source()
+        files[Path(_SCRIPTS_TEMPLATE.format(name="codex_cli.py"))] = _adapter_source("codex_cli")
         files[Path(_SCRIPTS_TEMPLATE.format(name=script))] = (policy_dir / "implementations" / script).read_text(
             encoding="utf-8"
         )

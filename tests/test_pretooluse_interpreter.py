@@ -52,7 +52,16 @@ def _fresh_repo() -> tuple[Path, dict]:
 
 
 def _payload(command: str) -> str:
-    return json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
+    return json.dumps(
+        {
+            "tool_name": "Bash",
+            "tool_input": {"command": command},
+            "hook_event_name": "PreToolUse",
+            "session_id": "s",
+            "transcript_path": "/t",
+            "permission_mode": "default",
+        }
+    )
 
 
 def test_compiled_fragment_keeps_the_placeholder(tmp_path: Path) -> None:
@@ -77,7 +86,9 @@ def test_installed_command_bakes_a_real_interpreter() -> None:
 
 def test_guard_blocks_even_with_no_python_on_path() -> None:
     # The python3-only regression: strip PATH so neither `python` nor `python3` resolve.
-    # The baked absolute interpreter must still run the guard and block (exit 2).
+    # The baked absolute interpreter must still run the guard and deny. Claude Code's deny
+    # rides entirely in the JSON body on a clean exit (see agentseam's claude_code.respond()
+    # docstring for why exit 2 is deliberately not used), not the exit code.
     repo, _ = _fresh_repo()
     install_pretooluse_hooks(repo)
     settings = json.loads((repo / ".claude" / "settings.json").read_text(encoding="utf-8"))
@@ -88,7 +99,11 @@ def test_guard_blocks_even_with_no_python_on_path() -> None:
     proc = subprocess.run(
         command, cwd=repo, shell=True, env=stripped, capture_output=True, text=True, input=_payload("rm -rf /")
     )
-    assert proc.returncode == 2, f"guard did not block with PATH stripped:\n{proc.stdout}{proc.stderr}"
+    assert proc.returncode == 0, f"guard errored with PATH stripped:\n{proc.stdout}{proc.stderr}"
+    decision = json.loads(proc.stdout)
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny", (
+        f"guard did not block with PATH stripped:\n{proc.stdout}{proc.stderr}"
+    )
 
 
 def test_coverage_detection_survives_the_bake() -> None:

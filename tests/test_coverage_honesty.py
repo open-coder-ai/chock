@@ -26,7 +26,7 @@ import yaml
 
 from chock.compile.compiler import compile_policy
 from chock.compile.surfaces import SURFACE_AGENTS, Surface, coverage_level
-from chock.scaffold.adapters import AGENT_FILES
+from chock.scaffold.adapters import CHOCK_AGENT
 
 FRAMEWORK_ROOT = Path(__file__).resolve().parents[1]
 
@@ -90,7 +90,7 @@ def test_hook_with_a_real_gate_is_enforced_at_commit(tmp_path: Path) -> None:
 
 def test_surfaces_that_emit_nothing_do_not_count() -> None:
     """An emitter returning no files must not raise the coverage claim."""
-    assert coverage_level(set(), "claude") == "unsupported"
+    assert coverage_level(set(), "claude") == "none"
     assert coverage_level({Surface.AMBIENT_RULE}, "claude") == "advisory"
 
 
@@ -100,12 +100,14 @@ def test_pre_tool_use_alone_is_not_enforced() -> None:
     The flag is the switch, so the claim cannot get ahead of the mechanism. The compiler
     derives it from .claude/settings.json rather than taking anyone's word for it.
     """
-    assert coverage_level({Surface.PRE_TOOL_USE}, "claude") == "unsupported"
-    assert coverage_level({Surface.PRE_TOOL_USE}, "claude", pre_tool_use_installed=True) == "enforced"
+    assert coverage_level({Surface.PRE_TOOL_USE}, "claude") == "none"
+    # claude_code's PreToolUse is FAIL_OPEN (agentseam.matrix_data) -- installed, it reads
+    # `best-effort`, never a flat `enforced` (owner decision #9).
+    assert coverage_level({Surface.PRE_TOOL_USE}, "claude", pre_tool_use_installed=True) == "best-effort"
 
 
 def test_unsupported_agent_reports_unsupported() -> None:
-    assert coverage_level({Surface.GIT_HOOK}, "no-such-agent") == "unsupported"
+    assert coverage_level({Surface.GIT_HOOK}, "no-such-agent") == "none"
 
 
 def test_every_agent_we_write_a_wrapper_for_has_surfaces() -> None:
@@ -119,12 +121,12 @@ def test_every_agent_we_write_a_wrapper_for_has_surfaces() -> None:
     Understating coverage is a milder failure than overstating it, but it is the same
     failure: the number does not describe the repo.
     """
-    assert set(AGENT_FILES) == set(SURFACE_AGENTS)
+    assert set(CHOCK_AGENT) == set(SURFACE_AGENTS)
 
 
 def test_a_wrapper_agent_gets_at_least_the_ambient_rule() -> None:
     """Surfaces are per-agent, but the wrapper is the floor: everyone with one reads rules."""
-    for agent in AGENT_FILES:
+    for agent in CHOCK_AGENT:
         assert Surface.AMBIENT_RULE in SURFACE_AGENTS[agent], f"{agent} has a wrapper but no ambient rule"
         assert coverage_level({Surface.AMBIENT_RULE}, agent) == "advisory"
 
@@ -153,9 +155,15 @@ def test_repo_coverage_matches_actual_enforcement() -> None:
         "vscode": agent_hooks_witness,
     }
 
+    # Agent-hook levels (owner decision #9): whichever of agentseam's honest per-agent
+    # words PRE_TOOL_USE/AGENT_HOOKS earns once installed -- `enforced` is only one of them
+    # (claude_code's own PreToolUse is FAIL_OPEN, so it reads `best-effort`, never
+    # `enforced`), but every one of them still requires the same install witness.
+    AGENT_HOOK_LEVELS = {"enforced", "enforceable", "best-effort"}
+
     for policy_id, agents in coverage.items():
         for agent, level in agents.items():
-            if level in (None, "disabled", "advisory", "unsupported"):
+            if level in (None, "disabled", "advisory", "none", "detect"):
                 continue
             if level == "enforced-at-commit":
                 gate = compiled / policy_id / "git-hook" / "gate.json"
@@ -163,7 +171,7 @@ def test_repo_coverage_matches_actual_enforcement() -> None:
                 assert gate.exists() or ci.exists(), (
                     f"{policy_id} claims '{level}' on {agent} but compiled no commit-time gate"
                 )
-            elif level == "enforced":
+            elif level in AGENT_HOOK_LEVELS:
                 assert policy_id in witnesses.get(agent, set()), (
-                    f"{policy_id} claims 'enforced' on {agent} but its fragment is not installed there"
+                    f"{policy_id} claims '{level}' on {agent} but its fragment is not installed there"
                 )

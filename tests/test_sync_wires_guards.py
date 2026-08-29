@@ -63,8 +63,10 @@ def test_one_sync_wires_and_claims_every_guard_surface() -> None:
 
     coverage = json.loads((repo / ".chock" / "coverage.json").read_text(encoding="utf-8"))
     row = coverage["block-destructive-commands"]
-    assert row["claude"] == "enforced", f"coverage must reflect the wiring sync just did: {row}"
-    assert row.get("cursor", "enforced") == "enforced", row
+    # claude_code's PreToolUse is FAIL_OPEN (agentseam.matrix_data), so installed it reads
+    # `best-effort`, never a flat `enforced` (owner decision #9).
+    assert row["claude"] == "best-effort", f"coverage must reflect the wiring sync just did: {row}"
+    assert row.get("cursor", "enforceable") == "enforceable", row
 
 
 def test_second_sync_is_stable() -> None:

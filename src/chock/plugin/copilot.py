@@ -97,7 +97,7 @@ def _hook_command(script: str) -> str:
     `test_adapter_and_guard_are_verbatim_copies`) -- only the token that reaches them
     differs, because this format defines its own plugin-root spelling.
     """
-    adapter = packaging.executable_ref("copilot", _SCRIPTS_TEMPLATE.format(name="pretooluse.py"))
+    adapter = packaging.executable_ref("copilot", _SCRIPTS_TEMPLATE.format(name="vscode_copilot.py"))
     guard = packaging.executable_ref("copilot", _SCRIPTS_TEMPLATE.format(name=script))
     return f'python3 "{adapter}" --guard "{guard}"'
 
@@ -178,7 +178,7 @@ def copilot_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: 
             }
         }
         files[Path(HOOKS_REL)] = json.dumps(hooks, indent=2) + "\n"
-        files[Path(_SCRIPTS_TEMPLATE.format(name="pretooluse.py"))] = _adapter_source()
+        files[Path(_SCRIPTS_TEMPLATE.format(name="vscode_copilot.py"))] = _adapter_source("vscode_copilot")
         files[Path(_SCRIPTS_TEMPLATE.format(name=script))] = (policy_dir / "implementations" / script).read_text(
             encoding="utf-8"
         )

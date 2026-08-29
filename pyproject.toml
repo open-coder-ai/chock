@@ -3,7 +3,7 @@ name = "chock"
 # Version contract (docs/compatibility.md): PATCH releases are emitter-byte-identical;
 # MINOR releases may change compiled output. 0.1.0 is the first public release; the
 # 0.0.1a0 pre-release exists only because PyPI names are claimed by uploading.
-version = "0.6.0"
+version = "0.7.0"
 description = "Governance-as-code for AI coding agents: write a rule once, enforce it on git hooks, CI, and every agent"
 readme = "README.md"
 # PEP 639 SPDX expression; needs setuptools >= 77 (pinned in build-system below).
@@ -90,7 +90,13 @@ target-version = "py311"
 # Markdown under docs/ and spec/ contains illustrative snippets
 # (abbreviated bodies, placeholder tokens) that are documentation, not source.
 # ruff >= 0.16 formats embedded Python in Markdown; exclude it so prose stays prose.
-extend-exclude = ["*.md"]
+#
+# .chock/bin/ is agentseam's bundler output (see gate/runtime_bundle.py): several
+# independent source modules (contract, one per-vendor adapter, chock's own handler)
+# composed source-level into one file. Composition can duplicate a module-level import
+# two of those sources both happen to make (e.g. `import json as _json`) -- harmless at
+# runtime, but not something either source module did wrong, so not a lint finding here.
+extend-exclude = ["*.md", ".chock/bin/"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]

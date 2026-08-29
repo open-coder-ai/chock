@@ -151,24 +151,40 @@ def coverage_level(
     by itself, while a CI workflow exists only because someone ran `install-ci`. Folding that
     into the set would mean dropping the witness -- the exact overclaim this function exists
     to prevent.
+
+    Vocabulary (owner decision #9): PRE_TOOL_USE and AGENT_HOOKS, once installed, no longer
+    read flatly `enforced` -- they return whichever of agentseam's five, honest, per-agent
+    words (`matrix.enforcement_level`) the mapped agent's PRE_TOOL row actually earns.
+    claude_code's PreToolUse is FAIL_OPEN (a crashed hook silently allows), so it reads
+    `best-effort`, never `enforced` -- the honest downgrade this decision exists to make;
+    cursor's is FAIL_CONFIGURABLE, so it reads `enforceable`. `enforced-at-commit` and
+    `advisory` stay chock's own words: agentseam's tiers describe an AGENT lifecycle hook,
+    and chock's git-hook/CI-gate and ambient-rule surfaces are not that -- there is no
+    lossless translation, so this function does not force one. `unsupported` becomes `none`,
+    agentseam's own word for "no surface at all", a direct match with no loss either way.
     """
     supported = SURFACE_AGENTS.get(agent, set())
     if not supported:
-        return "unsupported"
+        return "none"
 
     active = emitted & supported
     if not active:
-        return "unsupported"
+        return "none"
 
-    # `enforced` means a hard control that runs BEFORE the action, in-agent. Emitting a
-    # PreToolUse fragment does not achieve that while nothing installs it.
+    # A hard control that runs BEFORE the action, in-agent. Emitting a PreToolUse fragment
+    # does not achieve that while nothing installs it; once installed, the honest word for
+    # what it achieves is the mapped agent's own PRE_TOOL row, not a flat `enforced`.
     if pre_tool_use_installed and Surface.PRE_TOOL_USE in active:
-        return "enforced"
+        mapped = _MATRIX_AGENT.get(agent)
+        if mapped:
+            return _matrix.enforcement_level(mapped, _contract.PRE_TOOL)
     # Copilot CLI / VS Code native hooks: same hard pre-execution tier, gated on the same
     # kind of witness -- `.github/hooks/chock.json` must actually carry this policy's entry.
     # Emitting the entry is not enough; without the installed file the client runs nothing.
     if agent_hooks_installed and Surface.AGENT_HOOKS in active:
-        return "enforced"
+        mapped = _MATRIX_AGENT.get(agent)
+        if mapped:
+            return _matrix.enforcement_level(mapped, _contract.PRE_TOOL)
     # Unlike git-hook (wired up automatically by every `recompile`), nothing runs `install-ci`
     # on a policy's behalf -- crediting CI_GATE the moment it is merely compiled would repeat
     # the exact overclaim `pre_tool_use_installed` exists to prevent for PreToolUse.
@@ -181,7 +197,7 @@ def coverage_level(
         return "advisory"
     # Only uninstalled surfaces remain: the agent supports them, but nothing wires them up,
     # so the policy has no effect here.
-    return "unsupported"
+    return "none"
 
 
 def parse_agent_selection(groups: list[str], valid: dict[str, object] | None = None) -> list[str]:

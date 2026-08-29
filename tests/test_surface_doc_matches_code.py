@@ -98,5 +98,5 @@ def test_ci_gate_is_disclosed_as_needing_its_installer() -> None:
 
     # The witness itself: a CI-only policy claims nothing until the workflow is installed.
     ci_only = {Surface.CI_GATE}
-    assert coverage_level(ci_only, "cursor", ci_gate_installed=False) == "unsupported"
+    assert coverage_level(ci_only, "cursor", ci_gate_installed=False) == "none"
     assert coverage_level(ci_only, "cursor", ci_gate_installed=True) == "enforced-at-commit"

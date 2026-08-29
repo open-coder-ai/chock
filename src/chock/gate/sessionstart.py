@@ -1,29 +1,24 @@
-#!/usr/bin/env python3
-"""Chock SessionStart adapter — SELF-CONTAINED, STDLIB ONLY.
+"""Git-hook-arming logic for a fresh clone's first Claude Code session.
 
-Copied verbatim to <repo>/.chock/bin/sessionstart.py by `chock sync`.
+Git never clones hooks -- by design, because "cloning a repo executes the repo's code"
+would be remote code execution -- so a fresh clone of a Chock repo enforces nothing at
+commit time until `chock sync` runs. This closes that gap for Claude Code: wired as the
+`session_start` branch of the vendored claude_code runtime (`gate/runtime_bundle.py`
+source-extracts these functions into it), it either stays silent because the hooks are
+already armed, arms them with the chock CLI when it is importable, or returns an
+`additionalContext` instruction naming the one command to run. Never blocks: an unarmed
+clone must degrade to advice, never stop a session.
 
-Git never clones hooks — by design, because "cloning a repo executes the repo's
-code" would be remote code execution — so a fresh clone of a Chock repo enforces
-nothing at commit time until `chock sync` runs. This adapter closes that gap for
-Claude Code: it runs when a session opens (wired as a SessionStart hook in the
-committed .claude/settings.json, consented through Claude Code's workspace-trust
-prompt), and either stays silent because the hooks are already armed, arms them
-with the chock CLI when it is importable, or prints the one command to run.
-Stdout from a SessionStart hook is added to the session context, so the
-instruction reaches the agent, not a log nobody reads.
-
-Always exits 0: an unarmed clone must degrade to advice, never block a session.
-
-Usage (from a settings.json SessionStart hook):
-  python .chock/bin/sessionstart.py
+Not vendored on its own -- these functions exist only to be source-extracted (the same
+technique `agentseam.bundler` uses on its own adapter modules) into the claude_code
+runtime's handler, alongside the guard-running logic in `gate/guard_runner.py`. Stays
+stdlib-only for exactly that reason.
 """
 
 from __future__ import annotations
 
 import os
 import subprocess
-import sys
 from pathlib import Path
 
 _INSTRUCTION = (
@@ -76,36 +71,3 @@ def _chock_importable() -> bool:
         return importlib.util.find_spec("chock") is not None
     except (ImportError, ValueError):
         return False
-
-
-def main() -> int:
-    repo_root = _repo_root()
-    if not (repo_root / ".chock").is_dir():
-        return 0  # not a chock-managed repo
-    if _armed(repo_root):
-        return 0
-
-    if _chock_importable():
-        try:
-            proc = subprocess.run(
-                [sys.executable, "-m", "chock", "sync", "--repo", str(repo_root)],
-                cwd=repo_root,
-                capture_output=True,
-                text=True,
-                timeout=240,
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            proc = None
-        if proc is not None and proc.returncode == 0 and _armed(repo_root):
-            print(
-                "Chock: this clone's git hooks were not installed (git never clones hooks); "
-                "armed them now with `chock sync`."
-            )
-            return 0
-
-    print(_INSTRUCTION)
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

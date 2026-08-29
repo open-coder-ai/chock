@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-import chock.gate.pretooluse as adapter_module
+from chock.gate import runtime_bundle
 from chock.plugin.build import build_skill
 from chock.plugin.claude import (
     POSTURE_ADVISORY,
@@ -80,7 +80,7 @@ def test_guard_policy_ships_hooks_adapter_and_guard(policy, tmp_path: Path) -> N
     entry = hooks["hooks"]["PreToolUse"][0]
     assert entry["matcher"] == "Bash"
     command = entry["hooks"][0]["command"]
-    assert "${CLAUDE_PLUGIN_ROOT}/scripts/pretooluse.py" in command
+    assert "${CLAUDE_PLUGIN_ROOT}/scripts/claude_code.py" in command
     assert "${CLAUDE_PLUGIN_ROOT}/scripts/block-destructive-commands.sh" in command
     # The EXACT command, not properties of it. Property checks (no ||, one invocation)
     # still admitted a pipeline: `python3 ... | cat` would swallow the adapter's exit 2.
@@ -91,7 +91,7 @@ def test_guard_policy_ships_hooks_adapter_and_guard(policy, tmp_path: Path) -> N
     # verified empirically. Any change to this string is a change to enforcement and
     # must be a reviewed decision, which is exactly what an exact-match assertion forces.
     assert command == (
-        'python3 "${CLAUDE_PLUGIN_ROOT}/scripts/pretooluse.py" '
+        'python3 "${CLAUDE_PLUGIN_ROOT}/scripts/claude_code.py" '
         '--guard "${CLAUDE_PLUGIN_ROOT}/scripts/block-destructive-commands.sh"'
     )
 
@@ -107,8 +107,8 @@ def test_adapter_and_guard_are_verbatim_copies(policy, tmp_path: Path) -> None:
     out = tmp_path / "out"
     build_claude_plugin(pack, GUARD_MANIFEST, tmp_path, out)
 
-    source = Path(adapter_module.__file__).read_text(encoding="utf-8")
-    assert (out / "scripts" / "pretooluse.py").read_text(encoding="utf-8") == source
+    source = runtime_bundle.render("claude_code")
+    assert (out / "scripts" / "claude_code.py").read_text(encoding="utf-8") == source
     assert (out / "scripts" / "block-destructive-commands.sh").read_text(encoding="utf-8") == GUARD_BODY
 
 

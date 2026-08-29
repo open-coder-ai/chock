@@ -73,8 +73,19 @@ def test_no_inline_duplicate_of_a_packaged_template() -> None:
     """
     import chock.scaffold.init as init
 
-    read_verbatim = {"docs/README.md", ".chock/dependency-allowlist.txt"}
-    read_verbatim |= {rel for files in init.AGENT_FILES.values() for rel in files}
+    # Per-agent instruction files no longer come from a packaged template at all: the
+    # marker-block model (agentseam.instructions, see scaffold/adapters.py) writes chock's
+    # own POINTER_TEXT constant, and agentseam decides the path (or no file, for an agent
+    # that reads AGENTS.md natively). Aider is the one exception -- its `.aider.conf.yml`
+    # is a real config file agentseam's module cannot express, so chock still ships it as a
+    # packaged template.
+    read_verbatim = {
+        "docs/README.md",
+        ".chock/dependency-allowlist.txt",
+        "AGENTS.md",
+        ".chock/config.yaml",
+        ".aider.conf.yml",
+    }
     for rel in sorted(read_verbatim):
         assert (TEMPLATE_ROOT / rel).exists(), f"packaged template {rel} is missing"
         # Reading through the helper is what makes a missing packaged file fail loudly.
@@ -90,20 +101,13 @@ def test_every_adapter_file_is_read_from_its_template(tmp_path: Path) -> None:
     it, generation fails; if a future change reintroduces an inline copy, it silently
     succeeds and this test fails, which is the regression worth catching.
     """
-    import chock.scaffold.init as init
+    from chock.scaffold.adapters import write_instructions
 
-    for rel in sorted({r for files in init.AGENT_FILES.values() for r in files}):
-        repo = tmp_path / rel.replace("/", "_").replace(".", "_")
-        repo.mkdir(parents=True)
-        with pytest.raises((FileNotFoundError, OSError)):
-            with _template_hidden(rel):
-                init._write_wrapper(repo, _agent_owning(rel), force=False)
-
-
-def _agent_owning(rel: str) -> str:
-    import chock.scaffold.init as init
-
-    return next(agent for agent, files in init.AGENT_FILES.items() if rel in files)
+    repo = tmp_path / "aider_conf"
+    repo.mkdir(parents=True)
+    with pytest.raises((FileNotFoundError, OSError)):
+        with _template_hidden(".aider.conf.yml"):
+            write_instructions(repo, ["aider"])
 
 
 @contextlib.contextmanager

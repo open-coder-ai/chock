@@ -24,9 +24,9 @@ from typing import Any
 
 from agentseam import packaging
 
-import chock.gate.pretooluse as _adapter_module
 from chock.compile.emitters.claude_pretooluse import MATCHER, TIMEOUT_SECONDS, _guard_script
 from chock.emit import write_generated
+from chock.gate import runtime_bundle
 from chock.plugin.build import (
     _ADVISORY_NOTE_HOOK,
     _ADVISORY_NOTE_RULE,
@@ -79,15 +79,15 @@ _ENFORCED_NOTE = (
 )
 
 
-def _adapter_source() -> str:
-    """The PreToolUse adapter, verbatim.
+def _adapter_source(agent: str = "claude_code") -> str:
+    """`agent`'s self-contained runtime, verbatim -- agentseam's bundle plus chock's own
+    handler (see `gate/runtime_bundle.py`).
 
-    The adapter's own contract is "SELF-CONTAINED, STDLIB ONLY ... copied verbatim" -- the
-    same copy discipline `chock compile` uses for `.chock/bin/pretooluse.py`. Shipping a
-    byte-identical copy means a plugin and a repo install can never disagree about how a
+    Byte-identical to what `chock compile`/`chock sync` vendors into `.chock/bin/` for the
+    same agent, so a plugin install and a repo install can never disagree about how a
     payload is parsed.
     """
-    return Path(_adapter_module.__file__).read_text(encoding="utf-8")
+    return runtime_bundle.render(agent)
 
 
 def _hook_command(script: str) -> str:
@@ -111,7 +111,7 @@ def _hook_command(script: str) -> str:
     real fix is a per-client emitter that knows each client's hook shell, not a shell
     trick that trades one platform's correctness for another's.
     """
-    adapter = packaging.executable_ref("claude_code", _SCRIPTS_TEMPLATE.format(name="pretooluse.py"))
+    adapter = packaging.executable_ref("claude_code", _SCRIPTS_TEMPLATE.format(name="claude_code.py"))
     guard = packaging.executable_ref("claude_code", _SCRIPTS_TEMPLATE.format(name=script))
     return f'python3 "{adapter}" --guard "{guard}"'
 
@@ -187,7 +187,7 @@ def claude_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
             }
         }
         files[Path(hooks_rel)] = json.dumps(hooks, indent=2) + "\n"
-        files[Path(_SCRIPTS_TEMPLATE.format(name="pretooluse.py"))] = _adapter_source()
+        files[Path(_SCRIPTS_TEMPLATE.format(name="claude_code.py"))] = _adapter_source("claude_code")
         files[Path(_SCRIPTS_TEMPLATE.format(name=script))] = (policy_dir / "implementations" / script).read_text(
             encoding="utf-8"
         )

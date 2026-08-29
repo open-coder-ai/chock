@@ -70,7 +70,7 @@ gap with three mechanisms, each consented where consent is required:
    A contributor's coding agent arms the hooks before it can trip them.
 2. **The SessionStart arm hook (Claude Code, automatic).** `chock sync` wires a
    `SessionStart` entry into the committed `.claude/settings.json` that runs the vendored
-   `.chock/bin/sessionstart.py` when a session opens — consented through Claude Code's
+   `.chock/bin/claude_code.py` when a session opens — consented through Claude Code's
    workspace-trust prompt, the same gate PreToolUse passes through. If the hooks are
    already armed it stays silent; if `chock` is installed it runs `chock sync` itself; if
    not, it prints the exact command into the session context so the agent runs it.

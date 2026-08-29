@@ -17,16 +17,16 @@ from __future__ import annotations
 import copy
 import json
 import re
-import shutil
 import sys
 from pathlib import Path
 
 from chock.emit import write_generated_json
+from chock.hooks.runtime_vendor import runtime_rel, vendor_runtime
 
 SETTINGS_REL = Path(".claude") / "settings.json"
-ADAPTER_REL = Path(".chock") / "bin" / "pretooluse.py"
+ADAPTER_REL = runtime_rel("claude_code")
 # Every Chock-owned hook command contains this; nothing else should.
-_OWNED_MARKER = "/.chock/bin/pretooluse.py"
+_OWNED_MARKER = "/.chock/bin/claude_code.py"
 
 # The emitted fragment carries this placeholder, not a literal `python`. `python` is absent
 # on python3-only systems (stock Ubuntu/Debian), where Claude Code ran the hook, got exit 127,
@@ -79,21 +79,8 @@ def _normalize_fragment(fragment: dict) -> dict:
 
 
 def vendor_adapter(repo_root: Path) -> Path:
-    """Copy the stdlib-only PreToolUse adapter into the consumer repo."""
-    source = Path(__file__).resolve().parent.parent / "gate" / "pretooluse.py"
-    if not source.exists():  # pragma: no cover - packaging failure
-        raise FileNotFoundError(
-            f"PreToolUse adapter source not found at {source}. "
-            "If this is a packaged binary, ensure gate/pretooluse.py is bundled as data."
-        )
-    dest = Path(repo_root) / ADAPTER_REL
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source, dest)
-    try:
-        dest.chmod(0o755)
-    except OSError:
-        pass  # best-effort: chmod is a no-op/denied on Windows; the adapter is invoked as `python <path>`
-    return dest
+    """Write the stdlib-only, agentseam-bundled Claude Code runtime into the consumer repo."""
+    return vendor_runtime(repo_root, "claude_code")
 
 
 def _compiled_fragments(repo_root: Path) -> list[dict]:
