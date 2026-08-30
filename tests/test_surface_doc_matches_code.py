@@ -130,15 +130,22 @@ def test_readme_says_why_the_absent_surfaces_are_absent() -> None:
         Surface.MCP_GATEWAY: "per-client witness",
     }
     for surface, phrase in omitted.items():
-        # The witness itself, rather than a proxy for it: a policy emitting only this surface
-        # grades `none` for every agent the code supports. That IS "credits no agent today".
+        # Necessary, not sufficient: a policy emitting only this surface grades `none` for every
+        # agent. Necessary because that is the claim; not sufficient because a witness-gated
+        # surface (`pre-tool-use` with no install) also grades `none` while genuinely belonging
+        # in the table. So each phrase's own narrower fact is pinned separately below.
         crediting = [a for a in SURFACE_AGENTS if coverage_level({surface}, a) != "none"]
         assert not crediting, f"{surface.value} now credits {crediting}; the README owes it a column"
         assert phrase in readme, f"the README no longer says why {surface.value} is absent"
 
-    # Each phrase makes a narrower claim than "credits nobody"; pin those separately.
     assert Surface.MANAGED_SETTING not in INSTALLED_SURFACES, "an installer landed; 'not installed' is now false"
     assert Surface.GATEWAY not in EMITTERS, "gateway emits now; 'not yet emitted' is now false"
+    # `mcp-gateway` is the one whose reason an installer would NOT falsify: it is emitted today
+    # and an installer could ship before the per-client witnesses do, while the surface still
+    # credits nobody. What carries that wording is its absence from every agent's supported set,
+    # which is also what `coverage_level` reads -- so pin the structural fact, not the installer.
+    supporting = [a for a, s in SURFACE_AGENTS.items() if Surface.MCP_GATEWAY in s]
+    assert not supporting, f"mcp-gateway is now supported by {supporting}; the per-client wording is stale"
 
 
 def test_managed_setting_is_disclosed_as_not_installed() -> None:
