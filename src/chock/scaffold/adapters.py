@@ -58,7 +58,7 @@ CHOCK_AGENT: dict[str, str] = {
 POINTER_TEXT = (
     "# Chock\n\n"
     "Authoritative rules and conventions: `AGENTS.md` (repo root) — read it before any work.\n"
-    "Boundaries: never read `README.md`; never read `docs/`."
+    "Boundaries: read `README.md` and `docs/` only when the task is to change them."
 )
 
 

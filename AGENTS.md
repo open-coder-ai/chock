@@ -22,8 +22,14 @@ source_of_truth: AGENTS.md; adapters: thin_wrappers(delegate_here); authority: n
 
 ## Data boundaries
 
-- never_read(file: README.md)
-- never_read(path: docs/)
+These are a context-economy rule, not a secrecy one. `README.md` and `docs/` are large,
+human-facing, and irrelevant to most tasks, so loading them by default spends context an
+agent needs for the actual work. They are **on-demand, not off-limits**: when the task is to
+change one of them, read it and change it.
+
+- read_on_demand(file: README.md) — not read for general work; read and edit it when the task
+  is to change it
+- read_on_demand(path: docs/) — same
 - agent_source: AGENTS.md, .agents/skills/<id>/SKILL.md, .agents/policies/<id>/manifest.yaml
 - human_source: docs/**, references/ that are not SKILL.md or manifest.yaml
 
