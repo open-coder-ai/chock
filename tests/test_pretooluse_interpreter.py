@@ -135,13 +135,44 @@ def test_coverage_is_machine_independent() -> None:
         assert "block-destructive-commands" in installed_pretooluse_policy_ids(repo), token
 
 
-def test_reinstall_does_not_churn_a_committed_entry() -> None:
+def _fake_but_real_interpreter(tmp_path: Path) -> str:
+    """A path that is not `sys.executable` but genuinely resolves on this machine.
+
+    Simulates "another machine's real, working interpreter" without depending on any
+    particular system layout (a fixed guess like `/usr/bin/python3.12` may not exist on
+    every CI image or platform this suite runs on).
+    """
+    import shutil
+
+    fake = tmp_path / "another-machine-python3"
+    shutil.copy(sys.executable, fake)
+    fake.chmod(0o755)
+    return str(fake)
+
+
+def test_reinstall_does_not_churn_a_committed_entry(tmp_path: Path) -> None:
     # A sync on a second machine must not rewrite an equivalent installed entry with its
-    # own interpreter path -- that is diff churn in a committed file, and a leaked path.
+    # own interpreter path -- that is diff churn in a committed file, and a leaked path --
+    # as long as the committed interpreter still resolves on this machine.
     repo, _ = _fresh_repo()
     install_pretooluse_hooks(repo)
-    _rewrite_interpreter(repo, '"/usr/bin/python3.12"')
+    other = _fake_but_real_interpreter(tmp_path)
+    _rewrite_interpreter(repo, f'"{other}"')
     before = (repo / ".claude" / "settings.json").read_text(encoding="utf-8")
     install_pretooluse_hooks(repo)
     after = (repo / ".claude" / "settings.json").read_text(encoding="utf-8")
-    assert json.loads(after) == json.loads(before), "an equivalent installed entry was re-baked"
+    assert json.loads(after) == json.loads(before), "an equivalent, still-runnable installed entry was re-baked"
+
+
+def test_reinstall_rebakes_an_interpreter_that_no_longer_resolves() -> None:
+    # The Windows regression CodeRabbit flagged on this PR (chock#73): a `.claude/settings.json`
+    # baked on a POSIX machine and cloned elsewhere carries an interpreter path that does not
+    # exist there, so Claude Code cannot even start the guard -- silent FAIL_OPEN. Reuse-to-
+    # avoid-diff-churn must not extend to a hook that can never start.
+    repo, _ = _fresh_repo()
+    install_pretooluse_hooks(repo)
+    _rewrite_interpreter(repo, '"/usr/local/bin/definitely-not-a-real-interpreter3"')
+    install_pretooluse_hooks(repo)
+    settings = json.loads((repo / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+    assert sys.executable in command, "a dead interpreter path must be rebaked to one that runs here"

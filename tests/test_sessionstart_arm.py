@@ -85,19 +85,56 @@ def test_adopter_sessionstart_entries_survive() -> None:
     assert len(entries) == 2
 
 
-def test_committed_entry_from_another_machine_is_kept_byte_for_byte() -> None:
+def _fake_but_real_interpreter(tmp_path: Path) -> str:
+    """A path that is not `sys.executable` but genuinely resolves on this machine.
+
+    Simulates "another machine's real, working interpreter" without depending on any
+    particular system layout (a fixed guess like `/usr/bin/python3.12` may not exist on
+    every CI image or platform this suite runs on).
+    """
+    import shutil
+
+    fake = tmp_path / "another-machine-python3"
+    shutil.copy(sys.executable, fake)
+    fake.chmod(0o755)
+    return str(fake)
+
+
+def test_committed_entry_from_another_machine_is_kept_byte_for_byte(tmp_path: Path) -> None:
     # settings.json may be committed; a sync on a second machine must not rewrite an
-    # equivalent entry with its own interpreter path (diff churn, leaked local path).
+    # equivalent entry with its own interpreter path (diff churn, leaked local path), as
+    # long as the committed interpreter still resolves on this machine.
     repo = _bare_repo()
     install_sessionstart_hook(repo)
     settings_path = repo / ".claude" / "settings.json"
     settings = _settings(repo)
     hook = settings["hooks"]["SessionStart"][0]["hooks"][0]
-    hook["command"] = '"/usr/bin/python3.12"' + hook["command"][hook["command"].index(' "') :]
+    other = _fake_but_real_interpreter(tmp_path)
+    hook["command"] = f'"{other}"' + hook["command"][hook["command"].index(' "') :]
     settings_path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
     before = settings_path.read_text(encoding="utf-8")
     assert install_sessionstart_hook(repo) is False
     assert settings_path.read_text(encoding="utf-8") == before
+
+
+def test_reinstalls_when_the_committed_interpreter_no_longer_resolves(tmp_path: Path) -> None:
+    # The same class of bug CodeRabbit flagged on `.cursor/hooks.json` and
+    # `.claude/settings.json`'s PreToolUse entries (chock#73) applies here too: a SessionStart
+    # entry baked on a POSIX machine and cloned on Windows can never start, which also blocks
+    # the `chock sync` self-repair path this hook exists to run. Reuse-to-avoid-diff-churn
+    # must not extend to an interpreter that cannot start.
+    repo = _bare_repo()
+    install_sessionstart_hook(repo)
+    settings_path = repo / ".claude" / "settings.json"
+    settings = _settings(repo)
+    hook = settings["hooks"]["SessionStart"][0]["hooks"][0]
+    hook["command"] = (
+        '"/usr/local/bin/definitely-not-a-real-interpreter3"' + hook["command"][hook["command"].index(' "') :]
+    )
+    settings_path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
+    assert install_sessionstart_hook(repo) is True
+    command = _entry_command(_settings(repo))
+    assert sys.executable in command, "a dead interpreter path must be rebaked to one that runs here"
 
 
 def _load_runtime(path: Path):

@@ -26,6 +26,7 @@ from pathlib import Path
 from chock.emit import write_generated_json
 from chock.hooks.pretooluse_install import (
     _bake_interpreter,
+    _interpreter_runs_here,
     _normalize_fragment,
 )
 from chock.hooks.runtime_vendor import vendor_runtime
@@ -99,7 +100,7 @@ def install_cursor_hooks(repo_root: Path) -> list[str]:
     def _install_form(entry: dict) -> dict:
         wanted = _normalize_entry(entry)
         for installed in ours_before:
-            if _normalize_entry(installed) == wanted:
+            if _normalize_entry(installed) == wanted and _interpreter_runs_here(_wrap(installed)):
                 return installed  # same hook under another interpreter: keep it byte-for-byte
         return _bake_entry(entry)
 

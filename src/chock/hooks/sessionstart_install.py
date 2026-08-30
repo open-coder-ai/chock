@@ -26,6 +26,7 @@ from chock.hooks.pretooluse_install import (
     INTERPRETER_PLACEHOLDER,
     SETTINGS_REL,
     _bake_interpreter,
+    _interpreter_runs_here,
     _normalize_fragment,
 )
 from chock.hooks.runtime_vendor import runtime_rel, vendor_runtime
@@ -87,7 +88,7 @@ def install_sessionstart_hook(repo_root: Path) -> bool:
     wanted = _normalize_fragment(ARM_FRAGMENT)
     install_form = None
     for entry in ours_before:
-        if _normalize_fragment(entry) == wanted:
+        if _normalize_fragment(entry) == wanted and _interpreter_runs_here(entry):
             install_form = entry  # same hook under another interpreter: keep it byte-for-byte
             break
     if install_form is None:

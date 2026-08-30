@@ -97,18 +97,57 @@ def test_install_bakes_and_preserves_foreign_entries() -> None:
     assert sys.executable in entries[1]["command"]
 
 
-def test_reinstall_does_not_churn_a_committed_entry() -> None:
+def _fake_but_real_interpreter(tmp_path: Path) -> str:
+    """A path that is not `sys.executable` but genuinely resolves on this machine.
+
+    Simulates "another machine's real, working interpreter" without depending on any
+    particular system layout (a fixed guess like `/usr/bin/python3.12` may not exist on
+    every CI image or platform this suite runs on).
+    """
+    import shutil
+
+    fake = tmp_path / "another-machine-python3"
+    shutil.copy(sys.executable, fake)
+    fake.chmod(0o755)
+    return str(fake)
+
+
+def test_reinstall_does_not_churn_a_committed_entry(tmp_path: Path) -> None:
+    # As long as the committed interpreter still resolves here, a sync on a second machine
+    # must not rewrite an equivalent installed entry with its own interpreter path -- that
+    # is diff churn in a committed file, and a leaked path.
     repo = _fresh_repo()
     install_cursor_hooks(repo)
     hooks_path = repo / ".cursor" / "hooks.json"
     settings = json.loads(hooks_path.read_text(encoding="utf-8"))
     entry = settings["hooks"]["beforeShellExecution"][0]
-    entry["command"] = '"/usr/bin/python3.12"' + entry["command"][entry["command"].index(' "') :]
+    other = _fake_but_real_interpreter(tmp_path)
+    entry["command"] = f'"{other}"' + entry["command"][entry["command"].index(' "') :]
     hooks_path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
     before = hooks_path.read_text(encoding="utf-8")
     install_cursor_hooks(repo)
     assert json.loads(hooks_path.read_text(encoding="utf-8")) == json.loads(before)
     assert "block-destructive-commands" in installed_cursor_policy_ids(repo)
+
+
+def test_reinstall_rebakes_an_interpreter_that_no_longer_resolves() -> None:
+    # The Windows regression CodeRabbit flagged (chock#73, .cursor/hooks.json:5): all four
+    # entries hardcoded `/usr/local/bin/python3`, which does not exist on native Windows, so
+    # Cursor cannot even start `cursor.py` and every guard silently fails OPEN. Reuse-to-
+    # avoid-diff-churn must not extend to a hook that can never start.
+    repo = _fresh_repo()
+    install_cursor_hooks(repo)
+    hooks_path = repo / ".cursor" / "hooks.json"
+    settings = json.loads(hooks_path.read_text(encoding="utf-8"))
+    entry = settings["hooks"]["beforeShellExecution"][0]
+    entry["command"] = (
+        '"/usr/local/bin/definitely-not-a-real-interpreter3"' + entry["command"][entry["command"].index(' "') :]
+    )
+    hooks_path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
+    install_cursor_hooks(repo)
+    settings = json.loads(hooks_path.read_text(encoding="utf-8"))
+    command = settings["hooks"]["beforeShellExecution"][0]["command"]
+    assert sys.executable in command, "a dead interpreter path must be rebaked to one that runs here"
 
 
 def test_coverage_witness_is_per_agent() -> None:

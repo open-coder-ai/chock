@@ -78,6 +78,33 @@ def _normalize_fragment(fragment: dict) -> dict:
     return normalized
 
 
+def _interpreter_runs_here(fragment: dict) -> bool:
+    """Whether every baked interpreter in `fragment` still resolves on this machine.
+
+    `_install_form` keeps an installed entry byte-for-byte when its guard content matches
+    what would be (re)installed, to avoid diff churn across machines running different but
+    equally working interpreters (see `_normalize_fragment`). That reuse must not extend to
+    an interpreter this machine cannot even exec -- a committed `.claude/settings.json` baked
+    on a POSIX machine and cloned on Windows has no such path, so reuse was silently keeping a
+    hook that can never start, the exact FAIL_OPEN hole `_bake_interpreter`'s "provably runs"
+    promise exists to close. Only a genuinely missing interpreter forces a rebake; anything
+    that still resolves keeps the diff-churn guarantee untouched.
+    """
+    for hook in fragment.get("hooks", []) or []:
+        command = hook.get("command") if isinstance(hook, dict) else None
+        if not isinstance(command, str) or _BIN_MARKER not in command:
+            continue
+        match = _COMMAND_TAIL_RE.match(command)
+        if not match:
+            continue
+        interpreter = match.group(0).strip().strip('"')
+        if not interpreter or interpreter == INTERPRETER_PLACEHOLDER:
+            continue  # unbaked fragment: nothing installed yet to validate
+        if not Path(interpreter).is_file():
+            return False
+    return True
+
+
 def vendor_adapter(repo_root: Path) -> Path:
     """Write the stdlib-only, agentseam-bundled Claude Code runtime into the consumer repo."""
     return vendor_runtime(repo_root, "claude_code")
@@ -136,7 +163,7 @@ def install_pretooluse_hooks(repo_root: Path) -> list[str]:
         # a leaked local path at worst. Only a new or genuinely changed fragment is baked.
         wanted = _normalize_fragment(fragment)
         for entry in ours_before:
-            if _normalize_fragment(entry) == wanted:
+            if _normalize_fragment(entry) == wanted and _interpreter_runs_here(entry):
                 return entry
         return _bake_interpreter(fragment)
 
