@@ -44,14 +44,6 @@ _SESSION_START_AGENTS = frozenset({"claude_code"})
 #: silent regression for anyone relying on it.
 RUNTIME_AGENTS = ("claude_code", "codex_cli", "cursor", "vscode_copilot")
 
-#: Top-level definitions excluded from extraction: `main` and the CLI-only bits of the
-#: source modules, which either collide with names agentseam's own bundle template defines
-#: (`main`) or exist only for that module's standalone/CLI use, not the handler.
-_EXCLUDE = {
-    guard_runner: frozenset(),
-    sessionstart: frozenset(),
-}
-
 _IMPORTS = """\
 import os as _chock_os
 import shlex as _chock_shlex
@@ -86,20 +78,15 @@ class _Renamer(ast.NodeTransformer):
 
 
 def _extract(module) -> str:
-    """Every top-level def/assignment in `module`, source order, minus `_EXCLUDE[module]`
-    and its own imports -- the same shape `agentseam.bundler._extract_with_deps` pulls out
-    of ITS source modules, applied to chock's own."""
+    """Every top-level def/assignment in `module`, source order, minus its own imports --
+    the same shape `agentseam.bundler._extract_with_deps` pulls out of ITS source modules,
+    applied to chock's own."""
     source = inspect.getsource(module)
     tree = ast.parse(source)
-    skip = _EXCLUDE[module]
     segments = []
     for node in tree.body:
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name not in skip:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Assign)):
             segments.append(_Renamer().visit(ast.parse(ast.get_source_segment(source, node))))
-        elif isinstance(node, ast.Assign):
-            names = {t.id for t in node.targets if isinstance(t, ast.Name)}
-            if names - skip:
-                segments.append(_Renamer().visit(ast.parse(ast.get_source_segment(source, node))))
     return "\n\n".join(ast.unparse(seg) for seg in segments) + "\n"
 
 

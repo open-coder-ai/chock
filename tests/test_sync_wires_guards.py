@@ -38,7 +38,13 @@ def _fresh_repo() -> Path:
     env = {**os.environ, "PYTHONPATH": str(FRAMEWORK_ROOT / "src")}
     subprocess.run(["git", "init", "-q", "."], cwd=repo, check=True)
     subprocess.run(
-        [sys.executable, "-m", "chock.cli", "init", ".", "--skip-hooks"], cwd=repo, capture_output=True, env=env
+        # Explicit --agents: coverage.json only enumerates the repo's configured
+        # supported_agents, and the default trio (claude/copilot/gemini) omits cursor --
+        # this fixture's own assertions need both claude and cursor selected.
+        [sys.executable, "-m", "chock.cli", "init", ".", "--skip-hooks", "--agents", "claude", "cursor"],
+        cwd=repo,
+        capture_output=True,
+        env=env,
     )
     shutil.copytree(
         baseline_policy("block-destructive-commands"),
@@ -66,7 +72,7 @@ def test_one_sync_wires_and_claims_every_guard_surface() -> None:
     # claude_code's PreToolUse is FAIL_OPEN (agentseam.matrix_data), so installed it reads
     # `best-effort`, never a flat `enforced` (owner decision #9).
     assert row["claude"] == "best-effort", f"coverage must reflect the wiring sync just did: {row}"
-    assert row.get("cursor", "enforceable") == "enforceable", row
+    assert row["cursor"] == "enforceable", row
 
 
 def test_second_sync_is_stable() -> None:

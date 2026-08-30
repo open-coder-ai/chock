@@ -30,6 +30,7 @@ def test_comma_separated_agents(tmp_path):
 def test_space_separated_agents(tmp_path):
     repo = tmp_path / "repo"
     cmd_init([str(repo), "--skip-hooks", "--agents", "claude", "cursor"])
+    assert (repo / "CLAUDE.md").exists()
     assert not (repo / ".cursorrules").exists()
     assert not (repo / ".gemini").exists()
 

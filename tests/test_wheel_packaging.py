@@ -69,7 +69,9 @@ def test_no_inline_duplicate_of_a_packaged_template() -> None:
     drifted 962 bytes from its packaged copy, the copy `references/templates.md` tells an
     agent is the catalog of generated output.
 
-    Now every adapter template is read, so the audit is over the whole set.
+    Per-agent instruction files no longer come from a packaged template at all (see below),
+    so this audits only the packaged templates that remain: the five fixed paths below, not
+    the whole set the docstring above once described.
     """
     import chock.scaffold.init as init
 

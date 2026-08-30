@@ -97,7 +97,7 @@ def test_argv_guard_receives_the_stdin_command(claude_code_runtime: Path) -> Non
     assert _denied(_adapter(claude_code_runtime, "rm -rf /")), "the runtime must bridge stdin to argv"
 
 
-def test_unparseable_input_allows_and_says_so(claude_code_runtime: Path) -> None:
+def test_unparseable_input_allows(claude_code_runtime: Path) -> None:
     """Failing closed here would block every Bash call on a malformed payload."""
     result = subprocess.run(
         [sys.executable, str(claude_code_runtime), "--guard", str(GUARD)],
@@ -109,7 +109,7 @@ def test_unparseable_input_allows_and_says_so(claude_code_runtime: Path) -> None
     assert result.stdout.strip() == ""
 
 
-def test_missing_guard_allows_and_says_so(tmp_path: Path, claude_code_runtime: Path) -> None:
+def test_missing_guard_allows(tmp_path: Path, claude_code_runtime: Path) -> None:
     result = _adapter(claude_code_runtime, "rm -rf /", guard=tmp_path / "absent.sh")
     assert result.returncode == 0
     assert not _denied(result)

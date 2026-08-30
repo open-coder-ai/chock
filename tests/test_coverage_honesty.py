@@ -106,7 +106,7 @@ def test_pre_tool_use_alone_is_not_enforced() -> None:
     assert coverage_level({Surface.PRE_TOOL_USE}, "claude", pre_tool_use_installed=True) == "best-effort"
 
 
-def test_unsupported_agent_reports_unsupported() -> None:
+def test_unsupported_agent_reports_none() -> None:
     assert coverage_level({Surface.GIT_HOOK}, "no-such-agent") == "none"
 
 

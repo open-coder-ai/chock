@@ -98,7 +98,7 @@ def test_a_utf8_bom_payload_is_still_checked(runtimes) -> None:
 
 def test_non_ascii_in_a_command_is_not_mangled(runtimes) -> None:
     """The same locale-decoding bug would corrupt any non-ASCII path a command carries."""
-    payload = json.dumps({"command": "rm -rf /tmp/café-日本", "cwd": "."}).encode("utf-8")
+    payload = json.dumps({"command": "rm -rf /tmp/café-日本", "cwd": "."}, ensure_ascii=False).encode("utf-8")
 
     result = _run(runtimes, "cursor", payload)
 

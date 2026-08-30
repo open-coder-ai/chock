@@ -62,6 +62,19 @@ POINTER_TEXT = (
 )
 
 
+def deselected_agents(selected: list[str]) -> list[str]:
+    """Chock agent ids to pass to `remove_instructions` for a given `selected` set.
+
+    Not simply `CHOCK_AGENT.keys() - selected`: `copilot` and `vscode` share one mapped
+    target (`vscode_copilot`), so selecting only one of them would put the other in that
+    naive complement -- and `remove_instructions` would then strip the marker block
+    `write_instructions` just wrote for the alias that *is* selected. An id is only
+    genuinely deselected when no selected id maps to the same agentseam target.
+    """
+    selected_targets = {CHOCK_AGENT[a] for a in selected if a in CHOCK_AGENT}
+    return sorted(a for a in CHOCK_AGENT if a not in selected and CHOCK_AGENT[a] not in selected_targets)
+
+
 def parse_agent_selection(groups: list[str]) -> list[str]:
     """Split comma- or space-separated --agents values; reject names not in CHOCK_AGENT.
 

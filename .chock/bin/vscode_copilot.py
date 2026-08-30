@@ -592,6 +592,8 @@ GATE_LOG_ENV = 'CHOCK_GATE_LOG'
 
 _LOG_MAX_BYTES = 1048576
 
+_GUARD_TIMEOUT_SECONDS = 30
+
 def guard_path_from_argv(argv: list[str]) -> _chock_Path | None:
     """The `--guard <path>` argument a vendored runtime was invoked with, or None.
 
@@ -645,8 +647,8 @@ def run_guard(guard: _chock_Path, command: str) -> bool | None:
         return None
     try:
         env = {**_chock_os.environ, 'CHOCK_RAW_COMMAND': command}
-        proc = _chock_subprocess.run([bash, str(guard), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env)
-    except (OSError, UnicodeError) as exc:
+        proc = _chock_subprocess.run([bash, str(guard), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=_GUARD_TIMEOUT_SECONDS)
+    except (OSError, UnicodeError, _chock_subprocess.TimeoutExpired) as exc:
         print(f'chock: guard could not run, not checked: {exc}', file=sys.stderr)
         return None
     if proc.returncode == GUARD_VIOLATION:

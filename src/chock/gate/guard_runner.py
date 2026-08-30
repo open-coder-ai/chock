@@ -40,6 +40,11 @@ _BASH_CANDIDATES = (
 GATE_LOG_ENV = "CHOCK_GATE_LOG"
 _LOG_MAX_BYTES = 1_048_576
 
+# A guard that hangs (stdin, a lock, the network) must not hang the tool call it is gating.
+# 30s is generous for a guard script's actual work (a dependency check, a pattern match) while
+# still bounding the worst case; a timeout is "could not run", same as any other guard crash.
+_GUARD_TIMEOUT_SECONDS = 30
+
 
 def guard_path_from_argv(argv: list[str]) -> Path | None:
     """The `--guard <path>` argument a vendored runtime was invoked with, or None.
@@ -111,9 +116,15 @@ def run_guard(guard: Path, command: str) -> bool | None:
         # PowerShell long flags split into characters (-Recurse -> -R -e -c ...).
         env = {**os.environ, "CHOCK_RAW_COMMAND": command}
         proc = subprocess.run(
-            [bash, str(guard), *args], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env
+            [bash, str(guard), *args],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=env,
+            timeout=_GUARD_TIMEOUT_SECONDS,
         )
-    except (OSError, UnicodeError) as exc:
+    except (OSError, UnicodeError, subprocess.TimeoutExpired) as exc:
         print(f"chock: guard could not run, not checked: {exc}", file=sys.stderr)
         return None
 

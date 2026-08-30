@@ -17,6 +17,7 @@ from chock.hooks.install import NOT_A_GIT_REPO, get_hooks_dir, install_validate_
 from chock.lock import build_lock, write_lock
 from chock.scaffold.adapters import (
     CHOCK_AGENT,
+    deselected_agents,
     parse_agent_selection,
     remove_instructions,
     write_instructions,
@@ -244,7 +245,7 @@ def cmd_init(argv: list[str] | None = None) -> int:
     cmd_refresh(["--repo", str(repo_root)])
 
     write_instructions(repo_root, agents)
-    remove_instructions(repo_root, sorted(set(CHOCK_AGENT) - set(agents)))
+    remove_instructions(repo_root, deselected_agents(agents))
 
     if not skip_hooks:
         install_validate_hook(get_hooks_dir(repo_root), repo_root)
