@@ -1,0 +1,14 @@
+{
+  "name": "chock",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "postCreateCommand": "pip install -e '.[dev]' pre-commit && pre-commit install --hook-type commit-msg",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python", "charliermarsh.ruff"],
+      "settings": {
+        "python.testing.pytestEnabled": true,
+        "python.testing.pytestArgs": ["-q"]
+      }
+    }
+  }
+}
