@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: If you use this software, please cite it as below.
+title: chock
+abstract: >-
+  Governance-as-code for AI coding agents: write a rule once, enforce it on
+  git hooks, CI, and every agent.
+type: software
+authors:
+  - name: Open Coder AI
+version: 0.6.0
+license: Apache-2.0
+repository-code: https://github.com/open-coder-ai/chock
+url: https://github.com/open-coder-ai/chock

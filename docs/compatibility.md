@@ -11,8 +11,8 @@ owed a statement about what may change underneath them.
 ## Where the project is: 0.x
 
 **Chock is pre-1.0, and pre-1.0 means the surfaces below can change in any release.**
-The published version is on the [PyPI badge](https://pypi.org/project/chock/)
-(`0.4.0` at this writing). Treat every guarantee here as a description
+The published version is on the [PyPI badge](https://pypi.org/project/chock/).
+Treat every guarantee here as a description
 of intent and process, not a promise of stability — the promise starts at 1.0.
 
 Said plainly because the alternative is worse: a compatibility page that implies stability the
