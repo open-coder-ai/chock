@@ -9,7 +9,10 @@ You do **not** need to write Python to make a real difference here:
 - 📝 **Docs & examples** — clarify a confusing section, add a real-world policy example, fix a typo.
 - 🐛 **Bug reports** — a good reproduction is worth its weight in gold. [Open an issue](https://github.com/open-coder-ai/chock/issues/new).
 - 🎨 **Design & DX** — diagrams, a demo GIF, better CLI output, a clearer error message.
-- 🛡️ **New policies** — propose a guardrail your team or project needs (a rule, hook, or skill).
+- 🛡️ **New policies — the contribution we want most.** Write a policy manifest for the
+  guardrail your stack needs and send it to the catalog: [open a Policy Proposal
+  issue](https://github.com/open-coder-ai/chock/issues/new?template=policy_proposal.md)
+  to start one, or see [Anatomy of a good policy PR](#-anatomy-of-a-good-policy-pr) below.
 - 💬 **Ideas & feedback** — start a [Discussion](https://github.com/open-coder-ai/chock/discussions). Telling us what's confusing *is* a contribution.
 
 ## 🛠️ Development Setup
@@ -116,6 +119,18 @@ git commit --amend -s --no-edit && git push --force-with-lease
 
 (or for several commits, `git rebase --signoff main`). The name and email must be real enough
 to stand behind — the sign-off is you certifying the DCO, not a formality.
+
+**Automate it** so you never discover the requirement via a CI rejection: install
+[pre-commit](https://pre-commit.com) once, then enable the `commit-msg` hook this repo
+ships (`.pre-commit-config.yaml`) —
+
+```bash
+pip install pre-commit
+pre-commit install --hook-type commit-msg
+```
+
+— and every commit gets the `Signed-off-by` trailer automatically from your `git config
+user.name` / `user.email`, whether or not you remembered `-s`.
 
 ## 🤖 Agent-authored code
 
