@@ -32,15 +32,24 @@ keywords = [
 ]
 # No License classifier: deprecated alongside a PEP 639 license expression.
 classifiers = [
+    # Stays Alpha until the 1.0 line docs/compatibility.md promises: "chock is pre-1.0 --
+    # the compatibility promise starts at 1.0". A stability claim here that the docs
+    # contradict is the kind of thing this project does not ship.
     "Development Status :: 3 - Alpha",
+    # `chock` is a console script (see [project.scripts]); there is no GUI or web surface.
+    "Environment :: Console",
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    # No `Typing :: Typed`: the package ships no py.typed marker, so the claim would be
+    # false to any type checker that went looking.
+    "Topic :: Security",
     "Topic :: Software Development",
     "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Version Control :: Git",
 ]
 dependencies = [
     "pyyaml>=6.0",
