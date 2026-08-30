@@ -15,6 +15,12 @@ import re
 
 import cairosvg
 
+#: Assets are read and written beside this file, never relative to the working directory.
+#: The check job runs from docs/assets/ while the regenerate instruction printed on failure
+#: says to run from the repository root; with bare filenames those two disagree, and the
+#: root invocation quietly writes a second copy of the card somewhere nothing reads it.
+ASSETS = pathlib.Path(__file__).resolve().parent
+
 NAVY = "#0D1626"
 PANEL = "#111E33"
 GOLD = "#D9B45C"
@@ -189,9 +195,10 @@ def card(
 
 
 def write(svg, stem, w, h, png_stem=None):
-    with open(f"{stem}.svg", "w", encoding="utf-8") as fh:
-        fh.write(svg)
-    cairosvg.svg2png(bytestring=svg.encode(), write_to=f"{png_stem or stem}.png", output_width=w, output_height=h)
+    (ASSETS / f"{stem}.svg").write_text(svg, encoding="utf-8")
+    cairosvg.svg2png(
+        bytestring=svg.encode(), write_to=str(ASSETS / f"{png_stem or stem}.png"), output_width=w, output_height=h
+    )
 
 
 def check(svg, stem):
@@ -207,9 +214,9 @@ def check(svg, stem):
     repository data, so it is byte-identical on any machine, while a PNG depends on the
     font being installed on the renderer. Any drift in the facts reaches the SVG first.
     """
-    path = pathlib.Path(f"{stem}.svg")
+    path = ASSETS / f"{stem}.svg"
     if not path.exists():
-        return [f"{path} is missing"]
+        return [f"{path.name} is missing"]
     committed = path.read_text(encoding="utf-8")
     if committed == svg:
         return []
@@ -222,4 +229,4 @@ def check(svg, stem):
         detail.append("  now present: " + ", ".join(added[:8]) + (" …" if len(added) > 8 else ""))
     if removed:
         detail.append("  no longer:   " + ", ".join(removed[:8]) + (" …" if len(removed) > 8 else ""))
-    return [f"{path} is out of date"] + detail
+    return [f"{path.name} is out of date"] + detail
