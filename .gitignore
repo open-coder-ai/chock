@@ -8,7 +8,9 @@ venv/
 
 # IDE
 .idea/
-.vscode/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/tasks.json
 *.swp
 *.swo
 

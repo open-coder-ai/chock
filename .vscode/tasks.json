@@ -1,0 +1,26 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "chock: test",
+      "type": "shell",
+      "command": "pytest -q",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "chock: lint",
+      "type": "shell",
+      "command": "ruff check . && ruff format --check .",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "chock: validate",
+      "type": "shell",
+      "command": "chock check && chock check --only matrix",
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}
