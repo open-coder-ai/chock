@@ -111,6 +111,39 @@ def test_every_cell_matches_the_code(path: Path, columns: list[Surface]) -> None
     assert not wrong, f"{path.name} disagrees with surfaces.py:\n  " + "\n  ".join(wrong)
 
 
+def _omission_caveat() -> str:
+    """The one README paragraph that says why three surfaces are missing from its table.
+
+    Scoped to that paragraph, and whitespace-flattened so a rewrap does not read as a deletion.
+    Searching the whole file instead let the caveat be deleted outright while the phrases
+    survived somewhere else -- a comment, a changelog line -- and the test still passed.
+    """
+    # Flatten first, then look: searching the raw text meant a rewrap that split the anchor
+    # phrase across two lines read as a deleted caveat. The check has to survive an edit that
+    # changes nothing but line breaks, or it trains people to work around it.
+    paragraphs = [" ".join(p.split()) for p in README.read_text(encoding="utf-8").split("\n\n")]
+    found = [p for p in paragraphs if "surfaces are absent" in p]
+    assert len(found) == 1, f"expected exactly one omission caveat, found {len(found)}"
+    return found[0]
+
+
+def _reason_for(caveat: str, surface: Surface) -> str:
+    """The slice of `caveat` that belongs to `surface`: its name up to the next surface named.
+
+    Membership in the paragraph is not enough. Every reason here is true of exactly one surface,
+    so three correct phrases attached to the wrong three surfaces is a page of false statements
+    that a whole-paragraph search waves through. Backticks delimit the names, which is also what
+    keeps `gateway` from matching inside `mcp-gateway`.
+    """
+    marks = sorted(
+        (caveat.index(f"`{s.value}`"), s) for s in (Surface.MANAGED_SETTING, Surface.GATEWAY, Surface.MCP_GATEWAY)
+    )
+    for i, (start, at) in enumerate(marks):
+        if at is surface:
+            return caveat[start : marks[i + 1][0] if i + 1 < len(marks) else len(caveat)]
+    raise AssertionError(f"{surface.value} is not named in the caveat")
+
+
 def test_readme_says_why_the_absent_surfaces_are_absent() -> None:
     """Dropping a column is a claim of its own: the reader has to be told, not left to notice.
 
@@ -122,21 +155,24 @@ def test_readme_says_why_the_absent_surfaces_are_absent() -> None:
     from chock.compile.compiler import EMITTERS
     from chock.compile.surfaces import INSTALLED_SURFACES, coverage_level
 
-    readme = README.read_text(encoding="utf-8")
     #: The stated reason for each omission, and the phrase the README carries it in.
     omitted = {
         Surface.MANAGED_SETTING: "compiled but not installed",
         Surface.GATEWAY: "modelled but not yet emitted",
         Surface.MCP_GATEWAY: "per-client witness",
     }
+    caveat = _omission_caveat()
     for surface, phrase in omitted.items():
+        assert phrase in _reason_for(caveat, surface), (
+            f"the caveat no longer gives `{surface.value}` the reason {phrase!r}"
+        )
+    for surface in omitted:
         # Necessary, not sufficient: a policy emitting only this surface grades `none` for every
         # agent. Necessary because that is the claim; not sufficient because a witness-gated
         # surface (`pre-tool-use` with no install) also grades `none` while genuinely belonging
         # in the table. So each phrase's own narrower fact is pinned separately below.
         crediting = [a for a in SURFACE_AGENTS if coverage_level({surface}, a) != "none"]
         assert not crediting, f"{surface.value} now credits {crediting}; the README owes it a column"
-        assert phrase in readme, f"the README no longer says why {surface.value} is absent"
 
     assert Surface.MANAGED_SETTING not in INSTALLED_SURFACES, "an installer landed; 'not installed' is now false"
     assert Surface.GATEWAY not in EMITTERS, "gateway emits now; 'not yet emitted' is now false"
