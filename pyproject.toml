@@ -12,7 +12,24 @@ requires-python = ">=3.11"
 # No email: SECURITY.md routes vulnerability reports through GitHub advisories, and a
 # placeholder address would ship to PyPI as the project contact.
 authors = [{ name = "Open Coder AI" }]
-keywords = ["ai", "agents", "governance", "policy", "guardrails", "cli"]
+keywords = [
+    "ai",
+    "agents",
+    "governance",
+    "policy",
+    "guardrails",
+    "cli",
+    "guardrails-for-coding-agents",
+    "claude-code",
+    "cursor",
+    "github-copilot",
+    "codex",
+    "gemini-cli",
+    "agents-md",
+    "pretooluse",
+    "agent-hooks",
+    "git-hooks",
+]
 # No License classifier: deprecated alongside a PEP 639 license expression.
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -21,6 +38,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development",
     "Topic :: Software Development :: Quality Assurance",
 ]
@@ -41,6 +59,8 @@ dev = [
     # Pin the minor: ruff's formatter changes behavior across minors (0.16 began
     # formatting Python inside Markdown), which silently breaks CI on unrelated PRs.
     "ruff>=0.16,<0.17",
+    # Runs the DCO sign-off hook in .pre-commit-config.yaml.
+    "pre-commit>=3.0",
 ]
 build = [
     "build>=1.0",

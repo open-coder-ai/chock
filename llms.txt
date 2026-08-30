@@ -1,0 +1,39 @@
+# chock
+
+> Governance-as-code for AI coding agents: write a rule once, enforce it on git hooks, CI,
+> and every agent.
+
+Chock compiles a policy you author once into the strongest enforcement surface each agent
+supports (git hook, CI gate, `AGENTS.md` rule, Claude Code / Cursor pre-tool-use hooks,
+Copilot / VS Code agent hooks, managed settings) and reports coverage per agent using an
+honest taxonomy: `enforced`, `enforced-at-commit`, `advisory`, `planned`, `out of scope`.
+An enforcement level is only claimed when there is an install witness for it — never
+because a rule merely compiled.
+
+Chock is pre-1.0: the CLI surface, manifest schema, and compiled output can change between
+MINOR releases. See Compatibility below for what is actually guaranteed today.
+
+## Start here
+
+- [Getting Started](https://github.com/open-coder-ai/chock/blob/main/docs/getting-started.md): install, onboard a repo, author your first policy
+- [Core Concepts](https://github.com/open-coder-ai/chock/blob/main/docs/concepts.md): artifacts, manifests, surfaces, coverage
+- [CLI Reference](https://github.com/open-coder-ai/chock/blob/main/docs/cli-reference.md): every command, flag, and example
+
+## What it enforces, honestly
+
+- [Agentic-Risk Coverage](https://github.com/open-coder-ai/chock/blob/main/docs/agentic-risk-coverage.md): problem-first index of what Chock stops, at which honest tier, and what it does not
+- [Enforcement Surfaces](https://github.com/open-coder-ai/chock/blob/main/docs/enforcement-surfaces.md): the eight surfaces and the per-agent coverage matrix
+- [Compatibility](https://github.com/open-coder-ai/chock/blob/main/docs/compatibility.md): pre-1.0 stability guarantees — what may change between versions, and what pinning guarantees
+
+## Policies and catalog
+
+- [Policies](https://github.com/open-coder-ai/chock/blob/main/docs/baseline-policies.md): what the base catalog offers, and how to install and customize it
+- [Authoring Policies](https://github.com/open-coder-ai/chock/blob/main/docs/authoring-policies.md): write rules, hooks, skills, and subagents
+- [Registry & Lockfile](https://github.com/open-coder-ai/chock/blob/main/docs/registry-and-lockfile.md): reproducible, hash-pinned distribution
+
+## Other
+
+- [Architecture](https://github.com/open-coder-ai/chock/blob/main/docs/architecture.md): the author → compile → enforce model
+- [Agent Plugins](https://github.com/open-coder-ai/chock/blob/main/docs/agent-plugins.md): packaging policies for the open plugin standard, and what that does not buy
+- [Contributing](https://github.com/open-coder-ai/chock/blob/main/CONTRIBUTING.md): development setup and how to propose a policy
+- [Changelog](https://github.com/open-coder-ai/chock/blob/main/CHANGELOG.md)
