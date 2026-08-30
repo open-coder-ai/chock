@@ -1,0 +1,17 @@
+name: "Chock CodeQL config"
+
+# .chock/bin/ is agentseam's bundler output, not hand-written source -- see the identical
+# ruff exclusion and its rationale in pyproject.toml's [tool.ruff] `extend-exclude` comment.
+# Several independent source modules (contract, one per-vendor adapter, chock's own handler)
+# are composed source-level into one file; composition can duplicate a module-level import
+# two of those sources both happen to make (e.g. `import json`), which is not something
+# either source module did wrong. CodeQL does not read ruff config, so it re-reports the
+# same non-issue as "Module is imported more than once" -- excluded here for the identical
+# reason ruff excludes it, so the two decisions stay visibly one decision.
+#
+# Hand-editing the generated files instead is not an option: they are byte-pinned by
+# VENDORED_RUNTIMES (src/chock/vendored.py) and overwritten on the next `chock sync`. The
+# root cause -- agentseam's bundler not de-duplicating module-level imports when composing --
+# is tracked upstream, not fixed here: https://github.com/open-coder-ai/agentseam/issues/85
+paths-ignore:
+  - ".chock/bin/**"

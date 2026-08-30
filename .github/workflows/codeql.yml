@@ -43,6 +43,10 @@ jobs:
           # low on large codebases. This one is small, solo-reviewed, and its whole claim is
           # carefulness, so the broader suite is affordable and appropriate.
           queries: security-and-quality
+          # .chock/bin/ is agentseam bundler output, excluded here for the same reason
+          # pyproject.toml's ruff `extend-exclude` already excludes it -- see
+          # .github/codeql/codeql-config.yml for the shared rationale.
+          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd  # v4.37.7
