@@ -1,0 +1,11 @@
+repos:
+  - repo: local
+    hooks:
+      - id: dco-signoff
+        name: DCO sign-off
+        description: >-
+          Adds the Signed-off-by trailer the DCO requires (see CONTRIBUTING.md),
+          the same trailer `git commit -s` writes.
+        entry: .pre-commit-hooks/dco-signoff.sh
+        language: script
+        stages: [commit-msg]
