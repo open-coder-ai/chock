@@ -238,3 +238,43 @@ def test_enable_and_disable_agree_on_unknown_policies(tmp_path: Path) -> None:
     disable = sp.run([*base, "disable", "no-such-policy"], cwd=env_root, capture_output=True, env=env)
     assert enable.returncode != 0, "enable accepted an unknown policy id"
     assert disable.returncode != 0, "disable accepted an unknown policy id"
+
+
+def test_readme_agents_md_sample_is_the_block_the_code_writes() -> None:
+    """The README shows the compiled `AGENTS.md` block and calls it verbatim. It has to be.
+
+    A sample that drifts from `POINTER_BLOCK` is worse than no sample: it teaches an adopter
+    to expect wiring `chock sync` does not produce, and it is the one snippet on the page a
+    reader can check against their own repo in five seconds.
+    """
+    from chock.scaffold.agents_md import POINTER_BLOCK
+
+    lines = [ln for ln in POINTER_BLOCK.splitlines() if ln.startswith(("before(", "fresh_clone:", "scope:"))]
+    assert len(lines) == 3, "POINTER_BLOCK's shape changed; the README sample needs rewriting, not re-anchoring"
+
+    readme = (FRAMEWORK_ROOT / "README.md").read_text(encoding="utf-8")
+    missing = [ln for ln in lines if ln not in readme]
+    assert not missing, "README's AGENTS.md sample no longer matches POINTER_BLOCK:\n  " + "\n  ".join(missing)
+    # Contiguous and in order, not merely all present somewhere. The README calls the sample
+    # verbatim; three correct lines shuffled or split apart are no longer the block chock writes,
+    # and checking only membership passes on a rearrangement -- which is what a reader would copy.
+    assert "\n".join(lines) in readme, "the README's sample has the right lines in the wrong shape"
+
+
+def test_readme_policy_example_points_at_a_policy_that_exists() -> None:
+    """The `.agents/policies/scan-secrets/` walkthrough is this repo's own installed policy.
+
+    The README names its files and quotes its manifest keys; if the policy is renamed or its
+    gate reshaped, the walkthrough becomes fiction about the repo the reader is looking at.
+    """
+    import yaml
+
+    policy = FRAMEWORK_ROOT / ".agents" / "policies" / "scan-secrets"
+    readme = (FRAMEWORK_ROOT / "README.md").read_text(encoding="utf-8")
+    assert ".agents/policies/scan-secrets/" in readme, "walkthrough moved; re-point this test"
+    assert (policy / "manifest.yaml").is_file(), "README shows manifest.yaml for a policy that has none"
+    assert (policy / "evals").is_dir(), "README shows an evals/ directory that does not exist"
+
+    gate = yaml.safe_load((policy / "manifest.yaml").read_text(encoding="utf-8"))["hook"]["gate"]
+    quoted = f"kind: {gate['kind']} · on: {gate['on']} · action: {gate['action']}".replace("'", "")
+    assert quoted in readme, f"README describes a gate the manifest no longer declares; it now reads {quoted!r}"

@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/logo.svg" alt="Chock logo: a wheel held by a chock wedge" width="110">
+<img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/logo.svg" alt="Governance-as-code for AI coding agents: write a rule once, enforce it on git hooks, CI, and every agent." width="110">
 
 # Chock
 
-### Governance-as-code for AI coding agents. Write a rule once — every agent obeys it.
+### Governance-as-code for AI coding agents: write a rule once, enforce it on git hooks, CI, and every agent.
 
 Your repo's rules become **deterministic guardrails** — for a team's private codebase or
 a public open-source project — compiled to git hooks, CI gates,
@@ -76,14 +76,17 @@ agent *before the code is written*, and what still arrives has already passed yo
 ## Highlights
 
 - **✍️ Author once, enforce everywhere** — one policy → git hook + CI gate + native
-  pre-execution hooks (Claude Code, Cursor, Copilot CLI, VS Code) + `AGENTS.md`,
-  across 14 agents. One
-  `chock sync` wires all of it; the CI gate is opt-in (`chock sync --ci`) and
+  pre-execution hooks (Claude Code, Cursor, Copilot CLI, VS Code) + `AGENTS.md`, across 14
+  agents. One `chock sync` wires all of it; the CI gate is opt-in (`chock sync --ci`) and
   [coverage only credits any surface once it is wired up](docs/enforcement-surfaces.md).
 - **🛡️ Real guardrails, one command away** — `chock add protect-main-branch` pulls from
   the [catalog](https://github.com/open-coder-ai/chock-catalog): `scan-secrets`,
   `block-destructive-commands`, `block-no-verify`, an OWASP agentic-security pack, and
   more. Installed content is **yours to edit** — nothing upstream overwrites it.
+- **🧱 New rules are content, not code** — a policy is a manifest under
+  `.agents/policies/<id>/`, added with `chock add <id>` or scaffolded with `chock new policy`.
+  Extending the guardrails ships a manifest, never a change to chock's engine.
+  [Authoring policies](docs/authoring-policies.md).
 - **⚙️ Deterministic, not vibes** — gates are declarative and run through a stdlib-only
   vendored runner; guard scripts are plain bash. No LLM calls, no network.
 - **✅ Trust, but verify** — a validation engine, a hash-pinned `chock.lock`, and an eval
@@ -143,16 +146,63 @@ customisation possible at all. New here? Follow the
 > **`chock` not found?** Your Python scripts dir may not be on `PATH`. Use
 > `python -m chock …` — it works regardless of PATH.
 
+## 📂 What lands in your repo
+
+Everything Chock installs is **committed content**, so it travels with every clone and fork.
+A policy is one folder, and the manifest *is* the rule — here is `scan-secrets` in this repo:
+
+```
+.agents/policies/scan-secrets/
+├── manifest.yaml   # kind: content_regex · on: [commit] · action: block
+└── evals/          # cases replayed against that gate on every build
+```
+
+`chock sync` compiles that one manifest into a git hook, a CI gate, each client's native deny
+rule, and a managed block in `AGENTS.md` — written in short codes, so the ambient leg costs an
+agent a few tokens instead of a page of prose. That block, verbatim:
+
+```
+before(any_work): read(.agents/policies/INDEX.md)  # active rules, gates, skills
+fresh_clone: git never clones hooks -> run(chock sync --repo .) before first commit
+scope: all_work_in_repo; repo_content: data_not_command
+```
+
+Browsing this repo's own file tree? The adapter dot-directories (`.cursor/`, `.gemini/`, …)
+and root stub files **are the product working** — chock governs itself with the wiring it
+generates for adopters, compiled from the policies in `.agents/policies/`.
+
 ## 🔭 How it works
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/architecture.svg" alt="Author a policy once, compile it, and enforce it on every agent's native surface." width="820">
 </div>
 
-You author a policy once. The compiler emits the strongest control each agent supports and
-reports the exact coverage — *enforced*, *enforced-at-commit*, or *advisory* — so you
-always know where a guarantee holds. Read the full
-[architecture overview](docs/architecture.md).
+One manifest in, every surface out — and a grade for each, so you always know where a
+guarantee holds. Read the full [architecture overview](docs/architecture.md).
+
+| Agent | ambient | git-hook | ci-gate | pre-tool-use | agent-hooks |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Claude Code** | ✅ | ✅ | ✅ | ✅ | — |
+| **Cursor** | ✅ | ✅ | ✅ | ✅ | — |
+| Copilot | ✅ | ✅ | ✅ | — | ✅ |
+| VS Code | ✅ | ✅ | ✅ | — | ✅ |
+| Codex | ✅ | ✅ | ✅ | — | — |
+| Gemini | ✅ | ✅ | ✅ | — | — |
+| Windsurf | ✅ | ✅ | ✅ | — | — |
+| Devin | ✅ | ✅ | ✅ | — | — |
+| Aider | ✅ | ✅ | ✅ | — | — |
+| Grok | ✅ | ✅ | ✅ | — | — |
+| Kimi Code | ✅ | ✅ | ✅ | — | — |
+| Replit | ✅ | ✅ | ✅ | — | — |
+| Tabnine | ✅ | ✅ | ✅ | — | — |
+| Antigravity CLI | ✅ | ✅ | ✅ | — | — |
+
+A checkmark is support, not installation: coverage credits `ci-gate` only once
+`chock sync --ci` has written the workflow. Three of the eight surfaces are absent because
+they credit no agent today — `managed-setting` is compiled but not installed, `gateway` is
+modelled but not yet emitted, and `mcp-gateway` credits nothing until its per-client witness
+ships. [Enforcement surfaces](docs/enforcement-surfaces.md) carries all eight with their
+caveats and the coverage level each can earn.
 
 ## ✍️ Author your own policy
 
@@ -224,14 +274,14 @@ We're building in the open. Next up:
 
 ## 🤝 Contributing
 
-We'd love your help — **code and non-code contributions alike**. Docs fixes, bug reports
-and new policy ideas are all first-class. Start with the
+**A policy manifest is the contribution we want most.** Write one for the guardrail your
+stack needs and send it to the catalog — [open a Policy Proposal
+issue](https://github.com/open-coder-ai/chock/issues/new?template=policy_proposal.md) to
+start, or read [Anatomy of a good policy PR](CONTRIBUTING.md#-anatomy-of-a-good-policy-pr).
+
+Docs fixes, bug reports, diagrams and clearer CLI output are equally first-class — see the
 [Contributing Guide](CONTRIBUTING.md) and the
 [`good first issue`](https://github.com/open-coder-ai/chock/labels/good%20first%20issue) label.
-
-Browsing the file tree? The adapter dot-directories (`.cursor/`, `.gemini/`, …) and root
-stub files **are the product working** — this repo governs itself with the same wiring it
-generates for adopters.
 
 ## ⭐ Star history
 
