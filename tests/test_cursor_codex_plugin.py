@@ -1,7 +1,8 @@
 """Cursor and Codex packaging: the envelope differs, the enforcement does not.
 
-Both vendors run the same guard through the same adapter as the Claude package; what
-changes is the file layout, the event name and the hook shape. These tests pin the parts
+Both vendors run the same GUARD as the Claude package, through their own agentseam-bundled
+runtime (`cursor.py`, `codex_cli.py` -- see `gate/runtime_bundle.py`); what changes beyond
+that is the file layout, the event name and the hook shape. These tests pin the parts
 that are vendor-specific and easy to get silently wrong:
 
 - Cursor's `beforeShellExecution` matcher is a regex over the COMMAND TEXT, not a tool
@@ -21,7 +22,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-import chock.gate.pretooluse as adapter_module
+from chock.gate import runtime_bundle
 from chock.plugin.cli import main as plugin_main
 from chock.plugin.codex import POSTURE_ENFORCED_CODEX, build_codex_plugin, codex_plugin_files
 from chock.plugin.cursor import POSTURE_ENFORCED_CURSOR, build_cursor_plugin, cursor_plugin_files
@@ -77,7 +78,7 @@ def test_cursor_guard_policy_layout_and_hook(policy, tmp_path: Path) -> None:
         Path(".cursor-plugin/plugin.json"),
         Path("skills/block-destructive-commands/SKILL.md"),
         Path("hooks/hooks.json"),
-        Path("scripts/pretooluse.py"),
+        Path("scripts/cursor.py"),
         Path("scripts/block-destructive-commands.sh"),
     }
 
@@ -91,7 +92,7 @@ def test_cursor_guard_policy_layout_and_hook(policy, tmp_path: Path) -> None:
     # The exact command, not properties of it: one interpreter invocation, no fallback
     # chain (a chain converts a real deny into the next leg's exit code).
     assert entry["command"] == (
-        'python3 "${CURSOR_PLUGIN_ROOT}/scripts/pretooluse.py" '
+        'python3 "${CURSOR_PLUGIN_ROOT}/scripts/cursor.py" '
         '--guard "${CURSOR_PLUGIN_ROOT}/scripts/block-destructive-commands.sh"'
     )
 
@@ -138,7 +139,7 @@ def test_codex_guard_policy_layout_and_hook(policy, tmp_path: Path) -> None:
         Path(".codex-plugin/plugin.json"),
         Path("skills/block-destructive-commands/SKILL.md"),
         Path("hooks/hooks.json"),
-        Path("scripts/pretooluse.py"),
+        Path("scripts/codex_cli.py"),
         Path("scripts/block-destructive-commands.sh"),
     }
 
@@ -152,7 +153,7 @@ def test_codex_guard_policy_layout_and_hook(policy, tmp_path: Path) -> None:
     assert inner["type"] == "command"
     assert "async" not in inner, "Codex only honours a blocking decision from a sync hook"
     assert inner["command"] == (
-        'python3 "${PLUGIN_ROOT}/scripts/pretooluse.py" --guard "${PLUGIN_ROOT}/scripts/block-destructive-commands.sh"'
+        'python3 "${PLUGIN_ROOT}/scripts/codex_cli.py" --guard "${PLUGIN_ROOT}/scripts/block-destructive-commands.sh"'
     )
 
 
@@ -181,16 +182,19 @@ def test_codex_rule_policy_gets_no_hook(policy, tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    "files_for,manifest_rel",
+    "files_for,manifest_rel,script_name,agent",
     [
-        (cursor_plugin_files, Path(".cursor-plugin/plugin.json")),
-        (codex_plugin_files, Path(".codex-plugin/plugin.json")),
+        (cursor_plugin_files, Path(".cursor-plugin/plugin.json"), "cursor.py", "cursor"),
+        (codex_plugin_files, Path(".codex-plugin/plugin.json"), "codex_cli.py", "codex_cli"),
     ],
 )
-def test_adapter_and_guard_are_verbatim_copies(policy, tmp_path: Path, files_for, manifest_rel) -> None:
-    """Byte-identity is the contract: a plugin must not parse payloads differently."""
+def test_adapter_and_guard_are_verbatim_copies(
+    policy, tmp_path: Path, files_for, manifest_rel, script_name, agent
+) -> None:
+    """Byte-identity is the contract: a plugin must not parse payloads differently from
+    what `chock sync` vendors into a repo install for the same agent."""
     files = files_for(policy(GUARD_MANIFEST, guard=True), GUARD_MANIFEST, tmp_path)
-    assert files[Path("scripts/pretooluse.py")] == Path(adapter_module.__file__).read_text(encoding="utf-8")
+    assert files[Path("scripts") / script_name] == runtime_bundle.render(agent)
     assert files[Path("scripts/block-destructive-commands.sh")] == GUARD_BODY
     assert manifest_rel in files
 

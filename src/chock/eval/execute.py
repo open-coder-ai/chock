@@ -30,7 +30,7 @@ from chock.compile.compiler import _load_manifest
 from chock.eval.model import Case, CaseResult
 from chock.gate import runner as gate_runner
 from chock.gate.build import build_gate_json
-from chock.gate.pretooluse import GUARD_VIOLATION, find_bash
+from chock.gate.guard_runner import GUARD_VIOLATION, find_bash
 from chock.gate.runner import GATE_LOG_ENV
 
 BLOCK = "block"
@@ -150,7 +150,7 @@ def _run_guard(repo: Path, guard: Path, command: str) -> tuple[str, str]:
         return ERROR, f"case command has unbalanced quotes: {command}"
 
     try:
-        # Mirror the runtime adapter (gate/pretooluse.py): pass the untokenized command so
+        # Mirror the runtime adapter (gate/guard_runner.py): pass the untokenized command so
         # a guard that reads CHOCK_RAW_COMMAND to recognise PowerShell/Windows syntax is
         # tested the same way it runs. Without this, a PowerShell eval case would exercise
         # only the mangled argv and never reach the raw-text branch.

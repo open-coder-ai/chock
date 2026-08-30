@@ -5,6 +5,12 @@ upgrade. It used to rewrite every scaffolded file unconditionally, so an edit to
 (the file this framework calls the single source of truth and tells adopters to own) or to
 `.claude/CLAUDE.md` was gone, while the command printed "Initialized Chock" and
 exited 0. Silent data loss inside the command that establishes trust in the tool.
+
+Per-agent instruction files moved to agentseam's marker-block model (owner decision #8,
+`scaffold/adapters.py`): chock never again claims a whole file, only a delimited region
+inside one, so most of the cases below now assert coexistence -- the adopter's own content
+survives OUTSIDE the marker, unconditionally, while chock's own block INSIDE it is always
+kept current, unconditionally, with no `--force` escape hatch needed for either half.
 """
 
 from __future__ import annotations
@@ -48,76 +54,87 @@ def test_agents_md_edits_survive_a_second_init(onboarded: Path) -> None:
     assert POINTER_START in after, "the managed pointer block must still be maintained"
 
 
-def test_adapter_edits_survive_a_second_init(onboarded: Path) -> None:
-    claude_md = onboarded / ".claude" / "CLAUDE.md"
+def test_content_outside_the_marker_survives_a_second_init(onboarded: Path) -> None:
+    """The default agent set (claude, copilot, gemini) resolves to one dedicated file,
+    `CLAUDE.md` at the repo root -- copilot and gemini both read AGENTS.md natively
+    (agentseam.instructions.reads_shared) and get none. Content the adopter adds outside
+    chock's marker block must survive exactly like it does in AGENTS.md itself."""
+    claude_md = onboarded / "CLAUDE.md"
     before = _append(claude_md)
 
     assert _init(onboarded) == 0
 
-    assert claude_md.read_text(encoding="utf-8") == before
-
-
-def test_a_preserved_file_is_reported_not_silently_skipped(onboarded: Path, capsys: pytest.CaptureFixture) -> None:
-    """A silent skip is the same lie as a silent overwrite, pointed the other way."""
-    _append(onboarded / ".claude" / "CLAUDE.md")
-    capsys.readouterr()
-
-    assert _init(onboarded) == 0
-
-    assert ".claude/CLAUDE.md" in capsys.readouterr().out
+    after = claude_md.read_text(encoding="utf-8")
+    assert after.startswith(before), "content outside the marker block was disturbed"
 
 
 def test_a_deselected_wrapper_with_edits_is_not_deleted(tmp_path: Path) -> None:
-    """Deleting an edited wrapper destroys adopter content as surely as overwriting it."""
+    """Deleting a file the adopter added content to destroys it as surely as overwriting it.
+
+    grok does not read AGENTS.md natively, so selecting it gets a dedicated marker-block
+    file (`.grok/GROK.md`). Deselecting it again correctly strips chock's own block (grok
+    is no longer selected, so chock no longer owns any of this file) -- but must not take
+    the adopter's own content, appended outside that block, down with it.
+    """
     repo = init_repo(tmp_path)
-    assert _init(repo, "--agents", "cursor") == 0
-    cursorrules = repo / ".cursorrules"
-    before = _append(cursorrules)
+    assert _init(repo, "--agents", "grok") == 0
+    grok_md = repo / ".grok" / "GROK.md"
+    _append(grok_md)
 
-    assert _init(repo) == 0  # default agent set no longer includes cursor
+    assert _init(repo, "--agents", "claude") == 0  # explicitly deselects grok
 
-    assert cursorrules.exists(), "init deleted an adopter-edited wrapper"
-    assert cursorrules.read_text(encoding="utf-8") == before
+    assert grok_md.exists(), "init deleted an adopter-edited wrapper"
+    after = grok_md.read_text(encoding="utf-8")
+    assert "never_deploy(on: friday)" in after, "the adopter's own content was deleted along with chock's block"
+    assert "Authoritative rules and conventions" not in after, "chock's block should be gone once grok is deselected"
 
 
-# ------------------------------------------------------------------- the escape hatch works
-def test_force_overwrites_a_modified_file(onboarded: Path) -> None:
-    """Preserving by default is only honest if there is a stated way to opt out."""
-    claude_md = onboarded / ".claude" / "CLAUDE.md"
-    _append(claude_md)
+def test_a_wrapper_with_no_adopter_content_is_deleted_on_deselect(tmp_path: Path) -> None:
+    """The mirror case: nothing but chock's own block is an orphan, not adopter content."""
+    repo = init_repo(tmp_path)
+    assert _init(repo, "--agents", "grok") == 0
+    grok_md = repo / ".grok" / "GROK.md"
+    assert grok_md.exists()
 
-    assert _init(onboarded, "--force") == 0
+    assert _init(repo, "--agents", "claude") == 0  # explicitly deselects grok
 
-    assert "never_deploy(on: friday)" not in claude_md.read_text(encoding="utf-8")
+    assert not grok_md.exists(), "an orphaned wrapper with no adopter content was left behind"
+    assert not grok_md.parent.exists(), "its now-empty parent directory was left behind"
+
+
+# --------------------------------------------------- the marker region is always current
+def test_the_marker_region_is_refreshed_with_no_force_needed(onboarded: Path) -> None:
+    """A managed region is not a whole file: there is nothing to preserve-then-force
+    inside it, since it is never the adopter's to begin with -- only what surrounds it is.
+    Hand-editing inside the markers (simulating drift, or an older chock version's text)
+    is silently corrected on the very next `init`, same as `agents_md.render_agents_md`
+    already does for AGENTS.md's own pointer block.
+    """
+    from agentseam.instructions import BEGIN, END
+
+    claude_md = onboarded / "CLAUDE.md"
+    text = claude_md.read_text(encoding="utf-8")
+    assert BEGIN in text and END in text
+    head = text.split(BEGIN, 1)[0]
+    tail = text.split(END, 1)[1]
+    claude_md.write_text(head + BEGIN + "\nstale content from an older version\n" + END + tail, encoding="utf-8")
+
+    assert _init(onboarded) == 0
+
+    after = claude_md.read_text(encoding="utf-8")
+    assert "stale content from an older version" not in after
+    assert "Authoritative rules and conventions" in after
 
 
 # -------------------------------------------------------------------- idempotency preserved
 def test_an_untouched_repo_is_byte_identical_after_a_rerun(onboarded: Path) -> None:
-    """Preservation must not come at the cost of refreshing files nobody touched.
-
-    Guards the guard: a `_preserve_or_write` that never writes would pass every test above.
-    """
-    tracked = ["AGENTS.md", ".claude/CLAUDE.md", ".github/copilot-instructions.md", "docs/README.md"]
+    """Preservation must not come at the cost of refreshing files nobody touched."""
+    tracked = ["AGENTS.md", "CLAUDE.md", "docs/README.md"]
     before = {rel: (onboarded / rel).read_bytes() for rel in tracked}
 
     assert _init(onboarded) == 0
 
     assert {rel: (onboarded / rel).read_bytes() for rel in tracked} == before
-
-
-def test_content_from_an_older_template_is_kept_until_forced(onboarded: Path) -> None:
-    """The stated trade-off, asserted rather than assumed.
-
-    Content the adopter never typed but that no longer matches the current template is
-    indistinguishable from an edit, so it is kept and reported -- an upgrade does not
-    silently refresh it. `--force` is the documented way to take the new template.
-    """
-    claude_md = onboarded / ".claude" / "CLAUDE.md"
-    fresh = claude_md.read_text(encoding="utf-8")
-    claude_md.write_text("content from an older version\n", encoding="utf-8")
-
-    assert _init(onboarded) == 0
-    assert claude_md.read_text(encoding="utf-8") != fresh
-
-    assert _init(onboarded, "--force") == 0
-    assert claude_md.read_text(encoding="utf-8") == fresh
+    assert not (onboarded / ".github" / "copilot-instructions.md").exists(), (
+        "copilot reads AGENTS.md natively and must get no dedicated file"
+    )

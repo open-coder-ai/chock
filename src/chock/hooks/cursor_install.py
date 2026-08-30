@@ -26,14 +26,20 @@ from pathlib import Path
 from chock.emit import write_generated_json
 from chock.hooks.pretooluse_install import (
     _bake_interpreter,
+    _interpreter_runs_here,
     _normalize_fragment,
-    vendor_adapter,
 )
+from chock.hooks.runtime_vendor import vendor_runtime
 
 CURSOR_HOOKS_REL = Path(".cursor") / "hooks.json"
 _EVENT = "beforeShellExecution"
 # Every Chock-owned entry runs the vendored adapter; nothing else should.
-_OWNED_MARKER = "/.chock/bin/pretooluse.py"
+_OWNED_MARKER = "/.chock/bin/cursor.py"
+
+
+def vendor_adapter(repo_root: Path) -> Path:
+    """Write the stdlib-only, agentseam-bundled Cursor runtime into the consumer repo."""
+    return vendor_runtime(repo_root, "cursor")
 
 
 def _wrap(entry: dict) -> dict:
@@ -94,7 +100,7 @@ def install_cursor_hooks(repo_root: Path) -> list[str]:
     def _install_form(entry: dict) -> dict:
         wanted = _normalize_entry(entry)
         for installed in ours_before:
-            if _normalize_entry(installed) == wanted:
+            if _normalize_entry(installed) == wanted and _interpreter_runs_here(_wrap(installed)):
                 return installed  # same hook under another interpreter: keep it byte-for-byte
         return _bake_entry(entry)
 

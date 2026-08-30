@@ -1,7 +1,7 @@
 {
   "beforeShellExecution": [
     {
-      "command": "@CHOCK_PYTHON@ \"${CLAUDE_PROJECT_DIR}/.chock/bin/pretooluse.py\" --guard \"${CLAUDE_PROJECT_DIR}/tests/fixtures/emitter_stability/policies/stability-hook/implementations/stability-hook.sh\"",
+      "command": "@CHOCK_PYTHON@ \"${CLAUDE_PROJECT_DIR}/.chock/bin/cursor.py\" --guard \"${CLAUDE_PROJECT_DIR}/tests/fixtures/emitter_stability/policies/stability-hook/implementations/stability-hook.sh\"",
       "timeout": 30
     }
   ]

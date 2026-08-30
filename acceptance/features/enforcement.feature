@@ -66,7 +66,7 @@ Feature: Enforcing a policy
     Given the guard policies are copied in
     And hooks are installed
     Then the file ".claude/settings.json" exists
-    And the file ".chock/bin/pretooluse.py" exists
+    And the file ".chock/bin/claude_code.py" exists
     And every installed hook uses the documented schema
 
   Scenario: Installation preserves a hand-written hook

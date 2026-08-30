@@ -16,10 +16,11 @@ from chock.emit import write_generated
 from chock.hooks.install import NOT_A_GIT_REPO, get_hooks_dir, install_validate_hook, is_git_repo
 from chock.lock import build_lock, write_lock
 from chock.scaffold.adapters import (
-    AGENT_FILES,
-    _remove_deselected_wrappers,
-    _write_wrapper,
+    CHOCK_AGENT,
+    deselected_agents,
     parse_agent_selection,
+    remove_instructions,
+    write_instructions,
 )
 from chock.scaffold.agents_md import update_agents_md
 from chock.scaffold.recompile import BookkeepingError, recompile
@@ -125,7 +126,7 @@ def _write_config(repo_root: Path, agents: list[str], agent_agnostic: bool) -> P
 
 def _normalize_agents(args_agents: list[str] | None, agent_agnostic: bool, repo_root: Path) -> list[str]:
     if agent_agnostic:
-        return sorted(AGENT_FILES)
+        return sorted(CHOCK_AGENT)
     if args_agents:
         return list(args_agents)  # validated at the CLI edge; unknown names have already errored
     # A re-run without --agents keeps the adopter's pinned set: the config records a choice
@@ -243,9 +244,8 @@ def cmd_init(argv: list[str] | None = None) -> int:
 
     cmd_refresh(["--repo", str(repo_root)])
 
-    for agent in agents:
-        preserved += _write_wrapper(repo_root, agent, args.force)
-    preserved += _remove_deselected_wrappers(repo_root, set(agents), args.force)
+    write_instructions(repo_root, agents)
+    remove_instructions(repo_root, deselected_agents(agents))
 
     if not skip_hooks:
         install_validate_hook(get_hooks_dir(repo_root), repo_root)

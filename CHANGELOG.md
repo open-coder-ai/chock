@@ -1,5 +1,75 @@
 # Chock changelog
 
+## 0.7.0 — Migrate primitives-generation to agentseam
+
+BREAKING-ISH: chock's file layout, coverage vocabulary, and vendored runtime bytes all
+change. `agentseam==0.1.0` is a real dependency (staged, not yet published — CI on this
+change stays red by design until go-live; see the PR). Every adopter's next `chock sync`
+rewrites `.chock/bin/`, `.claude/settings.json`, `.cursor/hooks.json`, and most per-agent
+instruction files; some previously-written instruction files (for agents that read
+`AGENTS.md` natively) are deleted outright, and `coverage.json` re-grades several
+enforcement claims to a more honest, finer-grained word. All five migration-map axes land
+in this release (owner decision #7, "Option B"); the full accounting is in the wave's
+report, `plan/spine-a/reports/w7.md` on `open-coder-ai/org-plan` (private).
+
+- **Runtime: vendored PreToolUse/SessionStart runners are now agentseam's bundle, not a
+  hand-written cross-vendor adapter.** `.chock/bin/pretooluse.py` and
+  `.chock/bin/sessionstart.py` are gone, replaced by `.chock/bin/claude_code.py`,
+  `.chock/bin/cursor.py`, and `.chock/bin/vscode_copilot.py` — one self-contained,
+  stdlib-only file per agent (`agentseam.bundler.bundle()` plus chock's own guard-running
+  handler spliced in, see `gate/runtime_bundle.py`), instead of one file that sniffed which
+  vendor sent a payload by its shape. Claude Code's deny now rides entirely in the JSON
+  response body on a clean exit rather than exit code 2 — a deliberate, verified
+  improvement (avoids a PowerShell-wrapper exit-code collapse and a command-line leak into
+  the UI on some vendors), not a regression. Plugin packages (`chock plugin build` for
+  claude/cursor/copilot/codex) ship the matching per-agent runtime instead of a shared one.
+- **Runtime: `installed_*_policy_ids` keeps its content-comparison identity, verified
+  against agentseam's own new opt-in mode.** agentseam's `install()`/`installed()` gained a
+  content-comparison mode this wave (built by a prior worker specifically so a
+  multi-fragment consumer like chock would not have to keep re-deriving it). chock's own
+  three `installed_*_policy_ids` functions keep their existing, already-correct
+  content-comparison logic rather than delegating to it: agentseam's mode does an exact
+  string compare with no hook for machine-independent normalization, and chock's committed
+  `.claude/settings.json` must compare equal across machines with different baked
+  interpreter paths — delegating would have reintroduced the exact cross-machine
+  coverage-flip bug `_normalize_fragment` exists to prevent. The required behavior (a
+  guard's compiled fragment changing drops its installed claim) is intact and tested.
+- **Permissions: `claude_managed.py` is unchanged, on verified evidence.** Checked directly
+  against Claude Code's own documentation (`code.claude.com/docs/en/permissions`, read
+  2026-08-29): permission rules cannot match a tool's content field at all — the docs name
+  this explicitly and say Claude Code rejects an attempt to do so at parse time — and a
+  request for regex/content matching there was closed "not planned" upstream
+  (`anthropics/claude-code#37509`). `scan-secrets`'s regex-based managed-setting fragment
+  has no equivalent in `agentseam.permissions.plan()`'s model and none is being forced
+  through; no protection changes.
+- **Instructions: whole-file branded templates are gone, replaced by agentseam's
+  marker-block / shared-file model (owner decision #8).** Most agents chock scaffolds for
+  read `AGENTS.md` natively (`agentseam.instructions.reads_shared()`) and now get no
+  dedicated file at all: `.cursor/rules/*.mdc`, `.cursorrules`, `.windsurf/rules/*.md`,
+  `.windsurfrules`, `codex.md`, `.kimi-code/AGENTS.md`, `.github/copilot-instructions.md`,
+  `.gemini/GEMINI.md`, and `.github/agents/*.agent.md` are no longer written — their
+  content lives only in `AGENTS.md`'s own managed pointer block. Agents that do not read
+  `AGENTS.md` natively (claude, aider, devin, grok, replit, tabnine, antigravity) get a
+  marker-delimited block in their own file instead of a whole-file claim, so adopter
+  content elsewhere in that file survives untouched — coexistence a whole-file template
+  could never offer. Claude Code's own file moves from `.claude/CLAUDE.md` to `CLAUDE.md`
+  at the repo root (agentseam's preferred path). Aider is the one exception: agentseam's
+  model cannot express `.aider.conf.yml` (a real config file, not a marker-block target),
+  so chock still ships it directly alongside the marker block it writes into
+  `CONVENTIONS.md`.
+- **Coverage: `coverage_level()` adopts agentseam's five-tier vocabulary for in-agent
+  surfaces (owner decision #9).** `pre-tool-use`/`agent-hooks`, once installed, no longer
+  read a flat `enforced` — they return whichever of `enforced`/`enforceable`/`best-effort`
+  the mapped agent's own verified capability row earns
+  (`agentseam.matrix.enforcement_level`). claude_code's PreToolUse is FAIL_OPEN, so it now
+  reads `best-effort`, never `enforced`; cursor's is FAIL_CONFIGURABLE, so it reads
+  `enforceable`. `enforced-at-commit` and `advisory` stay chock's own words for its
+  git-hook/CI-gate and ambient-rule surfaces, which are outside agentseam's per-agent-hook
+  model; `unsupported` is renamed `none`, agentseam's own word for the same claim. A
+  companion `open-coder-ai/chock-catalog` PR re-renders the seven guard-shipping policies'
+  docs and coverage matrix to the same honest wording (their own descriptions already said
+  "best-effort"; only the machine-readable label was overclaiming).
+
 ## 0.6.0 — Agent-hooks `py` fallback and INT-3 verb list
 
 MINOR: the agent-hooks emitter output changes, so an adopter's next `chock sync` /

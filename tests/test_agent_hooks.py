@@ -18,13 +18,23 @@ import pytest
 from conftest import working_bash
 
 from chock.compile.emitters.agent_hooks import SHELL_MATCHER, build_entry, emit
-
-ADAPTER_SRC = Path(__file__).resolve().parents[1] / "src" / "chock" / "gate" / "pretooluse.py"
+from chock.gate import runtime_bundle
 
 
 def _payload(command: str) -> str:
-    # Copilot / VS Code shape: toolArgs is a JSON string.
-    return json.dumps({"toolName": "powershell", "toolArgs": json.dumps({"command": command})})
+    # VS Code / Copilot CLI PreToolUse wire contract (IPreToolUseHookCommandInput, per
+    # hookCommandTypes.ts): {tool_name, tool_input, tool_use_id} plus the envelope's own
+    # `timestamp`, which every real VS Code payload carries and which distinguishes it
+    # from Claude Code's identically-named events -- see agentseam's vscode_copilot
+    # adapter.
+    return json.dumps(
+        {
+            "tool_name": "Bash",
+            "tool_input": {"command": command},
+            "hook_event_name": "PreToolUse",
+            "timestamp": "2026-08-29T00:00:00Z",
+        }
+    )
 
 
 def _guard_body() -> str:
@@ -32,12 +42,14 @@ def _guard_body() -> str:
 
 
 def _synced_repo(tmp_path: Path) -> tuple[Path, dict]:
-    """A git repo with the vendored adapter and one guard at the paths the entry references."""
+    """A git repo with the vendored runtime and one guard at the paths the entry references."""
     repo = tmp_path / "adopter"
     (repo / ".chock" / "bin").mkdir(parents=True)
     pol = repo / ".agents" / "policies" / "block-destructive-commands" / "implementations"
     pol.mkdir(parents=True)
-    shutil.copy(ADAPTER_SRC, repo / ".chock" / "bin" / "pretooluse.py")
+    (repo / ".chock" / "bin" / "vscode_copilot.py").write_text(
+        runtime_bundle.render("vscode_copilot"), encoding="utf-8"
+    )
     (pol / "block-destructive.sh").write_text(_guard_body(), encoding="utf-8")
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
     manifest = {"id": "block-destructive-commands"}
@@ -86,10 +98,15 @@ def test_emitted_bash_command_denies_end_to_end(tmp_path):
     blocked = subprocess.run(
         [bash, "-c", bash_cmd], cwd=repo, input=_payload("rm -rf /"), capture_output=True, text=True
     )
-    assert blocked.returncode == 2, (blocked.stdout, blocked.stderr)
+    # vscode_copilot's deny rides in hookSpecificOutput.permissionDecision on a clean
+    # exit -- see agentseam's vscode_copilot.respond().
+    assert blocked.returncode == 0, (blocked.stdout, blocked.stderr)
+    decision = json.loads(blocked.stdout)
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny", (blocked.stdout, blocked.stderr)
 
     allowed = subprocess.run([bash, "-c", bash_cmd], cwd=repo, input=_payload("ls -la"), capture_output=True, text=True)
     assert allowed.returncode == 0, (allowed.stdout, allowed.stderr)
+    assert allowed.stdout.strip() == "", (allowed.stdout, allowed.stderr)
 
 
 def _pwsh() -> str | None:
@@ -109,7 +126,9 @@ def test_emitted_powershell_command_denies_end_to_end(tmp_path):
         capture_output=True,
         text=True,
     )
-    assert blocked.returncode == 2, (blocked.stdout, blocked.stderr)
+    assert blocked.returncode == 0, (blocked.stdout, blocked.stderr)
+    decision = json.loads(blocked.stdout)
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny", (blocked.stdout, blocked.stderr)
 
     allowed = subprocess.run(
         [_pwsh(), "-NoProfile", "-Command", ps_cmd],
@@ -119,3 +138,4 @@ def test_emitted_powershell_command_denies_end_to_end(tmp_path):
         text=True,
     )
     assert allowed.returncode == 0, (allowed.stdout, allowed.stderr)
+    assert allowed.stdout.strip() == "", (allowed.stdout, allowed.stderr)

@@ -60,15 +60,26 @@ def test_convention_named_guards_emit_fragments(tmp_path: Path) -> None:
     assert (surface_dir / "cursor-hooks.json").exists()
 
 
-def test_both_fragments_carry_the_same_command(tmp_path: Path) -> None:
+def test_both_fragments_reference_the_same_guard(tmp_path: Path) -> None:
+    """One emit, one guard: the two envelopes must never disagree about WHAT runs.
+
+    The commands themselves legitimately differ now -- each vendor gets its own
+    agentseam-bundled runtime (`.chock/bin/claude_code.py` vs `.chock/bin/cursor.py`, see
+    `gate/runtime_bundle.py`) rather than one shared, payload-sniffing adapter -- but both
+    must invoke the identical `--guard <path>`.
+    """
     policy = baseline_policy("block-destructive-commands")
     out = tmp_path / ".chock" / "compiled"
     compile_policy(policy, targets=[Surface.PRE_TOOL_USE.value], output_root=out, agents=["claude", "cursor"])
     surface_dir = out / "block-destructive-commands" / "pre-tool-use"
     claude = json.loads((surface_dir / "pretooluse.json").read_text())["hooks"][0]["command"]
     cursor = json.loads((surface_dir / "cursor-hooks.json").read_text())["beforeShellExecution"][0]["command"]
-    assert claude == cursor, "one emit, one command: the two envelopes must never disagree"
+    assert INTERPRETER_PLACEHOLDER in claude
     assert INTERPRETER_PLACEHOLDER in cursor
+    assert '--guard "${CLAUDE_PROJECT_DIR}/.agents/policies/block-destructive-commands' in claude
+    assert claude.split("--guard", 1)[1] == cursor.split("--guard", 1)[1], "same guard, both envelopes"
+    assert '"${CLAUDE_PROJECT_DIR}/.chock/bin/claude_code.py"' in claude
+    assert '"${CLAUDE_PROJECT_DIR}/.chock/bin/cursor.py"' in cursor
 
 
 def test_install_bakes_and_preserves_foreign_entries() -> None:
@@ -86,18 +97,57 @@ def test_install_bakes_and_preserves_foreign_entries() -> None:
     assert sys.executable in entries[1]["command"]
 
 
-def test_reinstall_does_not_churn_a_committed_entry() -> None:
+def _fake_but_real_interpreter(tmp_path: Path) -> str:
+    """A path that is not `sys.executable` but genuinely resolves on this machine.
+
+    Simulates "another machine's real, working interpreter" without depending on any
+    particular system layout (a fixed guess like `/usr/bin/python3.12` may not exist on
+    every CI image or platform this suite runs on).
+    """
+    import shutil
+
+    fake = tmp_path / "another-machine-python3"
+    shutil.copy(sys.executable, fake)
+    fake.chmod(0o755)
+    return str(fake)
+
+
+def test_reinstall_does_not_churn_a_committed_entry(tmp_path: Path) -> None:
+    # As long as the committed interpreter still resolves here, a sync on a second machine
+    # must not rewrite an equivalent installed entry with its own interpreter path -- that
+    # is diff churn in a committed file, and a leaked path.
     repo = _fresh_repo()
     install_cursor_hooks(repo)
     hooks_path = repo / ".cursor" / "hooks.json"
     settings = json.loads(hooks_path.read_text(encoding="utf-8"))
     entry = settings["hooks"]["beforeShellExecution"][0]
-    entry["command"] = '"/usr/bin/python3.12"' + entry["command"][entry["command"].index(' "') :]
+    other = _fake_but_real_interpreter(tmp_path)
+    entry["command"] = f'"{other}"' + entry["command"][entry["command"].index(' "') :]
     hooks_path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
     before = hooks_path.read_text(encoding="utf-8")
     install_cursor_hooks(repo)
     assert json.loads(hooks_path.read_text(encoding="utf-8")) == json.loads(before)
     assert "block-destructive-commands" in installed_cursor_policy_ids(repo)
+
+
+def test_reinstall_rebakes_an_interpreter_that_no_longer_resolves() -> None:
+    # The Windows regression CodeRabbit flagged (chock#73, .cursor/hooks.json:5): all four
+    # entries hardcoded `/usr/local/bin/python3`, which does not exist on native Windows, so
+    # Cursor cannot even start `cursor.py` and every guard silently fails OPEN. Reuse-to-
+    # avoid-diff-churn must not extend to a hook that can never start.
+    repo = _fresh_repo()
+    install_cursor_hooks(repo)
+    hooks_path = repo / ".cursor" / "hooks.json"
+    settings = json.loads(hooks_path.read_text(encoding="utf-8"))
+    entry = settings["hooks"]["beforeShellExecution"][0]
+    entry["command"] = (
+        '"/usr/local/bin/definitely-not-a-real-interpreter3"' + entry["command"][entry["command"].index(' "') :]
+    )
+    hooks_path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
+    install_cursor_hooks(repo)
+    settings = json.loads(hooks_path.read_text(encoding="utf-8"))
+    command = settings["hooks"]["beforeShellExecution"][0]["command"]
+    assert sys.executable in command, "a dead interpreter path must be rebaked to one that runs here"
 
 
 def test_coverage_witness_is_per_agent() -> None:
@@ -129,17 +179,23 @@ def test_coverage_witness_is_per_agent() -> None:
 
     install_pretooluse_hooks(repo)
     after_claude = recompile_and_read()
-    assert after_claude["claude"] == "enforced"
+    # claude_code's PreToolUse is FAIL_OPEN (agentseam.matrix_data), so installed it reads
+    # `best-effort`, never a flat `enforced` (owner decision #9).
+    assert after_claude["claude"] == "best-effort"
     assert after_claude["cursor"] != "enforced", "Claude's install is not evidence for Cursor"
 
     install_cursor_hooks(repo)
     after_both = recompile_and_read()
-    assert after_both["cursor"] == "enforced"
+    # cursor's PreToolUse is FAIL_CONFIGURABLE (agentseam.matrix_data): it blocks and CAN be
+    # told to fail closed, but does not by default, so it reads `enforceable`, not `enforced`
+    # (owner decision #9).
+    assert after_both["cursor"] == "enforceable"
 
 
 def test_adapter_parses_cursor_payload_and_denies() -> None:
     # Cursor's beforeShellExecution payload carries `command` at the top level; the
-    # vendored adapter must deny (exit 2) through the same guard.
+    # vendored cursor runtime must deny through the same guard. Cursor's deny rides in
+    # {"permission": "deny", ...} on a clean exit -- see agentseam's cursor.respond().
     repo = _fresh_repo()
     install_cursor_hooks(repo)
     settings = json.loads((repo / ".cursor" / "hooks.json").read_text(encoding="utf-8"))
@@ -154,4 +210,8 @@ def test_adapter_parses_cursor_payload_and_denies() -> None:
         text=True,
         input=payload,
     )
-    assert proc.returncode == 2, f"adapter did not deny a Cursor-shaped payload:\n{proc.stdout}{proc.stderr}"
+    assert proc.returncode == 0, f"adapter errored on a Cursor-shaped payload:\n{proc.stdout}{proc.stderr}"
+    decision = json.loads(proc.stdout)
+    assert decision["permission"] == "deny", (
+        f"adapter did not deny a Cursor-shaped payload:\n{proc.stdout}{proc.stderr}"
+    )

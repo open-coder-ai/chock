@@ -81,7 +81,6 @@ def emit(policy_dir: Path, output_dir: Path, manifest: dict[str, Any]) -> list[P
     # .agents/policies/<id>/ -- a hardcoded path produced a hook that ran and reported
     # "guard not found", allowing everything while appearing installed.
     rel = _relative_to_repo(policy_dir)
-    adapter = "${CLAUDE_PROJECT_DIR}/.chock/bin/pretooluse.py"
     guard = f"${{CLAUDE_PROJECT_DIR}}/{rel}/implementations/{script}"
 
     # `@CHOCK_PYTHON@` is a placeholder, not a literal interpreter: install bakes the real
@@ -89,13 +88,18 @@ def emit(policy_dir: Path, output_dir: Path, manifest: dict[str, Any]) -> list[P
     # `python` was absent on python3-only systems, where the hook exited 127 and Claude Code
     # let the tool call through while coverage still reported `enforced`. The compiled fragment
     # keeps the placeholder so committed compiled output is portable and deterministic.
-    command = f'@CHOCK_PYTHON@ "{adapter}" --guard "{guard}"'
+    #
+    # Claude and Cursor each get their own vendored runtime now (agentseam bundles one
+    # self-contained file per agent -- see gate/runtime_bundle.py) rather than the one
+    # shared, payload-sniffing adapter this used to point both at.
+    claude_adapter = "${CLAUDE_PROJECT_DIR}/.chock/bin/claude_code.py"
+    claude_command = f'@CHOCK_PYTHON@ "{claude_adapter}" --guard "{guard}"'
     fragment = {
         "matcher": MATCHER,
         "hooks": [
             {
                 "type": "command",
-                "command": command,
+                "command": claude_command,
                 "timeout": TIMEOUT_SECONDS,
             }
         ],
@@ -105,15 +109,17 @@ def emit(policy_dir: Path, output_dir: Path, manifest: dict[str, Any]) -> list[P
     dest = output_dir / "pretooluse.json"
     write_generated_json(dest, fragment)
 
-    # Cursor's beforeShellExecution speaks the same protocol -- JSON payload in, exit 2
-    # to deny -- through a different config shape (a flat entry in .cursor/hooks.json)
-    # and a top-level `command` field the vendored adapter also parses. Same guard, same
-    # adapter, same placeholder discipline; only the envelope differs, so both fragments
-    # come from one emit and can never disagree about the command they run. Cursor sets
-    # CLAUDE_PROJECT_DIR itself (documented alias), so the identical path form works.
+    # Cursor's beforeShellExecution speaks the same protocol -- JSON payload in, a native
+    # deny -- through a different config shape (a flat entry in .cursor/hooks.json) and a
+    # top-level `command` field. Same guard, same placeholder discipline; only the envelope
+    # (and now the vendored runtime file, since each agent's bundle is agent-specific)
+    # differs. Cursor sets CLAUDE_PROJECT_DIR itself (documented alias), so the identical
+    # path form works.
+    cursor_adapter = "${CLAUDE_PROJECT_DIR}/.chock/bin/cursor.py"
+    cursor_command = f'@CHOCK_PYTHON@ "{cursor_adapter}" --guard "{guard}"'
     cursor_dest = output_dir / "cursor-hooks.json"
     write_generated_json(
         cursor_dest,
-        {"beforeShellExecution": [{"command": command, "timeout": TIMEOUT_SECONDS}]},
+        {"beforeShellExecution": [{"command": cursor_command, "timeout": TIMEOUT_SECONDS}]},
     )
     return [dest, cursor_dest]

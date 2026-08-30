@@ -1,8 +1,9 @@
 """`chock status --only log` -- read the local gate outcome log.
 
-The log is written by two vendored runners (`gate/runner.py`, `gate/pretooluse.py`) and
-answers one question policy authoring could not answer before: which enforcement actually
-happens. Two findings come out of it, and the second is the one nobody expects.
+The log is written by the vendored git-hook runner (`gate/runner.py`) and by each per-agent
+runtime `gate/runtime_bundle.py` renders (`gate/guard_runner.py`'s `log_outcome`, spliced
+into every one). It answers one question policy authoring could not answer before: which
+enforcement actually happens. Two findings come out of it, and the second is the one nobody expects.
 
   fired and blocked   -> the gate works, and the block rate says whether it over-fires
   never recorded      -> the policy has never been consulted at all

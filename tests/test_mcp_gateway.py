@@ -93,7 +93,7 @@ def test_emitter_skips_kinds_without_gateway_runtime(tmp_path):
 def test_mcp_gateway_surface_is_never_credited():
     for agent in ("claude", "cursor", "copilot", "gemini", "vscode"):
         level = coverage_level({Surface.MCP_GATEWAY}, agent, pre_tool_use_installed=False, ci_gate_installed=False)
-        assert level == "unsupported", f"{agent} credited mcp-gateway before a P3c witness exists"
+        assert level == "none", f"{agent} credited mcp-gateway before a P3c witness exists"
 
 
 # --- gate evaluation

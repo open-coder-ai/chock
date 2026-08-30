@@ -22,9 +22,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-import chock.gate.pretooluse as _adapter_module
+from agentseam import packaging
+
 from chock.compile.emitters.claude_pretooluse import MATCHER, TIMEOUT_SECONDS, _guard_script
 from chock.emit import write_generated
+from chock.gate import runtime_bundle
 from chock.plugin.build import (
     _ADVISORY_NOTE_HOOK,
     _ADVISORY_NOTE_RULE,
@@ -34,6 +36,13 @@ from chock.plugin.build import (
     build_skill,
     plugin_name,
 )
+
+#: This format's package-layout knowledge -- manifest path, plugin-root token, and the
+#: skills/hooks/scripts path templates -- comes from agentseam's PACKAGING row for
+#: claude_code rather than being hand-maintained here a second time. Only the CONTENT of
+#: each file (the manifest fields, the skill body, the hooks fragment) stays chock's own.
+_MANIFEST_REL = packaging.layout("claude_code")["manifest"]  # ".claude-plugin/plugin.json"
+_SCRIPTS_TEMPLATE = packaging.supports("claude_code", packaging.EXECUTABLE)  # "scripts/{name}"
 
 #: Stated verbatim in the emitted description. "session-enforced" and "advisory" are the
 #: coverage taxonomy's words, used with their taxonomy meaning -- the description is a
@@ -70,15 +79,15 @@ _ENFORCED_NOTE = (
 )
 
 
-def _adapter_source() -> str:
-    """The PreToolUse adapter, verbatim.
+def _adapter_source(agent: str = "claude_code") -> str:
+    """`agent`'s self-contained runtime, verbatim -- agentseam's bundle plus chock's own
+    handler (see `gate/runtime_bundle.py`).
 
-    The adapter's own contract is "SELF-CONTAINED, STDLIB ONLY ... copied verbatim" -- the
-    same copy discipline `chock compile` uses for `.chock/bin/pretooluse.py`. Shipping a
-    byte-identical copy means a plugin and a repo install can never disagree about how a
+    Byte-identical to what `chock compile`/`chock sync` vendors into `.chock/bin/` for the
+    same agent, so a plugin install and a repo install can never disagree about how a
     payload is parsed.
     """
-    return Path(_adapter_module.__file__).read_text(encoding="utf-8")
+    return runtime_bundle.render(agent)
 
 
 def _hook_command(script: str) -> str:
@@ -102,8 +111,8 @@ def _hook_command(script: str) -> str:
     real fix is a per-client emitter that knows each client's hook shell, not a shell
     trick that trades one platform's correctness for another's.
     """
-    adapter = "${CLAUDE_PLUGIN_ROOT}/scripts/pretooluse.py"
-    guard = f"${{CLAUDE_PLUGIN_ROOT}}/scripts/{script}"
+    adapter = packaging.executable_ref("claude_code", _SCRIPTS_TEMPLATE.format(name="claude_code.py"))
+    guard = packaging.executable_ref("claude_code", _SCRIPTS_TEMPLATE.format(name=script))
     return f'python3 "{adapter}" --guard "{guard}"'
 
 
@@ -159,13 +168,14 @@ def claude_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
         skill = skill.replace(_ADVISORY_NOTE_RULE, _ENFORCED_NOTE).replace(_ADVISORY_NOTE_HOOK, _ENFORCED_NOTE)
 
     files: dict[Path, str] = {
-        Path(".claude-plugin/plugin.json"): json.dumps(
+        Path(_MANIFEST_REL): json.dumps(
             build_claude_manifest(manifest, policy_dir, enforced=script is not None), indent=2
         )
         + "\n",
-        Path("skills") / name / "SKILL.md": skill,
+        Path(packaging.supports("claude_code", packaging.SKILL).format(name=name)): skill,
     }
     if script:
+        hooks_rel = packaging.supports("claude_code", packaging.HOOKS)
         hooks = {
             "hooks": {
                 "PreToolUse": [
@@ -176,9 +186,11 @@ def claude_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
                 ]
             }
         }
-        files[Path("hooks/hooks.json")] = json.dumps(hooks, indent=2) + "\n"
-        files[Path("scripts/pretooluse.py")] = _adapter_source()
-        files[Path("scripts") / script] = (policy_dir / "implementations" / script).read_text(encoding="utf-8")
+        files[Path(hooks_rel)] = json.dumps(hooks, indent=2) + "\n"
+        files[Path(_SCRIPTS_TEMPLATE.format(name="claude_code.py"))] = _adapter_source("claude_code")
+        files[Path(_SCRIPTS_TEMPLATE.format(name=script))] = (policy_dir / "implementations" / script).read_text(
+            encoding="utf-8"
+        )
     return files
 
 

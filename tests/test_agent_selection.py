@@ -17,15 +17,21 @@ from chock.toggles import recompile_main
 def test_comma_separated_agents(tmp_path):
     repo = tmp_path / "repo"
     cmd_init([str(repo), "--skip-hooks", "--agents", "claude,cursor"])
-    assert (repo / ".claude" / "CLAUDE.md").exists()
-    assert (repo / ".cursorrules").exists()
+    # claude_code does not read AGENTS.md natively (agentseam.instructions.reads_shared),
+    # so it gets its own pointer file -- CLAUDE.md at the repo root, agentseam's preferred
+    # path for it. cursor DOES read AGENTS.md natively, so it gets no file of its own at
+    # all: the shared AGENTS.md block IS its instructions.
+    assert (repo / "CLAUDE.md").exists()
+    assert not (repo / ".cursorrules").exists()
+    assert not (repo / ".cursor").exists()
     assert not (repo / ".gemini").exists()
 
 
 def test_space_separated_agents(tmp_path):
     repo = tmp_path / "repo"
     cmd_init([str(repo), "--skip-hooks", "--agents", "claude", "cursor"])
-    assert (repo / ".cursorrules").exists()
+    assert (repo / "CLAUDE.md").exists()
+    assert not (repo / ".cursorrules").exists()
     assert not (repo / ".gemini").exists()
 
 
@@ -129,7 +135,7 @@ def test_skill_references_use_cli_agent_vocabulary():
     # and interface.yaml, which live in sibling dirs a references-only glob never reached.
     from pathlib import Path
 
-    from chock.scaffold.adapters import AGENT_FILES
+    from chock.scaffold.adapters import CHOCK_AGENT
 
     framework_root = Path(__file__).resolve().parents[1]
     skill_roots = (
@@ -144,7 +150,7 @@ def test_skill_references_use_cli_agent_vocabulary():
             assert "kimi," not in text and "kimi." not in text, f"{f}: the --agents name is 'kimi-code', not 'kimi'"
         table = (root / "references" / "adapters.md").read_text(encoding="utf-8")
         assert "kimi-code" in table, f"{root}: the --agents name is 'kimi-code'"
-        assert "kimi-code" in AGENT_FILES and "copilot" in AGENT_FILES
+        assert "kimi-code" in CHOCK_AGENT and "copilot" in CHOCK_AGENT
 
 
 def test_config_duplicate_agents_are_deduped(tmp_path):
@@ -162,7 +168,9 @@ def test_config_duplicate_agents_are_deduped(tmp_path):
 def test_antigravity_agent_selection(tmp_path):
     repo = tmp_path / "repo"
     cmd_init([str(repo), "--skip-hooks", "--agents", "antigravity"])
-    assert (repo / ".agents" / "rules" / "chock.md").exists()
-    content = (repo / ".agents" / "rules" / "chock.md").read_text(encoding="utf-8")
-    assert "always_on" in content
+    # antigravity does not read AGENTS.md natively (agentseam.instructions.reads_shared),
+    # so it gets its own marker-block pointer file at agentseam's own path for it.
+    path = repo / ".agents" / "rules" / "agentseam.md"
+    assert path.exists()
+    content = path.read_text(encoding="utf-8")
     assert "AGENTS.md" in content

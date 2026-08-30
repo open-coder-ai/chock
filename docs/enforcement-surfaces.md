@@ -113,14 +113,22 @@ are wired in.
 
 ## Coverage levels
 
-For each policy × agent, the compiler records one of five levels in `.chock/coverage.json`:
+For each policy × agent, the compiler records one of seven levels in `.chock/coverage.json`.
+The first three come from agentseam's own honest, per-agent vocabulary
+(`agentseam.matrix.enforcement_level`, owner decision #9) for an installed, in-agent
+pre-execution control — chock no longer flattens every one of them to `enforced`, because
+they are not the same claim: a hook that fails OPEN on a crash is a materially weaker
+promise than one that fails closed, and an adopter deciding whether to trust a control
+needs to see the difference.
 
 | Level | Meaning |
 | :--- | :--- |
-| **`enforced`** | An installed, hard, pre-execution in-agent control — a hook wired into `.claude/settings.json`, `.cursor/hooks.json`, or `.github/hooks/chock.json`. |
-| **`enforced-at-commit`** | The policy emitted a git-hook (installed automatically) or a CI gate whose workflow `install-ci` has actually written — hard at commit time or over the PR's commit range, advisory in-agent. |
-| **`advisory`** | Only the ambient rule applies — compiled prose the agent is asked to follow. |
-| **`unsupported`** | Nothing the policy emitted reaches this agent. |
+| **`enforced`** | An installed, hard, pre-execution in-agent control that fails CLOSED — a crashed hook still blocks. |
+| **`enforceable`** | Installed and blocks, and CAN be told to fail closed, but does not by default — what an adopter may claim depends on how the hook was installed. |
+| **`best-effort`** | Installed and blocks, but fails OPEN — a crashed hook silently allows. claude_code's PreToolUse is this tier today. |
+| **`enforced-at-commit`** | The policy emitted a git-hook (installed automatically) or a CI gate whose workflow `install-ci` has actually written — hard at commit time or over the PR's commit range, advisory in-agent. Chock's own commit-time mechanism, outside agentseam's per-agent-hook model. |
+| **`advisory`** | Only the ambient rule applies — compiled prose the agent is asked to follow. Also outside agentseam's model: an ambient rule is not a lifecycle hook of any kind. |
+| **`none`** | Nothing the policy emitted reaches this agent. |
 | **`disabled`** | The policy is listed in `policies.disabled` and produces no artifacts or hooks. |
 
 > **`enforced` is raised by the install step, not by `compile`.** Compiling writes a
@@ -132,7 +140,7 @@ For each policy × agent, the compiler records one of five levels in `.chock/cov
 > follows the identical rule with `install-ci` in place of the hook installers.
 
 > **The SessionStart arm hook is wiring, not a surface.** `chock sync` also installs a
-> `SessionStart` entry (running the vendored `.chock/bin/sessionstart.py`) into
+> `SessionStart` entry (running the vendored `.chock/bin/claude_code.py`) into
 > `.claude/settings.json`. It carries no coverage claim: its only job is re-installing the
 > git hooks on a fresh clone — git never clones them — or printing the `chock sync`
 > command into the session context when it cannot. See
@@ -143,7 +151,7 @@ Example for `protect-main-branch` (targets git-hook + CI + PreToolUse + managed-
 ```json
 {
   "protect-main-branch": {
-    "claude":  "enforced",
+    "claude":  "best-effort",
     "cursor":  "enforced-at-commit",
     "copilot": "enforced-at-commit",
     "aider":   "enforced-at-commit"

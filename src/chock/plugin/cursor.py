@@ -37,6 +37,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from agentseam import packaging
+
 from chock.compile.emitters.claude_pretooluse import TIMEOUT_SECONDS, _guard_script
 from chock.emit import write_generated
 from chock.plugin.build import (
@@ -50,11 +52,20 @@ from chock.plugin.build import (
 )
 from chock.plugin.claude import POSTURE_ADVISORY, _adapter_source
 
-#: Cursor's plugin-root variable, used verbatim by Cursor's own published plugins.
-PLUGIN_ROOT = "${CURSOR_PLUGIN_ROOT}"
-HOOKS_REL = "hooks/hooks.json"
-SKILLS_REL = "./skills/"
+#: This format's package-layout knowledge -- plugin-root token, manifest path, and the
+#: hooks/skills path templates -- comes from agentseam's PACKAGING row for cursor.
+_LAYOUT = packaging.layout("cursor")
+PLUGIN_ROOT = packaging.plugin_root("cursor")
+HOOKS_REL = packaging.supports("cursor", packaging.HOOKS)
+SKILLS_REL = _LAYOUT["declares"][packaging.SKILL][1]
 EVENT = "beforeShellExecution"
+
+#: agentseam's own EXECUTABLE row for cursor is deliberately empty (PART_LIMITS: "no
+#: scripts/executable location was established for this closed-source plugin format; the
+#: documented layout ... names no place for one") -- a real, honest gap, not a bug. This
+#: plugin has shipped scripts/ here regardless, so the convention stays chock's own rather
+#: than being force-fit through a template agentseam does not vouch for.
+_SCRIPTS_TEMPLATE = "scripts/{name}"
 
 #: Cursor's manifest schema is `additionalProperties: false`, so this is a fresh dict and
 #: never `build_manifest()` output: that function emits `$schema` and `extensions`, which
@@ -102,8 +113,8 @@ def _hook_command(script: str) -> str:
     fires on ANY non-zero exit, so a real denial (exit 2) would cascade into the next
     leg's exit code and be read as allow.
     """
-    adapter = f"{PLUGIN_ROOT}/scripts/pretooluse.py"
-    guard = f"{PLUGIN_ROOT}/scripts/{script}"
+    adapter = packaging.executable_ref("cursor", _SCRIPTS_TEMPLATE.format(name="cursor.py"))
+    guard = packaging.executable_ref("cursor", _SCRIPTS_TEMPLATE.format(name=script))
     return f'python3 "{adapter}" --guard "{guard}"'
 
 
@@ -156,11 +167,11 @@ def cursor_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
         )
 
     files: dict[Path, str] = {
-        Path(".cursor-plugin/plugin.json"): json.dumps(
+        Path(_LAYOUT["manifest"]): json.dumps(
             build_cursor_manifest(manifest, policy_dir, enforced=script is not None), indent=2
         )
         + "\n",
-        Path("skills") / name / "SKILL.md": skill,
+        Path(packaging.supports("cursor", packaging.SKILL).format(name=name)): skill,
     }
     if script:
         # Cursor's envelope: a version stamp and FLAT entries -- no per-entry `hooks`
@@ -171,8 +182,10 @@ def cursor_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
             "hooks": {EVENT: [{"command": _hook_command(script), "timeout": TIMEOUT_SECONDS}]},
         }
         files[Path(HOOKS_REL)] = json.dumps(hooks, indent=2) + "\n"
-        files[Path("scripts/pretooluse.py")] = _adapter_source()
-        files[Path("scripts") / script] = (policy_dir / "implementations" / script).read_text(encoding="utf-8")
+        files[Path(_SCRIPTS_TEMPLATE.format(name="cursor.py"))] = _adapter_source("cursor")
+        files[Path(_SCRIPTS_TEMPLATE.format(name=script))] = (policy_dir / "implementations" / script).read_text(
+            encoding="utf-8"
+        )
     return files
 
 

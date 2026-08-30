@@ -3,7 +3,7 @@
   "hooks": [
     {
       "type": "command",
-      "command": "@CHOCK_PYTHON@ \"${CLAUDE_PROJECT_DIR}/.chock/bin/pretooluse.py\" --guard \"${CLAUDE_PROJECT_DIR}/.agents/policies/block-destructive-commands/implementations/block-destructive.sh\"",
+      "command": "@CHOCK_PYTHON@ \"${CLAUDE_PROJECT_DIR}/.chock/bin/claude_code.py\" --guard \"${CLAUDE_PROJECT_DIR}/.agents/policies/block-destructive-commands/implementations/block-destructive.sh\"",
       "timeout": 30
     }
   ]

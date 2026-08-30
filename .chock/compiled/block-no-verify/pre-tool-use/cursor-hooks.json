@@ -1,7 +1,7 @@
 {
   "beforeShellExecution": [
     {
-      "command": "@CHOCK_PYTHON@ \"${CLAUDE_PROJECT_DIR}/.chock/bin/pretooluse.py\" --guard \"${CLAUDE_PROJECT_DIR}/.agents/policies/block-no-verify/implementations/block-no-verify.sh\"",
+      "command": "@CHOCK_PYTHON@ \"${CLAUDE_PROJECT_DIR}/.chock/bin/cursor.py\" --guard \"${CLAUDE_PROJECT_DIR}/.agents/policies/block-no-verify/implementations/block-no-verify.sh\"",
       "timeout": 30
     }
   ]

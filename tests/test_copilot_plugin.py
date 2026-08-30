@@ -4,10 +4,12 @@ This format exists because awesome-copilot's intake validates against the Agent 
 1.0 spec (`vally lint` + an install smoke test that requires `plugin.json` at the package
 root), which the Claude layout is not. Three properties matter. First, the layout is the
 spec's: root manifest, `skills/`, and the hook under the `com.github.copilot/` namespace
-directory a non-Copilot client MUST ignore. Second, the hook command, adapter and guard
-are byte-identical to the Claude package's -- two formats, one enforcement system. Third,
-the SKILL.md frontmatter `metadata` is a flat string-to-string map, the constraint the
-original nested object violated and awesome-copilot rejected.
+directory a non-Copilot client MUST ignore. Second, the adapter and guard bytes are
+byte-identical to the Claude package's, and the hook command matches it except for the
+plugin-root token (this format resolves ${PLUGIN_ROOT}, Claude's resolves
+${CLAUDE_PLUGIN_ROOT}) -- one enforcement system, two formats. Third, the SKILL.md
+frontmatter `metadata` is a flat string-to-string map, the constraint the original nested
+object violated and awesome-copilot rejected.
 """
 
 from __future__ import annotations
@@ -18,7 +20,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-import chock.gate.pretooluse as adapter_module
+from chock.gate import runtime_bundle
 from chock.plugin.build import build_skill
 from chock.plugin.claude import POSTURE_ADVISORY, claude_plugin_files
 from chock.plugin.cli import main as plugin_main
@@ -97,19 +99,25 @@ def test_hook_lives_in_the_copilot_namespace(policy, tmp_path: Path) -> None:
     assert entry["matcher"] == "Bash"
     command = entry["hooks"][0]["command"]
     # The EXACT command, for the same reason test_claude_plugin pins it: any change to this
-    # string is a change to enforcement and must be a reviewed decision.
+    # string is a change to enforcement and must be a reviewed decision. ${PLUGIN_ROOT}, not
+    # Claude's ${CLAUDE_PLUGIN_ROOT}: Agent Plugins 1.0 defines its own plugin-root token
+    # (agentseam packaging.PACKAGING["copilot"]["plugin_root"]), and ${CLAUDE_PLUGIN_ROOT}
+    # is never set for a bundle in this format -- the old command silently referenced a
+    # token that resolves to nothing.
     assert command == (
-        'python3 "${CLAUDE_PLUGIN_ROOT}/scripts/pretooluse.py" '
-        '--guard "${CLAUDE_PLUGIN_ROOT}/scripts/block-destructive-commands.sh"'
+        'python3 "${PLUGIN_ROOT}/scripts/vscode_copilot.py" '
+        '--guard "${PLUGIN_ROOT}/scripts/block-destructive-commands.sh"'
     )
 
 
 def test_copilot_and_claude_packages_run_the_same_hook(policy, tmp_path: Path) -> None:
-    """Two formats, one enforcement system.
+    """Two formats, one enforcement system -- same matcher, same guard bytes, own dialect.
 
-    The scripts live at `scripts/` in both layouts, so the command string and the shipped
-    bytes must be identical. A Copilot package that parsed payloads or invoked the guard
-    differently from the Claude package would be two enforcement systems wearing one name.
+    The GUARD script is byte-identical in both layouts. The adapter itself is legitimately
+    NOT byte-identical any more: `vscode_copilot.py`/`claude_code.py` are two different
+    agentseam bundles (`gate/runtime_bundle.py`), each speaking that vendor's own
+    live-verified dialect -- a real difference the old shared, sniffing adapter only
+    approximated. What must never differ is matcher/timeout and the guard's bytes.
     """
     pack = policy(GUARD_MANIFEST, guard=True)
     copilot = copilot_plugin_files(pack, GUARD_MANIFEST, tmp_path)
@@ -117,10 +125,17 @@ def test_copilot_and_claude_packages_run_the_same_hook(policy, tmp_path: Path) -
 
     copilot_entry = json.loads(copilot[Path(HOOKS_REL)])["hooks"]["PreToolUse"][0]
     claude_entry = json.loads(claude[Path("hooks/hooks.json")])["hooks"]["PreToolUse"][0]
-    assert copilot_entry == claude_entry
+    assert copilot_entry["matcher"] == claude_entry["matcher"]
+    assert copilot_entry["hooks"][0]["timeout"] == claude_entry["hooks"][0]["timeout"]
+    assert copilot_entry["hooks"][0]["command"] == claude_entry["hooks"][0]["command"].replace(
+        "CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT"
+    ).replace("claude_code.py", "vscode_copilot.py")
 
-    for rel in (Path("scripts/pretooluse.py"), Path("scripts/block-destructive-commands.sh")):
-        assert copilot[rel] == claude[rel]
+    assert copilot[Path("scripts/vscode_copilot.py")] == runtime_bundle.render("vscode_copilot")
+    assert claude[Path("scripts/claude_code.py")] == runtime_bundle.render("claude_code")
+    assert (
+        copilot[Path("scripts/block-destructive-commands.sh")] == claude[Path("scripts/block-destructive-commands.sh")]
+    )
 
 
 def test_adapter_and_guard_are_verbatim_copies(policy, tmp_path: Path) -> None:
@@ -128,8 +143,8 @@ def test_adapter_and_guard_are_verbatim_copies(policy, tmp_path: Path) -> None:
     out = tmp_path / "out"
     build_copilot_plugin(pack, GUARD_MANIFEST, tmp_path, out)
 
-    source = Path(adapter_module.__file__).read_text(encoding="utf-8")
-    assert (out / "scripts" / "pretooluse.py").read_text(encoding="utf-8") == source
+    source = runtime_bundle.render("vscode_copilot")
+    assert (out / "scripts" / "vscode_copilot.py").read_text(encoding="utf-8") == source
     assert (out / "scripts" / "block-destructive-commands.sh").read_text(encoding="utf-8") == GUARD_BODY
 
 

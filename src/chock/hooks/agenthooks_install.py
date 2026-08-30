@@ -17,6 +17,7 @@ import json
 from pathlib import Path
 
 from chock.emit import write_generated_json
+from chock.hooks.runtime_vendor import vendor_runtime
 
 HOOKS_REL = Path(".github") / "hooks" / "chock.json"
 _COMPILED_GLOB = "*/agent-hooks/agent-hooks.json"
@@ -49,6 +50,7 @@ def install_agent_hooks(repo_root: Path) -> list[str]:
         if dest.exists():
             dest.unlink()
         return []
+    vendor_runtime(repo_root, "vscode_copilot")
     doc = {"version": 1, "hooks": {"preToolUse": [entries[pid] for pid in sorted(entries)]}}
     dest.parent.mkdir(parents=True, exist_ok=True)
     write_generated_json(dest, doc)

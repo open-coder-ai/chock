@@ -3,7 +3,8 @@
 Git never clones hooks, so a fresh clone of a Chock repo enforces nothing at commit
 time until `chock sync` runs. The SessionStart hook closes that gap for Claude Code:
 the committed settings.json (consented through the workspace-trust prompt) runs the
-vendored `.chock/bin/sessionstart.py` when a session opens, which arms the git hooks
+vendored `.chock/bin/claude_code.py` (agentseam's bundle plus chock's own handler -- see
+`gate/runtime_bundle.py`) when a session opens, which arms the git hooks
 or tells the agent the one command that will.
 
 This is repo wiring, not a policy surface: it is installed whenever hooks are wired,
@@ -17,7 +18,6 @@ interpreter is kept byte-for-byte rather than re-baked into diff churn.
 from __future__ import annotations
 
 import json
-import shutil
 import sys
 from pathlib import Path
 
@@ -26,21 +26,26 @@ from chock.hooks.pretooluse_install import (
     INTERPRETER_PLACEHOLDER,
     SETTINGS_REL,
     _bake_interpreter,
+    _interpreter_runs_here,
     _normalize_fragment,
 )
+from chock.hooks.runtime_vendor import runtime_rel, vendor_runtime
 
-ADAPTER_REL = Path(".chock") / "bin" / "sessionstart.py"
-# Every Chock-owned SessionStart command contains this; nothing else should.
-_OWNED_MARKER = "/.chock/bin/sessionstart.py"
+ADAPTER_REL = runtime_rel("claude_code")
+# Every Chock-owned SessionStart command contains this; nothing else should. Same file
+# `pretooluse_install` vendors -- claude_code's bundled runtime handles both branches.
+_OWNED_MARKER = "/.chock/bin/claude_code.py"
 
 #: The one entry this module manages. `timeout` covers a full `chock sync` on a large
 #: repo; the adapter's own subprocess timeout is shorter, so the hook still returns
-#: (with the manual instruction) rather than being killed mid-print.
+#: (with the manual instruction) rather than being killed mid-print. No `--guard`: that
+#: argument is what routes the bundled runtime's `handle()` to its pre_tool branch: absent,
+#: a SessionStart event falls through to the session_start branch instead.
 ARM_FRAGMENT = {
     "hooks": [
         {
             "type": "command",
-            "command": f'{INTERPRETER_PLACEHOLDER} "${{CLAUDE_PROJECT_DIR}}/.chock/bin/sessionstart.py"',
+            "command": f'{INTERPRETER_PLACEHOLDER} "${{CLAUDE_PROJECT_DIR}}/.chock/bin/claude_code.py"',
             "timeout": 300,
         }
     ]
@@ -48,21 +53,8 @@ ARM_FRAGMENT = {
 
 
 def vendor_adapter(repo_root: Path) -> Path:
-    """Copy the stdlib-only SessionStart adapter into the consumer repo."""
-    source = Path(__file__).resolve().parent.parent / "gate" / "sessionstart.py"
-    if not source.exists():  # pragma: no cover - packaging failure
-        raise FileNotFoundError(
-            f"SessionStart adapter source not found at {source}. "
-            "If this is a packaged binary, ensure gate/sessionstart.py is bundled as data."
-        )
-    dest = Path(repo_root) / ADAPTER_REL
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source, dest)
-    try:
-        dest.chmod(0o755)
-    except OSError:
-        pass  # best-effort: chmod is a no-op/denied on Windows; invoked as `python <path>`
-    return dest
+    """Write the stdlib-only, agentseam-bundled Claude Code runtime into the consumer repo."""
+    return vendor_runtime(repo_root, "claude_code")
 
 
 def _is_ours(entry: dict) -> bool:
@@ -96,7 +88,7 @@ def install_sessionstart_hook(repo_root: Path) -> bool:
     wanted = _normalize_fragment(ARM_FRAGMENT)
     install_form = None
     for entry in ours_before:
-        if _normalize_fragment(entry) == wanted:
+        if _normalize_fragment(entry) == wanted and _interpreter_runs_here(entry):
             install_form = entry  # same hook under another interpreter: keep it byte-for-byte
             break
     if install_form is None:

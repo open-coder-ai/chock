@@ -17,16 +17,16 @@ from __future__ import annotations
 import copy
 import json
 import re
-import shutil
 import sys
 from pathlib import Path
 
 from chock.emit import write_generated_json
+from chock.hooks.runtime_vendor import runtime_rel, vendor_runtime
 
 SETTINGS_REL = Path(".claude") / "settings.json"
-ADAPTER_REL = Path(".chock") / "bin" / "pretooluse.py"
+ADAPTER_REL = runtime_rel("claude_code")
 # Every Chock-owned hook command contains this; nothing else should.
-_OWNED_MARKER = "/.chock/bin/pretooluse.py"
+_OWNED_MARKER = "/.chock/bin/claude_code.py"
 
 # The emitted fragment carries this placeholder, not a literal `python`. `python` is absent
 # on python3-only systems (stock Ubuntu/Debian), where Claude Code ran the hook, got exit 127,
@@ -78,22 +78,36 @@ def _normalize_fragment(fragment: dict) -> dict:
     return normalized
 
 
+def _interpreter_runs_here(fragment: dict) -> bool:
+    """Whether every baked interpreter in `fragment` still resolves on this machine.
+
+    `_install_form` keeps an installed entry byte-for-byte when its guard content matches
+    what would be (re)installed, to avoid diff churn across machines running different but
+    equally working interpreters (see `_normalize_fragment`). That reuse must not extend to
+    an interpreter this machine cannot even exec -- a committed `.claude/settings.json` baked
+    on a POSIX machine and cloned on Windows has no such path, so reuse was silently keeping a
+    hook that can never start, the exact FAIL_OPEN hole `_bake_interpreter`'s "provably runs"
+    promise exists to close. Only a genuinely missing interpreter forces a rebake; anything
+    that still resolves keeps the diff-churn guarantee untouched.
+    """
+    for hook in fragment.get("hooks", []) or []:
+        command = hook.get("command") if isinstance(hook, dict) else None
+        if not isinstance(command, str) or _BIN_MARKER not in command:
+            continue
+        match = _COMMAND_TAIL_RE.match(command)
+        if not match:
+            continue
+        interpreter = match.group(0).strip().strip('"')
+        if not interpreter or interpreter == INTERPRETER_PLACEHOLDER:
+            continue  # unbaked fragment: nothing installed yet to validate
+        if not Path(interpreter).is_file():
+            return False
+    return True
+
+
 def vendor_adapter(repo_root: Path) -> Path:
-    """Copy the stdlib-only PreToolUse adapter into the consumer repo."""
-    source = Path(__file__).resolve().parent.parent / "gate" / "pretooluse.py"
-    if not source.exists():  # pragma: no cover - packaging failure
-        raise FileNotFoundError(
-            f"PreToolUse adapter source not found at {source}. "
-            "If this is a packaged binary, ensure gate/pretooluse.py is bundled as data."
-        )
-    dest = Path(repo_root) / ADAPTER_REL
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source, dest)
-    try:
-        dest.chmod(0o755)
-    except OSError:
-        pass  # best-effort: chmod is a no-op/denied on Windows; the adapter is invoked as `python <path>`
-    return dest
+    """Write the stdlib-only, agentseam-bundled Claude Code runtime into the consumer repo."""
+    return vendor_runtime(repo_root, "claude_code")
 
 
 def _compiled_fragments(repo_root: Path) -> list[dict]:
@@ -149,7 +163,7 @@ def install_pretooluse_hooks(repo_root: Path) -> list[str]:
         # a leaked local path at worst. Only a new or genuinely changed fragment is baked.
         wanted = _normalize_fragment(fragment)
         for entry in ours_before:
-            if _normalize_fragment(entry) == wanted:
+            if _normalize_fragment(entry) == wanted and _interpreter_runs_here(entry):
                 return entry
         return _bake_interpreter(fragment)
 
