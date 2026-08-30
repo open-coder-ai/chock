@@ -60,7 +60,7 @@ dependencies = [
     # It never ships to an adopter repo -- the vendored PreToolUse/SessionStart runners
     # stay self-contained stdlib-only files, unaffected by this dependency. Pinned exact
     # per plan/spine-a/contract.md: the wave boundary is the published PyPI artifact.
-    "agentseam==0.1.0",
+    "agentseam==0.1.1",
 ]
 
 [project.optional-dependencies]
