@@ -36,8 +36,11 @@ COLUMNS = [
 #: The README publishes the same rows without `managed-setting`: that surface is compiled and
 #: never installed, so a checkmark on the page a reader skims would read as a live control.
 #: Dropping the column is only honest while the README says why -- see
-#: test_readme_says_why_managed_setting_is_missing.
+#: test_readme_says_why_the_absent_surfaces_are_absent.
 README_COLUMNS = [c for c in COLUMNS if c is not Surface.MANAGED_SETTING]
+#: Headings that abbreviate the surface's own name. Kept explicit rather than matched loosely,
+#: so a heading that drifts to something else entirely still fails instead of passing as a synonym.
+HEADING = {Surface.AMBIENT_RULE: "ambient"}
 #: Display names that differ from the agent key.
 ALIAS = {
     "claude code": "claude",
@@ -48,10 +51,26 @@ ALIAS = {
 
 
 def _rows(path: Path, columns: list[Surface]) -> dict[str, list[bool]]:
+    """Parse one published matrix into {agent: [supported, per column in `columns`]}.
+
+    The header row is checked, not skipped. An earlier version split on a fixed prefix and read
+    the body against the column list kept here, which made the headings decorative: swapping two
+    of them -- and changing nothing else -- left every cell "matching" a column it no longer sat
+    under. That publishes a false enforcement claim while every test still passes, which is worse
+    than an unchecked table, because the check is what a reader trusts.
+    """
     text = path.read_text(encoding="utf-8")
-    table = text.split("| Agent | ambient")[1].split("\n\n")[0]
+    start = "| Agent | ambient"
+    table = start + text.split(start)[1].split("\n\n")[0]
+    header, *body = table.splitlines()
+    named = [c.strip() for c in header.strip().strip("|").split("|")][1:]
+    expected = [HEADING.get(c, c.value) for c in columns]
+    assert named == expected, (
+        f"{path.name} heads its columns {named}, not {expected}; "
+        "the cells beneath them now mean something other than what this test checks"
+    )
     rows: dict[str, list[bool]] = {}
-    for line in table.splitlines():
+    for line in body:
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
         if len(cells) != len(columns) + 1 or not cells[0] or cells[0].startswith(":-"):
             continue
@@ -66,11 +85,22 @@ TABLES = [(DOC, COLUMNS), (README, README_COLUMNS)]
 
 @pytest.mark.parametrize(("path", "columns"), TABLES, ids=lambda v: getattr(v, "name", ""))
 def test_table_names_exactly_the_agents_the_code_supports(path: Path, columns: list[Surface]) -> None:
+    """Both publications list every supported agent and no others.
+
+    This is the drift that actually happened: `tabnine` and `vscode` joined SURFACE_AGENTS and the
+    docs table kept naming eleven. A reader checking whether their agent is covered reads the
+    table, so an agent missing from it is indistinguishable from an agent we do not support.
+    """
     assert set(_rows(path, columns)) == set(SURFACE_AGENTS)
 
 
 @pytest.mark.parametrize(("path", "columns"), TABLES, ids=lambda v: getattr(v, "name", ""))
 def test_every_cell_matches_the_code(path: Path, columns: list[Surface]) -> None:
+    """Every checkmark, in either publication, is a claim `surfaces.py` still makes.
+
+    Naming the right agents is not enough: the cell is the claim a reader acts on, and a stale
+    tick reads as a control that is switched on.
+    """
     wrong = [
         f"{agent}/{surface.value}: table={marked}, code={surface in SURFACE_AGENTS[agent]}"
         for agent, marks in _rows(path, columns).items()
@@ -90,17 +120,25 @@ def test_readme_says_why_the_absent_surfaces_are_absent() -> None:
     and this fails then rather than only when someone deletes the note.
     """
     from chock.compile.compiler import EMITTERS
-    from chock.compile.surfaces import INSTALLED_SURFACES
+    from chock.compile.surfaces import INSTALLED_SURFACES, coverage_level
 
     readme = README.read_text(encoding="utf-8")
-    assert Surface.MANAGED_SETTING not in INSTALLED_SURFACES, "an installer landed; the README owes the column"
-    assert "compiled but not installed" in readme
-    assert Surface.GATEWAY not in EMITTERS, "gateway emits now; the README calls it unemitted"
-    assert "modelled but not yet emitted" in readme
-    assert Surface.MCP_GATEWAY not in INSTALLED_SURFACES, (
-        "mcp-gateway credits an agent now; the README says it credits none"
-    )
-    assert "per-client witness" in readme
+    #: The stated reason for each omission, and the phrase the README carries it in.
+    omitted = {
+        Surface.MANAGED_SETTING: "compiled but not installed",
+        Surface.GATEWAY: "modelled but not yet emitted",
+        Surface.MCP_GATEWAY: "per-client witness",
+    }
+    for surface, phrase in omitted.items():
+        # The witness itself, rather than a proxy for it: a policy emitting only this surface
+        # grades `none` for every agent the code supports. That IS "credits no agent today".
+        crediting = [a for a in SURFACE_AGENTS if coverage_level({surface}, a) != "none"]
+        assert not crediting, f"{surface.value} now credits {crediting}; the README owes it a column"
+        assert phrase in readme, f"the README no longer says why {surface.value} is absent"
+
+    # Each phrase makes a narrower claim than "credits nobody"; pin those separately.
+    assert Surface.MANAGED_SETTING not in INSTALLED_SURFACES, "an installer landed; 'not installed' is now false"
+    assert Surface.GATEWAY not in EMITTERS, "gateway emits now; 'not yet emitted' is now false"
 
 
 def test_managed_setting_is_disclosed_as_not_installed() -> None:

@@ -255,6 +255,10 @@ def test_readme_agents_md_sample_is_the_block_the_code_writes() -> None:
     readme = (FRAMEWORK_ROOT / "README.md").read_text(encoding="utf-8")
     missing = [ln for ln in lines if ln not in readme]
     assert not missing, "README's AGENTS.md sample no longer matches POINTER_BLOCK:\n  " + "\n  ".join(missing)
+    # Contiguous and in order, not merely all present somewhere. The README calls the sample
+    # verbatim; three correct lines shuffled or split apart are no longer the block chock writes,
+    # and checking only membership passes on a rearrangement -- which is what a reader would copy.
+    assert "\n".join(lines) in readme, "the README's sample has the right lines in the wrong shape"
 
 
 def test_readme_policy_example_points_at_a_policy_that_exists() -> None:
