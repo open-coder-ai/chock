@@ -154,8 +154,11 @@ def _handler_source(agent: str) -> str:
 
 #: The exact text `bundler.bundle()` writes right after its HEADER comment (see
 #: `bundler.py`'s `sections[1]`) -- the anchor `render()` hoists `_IMPORTS` after, so every
-#: import in the rendered file sits at the top, before any def/class/assignment.
-_TOP_IMPORTS_ANCHOR = "from __future__ import annotations\n\nimport json\nimport sys\n"
+#: import in the rendered file sits at the top, before any def/class/assignment. Since
+#: agentseam 0.1.1 (agentseam#86, "emit each module-level import once"), a composed
+#: source's `import json as _json` is deduplicated into this top section as an alias
+#: assignment rather than left inline further down the file.
+_TOP_IMPORTS_ANCHOR = "from __future__ import annotations\n\nimport json\n_json = json\nimport sys\n"
 
 
 def render(agent: str) -> str:
