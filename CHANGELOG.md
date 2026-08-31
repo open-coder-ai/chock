@@ -1,5 +1,36 @@
 # Chock changelog
 
+## Unreleased
+
+- **Packaging: every published plugin package now carries its own `LICENSE`.** The
+  distribution repos hold a licence at the root only, so a plugin directory copied out of one
+  arrived with no terms attached. The notice is derived entirely from the policy's own
+  `provenance` -- licence from `license`, holder from `author`, year from `created_at` (or
+  `updated_at`) -- never from this project's own `LICENSE`, because `chock plugin build` runs
+  on anybody's policies and stamping open-coder-ai's copyright into a third party's package
+  would be a false claim in the one file where it matters. Nothing is written when the notice
+  cannot be derived (a licence whose text chock does not ship, or no year): a missing
+  `LICENSE` is a visible gap, an invented one is not. Emitted for `claude`, `codex`,
+  `cursor`, `copilot`, and for `agent-plugins` when it builds into a distribution directory
+  -- never for the in-place `agent-plugins` build, whose target is the adopter's own
+  `.agents/policies/<id>/`.
+- **Packaging: the Codex manifest gains its `interface` block.** `.codex-plugin/plugin.json`
+  now carries `interface{displayName, shortDescription, composerIcon}`, which directory
+  listings render and score. Every field is derived: `displayName` from the policy's own
+  `name`, `shortDescription` from the first sentence of its description (the full ones run
+  past 900 characters, and the manifest `description` additionally carries the posture
+  suffix, which is an enforcement claim rather than a summary), and `composerIcon` from the
+  icon this emitter now writes into the package at `assets/icon.svg`. No other field in the
+  block has a source in a policy manifest, so none is emitted.
+- **Packaging: the emitted icon ships as package data.** `chock/plugin/data/icon.svg`,
+  byte-identical to `docs/assets/logo.svg` and 512x512 by its viewBox, pinned in both
+  directions by tests -- against the logo it was copied from, and against the built wheel,
+  because `docs/` is not in the wheel and package data that is not declared silently is not
+  either.
+- **Internal: `chock/plugin/listing.py`.** What a listing needs from a package (icon,
+  licence, display metadata) is a different question from what a client needs to load it, and
+  `build.py` and `codex.py` were both over the 300-line review budget with the two mixed.
+
 ## 0.7.0 — Migrate primitives-generation to agentseam
 
 BREAKING-ISH: chock's file layout, coverage vocabulary, and vendored runtime bytes all

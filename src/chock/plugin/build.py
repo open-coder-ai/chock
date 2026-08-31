@@ -31,6 +31,8 @@ from typing import Any
 
 from chock.compile.emitters.advisory import advisory_lines
 from chock.emit import write_generated
+from chock.plugin.listing import LICENSE_REL, license_text
+from chock.plugin.listing import one_line as _one_line
 
 #: The schema's `$schema` property is a `const`, so this string is not a default -- any other
 #: value makes the manifest invalid. Pinned to 1.0.0 deliberately: a client selects its
@@ -85,11 +87,6 @@ def plugin_name(policy_id: str) -> str:
             f"no '--' or '..', max {_NAME_MAX} chars"
         )
     return policy_id
-
-
-def _one_line(text: Any) -> str:
-    """Collapse a folded YAML block to a single line."""
-    return " ".join(str(text or "").split())
 
 
 def _keywords(manifest: dict[str, Any]) -> list[str]:
@@ -232,19 +229,34 @@ def build_skill(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, hoo
     )
 
 
-def plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Path) -> dict[Path, str]:
+def plugin_files(
+    policy_dir: Path, manifest: dict[str, Any], repo_root: Path, *, packaged: bool = False
+) -> dict[Path, str]:
     """Return the plugin's files as {relative path: content}, writing nothing.
 
     Separating rendering from writing is what lets `--check` compare against the tree without
     touching it. `recompile --check` once wrote into the very tree it was measuring, so the
     check could not fail; keeping the pure function pure is how that stays fixed here.
+
+    `packaged` says whether the output is a distribution directory rather than the policy
+    folder itself, and it gates exactly one file: the `LICENSE`. This is the only format that
+    builds IN PLACE, and in place the target is the adopter's own `.agents/policies/<id>/` --
+    dropping a licence file into somebody's policy folder would be this tool asserting terms
+    over content it does not own. Out of place the package is a standalone artifact, and a
+    standalone artifact with no terms attached is the gap this emits for. Both callers derive
+    the flag from the same fact (`out_dir` / `target` was given), so check and build never
+    disagree about which tree they are judging.
     """
     policy_id = manifest.get("id") or Path(policy_dir).name
     name = plugin_name(str(policy_id))
-    return {
+    files = {
         Path("plugin.json"): json.dumps(build_manifest(manifest, policy_dir), indent=2) + "\n",
         Path("skills") / name / "SKILL.md": build_skill(policy_dir, manifest, repo_root),
     }
+    licence = license_text(manifest) if packaged else None
+    if licence:
+        files[LICENSE_REL] = licence
+    return files
 
 
 def build_plugin(
@@ -259,7 +271,7 @@ def build_plugin(
     """
     target = Path(out_dir) if out_dir else Path(policy_dir)
     written: list[Path] = []
-    for rel, content in plugin_files(Path(policy_dir), manifest, Path(repo_root)).items():
+    for rel, content in plugin_files(Path(policy_dir), manifest, Path(repo_root), packaged=out_dir is not None).items():
         dest = target / rel
         dest.parent.mkdir(parents=True, exist_ok=True)
         write_generated(dest, content)
@@ -277,7 +289,7 @@ def plugin_differences(
     """
     policy_id = manifest.get("id") or Path(policy_dir).name
     differences: list[str] = []
-    for rel, content in plugin_files(Path(policy_dir), manifest, Path(repo_root)).items():
+    for rel, content in plugin_files(Path(policy_dir), manifest, Path(repo_root), packaged=target is not None).items():
         dest = Path(target if target is not None else policy_dir) / rel
         if not dest.exists():
             differences.append(f"missing: {policy_id}/{rel.as_posix()}")

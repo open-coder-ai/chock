@@ -49,6 +49,7 @@ from chock.plugin.build import (
     plugin_name,
 )
 from chock.plugin.claude import POSTURE_ADVISORY, _adapter_source
+from chock.plugin.listing import ICON_REL, LICENSE_REL, icon_svg, interface_block, license_text
 
 #: This format's package-layout knowledge -- plugin-root token, manifest path, and the
 #: hooks/skills path templates -- comes from agentseam's PACKAGING row for codex_cli.
@@ -69,10 +70,12 @@ EVENT = "PreToolUse"
 #: chock's own rather than being force-fit through a template agentseam does not vouch for.
 _SCRIPTS_TEMPLATE = "scripts/{name}"
 
-#: Only `name`, `version` and `description` are required. `interface` (the directory
-#: listing block) is deliberately omitted until a package is actually submitted to
-#: OpenAI's directory: every field in it is optional, and it carries the most
-#: unverified constraints of anything in this schema.
+#: Only `name`, `version` and `description` are required. `interface` (the directory listing
+#: block) was previously omitted "until a package is actually submitted"; that is reversed
+#: here, because a listing that scores the block's absence is not a submission-time concern --
+#: a package without it is already being read as incomplete. Every field is now derived from
+#: data the policy carries, so nothing unverified is asserted: what was uncertain was the
+#: *copy*, and none is invented (see `_interface`).
 MANIFEST_KEYS = (
     "name",
     "version",
@@ -81,6 +84,7 @@ MANIFEST_KEYS = (
     "repository",
     "license",
     "keywords",
+    "interface",
     "skills",
     "hooks",
 )
@@ -133,10 +137,17 @@ def build_codex_manifest(manifest: dict[str, Any], policy_dir: Path, enforced: b
     provenance = manifest.get("provenance") or {}
     posture = POSTURE_ENFORCED_CODEX if enforced else POSTURE_ADVISORY
 
+    description = _one_line(manifest.get("description"))
+
     data: dict[str, Any] = {
         "name": plugin_name(policy_id),
-        "description": f"{_one_line(manifest.get('description'))} [{posture}]".strip(),
+        "description": f"{description} [{posture}]".strip(),
         "keywords": _keywords(manifest),
+        # Derived from the policy's OWN description, not from the manifest's `description`
+        # above: that one carries the posture suffix, which is a claim about enforcement and
+        # not a summary of the rule. A card rendering `[...]` boilerplate as the plugin's
+        # one-line pitch would bury the sentence that actually says what it does.
+        "interface": interface_block(manifest, policy_id, description),
         "skills": SKILLS_REL,
     }
     if manifest.get("version"):
@@ -175,7 +186,17 @@ def codex_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
         )
         + "\n",
         Path(packaging.supports("codex_cli", packaging.SKILL).format(name=name)): skill,
+        # The file `composerIcon` names. Emitted rather than referenced from the repository so
+        # a package lifted out of the tree still resolves its own icon.
+        ICON_REL: icon_svg(),
     }
+    # A package published on its own carries no terms unless it brings them: the distribution
+    # repos hold a licence at the root only, so a plugin directory copied out of one arrives
+    # unlicensed. `license_text` returns None rather than guessing when the policy's own
+    # provenance cannot supply the notice, and then no file is written.
+    licence = license_text(manifest)
+    if licence:
+        files[LICENSE_REL] = licence
     if script:
         # Claude's nested envelope. NO top-level `description`: Codex < 0.143.0 rejects
         # the whole hooks file over that one key and silently drops every hook in it
@@ -201,7 +222,8 @@ def codex_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
 
 
 #: Everything this emitter may write; see cursor.py for why reconciliation needs the list.
-OWNED_SUBTREES = ("hooks", "scripts")
+#: `assets` joins it with the icon: a package that stops emitting one must stop shipping it.
+OWNED_SUBTREES = ("hooks", "scripts", "assets")
 
 
 def stale_codex_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, out_dir: Path) -> list[Path]:

@@ -108,6 +108,11 @@ where = ["src"]
 # required; verified by tests/test_wheel_install.py against a real wheel install.
 "chock.packs" = ["**/*", "**/.*", "**/.*/**/*", "**/.*/**/.*"]
 "chock.authoring" = ["data/*.json"]
+# The per-package LICENSE text and icon `chock plugin build` emits into every published
+# package. Not `data/*.json` like the line above: these are a .txt and a .svg, and a
+# json-only glob would ship neither -- the emitter would then work from a source checkout
+# and raise FileNotFoundError from a `pip install`. Pinned by tests/test_wheel_install.py.
+"chock.plugin" = ["data/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
