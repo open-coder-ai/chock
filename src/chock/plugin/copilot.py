@@ -38,19 +38,23 @@ POSTURE_ENFORCED_COPILOT = (
 )
 
 _COPILOT_ENFORCED_NOTE = (
-    "This package ships a PreToolUse hook under com.github.copilot/ that enforces this "
-    "policy in clients reading that namespace (documented for VS Code agent mode), subject "
-    "to the fail posture stated in the plugin description. A client that ignores the "
-    "namespace gets this text only. Repo-wide enforcement across every commit and in CI "
-    "still needs `chock sync`. See https://github.com/open-coder-ai/chock"
+    "This package ships a PreToolUse hook under com.github.copilot/. It enforces only in a "
+    "client that both reads that namespace AND tells the hook where the package lives; a "
+    "client that exports no plugin-root variable runs the hook, which then allows -- so "
+    "treat this package as advisory unless a deny has been witnessed in your own client. "
+    "A client that ignores the namespace gets this text only. Repo-wide enforcement across "
+    "every commit and in CI still needs `chock sync`. "
+    "See https://github.com/open-coder-ai/chock"
 )
 
 
 def _hook_command(script: str) -> str:
-    """One interpreter invocation against the plugin's own bundled copies."""
-    adapter = packaging.executable_ref("copilot", _SCRIPTS_TEMPLATE.format(name="vscode_copilot.py"))
-    guard = packaging.executable_ref("copilot", _SCRIPTS_TEMPLATE.format(name=script))
-    return f'python3 "{adapter}" --guard "{guard}"'
+    """One interpreter invocation, guarded so an unresolved plugin root ALLOWS."""
+    assert PLUGIN_ROOT.startswith("${") and PLUGIN_ROOT.endswith("}"), PLUGIN_ROOT
+    root = f"{PLUGIN_ROOT[:-1]}:-}}"
+    adapter = f'"$r/{_SCRIPTS_TEMPLATE.format(name="vscode_copilot.py")}"'
+    guard = f'"$r/{_SCRIPTS_TEMPLATE.format(name=script)}"'
+    return f'r="{root}"; [ -n "$r" ] && [ -f {adapter} ] || exit 0; exec python3 {adapter} --guard {guard}'
 
 
 def build_copilot_manifest(manifest: dict[str, Any], policy_dir: Path, enforced: bool) -> dict[str, Any]:
