@@ -1,5 +1,32 @@
 # Chock changelog
 
+## Unreleased
+
+- **Coverage taxonomy: a fourth in-agent level, `fail-to-ask`, and an ordering.** The
+  vocabulary graded on one axis -- what the HOST does when our hook never runs -- so a
+  control that degrades to silently allowing and one that degrades to prompting a human
+  both read `best-effort`. Those are not the same promise, and a grading layer that cannot
+  rank a control above ours is not measuring anything. The grade is now derived from two
+  inputs: the host's block behaviour and fail mode (agentseam's matrix) and the control's
+  own degradation (`compile.levels.CONTROL_DEGRADES_TO`). `compile.levels.level_rank`
+  orders the in-agent ladder (`none` < `detect` < `best-effort` < `fail-to-ask` <
+  `enforceable` < `enforced`) and deliberately refuses to rank `enforced-at-commit`,
+  `advisory` and `disabled` against it -- different mechanisms, no honest common scale.
+  **No existing grade changed**: chock's own guard returns a deny reason or nothing, and
+  every "not checked" path returns nothing, so `pre-tool-use` and `agent-hooks` stay at
+  `best-effort`. The ladder now carries a word for something chock does not do, which is
+  the point.
+- **Docs: stale enforcement grades corrected.** `docs/agentic-risk-coverage.md`,
+  `docs/concepts.md`, `docs/architecture.md` and `docs/compatibility.md` still published
+  `enforced` for an installed in-agent control and `unsupported` for the empty verdict --
+  both superseded by 0.7.0's finer vocabulary and neither checked by anything. The level
+  table in `docs/enforcement-surfaces.md` and its ordering are now bound to
+  `compile.levels` by `tests/test_surface_doc_matches_code.py`, so this class of drift
+  fails a test instead of aging in place.
+- **Internal: the level vocabulary moved to `chock.compile.levels`.** `surfaces.py` says
+  which surfaces exist per agent; how strong a control on one of them is, is a different
+  question and now a different module.
+
 ## 0.7.0 — Migrate primitives-generation to agentseam
 
 BREAKING-ISH: chock's file layout, coverage vocabulary, and vendored runtime bytes all
