@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Fixed: a guard that timed out wrote the command it was gating -- credentials included
+  -- to stderr.** `subprocess.TimeoutExpired.__str__` embeds the argv it was given, which
+  for `gate.guard_runner.run_guard` is bash, the guard script, and every token of the
+  command. Printing it reached the agent's own transcript, which is exactly what the same
+  function's parse-failure branch and `log_outcome` both refuse to do, and for the same
+  reason: commands routinely carry bearer tokens and passwords. The timeout branch now
+  reports the timeout alone. `OSError` and `UnicodeError` keep their detail -- those name
+  the interpreter and an offset, not the command.
 - **Packaging: every published plugin package now carries its own `LICENSE`.** The
   distribution repos hold a licence at the root only, so a plugin directory copied out of one
   arrived with no terms attached. The notice is derived entirely from the policy's own

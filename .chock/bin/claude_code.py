@@ -608,7 +608,10 @@ def run_guard(guard: _chock_Path, command: str) -> bool | None:
     try:
         env = {**_chock_os.environ, 'CHOCK_RAW_COMMAND': command}
         proc = _chock_subprocess.run([bash, str(guard), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=_GUARD_TIMEOUT_SECONDS)
-    except (OSError, UnicodeError, _chock_subprocess.TimeoutExpired) as exc:
+    except _chock_subprocess.TimeoutExpired:
+        print(f'chock: guard timed out after {_GUARD_TIMEOUT_SECONDS}s, not checked', file=sys.stderr)
+        return None
+    except (OSError, UnicodeError) as exc:
         print(f'chock: guard could not run, not checked: {exc}', file=sys.stderr)
         return None
     if proc.returncode == GUARD_VIOLATION:
