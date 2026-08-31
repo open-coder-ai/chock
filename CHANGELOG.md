@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Fixed: a guard that timed out wrote the command it was gating -- credentials included
+  -- to stderr.** `subprocess.TimeoutExpired.__str__` embeds the argv it was given, which
+  for `gate.guard_runner.run_guard` is bash, the guard script, and every token of the
+  command. Printing it reached the agent's own transcript, which is exactly what the same
+  function's parse-failure branch and `log_outcome` both refuse to do, and for the same
+  reason: commands routinely carry bearer tokens and passwords. The timeout branch now
+  reports the timeout alone. `OSError` and `UnicodeError` keep their detail -- those name
+  the interpreter and an offset, not the command.
 - **Coverage taxonomy: a fourth in-agent level, `fail-to-ask`, and an ordering.** The
   vocabulary graded on one axis -- what the HOST does when our hook never runs -- so a
   control that degrades to silently allowing and one that degrades to prompting a human
