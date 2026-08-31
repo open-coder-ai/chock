@@ -13,9 +13,11 @@ from chock.emit import write_generated
 from chock.plugin.build import (
     _ADVISORY_NOTE_HOOK,
     _ADVISORY_NOTE_RULE,
+    LICENSE_REL,
     NAMESPACE,
     build_manifest,
     build_skill,
+    license_text,
     plugin_name,
 )
 from chock.plugin.claude import POSTURE_ADVISORY, _adapter_source
@@ -90,6 +92,9 @@ def copilot_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: 
         + "\n",
         Path(packaging.supports("copilot", packaging.SKILL).format(name=name)): skill,
     }
+    licence = license_text(manifest)
+    if licence:
+        files[LICENSE_REL] = licence
     if script:
         hooks = {
             "hooks": {

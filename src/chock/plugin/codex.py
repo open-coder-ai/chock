@@ -20,6 +20,7 @@ from chock.plugin.build import (
     plugin_name,
 )
 from chock.plugin.claude import POSTURE_ADVISORY, _adapter_source
+from chock.plugin.listing import ICON_REL, LICENSE_REL, icon_svg, interface_block, license_text
 
 _LAYOUT = packaging.layout("codex_cli")
 PLUGIN_ROOT = packaging.plugin_root("codex_cli")
@@ -37,6 +38,7 @@ MANIFEST_KEYS = (
     "repository",
     "license",
     "keywords",
+    "interface",
     "skills",
     "hooks",
 )
@@ -75,10 +77,13 @@ def build_codex_manifest(manifest: dict[str, Any], policy_dir: Path, enforced: b
     provenance = manifest.get("provenance") or {}
     posture = POSTURE_ENFORCED_CODEX if enforced else POSTURE_ADVISORY
 
+    description = _one_line(manifest.get("description"))
+
     data: dict[str, Any] = {
         "name": plugin_name(policy_id),
-        "description": f"{_one_line(manifest.get('description'))} [{posture}]".strip(),
+        "description": f"{description} [{posture}]".strip(),
         "keywords": _keywords(manifest),
+        "interface": interface_block(manifest, policy_id, description),
         "skills": SKILLS_REL,
     }
     if manifest.get("version"):
@@ -114,7 +119,11 @@ def codex_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
         )
         + "\n",
         Path(packaging.supports("codex_cli", packaging.SKILL).format(name=name)): skill,
+        ICON_REL: icon_svg(),
     }
+    licence = license_text(manifest)
+    if licence:
+        files[LICENSE_REL] = licence
     if script:
         hooks = {
             "hooks": {
@@ -134,7 +143,7 @@ def codex_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
     return files
 
 
-OWNED_SUBTREES = ("hooks", "scripts")
+OWNED_SUBTREES = ("hooks", "scripts", "assets")
 
 
 def stale_codex_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, out_dir: Path) -> list[Path]:

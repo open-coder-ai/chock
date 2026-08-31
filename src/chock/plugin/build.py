@@ -9,6 +9,8 @@ from typing import Any
 
 from chock.compile.emitters.advisory import advisory_lines
 from chock.emit import write_generated
+from chock.plugin.listing import LICENSE_REL, license_text
+from chock.plugin.listing import one_line as _one_line
 
 SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 
@@ -44,11 +46,6 @@ def plugin_name(policy_id: str) -> str:
             f"no '--' or '..', max {_NAME_MAX} chars"
         )
     return policy_id
-
-
-def _one_line(text: Any) -> str:
-    """Collapse a folded YAML block to a single line."""
-    return " ".join(str(text or "").split())
 
 
 def _keywords(manifest: dict[str, Any]) -> list[str]:
@@ -146,14 +143,20 @@ def build_skill(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, hoo
     )
 
 
-def plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Path) -> dict[Path, str]:
+def plugin_files(
+    policy_dir: Path, manifest: dict[str, Any], repo_root: Path, *, packaged: bool = False
+) -> dict[Path, str]:
     """Return the plugin's files as {relative path: content}, writing nothing."""
     policy_id = manifest.get("id") or Path(policy_dir).name
     name = plugin_name(str(policy_id))
-    return {
+    files = {
         Path("plugin.json"): json.dumps(build_manifest(manifest, policy_dir), indent=2) + "\n",
         Path("skills") / name / "SKILL.md": build_skill(policy_dir, manifest, repo_root),
     }
+    licence = license_text(manifest) if packaged else None
+    if licence:
+        files[LICENSE_REL] = licence
+    return files
 
 
 def build_plugin(
@@ -162,7 +165,7 @@ def build_plugin(
     """Write the Agent Plugins package for one policy. Defaults to in place."""
     target = Path(out_dir) if out_dir else Path(policy_dir)
     written: list[Path] = []
-    for rel, content in plugin_files(Path(policy_dir), manifest, Path(repo_root)).items():
+    for rel, content in plugin_files(Path(policy_dir), manifest, Path(repo_root), packaged=out_dir is not None).items():
         dest = target / rel
         dest.parent.mkdir(parents=True, exist_ok=True)
         write_generated(dest, content)
@@ -176,7 +179,7 @@ def plugin_differences(
     """Report where the on-disk plugin disagrees with what the manifest would produce."""
     policy_id = manifest.get("id") or Path(policy_dir).name
     differences: list[str] = []
-    for rel, content in plugin_files(Path(policy_dir), manifest, Path(repo_root)).items():
+    for rel, content in plugin_files(Path(policy_dir), manifest, Path(repo_root), packaged=target is not None).items():
         dest = Path(target if target is not None else policy_dir) / rel
         if not dest.exists():
             differences.append(f"missing: {policy_id}/{rel.as_posix()}")

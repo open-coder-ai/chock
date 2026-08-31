@@ -14,10 +14,12 @@ from chock.gate import runtime_bundle
 from chock.plugin.build import (
     _ADVISORY_NOTE_HOOK,
     _ADVISORY_NOTE_RULE,
+    LICENSE_REL,
     _author,
     _keywords,
     _one_line,
     build_skill,
+    license_text,
     plugin_name,
 )
 
@@ -93,6 +95,9 @@ def claude_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
         + "\n",
         Path(packaging.supports("claude_code", packaging.SKILL).format(name=name)): skill,
     }
+    licence = license_text(manifest)
+    if licence:
+        files[LICENSE_REL] = licence
     if script:
         hooks_rel = packaging.supports("claude_code", packaging.HOOKS)
         hooks = {
