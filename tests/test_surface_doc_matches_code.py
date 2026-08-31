@@ -9,6 +9,11 @@ A table of what is enforced where is the page a reader trusts most, so it is the
 to let rot. `README.md` now carries a condensed copy of the same matrix -- the copy a
 reader reaches first and the one most likely to be quoted back at us -- so it is checked
 against the same source, cell by cell, rather than trusted because it was right once.
+
+The page publishes a SECOND table nothing checked: the coverage levels themselves, and their
+strength order. That is the vocabulary every other claim is worded in, so a level the code
+can report and the page does not name -- or an order the page states and `level_rank` does
+not -- is a bigger lie than a stale checkmark. Both are bound below.
 """
 
 from __future__ import annotations
@@ -18,6 +23,7 @@ from pathlib import Path
 
 import pytest
 
+from chock.compile.levels import COVERAGE_LEVELS, IN_AGENT_LEVELS, level_rank
 from chock.compile.surfaces import SURFACE_AGENTS, Surface
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -182,6 +188,69 @@ def test_readme_says_why_the_absent_surfaces_are_absent() -> None:
     # which is also what `coverage_level` reads -- so pin the structural fact, not the installer.
     supporting = [a for a, s in SURFACE_AGENTS.items() if Surface.MCP_GATEWAY in s]
     assert not supporting, f"mcp-gateway is now supported by {supporting}; the per-client wording is stale"
+
+
+def _published_levels() -> list[str]:
+    """The level names the doc's `| Level | Meaning |` table publishes, in the order it lists them.
+
+    Read from the first column's bolded code span, so a row whose *meaning* is rewritten still
+    matches while a row whose *name* changes does not. Order is kept because the table's order
+    is itself a published claim -- it is what a reader takes the ranking from.
+    """
+    text = DOC.read_text(encoding="utf-8")
+    start = "| Level | Meaning |"
+    assert start in text, "the coverage-level table is gone or its header changed"
+    table = start + text.split(start)[1].split("\n\n")[0]
+    levels = []
+    for line in table.splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) != 2 or cells[0].startswith(":-") or cells[0] == "Level":
+            continue
+        found = re.findall(r"`([^`]+)`", cells[0])
+        assert len(found) == 1, f"level cell {cells[0]!r} does not name exactly one level"
+        levels.append(found[0])
+    assert levels, "coverage-level table not parsed -- the row shape changed"
+    return levels
+
+
+def test_the_page_names_every_level_the_code_can_report() -> None:
+    """The level vocabulary is what every other claim on the page is worded in.
+
+    A level the compiler can write into `.chock/coverage.json` and the page does not name
+    leaves a reader with a verdict they cannot look up; a level the page names and the code
+    cannot produce is a control we are advertising and do not have. Both directions fail here,
+    which is why this compares sets rather than checking presence.
+    """
+    assert set(_published_levels()) == set(COVERAGE_LEVELS), (
+        f"the page publishes {sorted(_published_levels())}, the code reports {sorted(COVERAGE_LEVELS)}"
+    )
+
+
+def test_the_page_lists_the_in_agent_ladder_strongest_first() -> None:
+    """The table's ORDER is a claim about strength, so it is bound to `level_rank`.
+
+    Naming the right levels is not enough. A reader takes the ranking from the order the rows
+    appear in, so a table that lists `best-effort` above `enforceable` teaches the ladder
+    backwards while every name still checks out. Only the ranked levels are constrained --
+    `enforced-at-commit`, `advisory` and `disabled` have no rank, so the page may place them
+    wherever reads best.
+    """
+    ranked = [level for level in _published_levels() if level in IN_AGENT_LEVELS]
+    ranks = [level_rank(level) for level in ranked]
+    assert ranks == sorted(ranks, reverse=True), (
+        f"the page lists the ladder as {ranked}, which is not strongest-first by level_rank"
+    )
+
+
+def test_the_page_states_the_ladder_order_the_code_returns() -> None:
+    """The page prints the ladder as one line; it has to be the line `level_rank` produces.
+
+    Written out because the table alone cannot show `detect`, which has a rank but is never a
+    verdict here. Rendered from the code and compared, so a hand-typed reordering fails.
+    """
+    rendered = "  <  ".join(sorted(IN_AGENT_LEVELS, key=level_rank))
+    flattened = " ".join(DOC.read_text(encoding="utf-8").split())
+    assert " ".join(rendered.split()) in flattened, f"the page does not state the ladder as: {rendered}"
 
 
 def test_managed_setting_is_disclosed_as_not_installed() -> None:

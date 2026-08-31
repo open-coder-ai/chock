@@ -61,14 +61,26 @@ The strength of enforcement for one policy on one agent, written to
 `.chock/coverage.json`. It reports what a policy **actually achieves**, not what the
 agent is capable of: a surface that emits no file, or that nothing installs, raises no claim.
 
-- **`enforced`** — a hard, pre-execution in-agent control: an installed Claude PreToolUse
-  hook. `chock sync` merges the compiled fragments into
-  `.claude/settings.json` and only then raises the claim, so a policy is never reported as
-  enforced merely because a fragment was compiled.
+The four in-agent levels form an ordered ladder — `best-effort` ‹ `fail-to-ask` ‹
+`enforceable` ‹ `enforced` — derived from the host's fail mode and the control's own
+degradation. See [Enforcement Surfaces](enforcement-surfaces.md#coverage-levels) for the
+ordering axis and why chock's own in-agent control sits at the bottom of it.
+
+- **`enforced`** — a hard, pre-execution in-agent control that fails CLOSED: a crashed hook
+  still blocks. No agent chock installs into offers this today.
+- **`enforceable`** — installed and blocks, and can be told to fail closed but does not by
+  default. Cursor's hooks are this tier.
+- **`fail-to-ask`** — installed and blocks, and when the control cannot decide the action is
+  put to a human rather than let through. Chock does **not** earn this: its guard degrades to
+  allow. The level exists so a control stronger than ours can be graded as such.
+- **`best-effort`** — installed and blocks, but fails OPEN: a crashed hook silently allows.
+  An installed Claude Code PreToolUse hook is this tier. `chock sync` merges the compiled
+  fragments into `.claude/settings.json` and only then raises the claim, so a policy is never
+  reported as enforcing merely because a fragment was compiled.
 - **`enforced-at-commit`** — hard at commit/CI time, advisory in-agent. This is the real
   enforcement floor today: a compiled `hook.gate` running from `.git/hooks/`.
 - **`advisory`** — compiled into prose the agent is asked to follow.
-- **`unsupported`** — the agent supports none of the policy's emitted surfaces, or the only
+- **`none`** — the agent supports none of the policy's emitted surfaces, or the only
   surfaces emitted are ones nothing installs.
 - **`disabled`** — the policy is toggled off in `.chock/config.yaml` (`policies.disabled`);
   no artifacts are compiled and no hooks are installed for it.

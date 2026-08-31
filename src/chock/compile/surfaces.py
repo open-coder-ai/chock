@@ -1,41 +1,14 @@
-"""Surface enum and per-agent capability matrix for compiled policy outputs."""
+"""Surface enum and per-agent capability matrix for compiled policy outputs.
+
+How strong a control on one of these surfaces is -- the level vocabulary, its ordering, and
+the derivation -- lives in `levels.py`; this module owns which surfaces exist where.
+"""
 
 from __future__ import annotations
 
 from enum import Enum
 
-from agentseam import contract as _contract
-from agentseam import matrix as _matrix
-
-#: chock agent id -> the agentseam agent whose capability matrix governs whether that
-#: agent even HAS the surface (PRE_TOOL_USE / AGENT_HOOKS), replacing what used to be a
-#: second, hand-maintained copy of the same fact. Deliberately narrow: this settles
-#: membership (does the surface exist for this agent at all), not enforcement TIER --
-#: `coverage_level`'s four-value vocabulary is a contract `chock-catalog` (out of scope
-#: for this migration, not touched) renders, so it is not touched here. Per agentseam's
-#: own finding (recorded in its "for the next worker" notes): "copilot" has no live
-#: dispatch adapter of its own -- a Copilot CLI/VS Code payload always arrives as
-#: "vscode_copilot", the one wire dialect both chock ids share.
-_MATRIX_AGENT = {
-    "claude": "claude_code",
-    "cursor": "cursor",
-    "copilot": "vscode_copilot",
-    "vscode": "vscode_copilot",
-}
-
-
-def _matrix_can_block(chock_agent: str) -> bool:
-    """Whether agentseam's verified matrix confirms `chock_agent` can block a pre-tool call.
-
-    Used only to REPLACE a hardcoded True chock already asserted for claude/cursor
-    (PRE_TOOL_USE) and copilot/vscode (AGENT_HOOKS) with a live check against agentseam's
-    matrix, so the two projects cannot silently drift apart on whether the surface exists
-    at all. It is not consulted for any agent chock does not already claim this for, so it
-    can only confirm or -- were agentseam's verified data ever to disagree -- refuse an
-    existing claim, never manufacture a new one.
-    """
-    mapped = _MATRIX_AGENT.get(chock_agent)
-    return bool(mapped) and _matrix.can_block(mapped, _contract.PRE_TOOL)
+from chock.compile.levels import MATRIX_AGENT, _matrix_can_block, in_agent_level
 
 
 class Surface(str, Enum):
@@ -104,9 +77,6 @@ for _agent, _surface in (
 del _agent, _surface
 
 
-DISABLED = "disabled"
-
-
 # Surfaces whose mere presence in `emitted` is allowed to raise a coverage claim.
 #
 # Membership here is NOT the same question as "does anything install this surface", and the
@@ -171,15 +141,17 @@ def coverage_level(
     to prevent.
 
     Vocabulary (owner decision #9): PRE_TOOL_USE and AGENT_HOOKS, once installed, no longer
-    read flatly `enforced` -- they return whichever of agentseam's five, honest, per-agent
-    words (`matrix.enforcement_level`) the mapped agent's PRE_TOOL row actually earns.
-    claude_code's PreToolUse is FAIL_OPEN (a crashed hook silently allows), so it reads
-    `best-effort`, never `enforced` -- the honest downgrade this decision exists to make;
-    cursor's is FAIL_CONFIGURABLE, so it reads `enforceable`. `enforced-at-commit` and
-    `advisory` stay chock's own words: agentseam's tiers describe an AGENT lifecycle hook,
-    and chock's git-hook/CI-gate and ambient-rule surfaces are not that -- there is no
-    lossless translation, so this function does not force one. `unsupported` becomes `none`,
-    agentseam's own word for "no surface at all", a direct match with no loss either way.
+    read flatly `enforced` -- they read whatever `in_agent_level` derives from the mapped
+    agent's PRE_TOOL row and the way chock's own guard degrades. claude_code's PreToolUse is
+    FAIL_OPEN (a crashed hook silently allows), so it reads `best-effort`, never `enforced` --
+    the honest downgrade this decision exists to make; cursor's is FAIL_CONFIGURABLE, so it
+    reads `enforceable`. `fail-to-ask` joins that ladder for a control that blocks and, when
+    it cannot decide, puts the action to a human instead of letting it through; chock does not
+    earn it today, and `CONTROL_DEGRADES_TO` says so rather than the ladder flattering us.
+    `enforced-at-commit` and `advisory` stay chock's own words: agentseam's tiers describe an
+    AGENT lifecycle hook, and chock's git-hook/CI-gate and ambient-rule surfaces are not that
+    -- there is no lossless translation, so this function does not force one. `unsupported`
+    becomes `none`, agentseam's own word for "no surface at all", a direct match either way.
     """
     supported = SURFACE_AGENTS.get(agent, set())
     if not supported:
@@ -191,18 +163,18 @@ def coverage_level(
 
     # A hard control that runs BEFORE the action, in-agent. Emitting a PreToolUse fragment
     # does not achieve that while nothing installs it; once installed, the honest word for
-    # what it achieves is the mapped agent's own PRE_TOOL row, not a flat `enforced`.
+    # what it achieves comes from `in_agent_level` -- the mapped agent's own PRE_TOOL row
+    # combined with how chock's own guard degrades, not a flat `enforced`.
     if pre_tool_use_installed and Surface.PRE_TOOL_USE in active:
-        mapped = _MATRIX_AGENT.get(agent)
-        if mapped:
-            return _matrix.enforcement_level(mapped, _contract.PRE_TOOL)
+        if MATRIX_AGENT.get(agent):
+            return in_agent_level(agent)
     # Copilot CLI / VS Code native hooks: same hard pre-execution tier, gated on the same
     # kind of witness -- `.github/hooks/chock.json` must actually carry this policy's entry.
     # Emitting the entry is not enough; without the installed file the client runs nothing.
+    # Same derivation: these run the identical vendored guard, so the degradation is identical.
     if agent_hooks_installed and Surface.AGENT_HOOKS in active:
-        mapped = _MATRIX_AGENT.get(agent)
-        if mapped:
-            return _matrix.enforcement_level(mapped, _contract.PRE_TOOL)
+        if MATRIX_AGENT.get(agent):
+            return in_agent_level(agent)
     # Unlike git-hook (wired up automatically by every `recompile`), nothing runs `install-ci`
     # on a policy's behalf -- crediting CI_GATE the moment it is merely compiled would repeat
     # the exact overclaim `pre_tool_use_installed` exists to prevent for PreToolUse.
