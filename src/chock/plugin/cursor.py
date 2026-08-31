@@ -95,12 +95,14 @@ POSTURE_ENFORCED_CURSOR = (
     "denied before it runs (witnessed blocking on a real install). The hook needs python3 "
     "and a usable bash resolved from PATH; without them Cursor allows the command "
     "silently, so this fails OPEN. On Windows, disable the python3 Store alias or install "
-    "Python. Repo-wide enforcement at commit time and in CI still needs `chock sync`."
+    "Python. If the guard itself crashes or times out, the hook returns "
+    '`permission: "ask"`, which beforeShellExecution honours. Repo-wide enforcement at '
+    "commit time and in CI still needs `chock sync`."
 )
 
 _ENFORCED_NOTE_CURSOR = (
     "This policy is enforced in Cursor by the beforeShellExecution hook shipped with this "
-    "plugin, subject to the fail-open condition stated in the plugin description. "
+    "plugin, subject to the fail conditions stated in the plugin description. "
     "Repo-wide enforcement across every commit and in CI still needs `chock sync`. "
     "See https://github.com/open-coder-ai/chock"
 )

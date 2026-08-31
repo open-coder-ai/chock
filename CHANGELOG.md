@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- **Runtime: a guard that RAN and could not decide now asks for confirmation instead of
+  allowing silently.** `gate.guard_runner` had five "could not determine" paths and answered
+  all five the same way -- allow, with a line on stderr the agent sees and the developer
+  usually does not. Two of them are now an `ask`: the guard crashed (any exit code that is
+  neither 0 nor 1) and the guard hit its 30-second timeout. Both mean the control was
+  installed, reachable and runnable and still produced no answer, which is anomalous rather
+  than routine.
+  The other three still allow, deliberately: a command POSIX `shlex` will not tokenize is
+  common and usually benign, an empty command has nothing to check, and a machine with no
+  usable `bash` is uniform across every command rather than a fact about this one. Oversight
+  capacity is finite, and a control that prompts on all five would train a developer to click
+  through the prompts that matter.
+  What an `ask` becomes is per-client and no client turns it into a silent allow: Claude Code
+  and VS Code agent mode prompt (VS Code's `ask` overrides its own auto-approve), Cursor's
+  `beforeShellExecution` honours `permission: "ask"`, and Codex CLI -- whose parser rejects
+  `ask` outright and then fails open on the response it rejected -- gets a deny instead. The
+  per-client evidence is cited to vendor source and vendor docs at named refs in
+  `docs/enforcement-surfaces.md`.
+  **No coverage grade moves.** A control is only as strong as its worst degradation and three
+  paths still allow. The plugin descriptions, the marketplace README text and
+  `docs/enforcement-surfaces.md` are corrected to state the split rather than a flat
+  "fails open"; `gate.guard_runner.evaluate` now returns `(outcome, reason)` or `None`.
+
 - **Fixed: a guard that timed out wrote the command it was gating -- credentials included
   -- to stderr.** `subprocess.TimeoutExpired.__str__` embeds the argv it was given, which
   for `gate.guard_runner.run_guard` is bash, the guard script, and every token of the
