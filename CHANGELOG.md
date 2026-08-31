@@ -1,5 +1,16 @@
 # Chock changelog
 
+## Unreleased
+
+- **Fixed: a guard that timed out wrote the command it was gating -- credentials included
+  -- to stderr.** `subprocess.TimeoutExpired.__str__` embeds the argv it was given, which
+  for `gate.guard_runner.run_guard` is bash, the guard script, and every token of the
+  command. Printing it reached the agent's own transcript, which is exactly what the same
+  function's parse-failure branch and `log_outcome` both refuse to do, and for the same
+  reason: commands routinely carry bearer tokens and passwords. The timeout branch now
+  reports the timeout alone. `OSError` and `UnicodeError` keep their detail -- those name
+  the interpreter and an offset, not the command.
+
 ## 0.7.0 — Migrate primitives-generation to agentseam
 
 BREAKING-ISH: chock's file layout, coverage vocabulary, and vendored runtime bytes all

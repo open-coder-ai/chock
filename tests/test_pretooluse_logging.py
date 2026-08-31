@@ -143,6 +143,36 @@ def test_unparseable_command_is_allowed_and_unrecorded(tmp_path: Path, monkeypat
     assert read_log(tmp_path) == []
 
 
+HANGING_GUARD = "#!/usr/bin/env bash\nsleep 30\n"
+
+
+def test_a_timed_out_guard_does_not_echo_the_command_to_stderr(
+    tmp_path: Path, monkeypatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The log's redaction rule applies to stderr too, and the timeout branch broke it.
+
+    `subprocess.TimeoutExpired.__str__` embeds the argv it was given -- which here is bash,
+    the guard, and every token `shlex.split` produced from the command. Printing `{exc}`
+    therefore wrote the whole command, credentials included, to a stream the agent's own
+    transcript captures. The one place a secret is most likely to appear in a command is an
+    `Authorization: Bearer` header, so that is the command used.
+
+    Executed against the real timeout, not a stubbed exception: the guard really sleeps and
+    the runner's real `subprocess.TimeoutExpired` handler really runs. Mutation-tested by
+    restoring `{exc}`, which fails on the `Bearer` assertion.
+    """
+    guard = make_guard(tmp_path, HANGING_GUARD)
+    monkeypatch.setattr(guard_runner, "_GUARD_TIMEOUT_SECONDS", 1)
+
+    assert guard_runner.run_guard(guard, SECRET_COMMAND) is None, "a timeout is still 'not checked'"
+
+    err = capsys.readouterr().err
+    assert "sk-live-abcdef1234567890" not in err, "a timing-out guard must not echo the credential"
+    assert "Bearer" not in err
+    assert "example.invalid" not in err, "nor the rest of the command it was gating"
+    assert "timed out" in err, "and it must still say what happened"
+
+
 def test_both_vendored_runners_agree_on_the_log_contract() -> None:
     """The two copies are deliberately duplicated; this is what keeps them one log.
 
