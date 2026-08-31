@@ -1,0 +1,5 @@
+pyyaml>=6.0
+jsonschema>=4.18,<5
+referencing>=0.35,<0.38
+agentseam==0.1.1
+cairosvg==2.9.0

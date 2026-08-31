@@ -21,6 +21,11 @@ import os
 import subprocess
 from pathlib import Path
 
+# Not dead: source-extracted (see module docstring) into gate/runtime_bundle.py's
+# vendored claude_code runtime, which references it as `_INSTRUCTION` in the spliced
+# SessionStart handler. CodeQL analyses this module in isolation and has no model for
+# that extraction, so it cannot see the use.
+# codeql[py/unused-global-variable]
 _INSTRUCTION = (
     "Chock: this clone's git hooks are NOT installed -- git never clones hooks, "
     "so commit-time gates will not run locally until someone runs:\n"
