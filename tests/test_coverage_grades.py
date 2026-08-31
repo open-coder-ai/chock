@@ -153,34 +153,75 @@ def _guard(tmp_path: Path, body: str) -> list[str]:
     return ["--guard", str(path)]
 
 
-def test_chocks_degradation_constant_is_derived_from_the_running_guard(tmp_path: Path) -> None:
+def _degradation(evaluate_result) -> str:
+    """The degradation word for one `evaluate` return value.
+
+    `evaluate` has THREE channels, not two: `None` (allow), `(VERDICT_ASK, reason)`, and
+    `(VERDICT_DENY, reason)`. Reading it as two -- `None` or "not None" -- is the specific
+    mistake this helper exists to prevent: it reports an `ask` as a `deny`, which flatters the
+    control by a whole rung of the ladder and would have this test demand a constant the
+    mechanism does not earn.
+    """
+    from chock.gate import guard_runner
+
+    if evaluate_result is None:
+        return DEGRADES_TO_ALLOW
+    outcome, _reason = evaluate_result
+    return DEGRADES_TO_ASK if outcome == guard_runner.VERDICT_ASK else DEGRADES_TO_DENY
+
+
+def test_chocks_degradation_constant_is_derived_from_the_running_guard(tmp_path: Path, monkeypatch) -> None:
     """`CONTROL_DEGRADES_TO` is checked by running the mechanism, not by reading the constant.
 
     A constant that merely says "we fail open" would keep saying it after someone wired an
-    ask path in, and the grade would then understate. So the value is recomputed here from
-    what `gate.guard_runner.evaluate` returns for a guard that ran and could not decide, and
-    compared to the constant `coverage_level` reads.
+    ask path in, and the grade would then understate. So the value is recomputed here by
+    running `gate.guard_runner.evaluate` down EVERY path that reaches "could not decide" and
+    taking the weakest -- which is what `DEGRADES_TO_DENY`'s own comment above requires: "a
+    control mixing the two must be declared at its weakest path".
 
-    The blocking case is asserted alongside it on purpose: without it, "degrades to allow"
-    would also be true of a control that allows everything, and the test would pass for the
-    wrong reason.
+    Every path, not one, is the point. `guard_runner` no longer answers them alike: a guard
+    that ran and errored asks, while a precondition failure (nothing to tokenize, no usable
+    bash) still allows. Deriving from the crash alone would report `ask` and demand a
+    constant this control has not earned; deriving from `is None` alone would report `deny`,
+    which is the reading that broke this test when the ask landed.
+
+    Two assertions guard the ends of the range, because "the weakest is allow" is also true
+    of a control that does nothing at all:
+      * exit 1 must still deny -- the control really blocks;
+      * at least one path must ask -- otherwise this passes by the ask having been removed,
+        which is the drift the whole test was written to catch.
     """
     from chock.gate import guard_runner
 
     # Exit 1 is the violation channel: the control really does block.
     assert guard_runner.evaluate(_guard(tmp_path, "exit 1"), "rm -rf /", "Bash") is not None
 
-    # Exit 3 is "the check did not happen" -- a crash, in the runner's own words. Whatever
-    # it returns for that IS chock's degradation, and `evaluate` has only two channels:
-    # a deny reason, or None (which the vendored dispatch turns into no opinion, i.e. allow).
-    degraded = guard_runner.evaluate(_guard(tmp_path, "exit 3"), "rm -rf /", "Bash")
-    observed = DEGRADES_TO_ALLOW if degraded is None else DEGRADES_TO_DENY
-    assert observed == CONTROL_DEGRADES_TO, (
-        f"the guard runner degrades to {observed!r} but CONTROL_DEGRADES_TO says {CONTROL_DEGRADES_TO!r}"
+    crashing = _guard(tmp_path, "exit 3")
+    observed = {
+        # The guard ran and did not deliver a verdict.
+        "crash": _degradation(guard_runner.evaluate(crashing, "rm -rf /", "Bash")),
+        "killed": _degradation(guard_runner.evaluate(_guard(tmp_path, "kill -9 $$"), "rm -rf /", "Bash")),
+        # Preconditions: the guard never started.
+        "unparseable": _degradation(guard_runner.evaluate(crashing, 'echo "unbalanced', "Bash")),
+        "empty command": _degradation(guard_runner.evaluate(crashing, "   ", "Bash")),
+    }
+    with monkeypatch.context() as no_bash:
+        no_bash.setattr(guard_runner, "find_bash", lambda _: None)
+        observed["no bash"] = _degradation(guard_runner.evaluate(crashing, "rm -rf /", "Bash"))
+
+    weakest = min(observed.values(), key=DEGRADATION_MODES.index)
+    assert weakest == CONTROL_DEGRADES_TO, (
+        f"the guard runner's weakest degradation is {weakest!r} but "
+        f"CONTROL_DEGRADES_TO says {CONTROL_DEGRADES_TO!r} (per path: {observed})"
     )
-    # And the same for the other "not checked" routes, so the constant covers the class
-    # rather than the one path this test happened to take.
-    assert guard_runner.evaluate(_guard(tmp_path, "kill -9 $$"), "rm -rf /", "Bash") is None
+    assert DEGRADES_TO_ASK in observed.values(), (
+        "no path asks any more -- either the ask was removed, in which case this constant and "
+        f"the claims in docs/enforcement-surfaces.md must move with it (per path: {observed})"
+    )
+
+    # A guard that is not on disk at all never reaches the five paths above: `evaluate`
+    # returns before running anything, so it allows, and it is listed separately rather than
+    # folded in as though it were one of them.
     assert guard_runner.evaluate(["--guard", str(tmp_path / "absent.sh")], "rm -rf /", "Bash") is None
 
 

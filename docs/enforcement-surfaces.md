@@ -161,15 +161,18 @@ number comparing them would invent a scale that does not exist.
 > strictly stronger. A grading layer that cannot rank a control above ours is not measuring
 > anything, so the distinction is now derived from two inputs rather than one: the host's
 > block behaviour and fail mode (from agentseam's matrix), and the control's own degradation
-> (`compile.surfaces.CONTROL_DEGRADES_TO`).
+> (`compile.levels.CONTROL_DEGRADES_TO`).
 >
-> **Chock's own guard degrades to allow.** `gate.guard_runner.evaluate` returns a deny reason
-> or nothing, and every "not checked" path — missing bash, a timeout, an unparseable command,
-> a guard exiting anything but 0 or 1 — returns nothing, which the vendored dispatch turns
-> into no opinion and every host reads as allow. So chock's `pre-tool-use` and `agent-hooks`
-> stay at `best-effort`, and adding this level changed **no** existing grade. The word now
-> exists for something we do not do. That is the intended result: the ladder is only worth
-> trusting where it flatters us if it can also report that we are behind.
+> **Chock's own guard is a mixed control, so it is graded at its weakest path.** Of the five
+> ways `gate.guard_runner.evaluate` can fail to reach a verdict, two now ask — the guard
+> crashed, or it timed out — and three still allow, because they are preconditions rather
+> than anomalies. The section [What happens when the guard cannot decide](#what-happens-when-the-guard-cannot-decide)
+> gives the per-path reasoning and the per-client evidence. `DEGRADES_TO_DENY`'s own rule
+> settles the grade: a control mixing the two is declared at its weakest path, so
+> `CONTROL_DEGRADES_TO` stays `allow`, chock's `pre-tool-use` and `agent-hooks` stay at
+> `best-effort`, and this level still names something we do not earn. That is the intended
+> result: the ladder is only worth trusting where it flatters us if it can also report that
+> we are behind — including when we have genuinely improved and still fall short.
 
 > **`enforced` is raised by the install step, not by `compile`.** Compiling writes a
 > fragment; installing merges it into `.claude/settings.json` / `.cursor/hooks.json` and
