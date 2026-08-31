@@ -77,12 +77,30 @@ for _agent, _surface in (
 del _agent, _surface
 
 
-# Surfaces that something actually installs, and therefore actually enforce.
+# Surfaces whose mere presence in `emitted` is allowed to raise a coverage claim.
 #
-# `pre-tool-use` and `managed-setting` are compiled into .chock/compiled/ and then
-# read by nothing: no code writes them into .claude/settings.json or a managed-settings
-# location. A fragment that never reaches the agent enforces nothing, so it must not raise
-# a coverage claim. Add a surface here only once an installer exists for it.
+# Membership here is NOT the same question as "does anything install this surface", and the
+# difference is the subtle part this comment exists to protect.
+#
+# `managed-setting` is the simple case: it is compiled into `.chock/compiled/<id>/
+# managed-setting/` and read by nothing -- no installer writes it into a managed-settings
+# location -- so it is absent, and no policy can raise a claim through it.
+#
+# `pre-tool-use` is absent for the OPPOSITE reason. It *is* installed:
+# `hooks/pretooluse_install.py` merges its fragment into `.claude/settings.json` (and
+# `hooks/cursor_install.py` into `.cursor/hooks.json`), which is why `coverage_level`
+# credits it. But it is credited through the `pre_tool_use_installed` WITNESS -- proof that
+# this policy's entry is in that settings file right now -- not through membership here.
+# Membership is a static, per-surface fact; the witness is a per-policy, per-agent,
+# per-checkout observation. `git-hook` can be static because every `recompile` wires the
+# hook up itself, so compiling it is evidence enough. Nothing installs a PreToolUse entry
+# as a side effect of compiling, and a repo can be compiled and never synced, so a static
+# claim there would credit an agent that is running no hook at all. `agent-hooks` and
+# `ci-gate` are witness-gated for the same reason (`ci-gate` needs BOTH: it is listed here,
+# and `coverage_level` still requires `ci_gate_installed`).
+#
+# So: add a surface here only when compiling it is by itself proof that it enforces. If the
+# proof is an installed file, the honest mechanism is a witness argument, not this set.
 INSTALLED_SURFACES: set[Surface] = {Surface.GIT_HOOK, Surface.CI_GATE, Surface.AMBIENT_RULE}
 
 
