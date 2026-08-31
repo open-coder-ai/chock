@@ -124,7 +124,22 @@ def run_guard(guard: Path, command: str) -> bool | None:
             env=env,
             timeout=_GUARD_TIMEOUT_SECONDS,
         )
-    except (OSError, UnicodeError, subprocess.TimeoutExpired) as exc:
+    except subprocess.TimeoutExpired:
+        # Deliberately NOT `{exc}`. TimeoutExpired's own str() is
+        # "Command '['bash', '/path/guard.sh', 'curl', '-H', 'Authorization: Bearer sk-...']'
+        # timed out after 30 seconds" -- it embeds `cmd`, which is bash, the guard, and every
+        # token of the command. That is the one thing this module refuses to write anywhere a
+        # transcript can capture (see the shlex branch above and log_outcome below), and it
+        # was reaching stderr on every guard that hung. The timeout is the whole message; the
+        # command adds nothing a reader needs and carries the credential.
+        print(
+            f"chock: guard timed out after {_GUARD_TIMEOUT_SECONDS}s, not checked",
+            file=sys.stderr,
+        )
+        return None
+    except (OSError, UnicodeError) as exc:
+        # These two are safe to print: OSError names the interpreter it could not spawn and
+        # UnicodeError names an offset, neither of which is the command.
         print(f"chock: guard could not run, not checked: {exc}", file=sys.stderr)
         return None
 
