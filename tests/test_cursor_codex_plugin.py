@@ -141,6 +141,11 @@ def test_codex_guard_policy_layout_and_hook(policy, tmp_path: Path) -> None:
         Path("hooks/hooks.json"),
         Path("scripts/codex_cli.py"),
         Path("scripts/block-destructive-commands.sh"),
+        # The file `interface.composerIcon` names. It is in the SET because a manifest that
+        # points at an icon the package does not carry is a broken listing, not a cosmetic
+        # miss -- so the path and the file are asserted together, here and in
+        # test_codex_interface_block_is_derived_from_the_manifest.
+        Path("assets/icon.svg"),
     }
 
     hooks = json.loads(files[Path("hooks/hooks.json")])
@@ -174,7 +179,15 @@ def test_codex_manifest_is_legacy_format_not_agent_plugins(policy, tmp_path: Pat
 
 def test_codex_rule_policy_gets_no_hook(policy, tmp_path: Path) -> None:
     files = codex_plugin_files(policy(RULE_MANIFEST), RULE_MANIFEST, tmp_path)
-    assert set(files) == {Path(".codex-plugin/plugin.json"), Path("skills/code-safety/SKILL.md")}
+    assert set(files) == {
+        Path(".codex-plugin/plugin.json"),
+        Path("skills/code-safety/SKILL.md"),
+        Path("assets/icon.svg"),
+    }
+    # No LICENSE: these fixtures carry no `created_at`/`updated_at`, so the notice has no
+    # year to state and `license_text` declines rather than inventing one. That the absence
+    # is visible here is the point -- see test_plugin_listing.py for both directions.
+    assert Path("LICENSE") not in files
     assert "hooks" not in json.loads(files[Path(".codex-plugin/plugin.json")])
 
 
