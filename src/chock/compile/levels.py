@@ -71,20 +71,31 @@ DEGRADES_TO_DENY = "deny"
 DEGRADATION_MODES = (DEGRADES_TO_ALLOW, DEGRADES_TO_ASK, DEGRADES_TO_DENY)
 
 
-#: How chock's own installed in-agent control degrades. `gate.guard_runner.evaluate` returns
-#: a deny reason or `None`, and every "not checked" path -- missing bash, OSError, timeout,
-#: unparseable command, a guard exiting anything but 0 or 1 -- returns `None`; the vendored
-#: dispatch (`gate.runtime_bundle._DISPATCH`) turns that `None` into no opinion, which every
-#: host reads as allow. So chock fails open at BOTH boundaries.
+#: How chock's own installed in-agent control degrades. `gate.guard_runner.evaluate` answers
+#: its "could not decide" paths in two different ways, and this constant is the WEAKER of
+#: them, per the rule stated on DEGRADES_TO_DENY above:
+#:
+#:   ask    the guard ran and did not deliver a verdict -- it crashed, exited a code that is
+#:          neither 0 nor 1, or hit its timeout. `Decision.ask` reaches the client as a
+#:          confirmation prompt on three of the four vendored runtimes and as a deny on Codex
+#:          CLI, whose parser rejects `ask`; no client turns it into an allow.
+#:   allow  a PRECONDITION failed, so the guard never started -- no usable bash, a command
+#:          POSIX shlex will not tokenize, nothing to tokenize. These are common or uniform
+#:          rather than anomalous, and prompting on them would spend the oversight budget the
+#:          ask above depends on. `docs/enforcement-surfaces.md` carries the per-path
+#:          reasoning and the per-client evidence.
+#:
+#: So the control is **not** fail-to-ask: it is a mixed control, and a mixed one is declared
+#: at its weakest path. chock still fails open at both boundaries on those three paths, and
+#: the grade must keep saying so. The value moves only when the WEAKEST path stops allowing.
 #:
 #: It is a constant here rather than a per-agent entry because it is a property of one
 #: mechanism, not of an agent: all four in-agent surfaces run the same `guard_runner` through
 #: the same vendored adapter, so there is one fact to state and no table to get wrong.
-#: `test_coverage_grades.py` derives this value by running the mechanism against a guard that
-#: cannot run rather than trusting the constant, so it cannot drift from the code.
-#:
-#: Recorded, since it is the gap this vocabulary now has a word for: agentseam's contract does
-#: expose `Decision.ask`, so the plumbing to fail to a prompt exists and chock does not use it.
+#: `test_coverage_grades.py` derives this value by running the mechanism down every one of
+#: those paths and taking the weakest, rather than trusting the constant -- and separately
+#: asserts that at least one path still asks, so the constant cannot go on reading `allow`
+#: because the ask was quietly dropped.
 CONTROL_DEGRADES_TO = DEGRADES_TO_ALLOW
 
 

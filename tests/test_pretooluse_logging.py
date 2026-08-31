@@ -2,8 +2,10 @@
 
 Two things differ from the gate runner and both are deliberate. The record carries no
 command, because on this surface the command *is* the scanned content and routinely holds
-bearer tokens. And "the guard could not run" is not an outcome: it allows, like a clean
-run, but recording it as a pass would invent the evidence this log exists to collect.
+bearer tokens. And "the guard could not run" is not an outcome: recording it as a pass
+would invent the evidence this log exists to collect -- which holds whether that outcome
+allows (a precondition failure) or asks (a guard that ran and could not decide), since
+`gatelog.summarize` buckets every non-`block` record as an allow.
 
 `gate.guard_runner` is the single source both `eval/execute.py` imports and
 `gate/runtime_bundle.py` source-extracts into every vendored per-agent runtime (see that
@@ -51,15 +53,15 @@ def read_log(repo: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-def evaluate(guard: Path, command: str, tool: str = "Bash") -> str | None:
+def evaluate(guard: Path, command: str, tool: str = "Bash") -> tuple[str, str] | None:
     return guard_runner.evaluate(["--guard", str(guard)], command, tool)
 
 
 def test_block_is_recorded(tmp_path: Path, monkeypatch) -> None:
     guard = make_guard(tmp_path, BLOCKING_GUARD)
-    monkeypatch.setattr(guard_runner, "run_guard", lambda *_: True)
+    monkeypatch.setattr(guard_runner, "run_guard", lambda *_: guard_runner.GUARD_BLOCKED)
 
-    assert evaluate(guard, "rm -rf /") == "Blocked by chock policy: block-destructive"
+    assert evaluate(guard, "rm -rf /") == (guard_runner.VERDICT_DENY, "Blocked by chock policy: block-destructive")
 
     records = read_log(tmp_path)
     assert len(records) == 1
@@ -73,25 +75,38 @@ def test_block_is_recorded(tmp_path: Path, monkeypatch) -> None:
 
 def test_allow_is_recorded(tmp_path: Path, monkeypatch) -> None:
     guard = make_guard(tmp_path, CLEAN_GUARD)
-    monkeypatch.setattr(guard_runner, "run_guard", lambda *_: False)
+    monkeypatch.setattr(guard_runner, "run_guard", lambda *_: guard_runner.GUARD_CLEAN)
 
     assert evaluate(guard, "ls -la") is None
     assert read_log(tmp_path)[0]["verdict"] == "allow"
 
 
 def test_unchecked_guard_is_not_recorded_as_a_pass(tmp_path: Path, monkeypatch) -> None:
-    """The distinction the tri-state exists for: allowed, but nothing was checked."""
-    guard = make_guard(tmp_path, BROKEN_GUARD)
-    monkeypatch.setattr(guard_runner, "run_guard", lambda *_: None)
+    """The distinction the outcome words exist for: nothing was checked.
 
+    Both "did not check" words are pinned, because they reach the log the same way and
+    differ only in what they return to the caller: a precondition failure allows, a guard
+    that ran and errored asks. Neither may leave a record -- an `ask` record would be
+    counted as an allow by `gatelog.summarize`, which is the miscount the whole class is
+    kept out of the log to avoid.
+    """
+    guard = make_guard(tmp_path, BROKEN_GUARD)
+
+    monkeypatch.setattr(guard_runner, "run_guard", lambda *_: guard_runner.GUARD_UNCHECKED)
     assert evaluate(guard, "ls -la") is None
+    assert read_log(tmp_path) == []
+
+    monkeypatch.setattr(guard_runner, "run_guard", lambda *_: guard_runner.GUARD_ERRORED)
+    outcome, reason = evaluate(guard, "ls -la")
+    assert outcome == guard_runner.VERDICT_ASK
+    assert reason, "a confirmation request must say why it is being asked for"
     assert read_log(tmp_path) == []
 
 
 def test_command_never_reaches_the_log(tmp_path: Path, monkeypatch) -> None:
     """Commands carry credentials far more often than files do."""
     guard = make_guard(tmp_path, BLOCKING_GUARD)
-    monkeypatch.setattr(guard_runner, "run_guard", lambda *_: True)
+    monkeypatch.setattr(guard_runner, "run_guard", lambda *_: guard_runner.GUARD_BLOCKED)
 
     evaluate(guard, SECRET_COMMAND)
 
@@ -102,16 +117,16 @@ def test_command_never_reaches_the_log(tmp_path: Path, monkeypatch) -> None:
 
 def test_env_switch_disables_logging(tmp_path: Path, monkeypatch) -> None:
     guard = make_guard(tmp_path, BLOCKING_GUARD)
-    monkeypatch.setattr(guard_runner, "run_guard", lambda *_: True)
+    monkeypatch.setattr(guard_runner, "run_guard", lambda *_: guard_runner.GUARD_BLOCKED)
     monkeypatch.setenv(GATE_LOG_ENV, "0")
 
-    assert evaluate(guard, "rm -rf /") == "Blocked by chock policy: block-destructive"
+    assert evaluate(guard, "rm -rf /") == (guard_runner.VERDICT_DENY, "Blocked by chock policy: block-destructive")
     assert read_log(tmp_path) == []
 
 
 def test_logging_failure_does_not_change_the_verdict(tmp_path: Path, monkeypatch) -> None:
     guard = make_guard(tmp_path, BLOCKING_GUARD)
-    monkeypatch.setattr(guard_runner, "run_guard", lambda *_: True)
+    monkeypatch.setattr(guard_runner, "run_guard", lambda *_: guard_runner.GUARD_BLOCKED)
 
     class Exploding:
         @staticmethod
@@ -120,7 +135,7 @@ def test_logging_failure_does_not_change_the_verdict(tmp_path: Path, monkeypatch
 
     monkeypatch.setattr(guard_runner, "datetime", Exploding)
 
-    assert evaluate(guard, "rm -rf /") == "Blocked by chock policy: block-destructive"
+    assert evaluate(guard, "rm -rf /") == (guard_runner.VERDICT_DENY, "Blocked by chock policy: block-destructive")
     assert read_log(tmp_path) == []
 
 
@@ -128,9 +143,9 @@ def test_guard_outside_an_chock_repo_is_not_recorded(tmp_path: Path, monkeypatch
     guard = tmp_path / "loose" / "implementations" / "block-destructive.sh"
     guard.parent.mkdir(parents=True, exist_ok=True)
     guard.write_text(BLOCKING_GUARD, encoding="utf-8", newline="\n")
-    monkeypatch.setattr(guard_runner, "run_guard", lambda *_: True)
+    monkeypatch.setattr(guard_runner, "run_guard", lambda *_: guard_runner.GUARD_BLOCKED)
 
-    assert evaluate(guard, "rm -rf /") == "Blocked by chock policy: block-destructive"
+    assert evaluate(guard, "rm -rf /") == (guard_runner.VERDICT_DENY, "Blocked by chock policy: block-destructive")
     assert read_log(tmp_path) == []
 
 
@@ -138,7 +153,7 @@ def test_unparseable_command_is_allowed_and_unrecorded(tmp_path: Path, monkeypat
     """Real run_guard, no stubbing: a parse failure must not masquerade as a clean check."""
     guard = make_guard(tmp_path, CLEAN_GUARD)
 
-    assert guard_runner.run_guard(guard, 'echo "unbalanced') is None
+    assert guard_runner.run_guard(guard, 'echo "unbalanced') == guard_runner.GUARD_UNCHECKED
     assert evaluate(guard, 'echo "unbalanced') is None
     assert read_log(tmp_path) == []
 
@@ -164,7 +179,8 @@ def test_a_timed_out_guard_does_not_echo_the_command_to_stderr(
     guard = make_guard(tmp_path, HANGING_GUARD)
     monkeypatch.setattr(guard_runner, "_GUARD_TIMEOUT_SECONDS", 1)
 
-    assert guard_runner.run_guard(guard, SECRET_COMMAND) is None, "a timeout is still 'not checked'"
+    verdict = guard_runner.run_guard(guard, SECRET_COMMAND)
+    assert verdict == guard_runner.GUARD_ERRORED, "a timeout is the guard failing to decide, not a precondition"
 
     err = capsys.readouterr().err
     assert "sk-live-abcdef1234567890" not in err, "a timing-out guard must not echo the credential"

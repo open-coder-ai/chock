@@ -74,7 +74,9 @@ POSTURE_ENFORCED_COPILOT = (
     "as the Agent Plugins spec tells generic clients to, gets the advisory skill only. "
     "The hook needs python3 and a usable bash. Without them, fail-open clients allow "
     "silently; fail-closed clients refuse matched commands. On Windows, disable the "
-    "python3 Store alias or install Python."
+    "python3 Store alias or install Python. If the guard itself crashes or times out, the "
+    "hook asks for confirmation rather than allowing silently -- VS Code agent mode honours "
+    "that ask and it overrides the client's own auto-approve."
 )
 
 #: Replaces the shared builder's closing note in hook-carrying packages, with the same

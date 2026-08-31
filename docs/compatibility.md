@@ -27,7 +27,7 @@ Once at 1.0, a change to any of these is breaking and requires a major version:
 | **CLI** | Command names, existing flags, and exit codes. Adding a command or an optional flag is not breaking. |
 | **Manifest schema** | Removing a field, narrowing an enum, or making an optional field required. Adding an optional field is not breaking. |
 | **Gate spec** | `gate.json` structure, gate `kind` names, and the meaning of their `params`. |
-| **Coverage taxonomy** | The values `enforced`, `enforceable`, `fail-to-ask`, `best-effort`, `enforced-at-commit`, `advisory`, `none`, `disabled` (`compile.surfaces.COVERAGE_LEVELS`), the strength order of the in-agent ladder (`level_rank`), and the rules deciding which applies. Renaming one silently rewrites everybody's compliance evidence; reordering the ladder silently rewrites every comparison drawn from it. |
+| **Coverage taxonomy** | The values `enforced`, `enforceable`, `fail-to-ask`, `best-effort`, `enforced-at-commit`, `advisory`, `none`, `disabled` (`compile.levels.COVERAGE_LEVELS`), the strength order of the in-agent ladder (`level_rank`), and the rules deciding which applies. Renaming one silently rewrites everybody's compliance evidence; reordering the ladder silently rewrites every comparison drawn from it. |
 | **Lockfile** | The `lockfile_version` contract and the meaning of each field. |
 | **Vendored runtimes** | The interface of `.chock/bin/gate.py` and `pretooluse.py` — the arguments they accept and the exit codes they return. Adopters wire these into hooks and settings files. |
 
