@@ -91,8 +91,8 @@ agent *before the code is written*, and what still arrives has already passed yo
   vendored runner; guard scripts are plain bash. No LLM calls, no network.
 - **✅ Trust, but verify** — a validation engine, a hash-pinned `chock.lock`, and an eval
   suite (with adversarial cases) replayed against every policy's own mechanism on each build.
-- **📊 Coverage you can prove** — a per-agent report grading every policy *enforced* /
-  *enforced-at-commit* / *advisory*, so nobody believes the tooling does more than it does.
+- **📊 Coverage you can prove** — every policy × agent graded on an ordered, mechanism-derived ladder (*enforced* › *enforceable* › *fail-to-ask* › *best-effort*),
+  plus *enforced-at-commit* and *advisory* — a grade that is free to say we are behind, and does: our own in-agent guard fails open, so it earns *best-effort*.
 - **📦 Speaks the open packaging standard — and four vendor dialects** — `chock plugin
   build` emits [Agent Plugins 1.0.0](https://agent-plugins.org) packages any conformant
   client can read, plus hook-carrying plugin formats for
