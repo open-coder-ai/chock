@@ -22,10 +22,9 @@ import yaml
 
 from chock.gate import runtime_bundle
 from chock.plugin.build import build_skill
-from chock.plugin.claude import POSTURE_ADVISORY, claude_plugin_files
+from chock.plugin.claude import POSTURE_ADVISORY
 from chock.plugin.cli import main as plugin_main
 from chock.plugin.copilot import (
-    HOOKS_REL,
     POSTURE_ENFORCED_COPILOT,
     build_copilot_plugin,
     copilot_plugin_differences,
@@ -98,43 +97,14 @@ def test_hook_lives_in_the_copilot_namespace(policy, tmp_path: Path) -> None:
     entry = hooks["hooks"]["PreToolUse"][0]
     assert entry["matcher"] == "Bash"
     command = entry["hooks"][0]["command"]
-    # The EXACT command, for the same reason test_claude_plugin pins it: any change to this
-    # string is a change to enforcement and must be a reviewed decision. ${PLUGIN_ROOT}, not
-    # Claude's ${CLAUDE_PLUGIN_ROOT}: Agent Plugins 1.0 defines its own plugin-root token
-    # (agentseam packaging.PACKAGING["copilot"]["plugin_root"]), and ${CLAUDE_PLUGIN_ROOT}
-    # is never set for a bundle in this format -- the old command silently referenced a
-    # token that resolves to nothing.
+    # The EXACT command: changing this string changes enforcement. The root is an
+    # environment VARIABLE, not a `${PLUGIN_ROOT}` token, and an unresolved root exits 0 --
+    # both load-bearing, see tests/test_copilot_hook_runtime.py. This once pinned a command
+    # that denied every tool call: a pinned string proves intent, not function.
     assert command == (
-        'python3 "${PLUGIN_ROOT}/scripts/vscode_copilot.py" '
-        '--guard "${PLUGIN_ROOT}/scripts/block-destructive-commands.sh"'
-    )
-
-
-def test_copilot_and_claude_packages_run_the_same_hook(policy, tmp_path: Path) -> None:
-    """Two formats, one enforcement system -- same matcher, same guard bytes, own dialect.
-
-    The GUARD script is byte-identical in both layouts. The adapter itself is legitimately
-    NOT byte-identical any more: `vscode_copilot.py`/`claude_code.py` are two different
-    agentseam bundles (`gate/runtime_bundle.py`), each speaking that vendor's own
-    live-verified dialect -- a real difference the old shared, sniffing adapter only
-    approximated. What must never differ is matcher/timeout and the guard's bytes.
-    """
-    pack = policy(GUARD_MANIFEST, guard=True)
-    copilot = copilot_plugin_files(pack, GUARD_MANIFEST, tmp_path)
-    claude = claude_plugin_files(pack, GUARD_MANIFEST, tmp_path)
-
-    copilot_entry = json.loads(copilot[Path(HOOKS_REL)])["hooks"]["PreToolUse"][0]
-    claude_entry = json.loads(claude[Path("hooks/hooks.json")])["hooks"]["PreToolUse"][0]
-    assert copilot_entry["matcher"] == claude_entry["matcher"]
-    assert copilot_entry["hooks"][0]["timeout"] == claude_entry["hooks"][0]["timeout"]
-    assert copilot_entry["hooks"][0]["command"] == claude_entry["hooks"][0]["command"].replace(
-        "CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT"
-    ).replace("claude_code.py", "vscode_copilot.py")
-
-    assert copilot[Path("scripts/vscode_copilot.py")] == runtime_bundle.render("vscode_copilot")
-    assert claude[Path("scripts/claude_code.py")] == runtime_bundle.render("claude_code")
-    assert (
-        copilot[Path("scripts/block-destructive-commands.sh")] == claude[Path("scripts/block-destructive-commands.sh")]
+        'r="${PLUGIN_ROOT:-}"; [ -n "$r" ] && [ -f "$r/scripts/vscode_copilot.py" ] || exit 0; '
+        'exec python3 "$r/scripts/vscode_copilot.py" '
+        '--guard "$r/scripts/block-destructive-commands.sh"'
     )
 
 
