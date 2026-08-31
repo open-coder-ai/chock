@@ -27,8 +27,12 @@ supports**, across up to eight [enforcement surfaces](enforcement-surfaces.md):
   agent-native hard controls; `managed-setting` — compiled, not yet installed
 - `gateway` — modeled for budgets/egress (future)
 
-It also writes a **coverage report** (`.chock/coverage.json`) mapping every policy × agent to
-`enforced`, `enforced-at-commit`, `advisory`, or `unsupported` — so a guarantee is never a guess.
+It also writes a **coverage report** (`.chock/coverage.json`) mapping every policy × agent onto
+an ordered ladder — `enforced` › `enforceable` › `fail-to-ask` › `best-effort` for in-agent
+controls, plus `enforced-at-commit`, `advisory` and `none` — so a guarantee is never a guess.
+Each grade is derived from the mechanism (what the agent does with our verdict, what it does
+when our hook dies, and what our own guard says when it cannot decide), never asserted per
+agent. See [Enforcement Surfaces](enforcement-surfaces.md#coverage-levels).
 
 ### 3. Enforce
 

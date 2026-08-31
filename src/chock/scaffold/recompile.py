@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from chock.compile.compiler import _load_manifest, compile_policy
-from chock.compile.surfaces import DISABLED
+from chock.compile.levels import DISABLED
 from chock.config import load_config, policy_status
 from chock.emit import write_generated_json
 

@@ -106,6 +106,34 @@ def test_pre_tool_use_alone_is_not_enforced() -> None:
     assert coverage_level({Surface.PRE_TOOL_USE}, "claude", pre_tool_use_installed=True) == "best-effort"
 
 
+def test_absence_from_installed_surfaces_means_two_different_things() -> None:
+    """`pre-tool-use` and `managed-setting` are both absent from the constant, for opposite reasons.
+
+    This is the distinction the comment on `INSTALLED_SURFACES` exists to state, and the one a
+    reader is most likely to get backwards: absence there is not "nothing installs this". It is
+    "compiling this is not by itself proof that it enforces". `pre-tool-use` has an installer
+    (`hooks/pretooluse_install.py` writes it into the Claude settings file) and is credited
+    through a per-policy witness; `managed-setting` has no installer at all, so nothing credits it.
+
+    Pinned as behaviour rather than as words: each half is the verdict `coverage_level` actually
+    returns, so this fails if an installer lands for `managed-setting`, if the `pre-tool-use`
+    witness stops crediting, or if either surface is quietly moved into the constant.
+    """
+    from chock.compile.surfaces import INSTALLED_SURFACES
+
+    assert Surface.PRE_TOOL_USE not in INSTALLED_SURFACES
+    assert Surface.MANAGED_SETTING not in INSTALLED_SURFACES
+
+    # pre-tool-use: absent from the constant, and still reachable -- the witness is the route.
+    assert coverage_level({Surface.PRE_TOOL_USE}, "claude", pre_tool_use_installed=True) != "none"
+    # managed-setting: absent from the constant, and unreachable by ANY witness this function
+    # takes. Every keyword is tried rather than only the plausible one, because the claim is that
+    # no argument credits it -- not that the one argument someone thought of does not.
+    for witness in ("pre_tool_use_installed", "ci_gate_installed", "agent_hooks_installed"):
+        level = coverage_level({Surface.MANAGED_SETTING}, "claude", **{witness: True})
+        assert level == "none", f"managed-setting is credited {level!r} via {witness}; it has no installer"
+
+
 def test_unsupported_agent_reports_none() -> None:
     assert coverage_level({Surface.GIT_HOOK}, "no-such-agent") == "none"
 
