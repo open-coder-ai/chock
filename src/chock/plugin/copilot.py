@@ -10,15 +10,16 @@ hooks.json`, a reverse-domain namespace directory a non-Copilot client MUST igno
 section 8.1) -- so a generic Agent Plugins client sees a valid advisory package and a
 Copilot client also gets the enforcing hook.
 
-The hook's matcher shape, adapter, guard and posture text follow claude.py's -- but NOT the
-plugin-root token. Agent Plugins 1.0 resolves its own bundle root via `${PLUGIN_ROOT}`;
-`${CLAUDE_PLUGIN_ROOT}` is the Legacy Copilot format's spelling (agentseam's
-`packaging.PACKAGING["copilot"]`, sourced from microsoft/vscode-docs
-docs/agent-customization/agent-plugins.md). Importing claude.py's `_hook_command` verbatim
-used to reach for `${CLAUDE_PLUGIN_ROOT}`, a token this bundle format never sets -- a real
-bug, not a style choice, fixed by deriving the token from agentseam instead. The adapter and
-guard BYTES stay byte-identical to the Claude package's (same source, same file), only the
-token differs. VS Code parses the `matcher` field but currently ignores it, which is safe
+The hook's matcher shape, adapter and guard follow claude.py's -- but NOT how the command
+reaches them. This format sets NO plugin-root token and NO plugin-root environment variable
+(VS Code's `AGENT_PLUGIN_FORMAT`: `pluginRootTokens: []`, `pluginRootEnvVars: []`), so a
+hook here cannot be told where it lives. An earlier pass moved this command from
+`${CLAUDE_PLUGIN_ROOT}` to `${PLUGIN_ROOT}` and recorded that as a real fix; both tokens are
+equally unset here, so it fixed nothing and the command kept resolving to a bare `/scripts/...`
+path. `python3` then exited 2 on the missing file, which is this client's BLOCKING code --
+so the package denied every tool call rather than the destructive ones. See `_hook_command`
+for the correction and why it is safe under every format at once. The adapter and guard
+BYTES stay byte-identical to the Claude package's (same source, same file). VS Code parses the `matcher` field but currently ignores it, which is safe
 here: the adapter allows any payload it cannot extract a shell command from, so a hook fired
 on a non-shell tool is a no-op, not a denial.
 
@@ -49,15 +50,12 @@ from chock.plugin.claude import POSTURE_ADVISORY, _adapter_source
 
 #: This format's package-layout knowledge comes from agentseam's PACKAGING row for
 #: "copilot" -- the Agent Plugins 1.0 marketplace bundle, distinct from vscode_copilot's
-#: repo-local hooks. Previously this module imported claude.py's `_hook_command` verbatim,
-#: which meant the hook referenced `${CLAUDE_PLUGIN_ROOT}` -- the LEGACY Copilot format's
-#: token. agentseam's vendor research (microsoft/vscode-docs
-#: docs/agent-customization/agent-plugins.md, read 2026-08-29) establishes that Agent
-#: Plugins 1.0 bundles resolve their own root via `${PLUGIN_ROOT}` only; `${CLAUDE_PLUGIN_ROOT}`
-#: is the Legacy Copilot format's spelling, alongside `${PLUGIN_ROOT}`, per the same vendor
-#: table -- so the old command silently referenced a token this bundle format never sets,
-#: which resolves to an empty string and breaks the script path. This is a real fix, not a
-#: cosmetic rename: see PACKAGING["copilot"]["notes"] in agentseam.
+#: repo-local hooks. PLUGIN_ROOT below is kept because the three sibling formats
+#: (CLAUDE, OPEN_PLUGIN, legacy COPILOT) do export it as an environment variable, and a
+#: package can be read as any of them; it is NOT relied on for this format, which exports
+#: nothing. That distinction was previously taken from the vendor's documentation table --
+#: which is ambiguous on it -- rather than from the parser source, which is not. Derive
+#: from the mechanism, not the doc row.
 _LAYOUT = packaging.layout("copilot")
 PLUGIN_ROOT = packaging.plugin_root("copilot")
 COPILOT_NAMESPACE = "com.github.copilot"
@@ -76,7 +74,9 @@ POSTURE_ENFORCED_COPILOT = (
     "as the Agent Plugins spec tells generic clients to, gets the advisory skill only. "
     "The hook needs python3 and a usable bash. Without them, fail-open clients allow "
     "silently; fail-closed clients refuse matched commands. On Windows, disable the "
-    "python3 Store alias or install Python."
+    "python3 Store alias or install Python. If the guard itself crashes or times out, the "
+    "hook asks for confirmation rather than allowing silently -- VS Code agent mode honours "
+    "that ask and it overrides the client's own auto-approve."
 )
 
 #: Replaces the shared builder's closing note in hook-carrying packages, with the same
@@ -84,24 +84,51 @@ POSTURE_ENFORCED_COPILOT = (
 #: note) presumes the reader's client ran the hook, which a namespace-ignoring client
 #: did not.
 _COPILOT_ENFORCED_NOTE = (
-    "This package ships a PreToolUse hook under com.github.copilot/ that enforces this "
-    "policy in clients reading that namespace (documented for VS Code agent mode), subject "
-    "to the fail posture stated in the plugin description. A client that ignores the "
-    "namespace gets this text only. Repo-wide enforcement across every commit and in CI "
-    "still needs `chock sync`. See https://github.com/open-coder-ai/chock"
+    "This package ships a PreToolUse hook under com.github.copilot/. It enforces only in a "
+    "client that both reads that namespace AND tells the hook where the package lives; a "
+    "client that exports no plugin-root variable runs the hook, which then allows -- so "
+    "treat this package as advisory unless a deny has been witnessed in your own client. "
+    "A client that ignores the namespace gets this text only. Repo-wide enforcement across "
+    "every commit and in CI still needs `chock sync`. "
+    "See https://github.com/open-coder-ai/chock"
 )
 
 
 def _hook_command(script: str) -> str:
-    """One interpreter invocation against the plugin's own bundled copies.
+    """One interpreter invocation, guarded so an unresolved plugin root ALLOWS.
 
-    The adapter and guard bytes are still byte-identical to the Claude package's (see
-    `test_adapter_and_guard_are_verbatim_copies`) -- only the token that reaches them
-    differs, because this format defines its own plugin-root spelling.
+    This format gives a hook no way to find itself, and the naive command turned that into
+    a deny-all. VS Code's `AGENT_PLUGIN_FORMAT` declares `pluginRootTokens: []` and
+    `pluginRootEnvVars: []` (`src/vs/platform/agentPlugins/common/pluginParsers.ts`), where
+    `CLAUDE_FORMAT`, `OPEN_PLUGIN_FORMAT` and the legacy `COPILOT_FORMAT` all declare both
+    tokens and both environment variables. So `${PLUGIN_ROOT}` reaches the shell verbatim,
+    `sh -c` expands the unset variable to nothing, `python3` exits 2 on the missing file --
+    and 2 is precisely VS Code's *blocking* code. Matchers are ignored, so every tool call
+    in the session was denied, not merely every Bash call.
+
+    An earlier pass changed this token from `${CLAUDE_PLUGIN_ROOT}` to `${PLUGIN_ROOT}` and
+    recorded it as a real fix. It was not: it moved between two tokens this format sets
+    equally never. That reading came from the vendor's documentation table, which is
+    ambiguous here; the source is not. Derive from the mechanism, not the doc row.
+
+    So the root is read as an ENVIRONMENT VARIABLE rather than a token, and the command
+    allows when it cannot resolve. That is correct under every format at once: the three
+    formats that interpolate also export `PLUGIN_ROOT`, so the guard runs and enforces
+    there; the Agent Plugins format exports nothing, so `$r` is empty and the hook exits 0
+    -- advisory, which is what the skill text already claims for namespace-ignoring
+    clients. It also stays correct by construction if this format later gains the variable.
+
+    The `-f` test is not belt-and-braces: a client could export a root that does not
+    contain our scripts, and the failure mode of guessing wrong here is denying the
+    session, so the command proves the adapter exists before it will run anything.
     """
-    adapter = packaging.executable_ref("copilot", _SCRIPTS_TEMPLATE.format(name="vscode_copilot.py"))
-    guard = packaging.executable_ref("copilot", _SCRIPTS_TEMPLATE.format(name=script))
-    return f'python3 "{adapter}" --guard "{guard}"'
+    # PLUGIN_ROOT is derived from agentseam's token rather than hardcoded, so the two stay
+    # in step; `${X}` -> `${X:-}` makes it a defaulted shell expansion instead of a bare one.
+    assert PLUGIN_ROOT.startswith("${") and PLUGIN_ROOT.endswith("}"), PLUGIN_ROOT
+    root = f"{PLUGIN_ROOT[:-1]}:-}}"
+    adapter = f'"$r/{_SCRIPTS_TEMPLATE.format(name="vscode_copilot.py")}"'
+    guard = f'"$r/{_SCRIPTS_TEMPLATE.format(name=script)}"'
+    return f'r="{root}"; [ -n "$r" ] && [ -f {adapter} ] || exit 0; exec python3 {adapter} --guard {guard}'
 
 
 def build_copilot_manifest(manifest: dict[str, Any], policy_dir: Path, enforced: bool) -> dict[str, Any]:

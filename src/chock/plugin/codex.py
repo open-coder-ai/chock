@@ -99,6 +99,16 @@ MANIFEST_KEYS = (
 #: completes the per-hook trust review; that trust is bound to a hash of the hook
 #: command, so an update that changes it silently voids enforcement until re-trusted;
 #: and every hook failure (missing python3, timeout, unexpected exit) fails open.
+#: One condition runs the other way and is stated in the posture because it costs
+#: availability, not safety: since 0.7.x a GUARD that crashes or times out asks for
+#: confirmation, and Codex is the one client chock renders a runtime for that cannot honour
+#: an ask. Its own parser rejects `permissionDecision: "ask"` as unsupported
+#: (`codex-rs/hooks/src/engine/output_parser.rs`) and then fails OPEN on the response it
+#: rejected, so agentseam's adapter degrades the ask to a DENY rather than emit a value that
+#: would silently permit the call. A guard broken in a way that reproduces on every command
+#: therefore blocks every matched command here, where the other three clients would prompt.
+#: That is the honest rendering of "we could not check this" on a client with no prompt, and
+#: a reader deciding whether to install must be told which way it fails.
 #: OpenAI's parity tracker (openai/codex#21753) lists PreToolUse coverage as Partial
 #: across surfaces, so the claim is pinned to what was witnessed.
 POSTURE_ENFORCED_CODEX = (
@@ -107,14 +117,16 @@ POSTURE_ENFORCED_CODEX = (
     "returned as hook JSON, not an exit code, which Codex's Windows shell wrapper "
     "mangles). Codex requires a one-time trust review per hook -- the plugin is ADVISORY "
     "until you approve its hook, and a plugin update voids that trust until re-approved. "
-    "The hook needs python3 on PATH; any hook failure fails OPEN. Repo-wide enforcement "
+    "The hook needs python3 on PATH; a failure of the HOOK (missing python3, a timeout, an "
+    "unexpected exit) fails OPEN. A failure of the GUARD it runs is a DENY here, because "
+    "Codex rejects the confirmation prompt the other clients get. Repo-wide enforcement "
     "at commit time and in CI still needs `chock sync`."
 )
 
 _ENFORCED_NOTE_CODEX = (
     "This policy is enforced in Codex by the PreToolUse hook shipped with this plugin, "
     "once its one-time trust review is approved (until then it is advisory, and a plugin "
-    "update voids the trust until re-approved). Subject to the fail-open conditions in "
+    "update voids the trust until re-approved). Subject to the fail conditions in "
     "the plugin description. Repo-wide enforcement across every commit and in CI still "
     "needs `chock sync`. See https://github.com/open-coder-ai/chock"
 )

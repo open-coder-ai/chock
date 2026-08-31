@@ -60,10 +60,17 @@ _SCRIPTS_TEMPLATE = packaging.supports("claude_code", packaging.EXECUTABLE)  # "
 #: refuse until Python exists). Promising "fails open" unconditionally was true for one
 #: client and false for the other; a posture line that is wrong for somebody is worse
 #: than one that is longer.
+#: The two halves are different failures and are stated as two clauses on purpose. Missing
+#: python3 or bash is a PRECONDITION -- the guard never starts, it is uniform across every
+#: command on the machine, and it still allows (an ask there would prompt on 100% of tool
+#: calls for a whole platform). A guard that started and then crashed or timed out is an
+#: anomaly, and since 0.7.x that asks. Collapsing the two into one "fails open" sentence is
+#: what made this line describe a posture the code no longer has.
 POSTURE_ENFORCED = (
     "Session-enforced via a PreToolUse hook; needs python3 and a usable bash. Without them, "
     "fail-open clients allow silently; fail-closed clients refuse matched commands. On Windows, "
-    "disable the python3 Store alias or install Python."
+    "disable the python3 Store alias or install Python. If the guard itself crashes or times "
+    "out, the hook asks for confirmation rather than allowing silently."
 )
 POSTURE_ADVISORY = "Advisory skill only; enforcement needs chock installed in the repo."
 
@@ -75,7 +82,7 @@ POSTURE_ADVISORY = "Advisory skill only; enforcement needs chock installed in th
 #: though it errs toward under-claiming.
 _ENFORCED_NOTE = (
     "This policy is enforced in this client by a PreToolUse hook installed with the plugin, "
-    "subject to the fail-open condition stated in the plugin description. Repo-wide "
+    "subject to the fail conditions stated in the plugin description. Repo-wide "
     "enforcement across every commit and in CI still needs `chock sync`. "
     "See https://github.com/open-coder-ai/chock"
 )
