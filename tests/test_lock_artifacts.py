@@ -1,14 +1,4 @@
-"""The lockfile must attest the artifact that enforces, not only the one that is authored.
-
-`chock.lock` hashed `.agents/policies/<id>` -- the source pack -- and nothing else.
-What actually blocks a commit is `.chock/compiled/<id>`, and no command hashed it.
-So deleting a compiled `gate.json`, or weakening its regex in place, disabled enforcement
-while `verify` printed "all packs match lockfile".
-
-That is the worst shape this failure can take. A missing control is a gap; a control that is
-missing while the tool certifies it as present is a false attestation, and attestation is
-what the lockfile exists to provide.
-"""
+"""The lockfile must attest the artifact that enforces, not only the one that is authored."""
 
 from __future__ import annotations
 
@@ -87,12 +77,7 @@ def test_a_lockfile_without_artifact_hashes_is_not_a_failure(locked_repo: Path) 
 
 
 def test_a_neutered_runner_fails_verify(locked_repo: Path) -> None:
-    """`verify` is the attestation command, so it must judge the file that executes.
-
-    The vendored runtimes are not hashed per pack -- they are shared -- so they were outside
-    the lockfile entirely. That left `verify` printing "all packs match lockfile" against a
-    runner whose `run()` had been replaced with `return 0`.
-    """
+    """`verify` is the attestation command, so it must judge the file that executes."""
     runner = locked_repo / ".chock" / "bin" / "gate.py"
     runner.write_text(runner.read_text(encoding="utf-8").replace("def run(", "def run_off(", 1), encoding="utf-8")
 

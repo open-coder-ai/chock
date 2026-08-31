@@ -1,16 +1,4 @@
-"""Outcome logging for the per-agent vendored runtimes' guard-running logic.
-
-Two things differ from the gate runner and both are deliberate. The record carries no
-command, because on this surface the command *is* the scanned content and routinely holds
-bearer tokens. And "the guard could not run" is not an outcome: recording it as a pass
-would invent the evidence this log exists to collect -- which holds whether that outcome
-allows (a precondition failure) or asks (a guard that ran and could not decide), since
-`gatelog.summarize` buckets every non-`block` record as an allow.
-
-`gate.guard_runner` is the single source both `eval/execute.py` imports and
-`gate/runtime_bundle.py` source-extracts into every vendored per-agent runtime (see that
-module's docstring), so exercising it directly here covers every one of them.
-"""
+"""Outcome logging for the per-agent vendored runtimes' guard-running logic."""
 
 from __future__ import annotations
 
@@ -82,14 +70,7 @@ def test_allow_is_recorded(tmp_path: Path, monkeypatch) -> None:
 
 
 def test_unchecked_guard_is_not_recorded_as_a_pass(tmp_path: Path, monkeypatch) -> None:
-    """The distinction the outcome words exist for: nothing was checked.
-
-    Both "did not check" words are pinned, because they reach the log the same way and
-    differ only in what they return to the caller: a precondition failure allows, a guard
-    that ran and errored asks. Neither may leave a record -- an `ask` record would be
-    counted as an allow by `gatelog.summarize`, which is the miscount the whole class is
-    kept out of the log to avoid.
-    """
+    """The distinction the outcome words exist for: nothing was checked."""
     guard = make_guard(tmp_path, BROKEN_GUARD)
 
     monkeypatch.setattr(guard_runner, "run_guard", lambda *_: guard_runner.GUARD_UNCHECKED)
@@ -164,18 +145,7 @@ HANGING_GUARD = "#!/usr/bin/env bash\nsleep 30\n"
 def test_a_timed_out_guard_does_not_echo_the_command_to_stderr(
     tmp_path: Path, monkeypatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """The log's redaction rule applies to stderr too, and the timeout branch broke it.
-
-    `subprocess.TimeoutExpired.__str__` embeds the argv it was given -- which here is bash,
-    the guard, and every token `shlex.split` produced from the command. Printing `{exc}`
-    therefore wrote the whole command, credentials included, to a stream the agent's own
-    transcript captures. The one place a secret is most likely to appear in a command is an
-    `Authorization: Bearer` header, so that is the command used.
-
-    Executed against the real timeout, not a stubbed exception: the guard really sleeps and
-    the runner's real `subprocess.TimeoutExpired` handler really runs. Mutation-tested by
-    restoring `{exc}`, which fails on the `Bearer` assertion.
-    """
+    """The log's redaction rule applies to stderr too, and the timeout branch broke it."""
     guard = make_guard(tmp_path, HANGING_GUARD)
     monkeypatch.setattr(guard_runner, "_GUARD_TIMEOUT_SECONDS", 1)
 
@@ -190,10 +160,6 @@ def test_a_timed_out_guard_does_not_echo_the_command_to_stderr(
 
 
 def test_both_vendored_runners_agree_on_the_log_contract() -> None:
-    """The two copies are deliberately duplicated; this is what keeps them one log.
-
-    Neither file may import the other -- each is vendored standalone, and a PreToolUse-only
-    repo never receives gate.py. So the shared constants are pinned here instead.
-    """
+    """The two copies are deliberately duplicated; this is what keeps them one log."""
     assert guard_runner.GATE_LOG_ENV == runner.GATE_LOG_ENV
     assert guard_runner._LOG_MAX_BYTES == runner._LOG_MAX_BYTES

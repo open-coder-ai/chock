@@ -12,22 +12,12 @@ import pytest
 
 FRAMEWORK_ROOT = Path(__file__).resolve().parents[1]
 
-#: The policies this repo owns and is governed by. The framework ships none, so there is no
-#: second copy under `src/chock/packs/` for these to drift from -- this tree is the
-#: only one, and it is what `chock check --only evals` runs against.
 REPO_POLICIES = FRAMEWORK_ROOT / ".agents" / "policies"
 
 
 @pytest.fixture(autouse=True)
 def no_gate_log(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep the suite out of this repo's own gate outcome log.
-
-    Several modules exercise the real guards under `.agents/policies/<id>/implementations/`,
-    and the PreToolUse adapter derives its log location by walking up from the guard -- which
-    lands in THIS repo, not a temp dir. Left on, `pytest` appends fabricated enforcement
-    events indistinguishable from real ones, corrupting the evidence the log exists to
-    provide. The logging tests opt back in explicitly.
-    """
+    """Keep the suite out of this repo's own gate outcome log."""
     monkeypatch.setenv("CHOCK_GATE_LOG", "0")
 
 
@@ -71,19 +61,7 @@ def build_test_gate_json(tmp_path: Path, policy_dir: Path) -> Path:
 
 @pytest.fixture(scope="session")
 def built_wheel(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """One wheel per test session, built from a clean copy of the tree.
-
-    Two problems this solves at once.
-
-    Building in place reuses `build/lib`, which can still hold files the current packaging
-    config no longer selects -- that is how a packaging test once passed against a config
-    that had stopped shipping the files it asserted on.
-
-    And the suite built a wheel twice, once per wheel test module. Under full-suite load
-    those builds intermittently failed: copying and building the tree while other tests
-    churn temp dirs is a race, and it produced flaky failures in whichever wheel test ran
-    at the wrong moment. One build removes the duplicate work and the second race window.
-    """
+    """One wheel per test session, built from a clean copy of the tree."""
     pytest.importorskip("build")
     src = tmp_path_factory.mktemp("wheelsrc") / "chock"
     shutil.copytree(
@@ -104,13 +82,7 @@ def built_wheel(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 def working_bash() -> str | None:
-    """A bash that actually runs, or None.
-
-    `bash` on PATH is not enough: on Windows without WSL it resolves to the System32 relay,
-    which fails execvpe with exit 1 -- indistinguishable from a command that legitimately
-    failed, so tests reading exit codes pass or fail for the wrong reason entirely. Git for
-    Windows ships a real bash next to git; prove whichever candidate is found by running it.
-    """
+    """A bash that actually runs, or None."""
     candidates = []
     if path_bash := shutil.which("bash"):
         candidates.append(path_bash)
@@ -130,5 +102,4 @@ def working_bash() -> str | None:
 
 WORKING_BASH = working_bash()
 
-#: Skip marker for tests that execute bash scripts. On CI (Linux) this never skips.
 needs_bash = pytest.mark.skipif(WORKING_BASH is None, reason="no working bash on this machine")

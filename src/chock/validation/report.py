@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 class Finding:
     path: str
     check: str
-    severity: str  # error | warning | info
+    severity: str
     message: str
 
 

@@ -1,13 +1,4 @@
-"""The installed skill tree is generated from the shipped one, never hand-maintained.
-
-`src/chock/packs/_skills/**` is what ships; `.agents/skills/**` is the copy agents
-actually load. Two of ninety-three shared files had drifted. The installed
-`chock-init` config template used `{{agents}}` where `init` expands `{agents}`, and
-advertised four config keys deleted as dead -- so an agent following the live skill
-scaffolded the dead keys back in and produced a config with unexpanded placeholders.
-
-Same defect and same fix as the baseline packs: regenerate, then check.
-"""
+"""The installed skill tree is generated from the shipped one, never hand-maintained."""
 
 from __future__ import annotations
 
@@ -37,7 +28,6 @@ def test_there_are_skills_to_compare() -> None:
     assert len(installed_shipped_ids(ROOT)) >= len(AUTHORING_SKILLS)
 
 
-# ------------------------------------------------------------------ the drift that was found
 def test_the_installed_template_uses_the_placeholder_syntax_init_expands() -> None:
     """`init` calls `.format()` on this file: `{{agents}}` renders as the literal `{agents}`."""
     text = (installed_root(ROOT) / "chock-init" / "assets" / "templates" / ".chock" / "config.yaml").read_text(
@@ -52,12 +42,10 @@ def test_the_installed_template_does_not_advertise_deleted_config_keys() -> None
     text = (installed_root(ROOT) / "chock-init" / "assets" / "templates" / ".chock" / "config.yaml").read_text(
         encoding="utf-8"
     )
-    # Key positions only: the shipped file names them in a comment explaining why they went.
     keys = {line.strip().split(":")[0] for line in text.splitlines() if not line.strip().startswith("#")}
     assert not keys & set(DEAD_CONFIG_KEYS), keys & set(DEAD_CONFIG_KEYS)
 
 
-# ------------------------------------------------------------------------- what --check catches
 def _install(tmp_path: Path) -> Path:
     install_skills(tmp_path, skills=["policy-init", "validate", "chock-init"])
     return installed_root(tmp_path)
@@ -136,15 +124,7 @@ def test_shipped_and_installed_are_different_trees() -> None:
 
 
 def test_shipped_skill_metadata_is_a_flat_string_map() -> None:
-    """Every shipped SKILL.md carries spec-conformant metadata: string keys, string values.
-
-    The Agent Skills spec (which Agent Plugins 1.0 defers to) requires exactly this
-    shape, and awesome-copilot's `vally` linter enforces it. The packaged POLICY skills
-    were fixed first while these authoring skills kept the nested `chock:` object --
-    two metadata dialects in one project, drifting apart. Typed fields ride the flat
-    encoding (lists comma-joined, booleans as "true"/"false") and manifest ingestion
-    decodes them, which test_manifest's round-trip covers.
-    """
+    """Every shipped SKILL.md carries spec-conformant metadata: string keys, string values."""
     import yaml
 
     for skill_md in sorted(shipped_root().glob("*/SKILL.md")):

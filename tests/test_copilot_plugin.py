@@ -1,16 +1,4 @@
-"""Copilot-format packaging: spec-shaped layout, shared enforcement, honest claims.
-
-This format exists because awesome-copilot's intake validates against the Agent Plugins
-1.0 spec (`vally lint` + an install smoke test that requires `plugin.json` at the package
-root), which the Claude layout is not. Three properties matter. First, the layout is the
-spec's: root manifest, `skills/`, and the hook under the `com.github.copilot/` namespace
-directory a non-Copilot client MUST ignore. Second, the adapter and guard bytes are
-byte-identical to the Claude package's, and the hook command matches it except for the
-plugin-root token (this format resolves ${PLUGIN_ROOT}, Claude's resolves
-${CLAUDE_PLUGIN_ROOT}) -- one enforcement system, two formats. Third, the SKILL.md
-frontmatter `metadata` is a flat string-to-string map, the constraint the original nested
-object violated and awesome-copilot rejected.
-"""
+"""Copilot-format packaging: spec-shaped layout, shared enforcement, honest claims."""
 
 from __future__ import annotations
 
@@ -75,12 +63,7 @@ def policy(tmp_path: Path):
 
 
 def test_manifest_is_at_the_package_root(policy, tmp_path: Path) -> None:
-    """`plugin.json` at the root is the property awesome-copilot's smoke test requires.
-
-    The Claude layout keeps it in `.claude-plugin/`, which their validator reports as "no
-    plugin.json found in a recognized location" -- the exact intake failure this format
-    exists to fix.
-    """
+    """`plugin.json` at the root is the property awesome-copilot's smoke test requires."""
     pack = policy(GUARD_MANIFEST, guard=True)
     files = copilot_plugin_files(pack, GUARD_MANIFEST, tmp_path)
     assert Path("plugin.json") in files
@@ -98,12 +81,6 @@ def test_hook_lives_in_the_copilot_namespace(policy, tmp_path: Path) -> None:
     entry = hooks["hooks"]["PreToolUse"][0]
     assert entry["matcher"] == "Bash"
     command = entry["hooks"][0]["command"]
-    # The EXACT command, for the same reason test_claude_plugin pins it: any change to this
-    # string is a change to enforcement and must be a reviewed decision. ${PLUGIN_ROOT}, not
-    # Claude's ${CLAUDE_PLUGIN_ROOT}: Agent Plugins 1.0 defines its own plugin-root token
-    # (agentseam packaging.PACKAGING["copilot"]["plugin_root"]), and ${CLAUDE_PLUGIN_ROOT}
-    # is never set for a bundle in this format -- the old command silently referenced a
-    # token that resolves to nothing.
     assert command == (
         'python3 "${PLUGIN_ROOT}/scripts/vscode_copilot.py" '
         '--guard "${PLUGIN_ROOT}/scripts/block-destructive-commands.sh"'
@@ -111,14 +88,7 @@ def test_hook_lives_in_the_copilot_namespace(policy, tmp_path: Path) -> None:
 
 
 def test_copilot_and_claude_packages_run_the_same_hook(policy, tmp_path: Path) -> None:
-    """Two formats, one enforcement system -- same matcher, same guard bytes, own dialect.
-
-    The GUARD script is byte-identical in both layouts. The adapter itself is legitimately
-    NOT byte-identical any more: `vscode_copilot.py`/`claude_code.py` are two different
-    agentseam bundles (`gate/runtime_bundle.py`), each speaking that vendor's own
-    live-verified dialect -- a real difference the old shared, sniffing adapter only
-    approximated. What must never differ is matcher/timeout and the guard's bytes.
-    """
+    """Two formats, one enforcement system -- same matcher, same guard bytes, own dialect."""
     pack = policy(GUARD_MANIFEST, guard=True)
     copilot = copilot_plugin_files(pack, GUARD_MANIFEST, tmp_path)
     claude = claude_plugin_files(pack, GUARD_MANIFEST, tmp_path)
@@ -149,13 +119,7 @@ def test_adapter_and_guard_are_verbatim_copies(policy, tmp_path: Path) -> None:
 
 
 def test_skill_metadata_is_a_flat_string_map(policy, tmp_path: Path) -> None:
-    """The Agent Skills spec constraint the original packaging violated.
-
-    `metadata` must map string keys to string values; the nested `chock:` object was
-    rejected by awesome-copilot's `vally` linter ("Metadata values must be strings").
-    Parsed, not substring-matched, so a regression to any non-string value fails whatever
-    its key is called.
-    """
+    """The Agent Skills spec constraint the original packaging violated."""
     pack = policy(RULE_MANIFEST)
     skill = build_skill(pack, RULE_MANIFEST, tmp_path)
     frontmatter = yaml.safe_load(skill.split("---")[1])
@@ -168,13 +132,7 @@ def test_skill_metadata_is_a_flat_string_map(policy, tmp_path: Path) -> None:
 
 
 def test_descriptions_state_the_fail_posture(policy, tmp_path: Path) -> None:
-    """The copilot posture is scoped to this format's audience, not borrowed from Claude's.
-
-    Generic Agent Plugins clients are REQUIRED to ignore `com.github.copilot`, so an
-    unqualified "session-enforced" would overclaim to exactly the readers this layout
-    exists for. The posture must name where the hook enforces, what a namespace-ignoring
-    client gets, and claim only what is verified (VS Code documents the location).
-    """
+    """The copilot posture is scoped to this format's audience, not borrowed from Claude's."""
     guarded = policy(GUARD_MANIFEST, guard=True)
     bare = policy(RULE_MANIFEST)
 
@@ -189,10 +147,7 @@ def test_descriptions_state_the_fail_posture(policy, tmp_path: Path) -> None:
 
 
 def test_extension_claims_match_the_package_contents(policy, tmp_path: Path) -> None:
-    """`coverage_without_chock: advisory` means "ignore our namespace and you get advisory
-    text and nothing else". True of a hookless package; false of one whose hook enforces in
-    any client honouring `com.github.copilot`, chock or no chock. Each package carries the
-    claim that is true of it."""
+    """`coverage_without_chock: advisory` means "ignore our namespace and you get advisory"""
     namespace = "io.github.open-coder-ai"
     guarded = policy(GUARD_MANIFEST, guard=True)
     bare = policy(RULE_MANIFEST)
@@ -208,9 +163,6 @@ def test_extension_claims_match_the_package_contents(policy, tmp_path: Path) -> 
     assert "coverage_without_chock" not in guarded_ext
     assert bare_ext["coverage_without_chock"] == "advisory"
     assert "hooks" not in bare_ext
-    # build_manifest's `manifest: manifest.yaml` pointer resolves only in the in-place
-    # agent-plugins mode. This format always builds out-of-place and ships no
-    # manifest.yaml, so keeping the pointer would name a file the package does not contain.
     assert "manifest" not in guarded_ext and "manifest" not in bare_ext
 
 
@@ -221,12 +173,7 @@ def test_rule_policy_gets_no_hooks_or_scripts(policy, tmp_path: Path) -> None:
 
 
 def test_enforcing_package_skill_does_not_call_itself_advisory(policy, tmp_path: Path) -> None:
-    """The closing note is the copilot-scoped one, not the Claude package's.
-
-    The Claude note says "enforced in this client", which presumes the reader's client
-    ran the hook -- true for a Claude-layout reader, false for a generic Agent Plugins
-    client that ignored the namespace. The copilot note names the scope instead.
-    """
+    """The closing note is the copilot-scoped one, not the Claude package's."""
     pack = policy(GUARD_MANIFEST, guard=True)
     skill = copilot_plugin_files(pack, GUARD_MANIFEST, tmp_path)[Path("skills/block-destructive-commands/SKILL.md")]
     assert "advisory: the client reading it has no mechanism to enforce it" not in skill
@@ -245,9 +192,7 @@ def test_output_is_byte_stable(policy, tmp_path: Path) -> None:
 
 
 def test_losing_a_guard_removes_its_hook(policy, tmp_path: Path) -> None:
-    """Same reconciliation contract as the Claude format, same reason: a package still
-    denying commands its own manifest now calls advisory is a claim/mechanism mismatch
-    arriving by omission."""
+    """Same reconciliation contract as the Claude format, same reason: a package still"""
     pack = policy(GUARD_MANIFEST, guard=True)
     out = tmp_path / "out"
     build_copilot_plugin(pack, GUARD_MANIFEST, tmp_path, out)

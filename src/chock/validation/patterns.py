@@ -120,7 +120,7 @@ _INT3_GRANDFATHERED_IDS = frozenset(
 )
 
 _DETERMINISTIC_HEURISTIC_PATTERNS = [
-    re.compile(r"\\b\(\?:|\(\?\w|\\[dws]\b|\\b\b|\[\^?"),  # regex-ish
-    re.compile(r"\b(grep|awk|sed|find|jq|python -c|bash -c|sh -c|perl -e|ruby -e)\b"),  # shell commands
-    re.compile(r"\b(?:re\.search|re\.match|re\.compile|re\.findall|regex)\b"),  # regex library calls
+    re.compile(r"\\b\(\?:|\(\?\w|\\[dws]\b|\\b\b|\[\^?"),
+    re.compile(r"\b(grep|awk|sed|find|jq|python -c|bash -c|sh -c|perl -e|ruby -e)\b"),
+    re.compile(r"\b(?:re\.search|re\.match|re\.compile|re\.findall|regex)\b"),
 ]

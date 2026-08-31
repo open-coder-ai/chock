@@ -99,11 +99,7 @@ def test_default_max_tokens_without_config(tmp_path: Path) -> None:
 
 
 def test_multiline_rule_text_keeps_its_line_structure(tmp_path: Path) -> None:
-    """Each line of a rule is an independent directive and must stay on its own line.
-
-    Joining them with a space produced "... lint_clean never(fix_test_by): ..." -- two
-    directives run together into one malformed statement.
-    """
+    """Each line of a rule is an independent directive and must stay on its own line."""
     _write_policy(
         tmp_path,
         "two-liner",

@@ -1,21 +1,4 @@
-"""Packaged Agent Plugins output must not go stale in silence.
-
-The drift class `test_compiled_freshness.py` closes, one layer up. Reproduced in a real
-adopter repo before this check existed: copy a catalog policy in, edit its `description`,
-run `recompile`, and then
-
-    validate .                   exit=0  [PASS] All checks passed.
-    recompile --repo . --check   exit=0  Compiled artifacts match their manifests.
-    eval --repo .                exit=0
-    plugin build --check         exit=1    differs: protect-main-branch/plugin.json
-
-Four of the five said the repo was clean. Only the command nothing tells an adopter to run
-noticed -- `init`, `new policy` and the `policy-init` skill all emit no packaged output, so
-`plugin.json` is a file most adopters meet only because a copied catalog policy brought one.
-
-Worse than compiled drift in one respect. A stale compiled artifact misleads the repo that
-holds it; a stale `plugin.json` is read by clients we do not control and cannot correct.
-"""
+"""Packaged Agent Plugins output must not go stale in silence."""
 
 from __future__ import annotations
 
@@ -52,8 +35,6 @@ def packaged_repo(tmp_path: Path) -> Path:
     policy = tmp_path / ".agents" / "policies" / "protect-main-branch"
     policy.parent.mkdir(parents=True)
     shutil.copytree(baseline_policy("protect-main-branch"), policy)
-    # Whatever the catalog happened to commit is not the fixture's claim; build it here so
-    # "in sync" is established by this test rather than inherited.
     shutil.rmtree(policy / "skills", ignore_errors=True)
     build_plugin(policy, _load_manifest(policy), tmp_path)
     assert _report(tmp_path).is_clean()
@@ -65,11 +46,7 @@ def _policy(root: Path) -> Path:
 
 
 def test_an_unpackaged_policy_is_not_judged(tmp_path: Path) -> None:
-    """Opt-in by presence, and this is the half that matters most.
-
-    Packaging deliberately is not a compile Surface, so a repo that never asked for Agent
-    Plugins must never start failing because this check exists.
-    """
+    """Opt-in by presence, and this is the half that matters most."""
     from conftest import baseline_policy
 
     policy = tmp_path / ".agents" / "policies" / "protect-main-branch"
@@ -93,11 +70,7 @@ def test_the_original_reproduction_a_description_edit(packaged_repo: Path) -> No
 
 
 def test_a_deleted_skill_is_drift(packaged_repo: Path) -> None:
-    """`plugin.json` is the label; SKILL.md is the only part carrying the policy's text.
-
-    A package that keeps its metadata and loses its capability still installs, and reads to
-    a client as a policy with nothing to say.
-    """
+    """`plugin.json` is the label; SKILL.md is the only part carrying the policy's text."""
     (_policy(packaged_repo) / "skills" / "protect-main-branch" / "SKILL.md").unlink()
 
     assert not _report(packaged_repo).is_clean()
@@ -147,11 +120,7 @@ def drifted_git_repo(packaged_repo: Path) -> Path:
 
 
 def test_at_commit_time_unrelated_work_is_not_blocked(drifted_git_repo: Path) -> None:
-    """Same judgement as compiled drift, and it must stay the same judgement.
-
-    A gate that fires on whoever commits next, rather than on whoever caused the drift, is
-    how gates get disabled.
-    """
+    """Same judgement as compiled drift, and it must stay the same judgement."""
     (drifted_git_repo / "notes.md").write_text("unrelated\n", encoding="utf-8")
     _git(drifted_git_repo, "add", "notes.md")
 
@@ -159,11 +128,7 @@ def test_at_commit_time_unrelated_work_is_not_blocked(drifted_git_repo: Path) ->
 
 
 def test_at_commit_time_touching_the_packaged_policy_still_blocks(drifted_git_repo: Path) -> None:
-    """Scoping is by the staged diff, not a free pass: touch the policy, answer for it.
-
-    Staging an unchanged path stages nothing, so the edit is what makes this a real
-    reproduction rather than a `git add` that quietly no-ops.
-    """
+    """Scoping is by the staged diff, not a free pass: touch the policy, answer for it."""
     manifest = _policy(drifted_git_repo) / "manifest.yaml"
     manifest.write_text(manifest.read_text(encoding="utf-8") + "\n# touched\n", encoding="utf-8")
     _git(drifted_git_repo, "add", str(manifest))

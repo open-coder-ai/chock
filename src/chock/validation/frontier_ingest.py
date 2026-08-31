@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""Frontier-model standard ingestion for Chock.
-
-Usage:
-  python -m chock.validation.frontier_ingest --agent agentskills
-  python -m chock.validation.frontier_ingest --agent claude-code
-  python -m chock.validation.frontier_ingest --all
-"""
+"""Frontier-model standard ingestion for Chock."""
 
 from __future__ import annotations
 
@@ -19,7 +13,6 @@ from typing import Any
 
 STANDARDS_DIR = Path(__file__).parent / "frontier_standards"
 
-# Built-in seeds derived from official documentation. Update these when upstream docs change.
 SEEDS: dict[str, dict[str, Any]] = {
     "agentskills": {
         "source": "https://agentskills.io/specification.md",
@@ -74,11 +67,7 @@ SEEDS: dict[str, dict[str, Any]] = {
 
 
 def fetch_url(url: str) -> str:
-    """Best-effort HTTPS fetch. Falls back to empty string on failure.
-
-    Callers only pass the https:// constants from SEEDS, but enforce the scheme
-    here so a future caller cannot introduce file:// or custom-scheme fetches.
-    """
+    """Best-effort HTTPS fetch. Falls back to empty string on failure."""
     if not url.startswith("https://"):
         print(f"WARN: refusing non-https fetch: {url}", file=sys.stderr)
         return ""
@@ -185,11 +174,7 @@ def parse_claude_code(text: str) -> dict[str, Any]:
 
 
 def _merge_into_seed(seed: dict[str, Any], fetched: dict[str, Any]) -> dict[str, Any]:
-    """Merge fetched data into the richer built-in seed without losing defaults.
-
-    Nested dicts are merged recursively; lists and scalars from the fetched
-    document take precedence.
-    """
+    """Merge fetched data into the richer built-in seed without losing defaults."""
     merged = seed.copy()
     for key, value in fetched.items():
         if isinstance(value, dict) and key in merged and isinstance(merged[key], dict):

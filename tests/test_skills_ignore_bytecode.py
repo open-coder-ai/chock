@@ -1,21 +1,4 @@
-"""Bytecode inside the shipped skill tree is not skill content.
-
-`policy-init` ships template `.py` files. Byte-compiling one writes `__pycache__/` beside
-it, and inside a pip-installed package that lands in the shipped tree -- which is why this
-only ever appeared in CI, where the framework is installed rather than run from a checkout.
-
-Two consequences, both wrong:
-
-  `install-skills --check` reported `missing: .../__pycache__/scripts-stub.cpython-312.pyc`,
-  demanding the adopter hold a `.pyc` built on another machine for another Python version.
-  `install-skills` could not produce it, so the check could not be satisfied by the command
-  it tells you to run.
-
-  `install_skills` copied the directory in, so an adopter committed another machine's
-  bytecode into `.agents/skills/`.
-
-Found by adding `install-skills --check` to the catalog's CI, on the first run.
-"""
+"""Bytecode inside the shipped skill tree is not skill content."""
 
 from __future__ import annotations
 
@@ -31,12 +14,7 @@ TEMPLATE = Path("policy-init") / "assets" / "templates" / "scripts-stub.py"
 
 @pytest.fixture
 def compile_template():
-    """Byte-compile a packaged template, the way importing or installing one does.
-
-    Handed to the test as a callable rather than run up front, because *when* the bytecode
-    appears is the whole bug: the adopter installs from a clean tree, and the `.pyc` shows
-    up afterwards on the machine running the check.
-    """
+    """Byte-compile a packaged template, the way importing or installing one does."""
     stub = shipped_root() / TEMPLATE
     if not stub.exists():  # pragma: no cover - shipped tree changed
         pytest.skip(f"{TEMPLATE.as_posix()} is no longer shipped")
@@ -55,12 +33,7 @@ def compile_template():
 
 
 def test_check_is_satisfiable_when_the_package_carries_bytecode(tmp_path: Path, compile_template) -> None:
-    """The headline defect: --check demanded a file install-skills could not produce.
-
-    Install from a clean tree first -- an adopter's committed skills predate whatever
-    bytecode later appears in site-packages. Compiling before installing would put the
-    `.pyc` on both sides and prove nothing.
-    """
+    """The headline defect: --check demanded a file install-skills could not produce."""
     install_skills(tmp_path)
     assert differences(tmp_path) == [], "clean install already drifted"
 

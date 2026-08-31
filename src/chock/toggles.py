@@ -1,9 +1,4 @@
-"""Policy table, enable/disable toggles, and the full recompile command.
-
-Moved out of `cli.py` when the CLI grew umbrella commands (`sync`, `status`) that
-need these implementations: the dispatcher stays a dispatcher, and the import
-direction stays one-way (cli -> lifecycle -> here -> scaffold).
-"""
+"""Policy table, enable/disable toggles, and the full recompile command."""
 
 from __future__ import annotations
 
@@ -100,9 +95,6 @@ def enable_main(argv: list[str] | None) -> int:
     args = parser.parse_args(argv)
 
     repo_root = Path(args.repo).resolve()
-    # Symmetry with `disable`, which already rejects unknown ids. Without this, a typo
-    # printed "Enabled <typo>" and changed nothing -- a false success on the command whose
-    # whole purpose is turning enforcement on.
     if _find_policy_manifest(repo_root, args.policy_id) is None:
         print(f"Unknown policy: {args.policy_id}", file=sys.stderr)
         return 2
@@ -153,17 +145,11 @@ def policies_main(argv: list[str] | None) -> int:
             cov_str = "; ".join(f"{a}: {v}" for a, v in sorted(cov.items()))
         rows.append((policy_id, status["state"], cov_str, "yes" if status["mandatory"] else "no"))
 
-    # A bare header row over no rows reads as "nothing to report" when the fact being
-    # reported is that this repo enforces nothing at all. The framework ships no policies,
-    # so an empty table is the normal state of a freshly scaffolded repo, not an anomaly.
     if not rows:
         print("No policies installed. This repo enforces nothing.")
         print("Copy a policy folder into .agents/policies/<id>/ and run `chock sync --repo .`.")
         return 0
 
-    # Widths come from the data. Fixed widths silently broke the alignment for any id
-    # longer than the guess -- `block-destructive-commands` is 26 characters against a 24
-    # character column, so every row after it was misaligned in a table adopters read.
     headers = ("id", "state", "coverage", "mandatory")
     widths = [max(len(h), *(len(r[i]) for r in rows)) for i, h in enumerate(headers)]
     print("  ".join(h.ljust(w) for h, w in zip(headers, widths)).rstrip())

@@ -1,9 +1,4 @@
-"""Discovery and loading of eval suites.
-
-Discovery is a glob, never a list. A hand-maintained registry of what to test falls behind
-what exists -- that is how `BASELINE_PACKS` came to omit two shipped policies while every
-test was green.
-"""
+"""Discovery and loading of eval suites."""
 
 from __future__ import annotations
 
@@ -76,11 +71,7 @@ class Policy:
 
     @property
     def deterministic(self) -> bool:
-        """Mode is chosen from the policy, not configured.
-
-        A policy with a gate or a guard script has a mechanism to replay; a bare rule has
-        only a behavioural expectation, which needs an agent.
-        """
+        """Mode is chosen from the policy, not configured."""
         return bool(self.gate) or bool(self.guards)
 
     def cases(self) -> list[Case]:
@@ -93,7 +84,7 @@ def discover_policies(repo_root: Path, policy_id: str | None = None) -> list[Pol
     for _artifact_type, directory in discover_artifacts(Path(repo_root)):
         try:
             loaded = load_manifest(directory)
-        except Exception:  # a malformed manifest is validate's problem, not the runner's
+        except Exception:
             continue
         if loaded is None:
             continue

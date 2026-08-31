@@ -1,6 +1,4 @@
-"""mcp-gateway proxy + CLI (chock#32 P3b): stdio interception, batch screening,
-downstream lifecycle, fail-closed startup. Split from test_mcp_gateway.py for the
-300-line budget."""
+"""mcp-gateway proxy + CLI (chock#32 P3b): stdio interception, batch screening,"""
 
 from __future__ import annotations
 
@@ -15,8 +13,6 @@ from chock.compile.emitters import mcp_gateway as emitter
 from chock.gateway.proxy import Gateway
 
 _FAKE_AWS_KEY = "AKIAIOSFODNN7EXAMPLE"  # pragma: allowlist secret
-
-# --- proxy end-to-end against a live downstream
 
 
 _ECHO_SERVER = textwrap.dedent(
@@ -104,7 +100,6 @@ _RECEIPT_SERVER = textwrap.dedent(
 
 
 def test_proxy_forwards_malformed_lines_to_downstream(tmp_path):
-    # A non-JSON line must actually reach the downstream, not merely return True.
     repo = _compiled_repo(tmp_path)
     gw = Gateway(repo, [sys.executable, "-c", _RECEIPT_SERVER])
     gw.start_downstream(pipe_output=False)
@@ -115,9 +110,6 @@ def test_proxy_forwards_malformed_lines_to_downstream(tmp_path):
     finally:
         if gw.process:
             gw.process.terminate()
-
-
-# --- CLI surface
 
 
 def test_gateway_run_requires_downstream(tmp_path):
@@ -131,7 +123,6 @@ def test_gateway_run_requires_downstream(tmp_path):
 
 
 def test_gateway_run_refuses_when_no_compiled_tree(tmp_path):
-    # #12: a wrong --repo or unsynced repo must not silently forward everything.
     proc = subprocess.run(
         [sys.executable, "-m", "chock", "gateway", "run", "--repo", str(tmp_path), "--", "echo", "x"],
         capture_output=True,
@@ -142,7 +133,6 @@ def test_gateway_run_refuses_when_no_compiled_tree(tmp_path):
 
 
 def test_emitter_requires_tool_use_in_on(tmp_path):
-    # #11: a content_regex gate authored for commit only must NOT bind at the gateway.
     out = tmp_path / "mcp-gateway"
     out.mkdir()
     manifest = {

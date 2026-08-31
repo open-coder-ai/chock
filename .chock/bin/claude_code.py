@@ -567,12 +567,7 @@ VERDICT_DENY = 'deny'
 VERDICT_ASK = 'ask'
 
 def guard_path_from_argv(argv: list[str]) -> _chock_Path | None:
-    """The `--guard <path>` argument a vendored runtime was invoked with, or None.
-
-    Read straight off argv rather than through argparse: every event a vendored runtime is
-    ever invoked for goes through the same command line, chosen at install time
-    (`hooks/*_install.py`), so there is nothing else on it to parse.
-    """
+    """The `--guard <path>` argument a vendored runtime was invoked with, or None."""
     if '--guard' in argv:
         i = argv.index('--guard')
         if i + 1 < len(argv):
@@ -580,11 +575,7 @@ def guard_path_from_argv(argv: list[str]) -> _chock_Path | None:
     return None
 
 def find_bash(guard: _chock_Path) -> str | None:
-    """First interpreter that can actually see `guard`, or None.
-
-    The probe runs `test -f <guard>` rather than `--version`: the question is not whether
-    a bash exists but whether *this* bash can resolve the path we are about to hand it.
-    """
+    """First interpreter that can actually see `guard`, or None."""
     for candidate in _BASH_CANDIDATES:
         try:
             proc = _chock_subprocess.run([candidate, '-c', f'test -f "{guard.as_posix()}"'], capture_output=True, timeout=10)
@@ -595,19 +586,7 @@ def find_bash(guard: _chock_Path) -> str | None:
     return None
 
 def run_guard(guard: _chock_Path, command: str) -> str:
-    """`GUARD_BLOCKED` / `GUARD_CLEAN` when the guard ran, otherwise why it did not.
-
-    The two "did not check" words are the whole point of the return type, and they are not
-    interchangeable. `GUARD_UNCHECKED` is a precondition -- no bash that can see the guard,
-    a command POSIX shlex will not tokenize -- and is the machine's or the command's
-    property. `GUARD_ERRORED` is the guard itself: it started, and it crashed, timed out, or
-    exited a code that means nothing. Only the second says something went wrong with the
-    control, and only the second is worth interrupting a developer over; see `evaluate`.
-
-    Nothing here blocks on its own failure. Treating "could not run" as a violation would
-    stop every Bash call the moment bash was missing -- turning a best-effort guard into a
-    total outage. Every path still says what happened on stderr rather than going silent.
-    """
+    """`GUARD_BLOCKED` / `GUARD_CLEAN` when the guard ran, otherwise why it did not."""
     try:
         args = _chock_shlex.split(command)
     except ValueError:
@@ -641,13 +620,7 @@ def run_guard(guard: _chock_Path, command: str) -> str:
     return GUARD_CLEAN
 
 def log_outcome(guard: _chock_Path, tool: str, blocked: bool) -> None:
-    """Append one outcome record. Best effort: never raises, never changes the verdict.
-
-    Deliberately records NO command and no guard output. The command is the scanned content
-    here, and commands routinely carry bearer tokens and passwords -- writing them to a
-    plaintext file on every Bash call would create the exposure the secret policies exist to
-    prevent. Which policy, which tool, and allow-or-block is the whole useful signal.
-    """
+    """Append one outcome record. Best effort: never raises, never changes the verdict."""
     try:
         if _chock_os.environ.get(GATE_LOG_ENV) == '0':
             return
@@ -674,35 +647,7 @@ def log_outcome(guard: _chock_Path, tool: str, blocked: bool) -> None:
         return
 
 def evaluate(argv: list[str], command: str, tool: str='') -> tuple[str, str] | None:
-    """Run the guard named on `argv` (`--guard <path>`) against `command`.
-
-    Returns `(VERDICT_DENY, reason)` when the guard reported a violation,
-    `(VERDICT_ASK, reason)` when the guard ran and could not deliver one, and None to allow.
-    The one caller-facing entry point `gate.runtime_bundle`'s spliced handler uses: locate
-    the guard, run it, log the outcome, word the verdict.
-
-    **The ask is per cause, not a blanket posture, and the causes are not symmetrical.** A
-    guard that crashed or timed out is rare and means the control genuinely did not run, so
-    a developer is asked. A command that will not tokenize, or a machine with no bash, is
-    common or uniform: asking there would prompt on a large fraction of tool calls and train
-    the habit of approving without reading, which costs the prompts that matter more than
-    the coverage gains. `run_guard`'s two "did not check" words carry that distinction and
-    this is the only place that acts on it.
-
-    **What an ask becomes depends on the client, and no client silently turns it into an
-    allow** -- which is what would have made this change cosmetic. Claude Code and VS Code
-    agent mode prompt (VS Code's `ask` also overrides its own auto-approve); Cursor's
-    `beforeShellExecution`, the event chock installs, honours `permission: "ask"`; Codex
-    CLI rejects `ask` at PreToolUse outright, so agentseam's adapter degrades it to a deny
-    there rather than emit a value the vendor's parser fails open on. Evidence, with vendor
-    source and doc citations at named refs, is in `docs/enforcement-surfaces.md`.
-
-    Nothing is logged for the ask. `log_outcome` records only checks that HAPPENED, and
-    `gatelog.summarize` buckets every non-`block` record as an allow -- so writing an ask
-    record there would report an unchecked command as a passing one, the precise
-    misreporting the "not checked" paths have always been kept out of the log to avoid. A
-    per-cause counter in `chock status --only log` is the follow-up, not this change.
-    """
+    """Run the guard named on `argv` (`--guard <path>`) against `command`."""
     guard = guard_path_from_argv(argv)
     if guard is None or not guard.exists():
         return None

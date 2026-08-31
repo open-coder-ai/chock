@@ -1,10 +1,4 @@
-"""Cursor pre-tool-use surface: same protocol as Claude, different envelope.
-
-Pins four claims: guard discovery is by convention (`implementations/<id>.sh`), the
-Cursor fragment and the Claude fragment carry the same command, the installer follows
-the committed-file discipline, and the coverage claim is per-agent -- wiring Claude
-must never raise `enforced` on Cursor rows, nor the reverse.
-"""
+"""Cursor pre-tool-use surface: same protocol as Claude, different envelope."""
 
 from __future__ import annotations
 
@@ -45,8 +39,6 @@ def _fresh_repo(policy: str = "block-destructive-commands") -> Path:
 
 
 def test_convention_named_guards_emit_fragments(tmp_path: Path) -> None:
-    # The hardcoded-map era silently unwired every guard not named in it. Any policy with
-    # implementations/<id>.sh must emit both fragments.
     policy = tmp_path / "policies" / "block-anything"
     (policy / "implementations").mkdir(parents=True)
     (policy / "implementations" / "block-anything.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
@@ -61,13 +53,7 @@ def test_convention_named_guards_emit_fragments(tmp_path: Path) -> None:
 
 
 def test_both_fragments_reference_the_same_guard(tmp_path: Path) -> None:
-    """One emit, one guard: the two envelopes must never disagree about WHAT runs.
-
-    The commands themselves legitimately differ now -- each vendor gets its own
-    agentseam-bundled runtime (`.chock/bin/claude_code.py` vs `.chock/bin/cursor.py`, see
-    `gate/runtime_bundle.py`) rather than one shared, payload-sniffing adapter -- but both
-    must invoke the identical `--guard <path>`.
-    """
+    """One emit, one guard: the two envelopes must never disagree about WHAT runs."""
     policy = baseline_policy("block-destructive-commands")
     out = tmp_path / ".chock" / "compiled"
     compile_policy(policy, targets=[Surface.PRE_TOOL_USE.value], output_root=out, agents=["claude", "cursor"])
@@ -98,12 +84,7 @@ def test_install_bakes_and_preserves_foreign_entries() -> None:
 
 
 def _fake_but_real_interpreter(tmp_path: Path) -> str:
-    """A path that is not `sys.executable` but genuinely resolves on this machine.
-
-    Simulates "another machine's real, working interpreter" without depending on any
-    particular system layout (a fixed guess like `/usr/bin/python3.12` may not exist on
-    every CI image or platform this suite runs on).
-    """
+    """A path that is not `sys.executable` but genuinely resolves on this machine."""
     import shutil
 
     fake = tmp_path / "another-machine-python3"
@@ -113,9 +94,6 @@ def _fake_but_real_interpreter(tmp_path: Path) -> str:
 
 
 def test_reinstall_does_not_churn_a_committed_entry(tmp_path: Path) -> None:
-    # As long as the committed interpreter still resolves here, a sync on a second machine
-    # must not rewrite an equivalent installed entry with its own interpreter path -- that
-    # is diff churn in a committed file, and a leaked path.
     repo = _fresh_repo()
     install_cursor_hooks(repo)
     hooks_path = repo / ".cursor" / "hooks.json"
@@ -131,10 +109,6 @@ def test_reinstall_does_not_churn_a_committed_entry(tmp_path: Path) -> None:
 
 
 def test_reinstall_rebakes_an_interpreter_that_no_longer_resolves() -> None:
-    # The Windows regression CodeRabbit flagged (chock#73, .cursor/hooks.json:5): all four
-    # entries hardcoded `/usr/local/bin/python3`, which does not exist on native Windows, so
-    # Cursor cannot even start `cursor.py` and every guard silently fails OPEN. Reuse-to-
-    # avoid-diff-churn must not extend to a hook that can never start.
     repo = _fresh_repo()
     install_cursor_hooks(repo)
     hooks_path = repo / ".cursor" / "hooks.json"
@@ -151,7 +125,6 @@ def test_reinstall_rebakes_an_interpreter_that_no_longer_resolves() -> None:
 
 
 def test_coverage_witness_is_per_agent() -> None:
-    # Wiring Claude must not raise `enforced` on Cursor rows, nor the reverse.
     repo = _fresh_repo()
     env = {**os.environ, "PYTHONPATH": str(FRAMEWORK_ROOT / "src")}
 
@@ -179,23 +152,15 @@ def test_coverage_witness_is_per_agent() -> None:
 
     install_pretooluse_hooks(repo)
     after_claude = recompile_and_read()
-    # claude_code's PreToolUse is FAIL_OPEN (agentseam.matrix_data), so installed it reads
-    # `best-effort`, never a flat `enforced` (owner decision #9).
     assert after_claude["claude"] == "best-effort"
     assert after_claude["cursor"] != "enforced", "Claude's install is not evidence for Cursor"
 
     install_cursor_hooks(repo)
     after_both = recompile_and_read()
-    # cursor's PreToolUse is FAIL_CONFIGURABLE (agentseam.matrix_data): it blocks and CAN be
-    # told to fail closed, but does not by default, so it reads `enforceable`, not `enforced`
-    # (owner decision #9).
     assert after_both["cursor"] == "enforceable"
 
 
 def test_adapter_parses_cursor_payload_and_denies() -> None:
-    # Cursor's beforeShellExecution payload carries `command` at the top level; the
-    # vendored cursor runtime must deny through the same guard. Cursor's deny rides in
-    # {"permission": "deny", ...} on a clean exit -- see agentseam's cursor.respond().
     repo = _fresh_repo()
     install_cursor_hooks(repo)
     settings = json.loads((repo / ".cursor" / "hooks.json").read_text(encoding="utf-8"))

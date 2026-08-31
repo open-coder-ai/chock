@@ -8,7 +8,6 @@ from pathlib import Path
 try:
     __version__ = version("chock")
 except PackageNotFoundError:
-    # Frozen binaries ship pyproject.toml at sys._MEIPASS.
     if getattr(sys, "frozen", False):
         pyproject = Path(sys._MEIPASS) / "pyproject.toml"
         if pyproject.exists():

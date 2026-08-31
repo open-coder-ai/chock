@@ -1,33 +1,4 @@
-"""Emit an OpenAI Codex plugin (`.codex-plugin/`) from a policy directory.
-
-Codex's hook protocol is Claude's: event `PreToolUse`, matcher `Bash`, the payload's shell
-command at `tool_input.command`, deny by exiting 2. The adapter and guard are therefore the
-same bytes as every other format, and this emitter only changes the envelope.
-
-Why a separate format rather than reusing the Copilot (Agent Plugins 1.0) package, which
-Codex can also discover: Codex's loader DISCARDS hooks from an Agent-Plugins-format manifest
-outright --
-
-    let (hook_sources, hook_load_warnings) =
-        if loaded_manifest.format == PluginManifestFormat::AgentPlugin { (Vec::new(), Vec::new()) }
-        else { load_plugin_hooks(...) };
-    -- codex-rs/core-plugins/src/loader.rs
-
-so shipping the Copilot package to Codex would install a plugin whose entire purpose is
-deleted at load time, while its description still claimed enforcement. The `.codex-plugin/`
-(Legacy) manifest is the only shape whose hooks are loaded at all.
-
-A second Codex-specific hazard is handled in the shared guard-running logic rather than
-here: Codex records exit 2 with an EMPTY stderr as a failed hook ("PreToolUse hook exited
-with code 2 but did not write a blocking reason to stderr",
-codex-rs/hooks/src/events/pre_tool_use.rs) and lets the command through.
-`gate.guard_runner.run_guard` therefore guarantees a reason on every deny, and
-agentseam's codex_cli adapter never uses the exit-code channel at all (see
-`gate/runtime_bundle.py`) -- the verdict rides entirely in JSON, so a silent guard cannot
-become a silent allow here.
-
-`manifest.yaml` stays canonical; every file here is derived and never hand-authored.
-"""
+"""Emit an OpenAI Codex plugin (`.codex-plugin/`) from a policy directory."""
 
 from __future__ import annotations
 
@@ -50,29 +21,14 @@ from chock.plugin.build import (
 )
 from chock.plugin.claude import POSTURE_ADVISORY, _adapter_source
 
-#: This format's package-layout knowledge -- plugin-root token, manifest path, and the
-#: hooks/skills path templates -- comes from agentseam's PACKAGING row for codex_cli.
-#: `CLAUDE_PLUGIN_ROOT` is a documented compatibility alias agentseam also records, but the
-#: native name (the first, preferred token) is what a Codex package should say it depends on.
 _LAYOUT = packaging.layout("codex_cli")
 PLUGIN_ROOT = packaging.plugin_root("codex_cli")
 HOOKS_REL = packaging.supports("codex_cli", packaging.HOOKS)
 SKILLS_REL = _LAYOUT["declares"][packaging.SKILL][1]
 EVENT = "PreToolUse"
 
-#: agentseam's own EXECUTABLE row for codex_cli is deliberately empty (PART_LIMITS:
-#: "RawPluginManifest's field list is exhaustive ... and none names a bundled executable or
-#: scripts path; whether an undeclared file elsewhere in the plugin directory survives
-#: installation ... was not established here") -- a real, honest gap, not a bug. This plugin
-#: has shipped scripts/ here regardless (Codex's loader does not enumerate the manifest's
-#: field list to reject unknown files, only to find declared ones), so the convention stays
-#: chock's own rather than being force-fit through a template agentseam does not vouch for.
 _SCRIPTS_TEMPLATE = "scripts/{name}"
 
-#: Only `name`, `version` and `description` are required. `interface` (the directory
-#: listing block) is deliberately omitted until a package is actually submitted to
-#: OpenAI's directory: every field in it is optional, and it carries the most
-#: unverified constraints of anything in this schema.
 MANIFEST_KEYS = (
     "name",
     "version",
@@ -85,28 +41,6 @@ MANIFEST_KEYS = (
     "hooks",
 )
 
-#: A witnessed claim with its conditions stated. Probed on a real Codex Desktop install
-#: (Windows 11, 2026-08-23/24): with the deny carried in stdout JSON and exit 0, the hook
-#: BLOCKED the command; with exit 2 -- both vendors' documented equivalent -- the same
-#: command ran three times, because Codex wraps Windows hook commands in
-#: `powershell -Command`, which collapses exit 2 into 1, a failed hook that fails open.
-#: The adapter therefore speaks the exit-0 JSON dialect to Codex. Conditions that still
-#: gate enforcement, all named below: hooks are UNTRUSTED on install until a human
-#: completes the per-hook trust review; that trust is bound to a hash of the hook
-#: command, so an update that changes it silently voids enforcement until re-trusted;
-#: and every hook failure (missing python3, timeout, unexpected exit) fails open.
-#: One condition runs the other way and is stated in the posture because it costs
-#: availability, not safety: since 0.7.x a GUARD that crashes or times out asks for
-#: confirmation, and Codex is the one client chock renders a runtime for that cannot honour
-#: an ask. Its own parser rejects `permissionDecision: "ask"` as unsupported
-#: (`codex-rs/hooks/src/engine/output_parser.rs`) and then fails OPEN on the response it
-#: rejected, so agentseam's adapter degrades the ask to a DENY rather than emit a value that
-#: would silently permit the call. A guard broken in a way that reproduces on every command
-#: therefore blocks every matched command here, where the other three clients would prompt.
-#: That is the honest rendering of "we could not check this" on a client with no prompt, and
-#: a reader deciding whether to install must be told which way it fails.
-#: OpenAI's parity tracker (openai/codex#21753) lists PreToolUse coverage as Partial
-#: across surfaces, so the claim is pinned to what was witnessed.
 POSTURE_ENFORCED_CODEX = (
     "Session-enforced in Codex by a PreToolUse hook: a matched command is denied before "
     "it runs (witnessed blocking on Codex Desktop, Windows, 2026-08-24; the deny is "
@@ -129,11 +63,7 @@ _ENFORCED_NOTE_CODEX = (
 
 
 def _hook_command(script: str) -> str:
-    """One interpreter invocation against the plugin's own bundled copies.
-
-    No fallback chain, for the reason measured in claude.py: `||` fires on ANY non-zero
-    exit, so a real denial (exit 2) would cascade into the next leg and read as allow.
-    """
+    """One interpreter invocation against the plugin's own bundled copies."""
     adapter = packaging.executable_ref("codex_cli", _SCRIPTS_TEMPLATE.format(name="codex_cli.py"))
     guard = packaging.executable_ref("codex_cli", _SCRIPTS_TEMPLATE.format(name=script))
     return f'python3 "{adapter}" --guard "{guard}"'
@@ -161,9 +91,6 @@ def build_codex_manifest(manifest: dict[str, Any], policy_dir: Path, enforced: b
     if provenance.get("source_repo"):
         data["repository"] = str(provenance["source_repo"])
     if enforced:
-        # Declared explicitly rather than relying on the default `hooks/hooks.json`
-        # discovery: the declaration is what makes the package's enforcement claim
-        # checkable by anything reading the manifest alone.
         data["hooks"] = f"./{HOOKS_REL}"
     return {key: data[key] for key in MANIFEST_KEYS if key in data}
 
@@ -189,11 +116,6 @@ def codex_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
         Path(packaging.supports("codex_cli", packaging.SKILL).format(name=name)): skill,
     }
     if script:
-        # Claude's nested envelope. NO top-level `description`: Codex < 0.143.0 rejects
-        # the whole hooks file over that one key and silently drops every hook in it
-        # (openai/codex#30397, fixed by #30229 in 0.143.0) -- a package that looks
-        # identical and enforces nothing on the versions most users run. `async` is never
-        # emitted: Codex only honours a blocking decision from a synchronous hook.
         hooks = {
             "hooks": {
                 EVENT: [
@@ -212,7 +134,6 @@ def codex_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
     return files
 
 
-#: Everything this emitter may write; see cursor.py for why reconciliation needs the list.
 OWNED_SUBTREES = ("hooks", "scripts")
 
 

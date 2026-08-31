@@ -1,11 +1,4 @@
-"""The SessionStart arm hook: a fresh clone's gap between "rules visible" and "gates armed".
-
-Git never clones hooks, so a clone of a governed repo enforces nothing at commit time
-until `chock sync` runs. The committed settings.json runs `.chock/bin/claude_code.py`
-(agentseam's bundle plus chock's own handler, see `gate/runtime_bundle.py`) when a Claude
-Code session opens; these tests pin the two halves -- the installer's committed-file
-discipline (shared with pretooluse_install) and the handler's arm-or-instruct behaviour.
-"""
+"""The SessionStart arm hook: a fresh clone's gap between "rules visible" and "gates armed"."""
 
 from __future__ import annotations
 
@@ -86,12 +79,7 @@ def test_adopter_sessionstart_entries_survive() -> None:
 
 
 def _fake_but_real_interpreter(tmp_path: Path) -> str:
-    """A path that is not `sys.executable` but genuinely resolves on this machine.
-
-    Simulates "another machine's real, working interpreter" without depending on any
-    particular system layout (a fixed guess like `/usr/bin/python3.12` may not exist on
-    every CI image or platform this suite runs on).
-    """
+    """A path that is not `sys.executable` but genuinely resolves on this machine."""
     import shutil
 
     fake = tmp_path / "another-machine-python3"
@@ -101,9 +89,6 @@ def _fake_but_real_interpreter(tmp_path: Path) -> str:
 
 
 def test_committed_entry_from_another_machine_is_kept_byte_for_byte(tmp_path: Path) -> None:
-    # settings.json may be committed; a sync on a second machine must not rewrite an
-    # equivalent entry with its own interpreter path (diff churn, leaked local path), as
-    # long as the committed interpreter still resolves on this machine.
     repo = _bare_repo()
     install_sessionstart_hook(repo)
     settings_path = repo / ".claude" / "settings.json"
@@ -118,11 +103,6 @@ def test_committed_entry_from_another_machine_is_kept_byte_for_byte(tmp_path: Pa
 
 
 def test_reinstalls_when_the_committed_interpreter_no_longer_resolves(tmp_path: Path) -> None:
-    # The same class of bug CodeRabbit flagged on `.cursor/hooks.json` and
-    # `.claude/settings.json`'s PreToolUse entries (chock#73) applies here too: a SessionStart
-    # entry baked on a POSIX machine and cloned on Windows can never start, which also blocks
-    # the `chock sync` self-repair path this hook exists to run. Reuse-to-avoid-diff-churn
-    # must not extend to an interpreter that cannot start.
     repo = _bare_repo()
     install_sessionstart_hook(repo)
     settings_path = repo / ".claude" / "settings.json"
@@ -190,7 +170,6 @@ def test_adapter_instructs_when_chock_is_not_importable(tmp_path: Path, monkeypa
 
 
 def test_adapter_arms_a_fresh_clone_end_to_end(tmp_path: Path) -> None:
-    # The real journey: an initialised repo whose .git/hooks were never cloned.
     runtime = _rendered_runtime(tmp_path)
     repo = Path(tempfile.mkdtemp()) / "r"
     repo.mkdir()
@@ -204,7 +183,7 @@ def test_adapter_arms_a_fresh_clone_end_to_end(tmp_path: Path) -> None:
     )
     pre_commit = repo / ".git" / "hooks" / "pre-commit"
     if pre_commit.exists():
-        pre_commit.unlink()  # what a clone looks like: repo content present, hooks absent
+        pre_commit.unlink()
 
     proc = _run_runtime(runtime, repo, extra_env=env)
     assert proc.returncode == 0

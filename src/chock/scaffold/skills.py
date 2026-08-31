@@ -11,8 +11,6 @@ from pathlib import Path
 import chock
 from chock.packs import packs_root, to_path
 
-# Authoring skills a consumer repo uses. `chock-init` is the onboarding
-# skill and is intentionally excluded — a consumer is already onboarded.
 AUTHORING_SKILLS = [
     "policy-init",
     "validate",
@@ -28,12 +26,7 @@ def _schema_sources() -> list[Path]:
 
 
 def _inject_schemas(validate_dir: Path) -> None:
-    """Copy the installed package's manifest schemas into the validate skill assets.
-
-    The `validate` skill needs the JSON schemas at runtime. They are packaged data
-    under `chock.validation.schemas` (wheel, editable, and PyInstaller) and
-    are injected here instead of being hand-maintained in `packs/_skills/validate/assets`.
-    """
+    """Copy the installed package's manifest schemas into the validate skill assets."""
     schema_dst = validate_dir / "assets"
     schema_dst.mkdir(parents=True, exist_ok=True)
     for schema_path in _schema_sources():
@@ -48,11 +41,6 @@ def installed_root(repo_root: Path) -> Path:
     return Path(repo_root) / ".agents" / "skills"
 
 
-#: Interpreter droppings, never skill content. A skill ships template `.py` files; importing
-#: or byte-compiling one writes `__pycache__/` beside it, and inside a pip-installed package
-#: that lands in the shipped tree. `--check` then demanded an adopter hold a `.pyc` built on
-#: another machine, for another Python version -- unsatisfiable by `install-skills` itself.
-#: Only surfaced in CI, where the package is installed rather than run from a checkout.
 _IGNORED_DIRS = {"__pycache__"}
 _IGNORED_SUFFIXES = {".pyc", ".pyo"}
 
@@ -68,11 +56,7 @@ def _relative_files(root: Path) -> set[Path]:
 
 
 def installed_shipped_ids(repo_root: Path) -> list[str]:
-    """Skill ids present in .agents/skills that this version also ships.
-
-    A skill an adopter wrote lives in the same directory and is not ours to compare,
-    reinstall, or report on.
-    """
+    """Skill ids present in .agents/skills that this version also ships."""
     installed, shipped = installed_root(repo_root), shipped_root()
     if not installed.exists():
         return []
@@ -80,11 +64,7 @@ def installed_shipped_ids(repo_root: Path) -> list[str]:
 
 
 def differences(repo_root: Path) -> list[str]:
-    """Every way an installed framework skill differs from what this version ships.
-
-    Injected schemas are excluded: they come from the package, not the pack, so they have
-    no shipped counterpart and would otherwise be reported as stale on every run.
-    """
+    """Every way an installed framework skill differs from what this version ships."""
     schemas = {Path("assets") / p.name for p in _schema_sources()}
     out: list[str] = []
     for skill_id in installed_shipped_ids(repo_root):
@@ -104,22 +84,7 @@ def differences(repo_root: Path) -> list[str]:
 
 
 def install_skills(repo_root: Path, skills: list[str] | None = None, *, overwrite: bool = True) -> list[str]:
-    """Copy bundled authoring skills into the canonical .agents/skills directory.
-
-    Skills live in exactly one place (.agents/skills). Agent wrappers already
-    redirect to AGENTS.md, which points every agent here — so there is no per-agent
-    copy. This matches the agent-agnostic model and the framework's own layout.
-
-    `overwrite=False` installs only what is absent. `init` needs that: this function
-    replaces a skill wholesale, so calling it unconditionally on every `init` would
-    destroy an adopter's edits — the exact data loss that had to be fixed for AGENTS.md
-    and the adapter wrappers. Running `install-skills` explicitly still refreshes
-    everything, because there the overwrite is what was asked for.
-    """
-    # Anything already installed is refreshed too, not just the default set. Otherwise
-    # `install-skills .` could not repair the drift `--check` reports for a skill outside
-    # AUTHORING_SKILLS -- this repo installs `chock-init`, and its copy is the one
-    # that drifted, scaffolding four config keys that had been deleted as dead.
+    """Copy bundled authoring skills into the canonical .agents/skills directory."""
     selected = skills or sorted(set(AUTHORING_SKILLS) | set(installed_shipped_ids(repo_root)))
     source_root = to_path(packs_root())
     target_root = repo_root / ".agents" / "skills"
@@ -135,8 +100,6 @@ def install_skills(repo_root: Path, skills: list[str] | None = None, *, overwrit
             if not overwrite:
                 continue
             shutil.rmtree(dst)
-        # Same exclusion as `differences`, or the installer writes the very files the
-        # check then has to forgive -- and an adopter commits another machine's bytecode.
         shutil.copytree(src, dst, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"))
         if skill_id == "validate":
             _inject_schemas(dst)
@@ -169,7 +132,6 @@ def cmd_install_skills(argv: list[str] | None = None) -> int:
         print("No skills installed", file=sys.stderr)
         return 1
 
-    # Refresh the registry so `validate` passes right after install (no manual scan).
     from chock.registry.core import save_registry, scan
 
     entries, skips = scan(repo_root)

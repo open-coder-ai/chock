@@ -7,7 +7,6 @@ from chock.validation.report import Report
 
 
 def _run_eval_check(artifact_dir: Path, report: Report) -> None:
-    # "hook" is in the manifest taxonomy; the check looks for <artifact_dir>/evals/suite.yaml.
     validator.check_eval_first(artifact_dir, {}, "hook", report)
 
 

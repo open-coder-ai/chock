@@ -1,9 +1,4 @@
-"""Clean-venv wheel install acceptance for packaging (P1-A).
-
-The wheel comes from the session-scoped `built_wheel` fixture in conftest, which
-builds once from a clean copy. This module used to build it again, in place --
-duplicating the work and reusing `build/lib`.
-"""
+"""Clean-venv wheel install acceptance for packaging (P1-A)."""
 
 from __future__ import annotations
 
@@ -21,10 +16,7 @@ FRAMEWORK_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_wheel_contains_skills_and_schemas(built_wheel: Path) -> None:
-    """The wheel must ship the bundled authoring skills and the validation schemas.
-
-    Policies are deliberately absent -- see tests/test_packaging_boundary.py.
-    """
+    """The wheel must ship the bundled authoring skills and the validation schemas."""
     with zipfile.ZipFile(built_wheel) as whl:
         names = whl.namelist()
     assert any("_skills/" in n for n in names), "skills packs missing"
@@ -53,8 +45,6 @@ def test_wheel_installs_and_init_passes(tmp_path: Path, built_wheel: Path) -> No
     )
     assert result.returncode == 0, result.stdout + result.stderr
 
-    # init scaffolds wiring and installs no policies, so the scaffolding is what proves the
-    # wheel is complete -- AGENTS.md and INDEX.md are both written from packaged files.
     assert (consumer / "AGENTS.md").exists(), f"AGENTS.md not scaffolded: {result.stdout}{result.stderr}"
     assert (consumer / ".agents" / "policies" / "INDEX.md").exists(), result.stdout + result.stderr
     assert "enforces nothing yet" in result.stdout, f"init did not say the repo is unguarded: {result.stdout}"

@@ -70,5 +70,4 @@ def test_check_never_writes(tmp_path: Path) -> None:
     cmd_refresh(["--repo", str(repo), "--check"])
 
     assert (repo / ".agents" / "policies" / "INDEX.md").read_text() == "stale\n"
-    # mtime should remain the manually-written value; --check must not rewrite it.
     assert (repo / ".agents" / "policies" / "INDEX.md").stat().st_mtime == mtime

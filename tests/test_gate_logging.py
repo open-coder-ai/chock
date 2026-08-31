@@ -1,10 +1,4 @@
-"""Gate outcome logging: the local evidence trail for gates that actually evaluated.
-
-The point of the log is answering "has this gate ever fired, and does it fire wrongly" --
-so the allow case matters as much as the block case, and a gate that never fires is itself
-the finding. Two properties here are load-bearing rather than cosmetic: logging must never
-change a verdict, and no scanned content may reach the file.
-"""
+"""Gate outcome logging: the local evidence trail for gates that actually evaluated."""
 
 from __future__ import annotations
 
@@ -24,9 +18,6 @@ def enable_gate_log(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv(GATE_LOG_ENV, raising=False)
 
 
-# The canonical AWS documentation example key, and the fixture the secret tests below scan
-# for. Pragma'd because scan-secrets is installed on this repo and correctly blocks the
-# literal -- which is how this file first proved the log records a real block.
 AWS_KEY = "AKIAIOSFODNN7EXAMPLE"  # pragma: allowlist secret
 
 SECRET_SPEC = {
@@ -147,11 +138,7 @@ def test_uncompiled_gate_path_is_not_recorded(tmp_path: Path) -> None:
 
 
 def test_secret_value_never_reaches_the_log(tmp_path: Path) -> None:
-    """The invariant the whole design rests on: `matches` carries locations, never content.
-
-    If a kind ever starts reporting the text it matched, this log becomes the plaintext
-    credential store that scan-secrets exists to prevent.
-    """
+    """The invariant the whole design rests on: `matches` carries locations, never content."""
     init_repo(tmp_path)
     stage(tmp_path, "app.py", f'KEY = "{AWS_KEY}"\n')
     gate = compiled_gate(tmp_path, "scan-secrets", SECRET_SPEC)

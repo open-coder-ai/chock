@@ -1,10 +1,4 @@
-"""ci-gate emitter: must derive from the manifest and emit a step that can actually fail.
-
-The old emitter's push step was `... || true` (never fails) and its commit step ran
-`git diff --cached`, which a CI checkout never has staged -- both always passed. This checks
-the replacement the opposite way: build a real repo with a real violation, extract the
-step's own `run:` body, execute it, and read the exit code.
-"""
+"""ci-gate emitter: must derive from the manifest and emit a step that can actually fail."""
 
 from __future__ import annotations
 
@@ -20,19 +14,12 @@ from chock.compile.surfaces import Surface
 
 SCAN_SECRETS_DIR = baseline_policy("scan-secrets")
 
-# A broken bash (the Windows WSL relay with no distro) exits 1 for everything, which is
-# indistinguishable from "the gate blocked" -- the block-side test below passed spuriously
-# on such machines. conftest.working_bash() proves the interpreter before it is trusted.
-
 
 def _git(repo: Path, *args: str) -> None:
     subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
 
 
 def _compiled_step(repo_root: Path, policy_dir: Path) -> tuple[dict, Path]:
-    # The step's `run:` body hardcodes the canonical `.chock/compiled/...` path (it has
-    # to: that is where a real adopter's compiled tree lives), so the test tree must use it
-    # too, or the emitted command would resolve against a directory that does not exist.
     out = repo_root / ".chock" / "compiled"
     compile_policy(policy_dir, targets=[Surface.CI_GATE.value], output_root=out, repo_root=repo_root)
     step_path = out / policy_dir.name / "ci-gate" / "step.yaml"
@@ -56,9 +43,7 @@ def test_gate_json_is_written_alongside_the_step(tmp_path: Path) -> None:
 
 
 def test_push_only_gate_emits_nothing() -> None:
-    """A gate scoped to `push` only has no CI meaning (see runner.py); emitting a step that
-    can never fire would be exactly the old bug in a new shape.
-    """
+    """A gate scoped to `push` only has no CI meaning (see runner.py); emitting a step that"""
     import tempfile
 
     from chock.compile.emitters import ci as ci_emitter
@@ -96,9 +81,7 @@ def test_push_only_gate_emits_nothing() -> None:
 
 @needs_bash
 def test_emitted_step_actually_fails_on_a_violation(tmp_path: Path) -> None:
-    """The whole point: run the compiled step's own bash body against a repo with a real
-    secret introduced on the PR branch, and observe a non-zero exit -- not assume one.
-    """
+    """The whole point: run the compiled step's own bash body against a repo with a real"""
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(repo, "init", "-q", "-b", "trunk")
@@ -111,8 +94,6 @@ def test_emitted_step_actually_fails_on_a_violation(tmp_path: Path) -> None:
     (repo / "secret.py").write_text('KEY = "AKIAIOSFODNN7EXAMPLE"\n', encoding="utf-8")  # pragma: allowlist secret
     _git(repo, "add", "secret.py")
     _git(repo, "commit", "-m", "add secret")
-    # actions/checkout leaves a real `origin/<base>` remote-tracking ref behind; the step's
-    # `origin/$GITHUB_BASE_REF` depends on that, so fake it rather than fetching from nothing.
     _git(repo, "update-ref", "refs/remotes/origin/trunk", "trunk")
 
     step, _ = _compiled_step(repo, SCAN_SECRETS_DIR)

@@ -1,22 +1,4 @@
-"""Build and verify reviewer evidence.
-
-The format's one job is keeping two kinds of claim apart. A `verified` claim is worth what an
-independent re-run says it is worth; an `attested` claim is worth what the named reviewer is
-worth. Blurring them would be the review-time version of crediting an enforcement surface
-nothing installs -- the failure this project exists to avoid.
-
-Three rules do the work, and each exists because the obvious implementation is unsafe:
-
-    The verifier never runs a command from the evidence file. It looks `check` up in the
-    repository's registry and runs *that*. Evidence is contributor-authored; executing a string
-    from it would turn a review artefact into arbitrary code in CI.
-
-    `unattestable` is recomputed from repo config, not read from the file. Otherwise a
-    submitter shortens the list and self-certifies the checking machinery.
-
-    `diff_sha` excludes the evidence directory. Without that, writing the evidence changes the
-    diff it attests to and no file can ever be valid.
-"""
+"""Build and verify reviewer evidence."""
 
 from __future__ import annotations
 
@@ -31,16 +13,10 @@ from chock.config import load_config
 
 SCHEMA_URL = "https://open-coder-ai.github.io/chock/schemas/v0/reviewer-evidence-v1.json"
 
-#: SHA-256 of the empty string, which is what `diff_sha` computes when the diff is empty.
-#: Named rather than inlined because the value is otherwise unrecognisable in output, and the
-#: first time it appeared it read as a plausible digest rather than as "there is no change".
 EMPTY_DIFF_SHA = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
-#: Where evidence lives, and the path excluded from `diff_sha`.
 EVIDENCE_DIR = Path(".chock") / "evidence"
 
-#: Framework checks any adopter can re-derive. Values are argv templates; `{root}` is the only
-#: substitution, so nothing here can be widened by a caller into a shell.
 BUILTIN_CHECKS: dict[str, list[str]] = {
     "validate": ["validate", "{root}"],
     "eval": ["eval", "--repo", "{root}"],
@@ -48,9 +24,6 @@ BUILTIN_CHECKS: dict[str, list[str]] = {
     "verify": ["verify", "--root", "{root}"],
 }
 
-#: Paths a contributor may not self-certify when config names none. Deliberately non-empty:
-#: a repo that has thought about nothing should still not accept an attestation covering its
-#: own checking machinery.
 DEFAULT_UNATTESTABLE = ["tools/", ".github/workflows/"]
 
 
@@ -59,9 +32,6 @@ class EvidenceError(RuntimeError):
 
 
 def _git(root: Path, *args: str) -> str:
-    # encoding pinned, not platform-preferred: `diff_sha` re-encodes this output to hash it,
-    # so a locale-decoded diff (cp1252 on Windows) hashes mojibake and two machines disagree
-    # about the same commit. errors="replace" keeps the digest deterministic either way.
     proc = subprocess.run(["git", *args], cwd=root, capture_output=True, encoding="utf-8", errors="replace")
     if proc.returncode != 0:
         raise EvidenceError(f"git {' '.join(args)} failed: {proc.stderr.strip()}")
@@ -73,12 +43,7 @@ def merge_base(root: Path, base_ref: str) -> str:
 
 
 def diff_sha(root: Path, base_ref: str) -> str:
-    """Digest of the change, with the evidence directory excluded.
-
-    Excluding it is not tidiness. The evidence file is committed alongside the change, so
-    including it would mean writing the file changed the diff the file attests to -- no
-    evidence could ever verify.
-    """
+    """Digest of the change, with the evidence directory excluded."""
     diff = _git(
         root,
         "diff",
@@ -99,11 +64,7 @@ def unattestable_paths(root: Path) -> list[str]:
 
 
 def check_registry(root: Path) -> dict[str, list[str]]:
-    """Built-in checks plus any the repository declares.
-
-    Repo-declared entries are safe for the same reason `unattestable_paths` is: they live in
-    committed config, which CODEOWNERS routes for review. Evidence supplies none of this.
-    """
+    """Built-in checks plus any the repository declares."""
     registry = dict(BUILTIN_CHECKS)
     review = (load_config(root).get("chock") or {}).get("review") or {}
     for name, argv in (review.get("checks") or {}).items():
@@ -118,13 +79,9 @@ def run_check(root: Path, argv: list[str]) -> tuple[str, str]:
 
     resolved = [a.replace("{root}", str(root)) for a in argv]
     if resolved and resolved[0] == "python":
-        # Same encoding pin as _git: the first line of this output is recorded verbatim in
-        # the evidence file, and `verify` compares it against a re-run on another machine.
         proc = subprocess.run(resolved, cwd=root, capture_output=True, encoding="utf-8", errors="replace")
         code, out = proc.returncode, (proc.stdout or proc.stderr)
     else:
-        # Framework checks run in-process: faster, and it keeps the argv a list rather than
-        # anything a shell would re-interpret.
         import contextlib
         import io
 
@@ -132,7 +89,7 @@ def run_check(root: Path, argv: list[str]) -> tuple[str, str]:
         with contextlib.redirect_stdout(buffer), contextlib.redirect_stderr(buffer):
             try:
                 code = cli_main(resolved)
-            except SystemExit as exc:  # argparse errors exit 2; keep the buffered explanation
+            except SystemExit as exc:
                 code = exc.code if isinstance(exc.code, int) else 1
         out = buffer.getvalue()
     first = next((line for line in out.splitlines() if line.strip()), "")
@@ -146,15 +103,7 @@ def working_tree_is_dirty(root: Path) -> bool:
 def build(
     root: Path, base_ref: str, produced_by: dict[str, str], checks: list[str], allow_empty: bool = False
 ) -> dict[str, Any]:
-    """Run every named check and record the result. Attestations are added by a reviewer.
-
-    Refuses an empty diff unless asked not to. `diff_sha` is computed from committed state, so
-    running this with the work still uncommitted produces evidence describing *no change* while
-    the checks report on a working tree that has it -- the digest is the SHA of the empty
-    string, which looks like a real one. It fails safe (`verify` recomputes and reports stale
-    once the work lands) but silently, hours later, and the message here is the one that would
-    have saved the time.
-    """
+    """Run every named check and record the result. Attestations are added by a reviewer."""
     if not allow_empty and diff_sha(root, base_ref) == EMPTY_DIFF_SHA:
         hint = (
             "the working tree has uncommitted changes -- `diff_sha` is computed from committed state, so commit first"
@@ -197,12 +146,7 @@ def build(
 
 
 def verify(root: Path, evidence: dict[str, Any], base_ref: str) -> list[str]:
-    """Re-derive every verified claim. Returns failures; empty means the evidence holds.
-
-    Attestations are deliberately absent from this function. There is nothing here to check
-    them against, and reporting them as anything other than unchecked would be the overclaim
-    the format exists to prevent. The caller surfaces them without a verdict.
-    """
+    """Re-derive every verified claim. Returns failures; empty means the evidence holds."""
     failures: list[str] = []
 
     current = diff_sha(root, base_ref)

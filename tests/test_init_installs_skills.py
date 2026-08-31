@@ -1,12 +1,4 @@
-"""`init` must leave a repo an agent can actually work in.
-
-Authoring skills are mechanism, not content: `policy-init`, `validate`, `eval` and
-`optimize` are how an agent learns to write, check and evaluate a policy. `init` used to
-create an empty `.agents/skills/` and say nothing about it, so a freshly scaffolded repo
-had an agent that could not invoke `policy-init` at all, and no hint that
-`chock install-skills` existed. Policies are the opposite -- content, chosen by the
-adopter -- which is why `init` still installs none of those.
-"""
+"""`init` must leave a repo an agent can actually work in."""
 
 from __future__ import annotations
 
@@ -74,11 +66,7 @@ def test_init_still_installs_no_policies(scaffolded: tuple[Path, subprocess.Comp
 
 
 def test_a_second_init_does_not_discard_an_edited_skill(scaffolded: tuple[Path, subprocess.CompletedProcess]) -> None:
-    """`install_skills` replaces a skill wholesale, so `init` must not call it unguarded.
-
-    This is the same data loss that had to be fixed for AGENTS.md and the adapter wrappers;
-    routing `init` through the same function without `overwrite=False` would reintroduce it.
-    """
+    """`install_skills` replaces a skill wholesale, so `init` must not call it unguarded."""
     repo, _ = scaffolded
     skill = repo / ".agents" / "skills" / "policy-init" / "SKILL.md"
     skill.write_text(skill.read_text(encoding="utf-8") + "\n<!-- our house convention -->\n", encoding="utf-8")

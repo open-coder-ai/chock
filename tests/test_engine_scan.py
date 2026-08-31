@@ -97,11 +97,7 @@ class TestAutoCompile:
         assert not compiled_hook.exists(), "Rule policies should not produce git-hook output"
 
     def test_malformed_policy_does_not_stop_the_others(self, tmp_path: Path) -> None:
-        """A malformed folder is skipped AND the remaining policies still compile.
-
-        Named 'aaa-broken' so it sorts first: if failure were not isolated per policy,
-        it would abort the loop before 'zzz-good' was ever reached.
-        """
+        """A malformed folder is skipped AND the remaining policies still compile."""
         repo = _init_repo(tmp_path)
         bad_dir = repo / ".agents" / "policies" / "aaa-broken"
         bad_dir.mkdir(parents=True)
@@ -115,12 +111,7 @@ class TestAutoCompile:
         )
 
     def test_compile_failure_does_not_stop_the_others(self, tmp_path: Path) -> None:
-        """One policy failing to COMPILE must not disable enforcement for the rest.
-
-        This is the enforcement hole a loop-level try/except creates: a third-party
-        drop-in that fails to build would silently take the mandatory guards offline
-        while `install-hooks` still exited 0.
-        """
+        """One policy failing to COMPILE must not disable enforcement for the rest."""
         repo = _init_repo(tmp_path)
         _make_hook_policy(repo, "aaa-first")
         _make_hook_policy(repo, "zzz-second")
@@ -135,7 +126,7 @@ class TestAutoCompile:
             return real(pack_dir, *args, **kwargs)
 
         with mock.patch.object(compiler_mod, "compile_policy", flaky):
-            auto_compile(repo)  # must not raise
+            auto_compile(repo)
 
         compiled = repo / ".chock" / "compiled"
         assert not (compiled / "aaa-first" / "git-hook").exists(), "failing policy should not be compiled"

@@ -36,11 +36,7 @@ def _emit(args: argparse.Namespace) -> int:
         f"  verified: {len(evidence['verified'])} check(s)"
         + (f", {len(failed)} failing: {', '.join(failed)}" if failed else "")
     )
-    # Said every time, because an empty attested list is the normal output of a machine and
-    # must not read as "nothing needed judging".
     print("  attested: 0 -- a machine cannot attest. Add judgement claims before requesting review.")
-    # The evidence file is still written -- a record of failure is evidence too -- but the
-    # exit code must say what happened: a failing check exiting 0 is a fail-open CLI.
     return 1 if failed else 0
 
 
@@ -60,8 +56,6 @@ def _verify(args: argparse.Namespace) -> int:
     print(f"Evidence holds: {len(evidence.get('verified') or [])} check(s) re-derived and matching.")
     print(f"  produced by {who.get('kind', '?')} {who.get('id', '?')}")
     if attested:
-        # No tick, deliberately. These were not checked and the output must not suggest they
-        # were -- the whole reason the format separates them.
         print(f"  {len(attested)} attestation(s), NOT verified -- a human decides whether to believe them:")
         for item in attested:
             confidence = f" [{item['confidence']}]" if item.get("confidence") else ""

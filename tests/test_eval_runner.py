@@ -1,9 +1,4 @@
-"""The eval runner, pinned at the points where being wrong would be silent.
-
-Every assertion here exists because the opposite behaviour would manufacture a validation
-claim: a placeholder counted as a pass, a guard that never ran counted as a block, a
-derived case standing in for a stated expectation.
-"""
+"""The eval runner, pinned at the points where being wrong would be silent."""
 
 from __future__ import annotations
 
@@ -37,7 +32,6 @@ def _repo_with(tmp_path: Path, policy_id: str) -> Path:
     return tmp_path
 
 
-# ------------------------------------------------------------------- outcomes that matter
 def test_a_placeholder_case_is_pending_not_a_pass(tmp_path: Path) -> None:
     """`new policy` scaffolds TODO cases. A TODO triggers nothing, so it would otherwise pass."""
     case = Case(id="tc-001", category="trigger", prompt="TODO", expect="TODO", policy_id="p", status="pending")
@@ -66,18 +60,13 @@ def test_a_guard_that_cannot_run_is_an_error_not_a_block(tmp_path: Path) -> None
     assert result.outcome == "error", result.detail
 
 
-# ------------------------------------------------------------------------- attestation
 def _passing(provenance: str) -> CaseResult:
     case = Case(id="c", category="trigger", prompt="p", expect="e", policy_id="p", provenance=provenance)
     return CaseResult(case, "pass")
 
 
 def test_derived_passes_alone_never_earn_an_attestation() -> None:
-    """Derived cases come from the declaration the implementation reads.
-
-    They can show that declared behaviour is implemented, never that it is right, so they
-    must not be able to attest on their own.
-    """
+    """Derived cases come from the declaration the implementation reads."""
     derived_only = PolicyResult("p", "deterministic", [_passing("derived")])
     assert not derived_only.attestable
 
@@ -92,7 +81,6 @@ def test_a_pending_case_blocks_the_attestation() -> None:
     assert not result.blocking, "a placeholder is not a defect in the policy"
 
 
-# ---------------------------------------------------------------------------- derivation
 def test_every_declared_manifest_format_gets_a_derived_case() -> None:
     """The gate declared four formats and handled one; nothing noticed for three builds."""
     gate = {
@@ -110,16 +98,11 @@ def test_every_declared_manifest_format_gets_a_derived_case() -> None:
 
 
 def test_content_regex_derives_nothing() -> None:
-    """Producing a string matching an arbitrary regex is not mechanical.
-
-    Guessing would report policy defects that do not exist, so the honest derivation is
-    none at all -- authored cases carry `content_regex` entirely.
-    """
+    """Producing a string matching an arbitrary regex is not mechanical."""
     gate = {"kind": "content_regex", "on": ["commit"], "params": {"content_pattern": "AKIA[0-9A-Z]{16}"}}
     assert derive_cases("p", gate) == []
 
 
-# ------------------------------------------------------------------- end to end, per kind
 @pytest.mark.parametrize("policy_id", ["protect-main-branch", "scan-secrets", "verify-dependency-exists"])
 def test_a_shipped_gate_policy_passes_its_own_suite(tmp_path: Path, policy_id: str) -> None:
     repo = _repo_with(tmp_path, policy_id)
@@ -144,7 +127,6 @@ def test_a_failing_expectation_is_reported_as_a_failure(tmp_path: Path) -> None:
     assert result.outcome == "fail"
 
 
-# ----------------------------------------------------------------------------------- cli
 def test_json_output_records_provenance_and_signal(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
     """A reader must be able to tell derived from authored without inferring it."""
     repo = _repo_with(tmp_path, "protect-main-branch")
@@ -161,8 +143,7 @@ def test_agent_mode_refuses_rather_than_reporting_a_pass(capsys: pytest.CaptureF
 
 
 def test_authored_execute_blocks_match_the_published_schema() -> None:
-    """These suites are copied wholesale by adopters; an `execute` block the validator
-    rejects would break them on arrival."""
+    """These suites are copied wholesale by adopters; an `execute` block the validator"""
     schema_path = Path(__file__).resolve().parents[1] / "src" / "chock" / "validation" / "schemas" / "eval.schema.json"
     allowed = set(
         json.loads(schema_path.read_text(encoding="utf-8"))["properties"]["suite"]["properties"]["cases"]["items"][
@@ -171,9 +152,6 @@ def test_authored_execute_blocks_match_the_published_schema() -> None:
     )
     checked = 0
     for suite_file in sorted(BASELINE.glob("*/evals/suite.yaml")):
-        # Three of this repo's own policies still carry the legacy `eval_suite` shape, which
-        # has no `execute` blocks to check. Counting what was checked keeps a schema rename
-        # from turning this into a test that iterates nothing and passes.
         suite = (yaml.safe_load(suite_file.read_text(encoding="utf-8")) or {}).get("suite")
         if suite is None:
             continue
@@ -184,20 +162,12 @@ def test_authored_execute_blocks_match_the_published_schema() -> None:
     assert checked >= 10, f"only {checked} suite(s) were checked"
 
 
-# ----------------------------------------------------- which gate the suite actually argues about
 def _compiled_gate(repo: Path, policy_id: str) -> Path:
     return repo / ".chock" / "compiled" / policy_id / "git-hook" / "gate.json"
 
 
 def test_the_suite_replays_the_installed_gate_not_the_manifest(tmp_path: Path) -> None:
-    """A weakened compiled gate must fail the suite that vouches for the policy.
-
-    `run_case` built its gate from the manifest unconditionally, so the suite reported a
-    policy as fully passing while the gate installed in `.chock/compiled/` enforced
-    something else -- the eval suite actively vouching for a policy that is not the one
-    running. The catalog's claim is "evals are the argument"; this is what makes that
-    argument about the artifact rather than the intent.
-    """
+    """A weakened compiled gate must fail the suite that vouches for the policy."""
     from chock.eval.execute import resolve_gate
     from chock.scaffold.recompile import recompile
 
@@ -218,11 +188,7 @@ def test_the_suite_replays_the_installed_gate_not_the_manifest(tmp_path: Path) -
 
 
 def test_an_uncompiled_policy_falls_back_to_its_manifest(tmp_path: Path) -> None:
-    """`chock new` writes a policy and its suite before anything is compiled.
-
-    Refusing to run those cases would make the suite unusable exactly when an author is
-    iterating on a gate they have not installed yet.
-    """
+    """`chock new` writes a policy and its suite before anything is compiled."""
     from chock.eval.execute import resolve_gate
 
     repo = _repo_with(tmp_path, "scan-secrets")

@@ -1,17 +1,4 @@
-"""`chock marketplace` -- emit marketplace index files over a built plugin tree.
-
-A distribution repo serves seven clients from one URL, and what makes that work is a
-handful of small index files over one shared `plugins/` tree. This module emits the
-Claude-format index, which Claude Code reads at `.claude-plugin/marketplace.json` and
-GitHub Copilot CLI reads at `.github/plugin/marketplace.json` -- Copilot's own official
-marketplace ships the second as a symlink to the first. We emit two identical files
-instead: a symlink would be lost or mangled on Windows checkouts, and two byte-identical
-generated files carry the same guarantee with none of the platform dependence.
-
-The index is derived from the plugins' own `.claude-plugin/plugin.json` manifests, which
-are themselves derived from `manifest.yaml` -- so nothing here is a second source of
-truth, and index drift is caught by `--check` exactly like every other generated surface.
-"""
+"""`chock marketplace` -- emit marketplace index files over a built plugin tree."""
 
 from __future__ import annotations
 
@@ -26,11 +13,6 @@ from chock.lock import compute_pack_hash
 
 OWNER = {"name": "open-coder-ai", "url": "https://github.com/open-coder-ai"}
 
-#: One index per vendor tree: the subtree to walk, its per-plugin manifest path, the
-#: index file(s) that vendor's client reads, and the dialect to speak. claude keeps two
-#: byte-identical files (see module docstring); codex reuses the claude index shape
-#: because Codex reads the legacy `.claude-plugin/marketplace.json` from git
-#: marketplaces -- witnessed on a real install, not inferred from docs.
 TREES: dict[str, dict[str, Any]] = {
     "claude": {
         "manifest": ".claude-plugin/plugin.json",
@@ -49,17 +31,12 @@ TREES: dict[str, dict[str, Any]] = {
     },
 }
 
-#: Kept for callers and tests that predate `--tree`; the default behaviour is unchanged.
 CLAUDE_TREE = "claude"
 INDEX_PATHS = TREES["claude"]["index_paths"]
 
 
 def collect_entries(dist_root: Path, tree: str = CLAUDE_TREE) -> list[dict[str, Any]]:
-    """Index entries from the built plugin manifests, sorted by directory name.
-
-    Sorted so the emitted array never reshuffles between runs -- the index is committed,
-    and a reordering diff would bury the real change in every release.
-    """
+    """Index entries from the built plugin manifests, sorted by directory name."""
     manifest_rel = TREES[tree]["manifest"]
     entries: list[dict[str, Any]] = []
     for manifest_path in sorted(Path(dist_root).glob(f"{tree}/*/{manifest_rel}")):
@@ -76,10 +53,6 @@ def collect_entries(dist_root: Path, tree: str = CLAUDE_TREE) -> list[dict[str, 
     return entries
 
 
-#: `claude plugin validate` warns when a marketplace has no description, and the field is
-#: what a browsing user reads before deciding to trust the source. It states the two things
-#: that matter for that decision: where the content comes from, and that installing a plugin
-#: is not the same as adopting Chock in a repository.
 DESCRIPTION = (
     "Chock policies packaged as installable plugins. Generated from the chock-catalog; "
     "each plugin states whether it enforces in this client or is advisory."
@@ -89,10 +62,6 @@ DESCRIPTION = (
 def build_index(dist_root: Path, name: str, tree: str = CLAUDE_TREE) -> dict[str, Any]:
     entries = collect_entries(dist_root, tree)
     if TREES[tree]["style"] == "cursor":
-        # Cursor's own schema (cursor/plugins, cursor/plugin-template, both verbatim):
-        # the description rides under `metadata`, entries carry no version field, and the
-        # owner object is name-only -- their examples use {name, email}, so nothing
-        # unverified is added.
         return {
             "name": name,
             "owner": {"name": OWNER["name"]},
@@ -107,24 +76,13 @@ def build_index(dist_root: Path, name: str, tree: str = CLAUDE_TREE) -> dict[str
     }
 
 
-#: Content-addresses the whole release: one sha256 per published plugin directory, over
-#: every tree. Clients that can pin (Claude, Copilot, Codex, Grok, Kimi) pin a commit; this
-#: is what lets anyone -- an org auditor, a `require_sha` fleet, or the generated-only CI --
-#: check that the directory they received is the directory that was published, without
-#: trusting the index or the commit history to have been honest about it.
 LOCKFILE_NAME = "chock-market.lock"
 
-#: Written explicitly so generated files end with a trailing newline on every platform.
 NEWLINE = chr(10)
 
 
 def build_lock(dist_root: Path) -> dict[str, Any]:
-    """Hash every plugin directory in every format tree, sorted for a stable diff.
-
-    Reuses `compute_pack_hash` rather than defining a second hashing rule: two hash
-    definitions in one project eventually disagree, and the disagreement surfaces as an
-    integrity failure nobody can explain.
-    """
+    """Hash every plugin directory in every format tree, sorted for a stable diff."""
     dist_root = Path(dist_root)
     plugins: dict[str, str] = {}
     for manifest in sorted(dist_root.glob("*/*/")):
@@ -144,29 +102,13 @@ def lock_differences(dist_root: Path) -> list[str]:
     return [] if dest.read_text(encoding="utf-8") == content else [f"differs: {LOCKFILE_NAME}"]
 
 
-#: A page that counts its own contents goes stale the moment a policy is added, and a wrong
-#: count in the first thing a user reads is the same class of defect as a wrong coverage
-#: claim. So the catalog page is generated outright rather than maintained by hand.
-#:
-#: It is a file of its own rather than a managed region inside README.md. The repository's
-#: rules put README.md off limits to tooling, and honouring that boundary costs nothing
-#: here: a dedicated page is a better home for a table that grows with the catalog, and the
-#: README can link to it in one static line that never needs updating.
 CATALOG_PAGE = "PLUGINS.md"
 
-#: The catalog already publishes a page per policy -- what it is about, what it solves, how
-#: it works, and its honest reach. Linking there beats restating it: a second copy of that
-#: prose in a generated repo is drift waiting to happen, and the catalog page is the one a
-#: reader can check against the policy source.
 CATALOG_DOCS = "https://github.com/open-coder-ai/chock-catalog/blob/main/docs"
 
 
 def _summary(description: str) -> str:
-    """First sentence of the description, with the bracketed posture note stripped.
-
-    The posture has its own column and the table is for scanning; the full text is one
-    click away on the catalog page.
-    """
+    """First sentence of the description, with the bracketed posture note stripped."""
     text = description.split("[")[0].strip()
     first = text.split(". ")[0].strip().rstrip(".")
     return (first[:96].rstrip() + "...") if len(first) > 99 else first
@@ -261,9 +203,6 @@ def main(argv: list[str] | None = None) -> int:
     dist_root = Path(args.dist).resolve()
     entries = collect_entries(dist_root, args.tree)
     if not entries:
-        # An empty index is not a valid release: a publish pipeline that finds no plugins
-        # has pointed at the wrong tree or run its stages out of order, and emitting an
-        # index that delists everything would propagate that mistake to every client.
         print(f"No plugin manifests under {dist_root / args.tree}; refusing to write an empty index.", file=sys.stderr)
         return 2
 

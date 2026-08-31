@@ -1,15 +1,4 @@
-"""Install compiled agent-hooks entries into `.github/hooks/chock.json`.
-
-Copilot CLI and VS Code agent mode both read `.github/hooks/*.json`. `chock.json` is our
-dedicated file -- we own it wholesale and rewrite it on every sync -- so there is no merge
-with a user's own hooks (those live in other `.github/hooks/*.json` files).
-
-Coverage witness, same discipline as PreToolUse: a policy is credited `enforced` on
-copilot/vscode only when its compiled entry byte-matches an entry actually present in the
-installed file. Editing the guard changes the compiled entry, which no longer matches what
-is installed, so the claim drops until the file is re-synced -- what is wired up is the old
-entry.
-"""
+"""Install compiled agent-hooks entries into `.github/hooks/chock.json`."""
 
 from __future__ import annotations
 
@@ -34,7 +23,7 @@ def _compiled_entries(repo_root: Path) -> dict[str, dict]:
         try:
             entry = json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
-            continue  # a malformed entry must not take the others down
+            continue
         if isinstance(entry, dict) and entry.get("type") == "command":
             entries[policy_id] = entry
     return entries
@@ -46,7 +35,6 @@ def install_agent_hooks(repo_root: Path) -> list[str]:
     entries = _compiled_entries(repo_root)
     dest = repo_root / HOOKS_REL
     if not entries:
-        # Nothing to enforce here: remove a stale file rather than leave an empty hook set.
         if dest.exists():
             dest.unlink()
         return []

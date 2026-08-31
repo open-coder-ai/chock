@@ -1,11 +1,4 @@
-"""The PreToolUse guard must run even where a bare `python` is not on PATH.
-
-On a python3-only system the emitted command `python ...` exited 127; Claude Code treats
-any non-2 exit as non-blocking, so the guard allowed everything while coverage -- keyed on
-the fragment being installed -- still reported `enforced`. Install now bakes the running
-interpreter (an absolute path, shell-agnostic) into settings.json, while the compiled
-fragment keeps a placeholder so committed compiled output stays portable.
-"""
+"""The PreToolUse guard must run even where a bare `python` is not on PATH."""
 
 from __future__ import annotations
 
@@ -65,7 +58,6 @@ def _payload(command: str) -> str:
 
 
 def test_compiled_fragment_keeps_the_placeholder(tmp_path: Path) -> None:
-    # Committed compiled output must be portable: no machine-specific interpreter in it.
     policy = baseline_policy("block-destructive-commands")
     out = tmp_path / ".chock" / "compiled"
     compile_policy(policy, targets=[Surface.PRE_TOOL_USE.value], output_root=out, agents=["claude"])
@@ -85,10 +77,6 @@ def test_installed_command_bakes_a_real_interpreter() -> None:
 
 
 def test_guard_blocks_even_with_no_python_on_path() -> None:
-    # The python3-only regression: strip PATH so neither `python` nor `python3` resolve.
-    # The baked absolute interpreter must still run the guard and deny. Claude Code's deny
-    # rides entirely in the JSON body on a clean exit (see agentseam's claude_code.respond()
-    # docstring for why exit 2 is deliberately not used), not the exit code.
     repo, _ = _fresh_repo()
     install_pretooluse_hooks(repo)
     settings = json.loads((repo / ".claude" / "settings.json").read_text(encoding="utf-8"))
@@ -107,8 +95,6 @@ def test_guard_blocks_even_with_no_python_on_path() -> None:
 
 
 def test_coverage_detection_survives_the_bake() -> None:
-    # settings.json holds the baked command; the compiled fragment holds the placeholder.
-    # installed_pretooluse_policy_ids must still recognise the fragment as installed.
     repo, _ = _fresh_repo()
     install_pretooluse_hooks(repo)
     assert "block-destructive-commands" in installed_pretooluse_policy_ids(repo)
@@ -125,9 +111,6 @@ def _rewrite_interpreter(repo: Path, token: str) -> None:
 
 
 def test_coverage_is_machine_independent() -> None:
-    # settings.json may be COMMITTED (the catalog commits it), so the verdict must not
-    # depend on whose interpreter is baked in. Another machine's path and the historic
-    # bare `python` must both still count as installed.
     repo, _ = _fresh_repo()
     install_pretooluse_hooks(repo)
     for token in ('"/usr/bin/python3.12"', "python"):
@@ -136,12 +119,7 @@ def test_coverage_is_machine_independent() -> None:
 
 
 def _fake_but_real_interpreter(tmp_path: Path) -> str:
-    """A path that is not `sys.executable` but genuinely resolves on this machine.
-
-    Simulates "another machine's real, working interpreter" without depending on any
-    particular system layout (a fixed guess like `/usr/bin/python3.12` may not exist on
-    every CI image or platform this suite runs on).
-    """
+    """A path that is not `sys.executable` but genuinely resolves on this machine."""
     import shutil
 
     fake = tmp_path / "another-machine-python3"
@@ -151,9 +129,6 @@ def _fake_but_real_interpreter(tmp_path: Path) -> str:
 
 
 def test_reinstall_does_not_churn_a_committed_entry(tmp_path: Path) -> None:
-    # A sync on a second machine must not rewrite an equivalent installed entry with its
-    # own interpreter path -- that is diff churn in a committed file, and a leaked path --
-    # as long as the committed interpreter still resolves on this machine.
     repo, _ = _fresh_repo()
     install_pretooluse_hooks(repo)
     other = _fake_but_real_interpreter(tmp_path)
@@ -165,10 +140,6 @@ def test_reinstall_does_not_churn_a_committed_entry(tmp_path: Path) -> None:
 
 
 def test_reinstall_rebakes_an_interpreter_that_no_longer_resolves() -> None:
-    # The Windows regression CodeRabbit flagged on this PR (chock#73): a `.claude/settings.json`
-    # baked on a POSIX machine and cloned elsewhere carries an interpreter path that does not
-    # exist there, so Claude Code cannot even start the guard -- silent FAIL_OPEN. Reuse-to-
-    # avoid-diff-churn must not extend to a hook that can never start.
     repo, _ = _fresh_repo()
     install_pretooluse_hooks(repo)
     _rewrite_interpreter(repo, '"/usr/local/bin/definitely-not-a-real-interpreter3"')

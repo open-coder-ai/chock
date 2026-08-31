@@ -1,17 +1,4 @@
-"""Per-agent instruction files: agentseam decides paths and shared-file coverage.
-
-Split out of `init.py` when that file outgrew the 300-line review budget. Deciding what an
-adapter is and writing it is a different activity from scaffolding a repo.
-
-Whole-file branded templates (`.cursor/rules/chock.mdc`, `.windsurf/rules/chock.md`, ...)
-are gone: `agentseam.instructions` (marker-block / shared-file model, owner decision #8)
-now decides both the path an agent's instructions live at and whether it reads AGENTS.md
-natively -- most of chock's supported agents do, per agentseam's `reads_shared()`, so most
-of them get no dedicated file at all any more, only a block in the one AGENTS.md every
-agent already needs. The agents that do not read AGENTS.md natively still get a small
-marker-delimited pointer in their own file, coexisting with whatever else is there --
-never a whole-file claim the way the old templates made one.
-"""
+"""Per-agent instruction files: agentseam decides paths and shared-file coverage."""
 
 from __future__ import annotations
 
@@ -22,19 +9,8 @@ from agentseam import instructions as agentseam_instructions
 from chock.compile.surfaces import parse_agent_selection as _parse_agent_selection
 from chock.scaffold.templates import _preserve_or_write, packaged_template
 
-#: Aider is the one agent agentseam's `instructions` module cannot fully cover: it "reads
-#: nothing by convention... the files listed under `read:` in .aider.conf.yml and nothing
-#: else" (agentseam's own `instructions.py` docstring, which names this exact gap). A
-#: marker block in CONVENTIONS.md is real but inert without this real config file telling
-#: Aider to load it -- so chock still ships it directly, the supplement agentseam's own
-#: comment anticipates a "sibling guardrail" providing.
 _AIDER_CONF_REL = ".aider.conf.yml"
 
-#: chock's own agent id -> the agentseam agent whose `instructions` row governs it. Every
-#: id chock has ever scaffolded a wrapper for has a row; `copilot` and `vscode` collapse to
-#: the same one (`vscode_copilot`) per agentseam's own recorded finding that `copilot` has
-#: no live dispatch adapter of its own -- see `compile/surfaces.py`'s `_MATRIX_AGENT` for
-#: the same collapse on the enforcement side.
 CHOCK_AGENT: dict[str, str] = {
     "claude": "claude_code",
     "cursor": "cursor",
@@ -52,9 +28,6 @@ CHOCK_AGENT: dict[str, str] = {
     "antigravity": "antigravity",
 }
 
-#: The pointer every agent's own file (when it needs one at all) carries. Content, not
-#: mechanism -- agentseam decides where this text lands and whether it lands at all for a
-#: given agent; chock owns only what it says.
 POINTER_TEXT = (
     "# Chock\n\n"
     "Authoritative rules and conventions: `AGENTS.md` (repo root) — read it before any work.\n"
@@ -63,37 +36,18 @@ POINTER_TEXT = (
 
 
 def deselected_agents(selected: list[str]) -> list[str]:
-    """Chock agent ids to pass to `remove_instructions` for a given `selected` set.
-
-    Not simply `CHOCK_AGENT.keys() - selected`: `copilot` and `vscode` share one mapped
-    target (`vscode_copilot`), so selecting only one of them would put the other in that
-    naive complement -- and `remove_instructions` would then strip the marker block
-    `write_instructions` just wrote for the alias that *is* selected. An id is only
-    genuinely deselected when no selected id maps to the same agentseam target.
-    """
+    """Chock agent ids to pass to `remove_instructions` for a given `selected` set."""
     selected_targets = {CHOCK_AGENT[a] for a in selected if a in CHOCK_AGENT}
     return sorted(a for a in CHOCK_AGENT if a not in selected and CHOCK_AGENT[a] not in selected_targets)
 
 
 def parse_agent_selection(groups: list[str]) -> list[str]:
-    """Split comma- or space-separated --agents values; reject names not in CHOCK_AGENT.
-
-    Thin wrapper over the shared parser in `chock.compile.surfaces` -- the incident that
-    motivated it (a path swallowed into the agent list, silently filtered to an empty
-    selection that deselected every wrapper) is documented there. This wrapper exists so
-    scaffold-side callers validate against CHOCK_AGENT, the set of agents init can write.
-    """
+    """Split comma- or space-separated --agents values; reject names not in CHOCK_AGENT."""
     return _parse_agent_selection(groups, valid=CHOCK_AGENT)
 
 
 def write_instructions(repo_root: Path, selected: list[str]) -> dict[str, str]:
-    """Write chock's pointer as a marker block for every selected agent, via agentseam's
-    shared-file model. Returns {path: "created"|"updated"|"unchanged"}.
-
-    No `force` parameter: unlike the old whole-file templates, a marker block never
-    overwrites adopter content -- it only ever replaces its own delimited region, so there
-    is nothing here that force-overwrite protection needs to guard.
-    """
+    """Write chock's pointer as a marker block for every selected agent, via agentseam's"""
     targets = sorted({CHOCK_AGENT[a] for a in selected if a in CHOCK_AGENT})
     if not targets:
         return {}
@@ -106,13 +60,7 @@ def write_instructions(repo_root: Path, selected: list[str]) -> dict[str, str]:
 
 
 def remove_instructions(repo_root: Path, deselected: list[str]) -> dict[str, str]:
-    """Strip chock's marker block for agents no longer selected. Returns {path: "cleaned"}.
-
-    A file left holding nothing but whitespace once its block is stripped is an orphan the
-    old block was the only reason to have, not adopter content -- delete it so
-    init/sync/remove round-trips to no file at all, the same way it started. The shared
-    AGENTS.md is never deleted this way: it exists independently of any agent selection.
-    """
+    """Strip chock's marker block for agents no longer selected. Returns {path: "cleaned"}."""
     targets = sorted({CHOCK_AGENT[a] for a in deselected if a in CHOCK_AGENT})
     if not targets:
         return {}
@@ -127,7 +75,7 @@ def remove_instructions(repo_root: Path, deselected: list[str]) -> dict[str, str
             try:
                 parent.rmdir()
             except OSError:
-                pass  # directory still has other files; only remove it when empty
+                pass
     if "aider" in deselected:
         conf = Path(repo_root) / _AIDER_CONF_REL
         if conf.exists() and conf.read_text(encoding="utf-8") == packaged_template(_AIDER_CONF_REL):

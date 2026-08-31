@@ -25,22 +25,7 @@ def _staged_paths(root: Path) -> list[str] | None:
 
 
 def _drift_severity(root: Path, event: str | None, policy_dirs: list[Path]) -> tuple[str, str]:
-    """Severity for a drift finding, and the prefix that explains a softened one.
-
-    At commit time, drift a commit did not touch is drift it did not introduce. Blocking
-    every commit until someone repairs an artifact their diff never went near -- an engine
-    upgrade changing what `recompile` emits is the common case -- teaches adopters that the
-    gate fires on the wrong person, which is how gates get disabled. So under
-    `--event commit`, drift stays an error only when the staged diff touches policy source
-    or the compiled tree; otherwise it is a warning that names the same fix.
-
-    Outside commit (plain `validate`, CI) it stays strict: those are exactly the places
-    pre-existing drift should fail.
-
-    Shared by both drift checks rather than copied. Two statements of one rule is how the
-    packaging check would end up quietly stricter than the compiled one, on a judgement
-    that was argued once.
-    """
+    """Severity for a drift finding, and the prefix that explains a softened one."""
     if event != "commit":
         return "error", ""
     staged = _staged_paths(root)
@@ -53,26 +38,7 @@ def _drift_severity(root: Path, event: str | None, policy_dirs: list[Path]) -> t
 
 
 def check_compiled_drift(root: Path, report: Report, event: str | None = None) -> None:
-    """The compiled tree must still be what the manifests produce.
-
-    `.chock/compiled/` and the vendored runner in `.chock/bin/` are what
-    actually enforce. Nothing an adopter runs noticed when they stopped matching their
-    source: deleting a `gate.json`, weakening its regex in place, or replacing the runner's
-    `run()` with `return 0` all disabled enforcement silently while `validate`, `verify` and
-    `eval` each exited 0 -- and `eval` reports a policy as passing regardless, because it
-    rebuilds the gate from the manifest instead of reading the installed one.
-
-    Only `recompile --check` caught any of it, and that runs in CI, not in the pre-commit
-    hook this check is reached from. Putting it here is the point: the adopter learns at
-    commit time, in the repo where it matters.
-
-    `event="commit"` scopes the severity, not the check: drift the staged diff never
-    touched is reported as a warning instead of blocking a commit that did not cause it.
-
-    Imported lazily. `chock.scaffold.recompile` imports the compiler, and importing
-    that at module scope makes the validation package depend on the compile package for
-    every caller, including the ones that only load schemas.
-    """
+    """The compiled tree must still be what the manifests produce."""
     from chock.compile.compiler import _load_manifest
     from chock.config import agents_from_config as _agents_from_config
     from chock.policies import discover_policy_dirs
@@ -80,15 +46,6 @@ def check_compiled_drift(root: Path, report: Report, event: str | None = None) -
 
     compiled_root = root / ".chock" / "compiled"
 
-    # "Never compiled" is not "compiled and then changed", and only the second is drift.
-    # A repo straight after `init`, or one where `new policy` has just scaffolded a folder,
-    # has a policy with no compiled output yet -- `recompile` is the documented next step,
-    # and failing validation before the adopter has run it would break the first commit of
-    # every onboarding. So a policy with no compiled directory at all is skipped, per
-    # policy: an uncompiled newcomer never masks drift in a policy that *is* compiled.
-    #
-    # `recompile --check` stays strict and reports both, which is why it, not this, is the
-    # command CI should run.
     uncompiled = set()
     policy_dirs = list(discover_policy_dirs(root))
     for pack_dir in policy_dirs:
@@ -98,8 +55,6 @@ def check_compiled_drift(root: Path, report: Report, event: str | None = None) -
 
     severity, preexisting = _drift_severity(root, event, policy_dirs)
 
-    # A config with unknown agent names cannot be judged for drift -- report the config
-    # itself instead of crashing the validation run with a traceback.
     try:
         config_agents = _agents_from_config(root)
     except ValueError as exc:
@@ -118,8 +73,6 @@ def check_compiled_drift(root: Path, report: Report, event: str | None = None) -
         head = rel.split("/")[0]
         if head in uncompiled:
             continue
-        # coverage.json is repo-wide, so an uncompiled policy legitimately explains a
-        # mismatch. Judge it only when every policy has been compiled at least once.
         if head == "coverage.json" and uncompiled:
             continue
         report.add(
@@ -135,27 +88,7 @@ def check_compiled_drift(root: Path, report: Report, event: str | None = None) -
 
 
 def check_plugin_drift(root: Path, report: Report, event: str | None = None) -> None:
-    """Packaged Agent Plugins output must still be what the manifest produces.
-
-    The same drift class `check_compiled_drift` closes, left open one layer up. Editing a
-    policy's `description` and running `recompile` in an adopter repo left `plugin.json`
-    describing the old policy while `validate`, `recompile --check` and `eval` all exited 0.
-    Only `chock plugin build --check` noticed, and nothing in the adopter flow tells
-    anyone that command exists -- `init`, `new policy` and the `policy-init` skill emit no
-    packaged output at all, so an adopter meets `plugin.json` only as a file that arrived
-    with a copied catalog policy.
-
-    Worse than compiled drift in one respect: compiled artifacts are local, but a stale
-    `plugin.json` is read by clients we do not control and cannot correct.
-
-    **Opt-in, by presence.** A policy with no `plugin.json` is not packaged and is skipped
-    entirely -- this check must never be the reason a repo that never asked for Agent
-    Plugins starts failing, and packaging deliberately is not a compile Surface. Copying a
-    policy from the catalog opts you in, because the catalog commits its packaged output,
-    which is exactly the case where drift would otherwise be silent.
-
-    Imported lazily, for the reason `check_compiled_drift` gives.
-    """
+    """Packaged Agent Plugins output must still be what the manifest produces."""
     from chock.compile.compiler import _load_manifest
     from chock.plugin.build import PluginNameError, plugin_differences
     from chock.policies import discover_policy_dirs
@@ -174,9 +107,6 @@ def check_plugin_drift(root: Path, report: Report, event: str | None = None) -> 
         try:
             differences = plugin_differences(policy_dir, manifest, root)
         except PluginNameError as exc:
-            # A packaged policy whose id is no longer a legal plugin name cannot be rebuilt,
-            # so reporting it as drift would name a fix that does not work. Say the real
-            # thing instead, and never let it surface as a traceback out of `validate`.
             report.add(
                 Finding(
                     str(policy_dir),
@@ -238,7 +168,6 @@ def check_registry_freshness(
             )
         )
 
-    # Note if the same ID is reused across artifact types; resolution is now type-aware.
     if artifact_id in registered:
         seen_types = {e.get("artifact") for e in registered[artifact_id]}
         if len(seen_types) > 1:

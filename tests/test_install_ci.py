@@ -1,9 +1,4 @@
-"""`install-ci`: idempotent, never clobbers an unrelated file, and gates the coverage claim.
-
-`ci-gate` unlike `git-hook` has no installer that `recompile` runs automatically -- nothing
-wires the CI workflow up as a side effect of compiling. Coverage must not credit it until this
-command has actually run, the same rule `pre-tool-use` already follows.
-"""
+"""`install-ci`: idempotent, never clobbers an unrelated file, and gates the coverage claim."""
 
 from __future__ import annotations
 
@@ -44,17 +39,13 @@ def test_ci_workflow_installed_is_false_until_the_marker_is_present(tmp_path: Pa
 
 
 def test_coverage_does_not_credit_ci_gate_until_install_ci_has_run() -> None:
-    """The exact defect this PR fixes, pinned at the coverage layer: emitting a compiled
-    ci-gate step used to be enough to claim `enforced-at-commit` even though nothing ran it.
-    """
+    """The exact defect this PR fixes, pinned at the coverage layer: emitting a compiled"""
     emitted = {Surface.CI_GATE, Surface.AMBIENT_RULE}
     assert coverage_level(emitted, "cursor", ci_gate_installed=False) == "advisory"
     assert coverage_level(emitted, "cursor", ci_gate_installed=True) == "enforced-at-commit"
 
 
 def test_coverage_still_credits_git_hook_alongside_uninstalled_ci_gate() -> None:
-    """git-hook's claim does not regress: it is installed automatically by `recompile` and is
-    not gated behind `install-ci`.
-    """
+    """git-hook's claim does not regress: it is installed automatically by `recompile` and is"""
     emitted = {Surface.GIT_HOOK, Surface.CI_GATE}
     assert coverage_level(emitted, "cursor", ci_gate_installed=False) == "enforced-at-commit"

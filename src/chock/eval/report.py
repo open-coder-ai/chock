@@ -1,9 +1,4 @@
-"""Rendering eval results for a human and for a machine.
-
-Every row names its provenance and its signal. A reader must be able to tell a case whose
-expectation someone stated from one generated out of the declaration, and an observed
-result from an assessed one, without inferring either.
-"""
+"""Rendering eval results for a human and for a machine."""
 
 from __future__ import annotations
 
@@ -14,8 +9,6 @@ from chock.eval.model import PolicyResult
 
 MARK = {"pass": "PASS", "fail": "FAIL", "pending": "PEND", "skipped": "SKIP", "error": "ERR "}
 
-#: A gate's block message is written for an adopter mid-commit and runs to several lines.
-#: The table trims it; `--json` carries it whole, so nothing is lost, only shortened.
 _DETAIL_WIDTH = 68
 
 
@@ -28,8 +21,6 @@ def render_text(policies: list[PolicyResult], verbose: bool = False) -> str:
     for policy in policies:
         shown = [r for r in policy.results if verbose or r.outcome != "skipped"]
         if not shown and not verbose:
-            # A policy with nothing to replay is not a finding worth a paragraph; the
-            # summary still counts it, so it cannot disappear entirely.
             continue
         lines.append(f"\n{policy.policy_id}  [{policy.mode}]")
         for result in shown:

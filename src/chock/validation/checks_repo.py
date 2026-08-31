@@ -19,7 +19,6 @@ _POINTER_RE = re.compile(
 )
 
 
-# Legacy adapter files that must delegate to AGENTS.md.
 _ADAPTER_FILES = [
     ".claude/CLAUDE.md",
     ".cursor/rules/chock.mdc",
@@ -44,12 +43,7 @@ def _adapter_file_exists(root: Path, rel: str) -> bool:
 
 
 def check_ambient_rule_blocks(root: Path, report: Report) -> None:
-    """Check that AGENTS.md contains the constant pointer and that INDEX.md is fresh.
-
-    Replaces the legacy SEC-7 rule-block comparison. The pointer sends agents to
-    `.agents/policies/INDEX.md`, so validation now guards that the pointer is present,
-    constant, and that the index it references is up to date.
-    """
+    """Check that AGENTS.md contains the constant pointer and that INDEX.md is fresh."""
     agents_md = root / "AGENTS.md"
     if not agents_md.exists():
         return
@@ -100,7 +94,6 @@ def check_ambient_rule_blocks(root: Path, report: Report) -> None:
             )
         )
 
-    # Verify that every id referenced in the index resolves to a real policy folder.
     for line in index_path.read_text(encoding="utf-8").splitlines():
         m = re.match(r"^-\s+\*\*([^*]+)\*\*", line)
         if not m:
@@ -118,13 +111,7 @@ def check_ambient_rule_blocks(root: Path, report: Report) -> None:
 
 
 def _resolve_id(root: Path, policy_id: str) -> bool:
-    """Does an installed artifact answer to this id?
-
-    Uses the canonical discovery rather than walking the tree here. A second implementation
-    of discovery is a second thing to keep in step, and this one had already fallen out of
-    it: it once missed a whole class of installed policy and reported eleven of them
-    unresolvable on a clean install.
-    """
+    """Does an installed artifact answer to this id?"""
     from chock.validation.loading import discover_artifacts
 
     for _artifact_type, artifact_dir in discover_artifacts(root):
@@ -174,7 +161,7 @@ def check_release_consistency(root: Path, report: Report) -> None:
     """Version is single-sourced in pyproject.toml; CHANGELOG and VERSION must match it."""
     pyproject = root / "pyproject.toml"
     if not pyproject.exists():
-        return  # consumer repos have no release metadata
+        return
     match = re.search(r"^version\s*=\s*\"([^\"]+)\"", pyproject.read_text(encoding="utf-8"), re.MULTILINE)
     if not match:
         return
@@ -193,14 +180,6 @@ def check_release_consistency(root: Path, report: Report) -> None:
 
     changelog = root / "CHANGELOG.md"
     if changelog.exists():
-        # `\d+\.\d+\.\d+` truncated any PEP 440 suffix instead of capturing it, and the failure
-        # was not symmetric. Against `## 0.0.1a0` it captured `0.0.1`, so a correctly matched
-        # pre-release reported a mismatch -- noisy but safe. The reverse is the real defect: a
-        # CHANGELOG topped by `0.0.1a0` against a pyproject on `0.0.1` also captured `0.0.1`,
-        # compared equal, and PASSED. A release-gating check that fails open on the version it
-        # exists to compare is worse than no check.
-        # Bracketed Keep-a-Changelog headings (## [1.2.3]) never matched the bare
-        # pattern, so the check silently passed -- the same fail-open shape as above.
         match = re.search(r"^##\s+\[?(\d[^\s\]]*)\]?", changelog.read_text(encoding="utf-8"), re.MULTILINE)
         if match and match.group(1) != version:
             report.add(

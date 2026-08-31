@@ -1,16 +1,4 @@
-"""`init` must not claim enforcement it cannot deliver.
-
-In a directory that is not a git repository, `init` printed "Initialized Chock",
-exited 0, and created a `.git/hooks/` tree by side effect of `mkdir(parents=True)`. Git
-never looks at that directory -- `git status` does not even work there -- so the adopter
-walked away believing commits were gated when nothing could ever run. Of every failure mode
-this project has, claiming enforcement that cannot fire is the one it treats as worst.
-
-The second half of the file is the same mistake pointed the other way: `get_hooks_dir`
-assumed `.git` was a directory. In a linked worktree it is a file, so hook installation
-crashed and `--skip-hooks` became the only way to work there. Both come from guessing at
-git's layout instead of asking git, so both are tested together.
-"""
+"""`init` must not claim enforcement it cannot deliver."""
 
 from __future__ import annotations
 
@@ -32,7 +20,6 @@ def not_a_repo(tmp_path: Path) -> Path:
     return plain
 
 
-# ----------------------------------------------------------------- no fake .git is created
 def test_init_creates_no_git_directory(not_a_repo: Path, capsys: pytest.CaptureFixture) -> None:
     assert cmd_init([str(not_a_repo)]) == 0
     assert not (not_a_repo / ".git").exists(), "init conjured a .git directory git will never read"
@@ -60,7 +47,6 @@ def test_install_hooks_refuses_outside_a_repo(not_a_repo: Path, capsys: pytest.C
     assert "not a git repository" in capsys.readouterr().err
 
 
-# ------------------------------------------------------- guard the guard: hooks still install
 def test_a_real_repo_still_gets_its_hooks(tmp_path: Path) -> None:
     """A skip that is unconditional would pass every assertion above and enforce nothing."""
     repo = init_repo(tmp_path)
@@ -70,10 +56,7 @@ def test_a_real_repo_still_gets_its_hooks(tmp_path: Path) -> None:
 
 
 def test_a_subdirectory_of_a_repo_is_not_its_own_repo(tmp_path: Path) -> None:
-    """`rev-parse` succeeds in a subdirectory, but its hooks live in the parent's .git.
-
-    Accepting it would recreate the same dead `.git/hooks/` one level down.
-    """
+    """`rev-parse` succeeds in a subdirectory, but its hooks live in the parent's .git."""
     repo = init_repo(tmp_path)
     nested = repo / "packages" / "app"
     nested.mkdir(parents=True)
@@ -81,7 +64,6 @@ def test_a_subdirectory_of_a_repo_is_not_its_own_repo(tmp_path: Path) -> None:
     assert not is_git_repo(nested)
 
 
-# ------------------------------------------------- the other layout git is free to choose
 @pytest.fixture
 def linked_worktree(tmp_path: Path) -> Path:
     """A `git worktree add` checkout, where `.git` is a file rather than a directory."""

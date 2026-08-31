@@ -117,13 +117,7 @@ def _hash_file(path: Path) -> str:
 
 
 def compute_script_hashes(artifact_dir: Path, manifest: dict[str, Any]) -> dict[str, str]:
-    """Compute sha256 hashes for every deterministic script shipped with an artifact.
-
-    - skills: every file under scripts/
-    - hooks: every file under implementations/
-
-    Returns a mapping of relative path -> sha256 hex digest.
-    """
+    """Compute sha256 hashes for every deterministic script shipped with an artifact."""
     artifact = manifest.get("artifact", "")
     hashes: dict[str, str] = {}
 
@@ -225,11 +219,7 @@ def resolve(
     artifact_type: str | None = None,
     root: Path | None = None,
 ) -> RegistryEntry | None:
-    """Resolve an ID to the best matching registry entry.
-
-    When artifact_type is provided, resolution is now scoped to that artifact class,
-    preventing ID collisions across types (e.g., a rule and a skill sharing the same id).
-    """
+    """Resolve an ID to the best matching registry entry."""
     entries = load_registry(root)
     versions = entries.get(id, [])
     if not versions:
@@ -246,7 +236,6 @@ def resolve(
                 return e
         return None
 
-    # Default to highest SemVer production/draft entry.
     try:
         return max(
             versions,

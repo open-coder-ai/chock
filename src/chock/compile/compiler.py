@@ -32,11 +32,6 @@ from chock.scaffold.install_ci import ci_workflow_installed
 
 DEFAULT_OUTPUT_ROOT = Path(".chock") / "compiled"
 
-# `Surface.CI_GATE` was dropped from this map once, and the reason is worth keeping: the step
-# it emitted could not fail. The push branch was `echo <hardcoded refs> | ... || true`, and the
-# commit branch gated `git diff --cached` in a CI checkout, where there is no index. It is back
-# because the runner now has a commit-range mode and `install-ci` writes a workflow that runs
-# it -- emitting was never the bar, enforcing is. See docs/enforcement-surfaces.md.
 EMITTERS: dict[Surface, Any] = {
     Surface.GIT_HOOK: git_hook,
     Surface.CI_GATE: ci,
@@ -95,35 +90,14 @@ def compile_policy(
     agents: list[str] | None = None,
     repo_root: Path | None = None,
 ) -> CompileResult:
-    """Compile a single policy directory into requested target artifacts.
-
-    Args:
-        policy_dir: directory containing manifest.yaml and implementations/.
-        targets: list of Surface values to emit; defaults to all surfaces.
-        output_root: root directory for compiled artifacts; defaults to .chock/compiled.
-        agents: agents to include in the coverage report; defaults to all known agents.
-
-    Returns:
-        CompileResult describing emitted artifacts and per-agent coverage.
-    """
+    """Compile a single policy directory into requested target artifacts."""
     policy_dir = Path(policy_dir).resolve()
     manifest = _load_manifest(policy_dir)
     policy_id = manifest.get("id") or policy_dir.name
 
-    # A manifest that would not parse produces no artifacts. `_load_manifest` has already
-    # reported it as `manifest_parse` and returned {}; continuing meant the emitters ran
-    # anyway, and `git_hook` re-read the same file through `build_gate_json` -- which does
-    # not catch YAML errors -- so `recompile` died with a raw ParserError traceback instead
-    # of the diagnostic that had just been printed. Emitting a gate from a manifest nobody
-    # could read would be worse still.
     if not manifest:
         return CompileResult(policy_id=policy_id)
 
-    # The id becomes both the compiled-output directory and a token inside emitted git-hook
-    # bash / CI run: blocks. Validate it here, at the choke point -- `validate` runs the same
-    # rule, but a drop-in policy reaches the compiler without ever passing through validate.
-    # On violation, emit nothing (like an unparseable manifest); the folder name, a real path
-    # component, is the only safe thing left to name the result.
     try:
         validate_policy_id(policy_id, policy_dir.name)
     except InvalidPolicyId as exc:
@@ -134,11 +108,6 @@ def compile_policy(
     output_base = output_root / policy_id
 
     requested = {Surface(t) for t in (targets or [s.value for s in Surface])}
-    # Iterate in Surface declaration order, never in set order. Set iteration over enum
-    # members follows hash order, which PYTHONHASHSEED randomises per process, so compiled
-    # output was not reproducible: measured across seeds 0-7, protect-main-branch emitted
-    # its ci-gate step in 5 runs and skipped it in 3. Determinism is also what makes a
-    # byte-identity check on compiled gates meaningful evidence.
     selected_targets = [s for s in Surface if s in requested]
     artifacts: dict[str, list[Path]] = {}
 
@@ -150,33 +119,16 @@ def compile_policy(
         surface_dir.mkdir(parents=True, exist_ok=True)
         emitted = emitter.emit(policy_dir, surface_dir, manifest)
         artifacts[surface.value] = emitted
-        # An emitter that produced nothing (e.g. a gate that no longer opts into the
-        # gateway) must not leave its surface directory behind -- an empty dir reads as
-        # coverage that is not there, and a STALE file (a gateway-gate.json left from when
-        # the policy did opt in) would still be loaded at runtime. Remove the whole
-        # surface dir so single-policy `compile` into an existing tree cannot serve a
-        # deleted gate.
         if not emitted and surface_dir.exists():
             shutil.rmtree(surface_dir, ignore_errors=True)
 
-    # Only surfaces that actually produced a file count. The loop above records a key for
-    # every attempted surface, including emitters that returned nothing, so keying off
-    # `artifacts` alone credited a policy with surfaces it never emitted to.
     selected_set = {Surface(t) for t, paths in artifacts.items() if paths}
     agent_list = agents or sorted(SURFACE_AGENTS)
-    # Derived, never mutated after the fact: see installed_pretooluse_policy_ids. The repo
-    # root must be passed in, not inferred from output_root -- `recompile --check` compiles
-    # into a temp directory, where inferring it would find no settings.json and silently
-    # report every guard as unenforced.
     root = Path(repo_root) if repo_root else output_root.parent.parent
-    # Per-agent witnesses: each agent's pre-tool-use claim needs ITS OWN install evidence.
-    # A single flag would let wiring Claude raise `enforced` on Cursor rows too -- the
-    # cross-agent variant of the overclaim `pre_tool_use_installed` exists to prevent.
     installed_for = {
         "claude": policy_id in installed_pretooluse_policy_ids(root),
         "cursor": policy_id in installed_cursor_policy_ids(root),
     }
-    # Copilot and VS Code share one witness: their entry in .github/hooks/chock.json.
     agent_hooks_ok = policy_id in installed_agent_hooks_policy_ids(root)
     agent_hooks_for = {"copilot": agent_hooks_ok, "vscode": agent_hooks_ok}
     ci_installed = ci_workflow_installed(root)
@@ -217,17 +169,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output-root", help="Compiled output root (default: <repo>/.chock/compiled)")
     args = parser.parse_args(argv)
 
-    # The repo root is an explicit argument, like every other subcommand. It was inferred
-    # from --output-root's grandparent once, which held only for the default layout: with
-    # `--output-root out` the config lookup climbed out of the repo and fell back to all
-    # thirteen agents -- the exact drift this resolution exists to prevent.
     repo_root = Path(args.repo).resolve()
     output_root = Path(args.output_root) if args.output_root else repo_root / DEFAULT_OUTPUT_ROOT
 
-    # Same contract as init/sync/recompile: a selection mistake stops the run. The config
-    # default matters as much as the parsing -- in a repo pinned to three agents, a bare
-    # `compile` that defaulted to all of SURFACE_AGENTS rewrote coverage.json for thirteen
-    # and put the repo into drift that `sync --check` then failed.
     if args.agents is None:
         try:
             agents = agents_from_config(repo_root)

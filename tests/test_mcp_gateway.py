@@ -1,9 +1,4 @@
-"""mcp-gateway surface (chock#32 P3b): emitter, gate evaluation, proxy, honesty.
-
-The load-bearing assertions: RUNTIME_KINDS stays in lockstep between the emitter and
-the evaluator table (an emitted-but-unevaluable kind fails closed AND fails here), and
-coverage_level never credits the surface until a P3c witness exists.
-"""
+"""mcp-gateway surface (chock#32 P3b): emitter, gate evaluation, proxy, honesty."""
 
 from __future__ import annotations
 
@@ -24,14 +19,8 @@ def _manifest(kind: str, params: dict, message: str = "Blocked by test gate.") -
     }
 
 
-# --- lockstep: emitter kinds == evaluator kinds
-
-
 def test_emitter_and_evaluator_kinds_are_in_lockstep():
     assert tuple(sorted(emitter.RUNTIME_KINDS)) == gateway_gates.RUNTIME_KINDS
-
-
-# --- shape validation
 
 
 def test_egress_allowlist_params_validated():
@@ -62,9 +51,6 @@ def test_egress_allowlist_rejects_commit_events():
     assert any("tool_use" in f.message for f in report.errors)
 
 
-# --- emitter
-
-
 def test_emitter_writes_gateway_gate_for_runtime_kinds(tmp_path):
     out = tmp_path / "mcp-gateway"
     out.mkdir()
@@ -87,16 +73,10 @@ def test_emitter_skips_kinds_without_gateway_runtime(tmp_path):
     )
 
 
-# --- coverage honesty: emitted, never credited
-
-
 def test_mcp_gateway_surface_is_never_credited():
     for agent in ("claude", "cursor", "copilot", "gemini", "vscode"):
         level = coverage_level({Surface.MCP_GATEWAY}, agent, pre_tool_use_installed=False, ci_gate_installed=False)
         assert level == "none", f"{agent} credited mcp-gateway before a P3c witness exists"
-
-
-# --- gate evaluation
 
 
 def _gate(kind: str, params: dict, message: str = "blocked") -> dict:
@@ -113,8 +93,6 @@ def test_content_regex_blocks_string_argument_and_names_policy():
 
 
 def test_content_regex_ignores_allowlist_pragma_at_the_gateway():
-    # The scanned text is the live, attacker-controlled tool-call argument; honoring a
-    # same-line pragma would let one appended comment defeat the scan (review finding #6).
     gates = [_gate("content_regex", {"content_pattern": "SECRET", "allowlist_pragma": "pragma: allow"})]
     assert gateway_gates.evaluate(gates, "write_file", {"content": "SECRET  # pragma: allow"}) is not None
 
@@ -144,8 +122,6 @@ def test_batch_with_a_blocked_element_errors_every_id():
     block, refusal = gw._screen(batch)
     assert block is True and refusal is not None
     responses = json.loads(refusal)
-    # Every request id gets an error response -- the permitted sibling (id 4) is not left
-    # hanging just because a batch mate (id 3) was blocked (review finding).
     ids = {r["id"] for r in responses}
     assert ids == {3, 4}
     assert all(r["error"]["code"] == -32000 for r in responses)
@@ -191,7 +167,6 @@ def test_egress_catches_percent_encoded_host():
 
 
 def test_egress_catches_schemeless_bare_host():
-    # A fetch/shell tool argument that is a bare endpoint with no scheme (review finding).
     gates = [_gate("egress_allowlist", {"allowed_hosts": ["example.com"]})]
     assert gateway_gates.evaluate(gates, "fetch", {"url": "evil.io/steal"}) is not None
     assert gateway_gates.evaluate(gates, "fetch", {"url": "www.evil.io"}) is not None
@@ -199,7 +174,6 @@ def test_egress_catches_schemeless_bare_host():
 
 
 def test_egress_does_not_block_a_domain_mentioned_in_prose():
-    # Only a value that IS an endpoint is matched; a domain inside a sentence is not.
     gates = [_gate("egress_allowlist", {"allowed_hosts": ["example.com"]})]
     assert gateway_gates.evaluate(gates, "write_file", {"content": "see evil.io for the docs"}) is None
     assert gateway_gates.evaluate(gates, "write_file", {"content": "just-a-word"}) is None
@@ -209,7 +183,6 @@ def test_egress_catches_schemeless_ip_and_localhost():
     gates = [_gate("egress_allowlist", {"allowed_hosts": ["example.com"]})]
     for endpoint in ("127.0.0.1:8000", "127.0.0.1:8000/x", "[::1]:8000", "localhost:8000", "localhost"):
         assert gateway_gates.evaluate(gates, "fetch", {"url": endpoint}) is not None, endpoint
-    # And an IP that is in the allowlist passes.
     ip_gates = [_gate("egress_allowlist", {"allowed_hosts": ["127.0.0.1"]})]
     assert gateway_gates.evaluate(ip_gates, "fetch", {"url": "127.0.0.1:8000"}) is None
 
@@ -224,7 +197,6 @@ def test_egress_catches_bare_endpoint_with_query_or_fragment():
 def test_egress_normalizes_trailing_dot_fqdn():
     gates = [_gate("egress_allowlist", {"allowed_hosts": ["example.com"]})]
     assert gateway_gates.evaluate(gates, "fetch", {"url": "evil.io."}) is not None
-    # A trailing-dot form of an allowlisted host still passes (FQDN root normalized).
     assert gateway_gates.evaluate(gates, "fetch", {"url": "example.com."}) is None
     assert gateway_gates.evaluate(gates, "fetch", {"url": "http://example.com./ok"}) is None
 
@@ -232,7 +204,6 @@ def test_egress_normalizes_trailing_dot_fqdn():
 def test_blocked_notification_gets_no_response():
     gw = Gateway.__new__(Gateway)
     gw.gates = [_gate("egress_allowlist", {"allowed_hosts": ["example.com"]})]
-    # No "id" => JSON-RPC notification: block it, but do not respond.
     block, response = gw._screen(
         {"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "fetch", "arguments": {"url": "evil.io"}}}
     )

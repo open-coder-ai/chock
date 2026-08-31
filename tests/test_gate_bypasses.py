@@ -1,8 +1,4 @@
-"""Regressions for the gate-runner bypasses found in the 2026-08 full-repo audit.
-
-Each proves a way a secret or unlisted dependency reached a protected branch while the gate
-reported enforced -- the worst class for a governance tool -- and pins it closed.
-"""
+"""Regressions for the gate-runner bypasses found in the 2026-08 full-repo audit."""
 
 from __future__ import annotations
 
@@ -33,26 +29,22 @@ def _commit(tmp_path: Path, msg: str = "seed") -> None:
     subprocess.run(["git", "commit", "-q", "-m", msg], cwd=tmp_path, check=True)
 
 
-# ---- B1: a rename-with-edit must be scanned (--diff-filter used to exclude R) ----
 def test_renamed_and_edited_file_is_scanned(tmp_path: Path) -> None:
     init_repo(tmp_path)
     stage(tmp_path, "notes.txt", "just notes\n")
     _commit(tmp_path)
-    # rename with rename detection on, then add a secret to the new path
     subprocess.run(["git", "mv", "notes.txt", "config.txt"], cwd=tmp_path, check=True)
     (tmp_path / "config.txt").write_text("just notes\n" + AWS_KEY, encoding="utf-8")
     subprocess.run(["git", "add", "config.txt"], cwd=tmp_path, check=True)
     assert run(_secret_gate(tmp_path), "pre-commit", None, tmp_path) == 1
 
 
-# ---- B2: a non-ASCII filename must be scanned (core.quotePath used to hide it) ----
 def test_non_ascii_filename_is_scanned(tmp_path: Path) -> None:
     init_repo(tmp_path)
     stage(tmp_path, "sécrets.txt", AWS_KEY)
     assert run(_secret_gate(tmp_path), "pre-commit", None, tmp_path) == 1
 
 
-# ---- B3: a nested (monorepo) manifest must be scanned (basename, not full path) ----
 def test_nested_manifest_dependency_is_scanned(tmp_path: Path) -> None:
     init_repo(tmp_path)
     (tmp_path / "allow.txt").write_text("react\n", encoding="utf-8")
@@ -87,7 +79,6 @@ def test_root_manifest_still_scanned(tmp_path: Path) -> None:
     assert run(gate, "pre-commit", None, tmp_path) == 0
 
 
-# ---- B4: CI over a base that does not resolve must fail closed, not pass silent ----
 def test_ci_fails_closed_on_missing_base(tmp_path: Path, capsys) -> None:
     init_repo(tmp_path)
     stage(tmp_path, "app.py", "x = 1\n")
@@ -109,19 +100,16 @@ def test_ci_scans_a_valid_base(tmp_path: Path) -> None:
     assert run(_secret_gate(tmp_path), "ci", None, tmp_path, base=base) == 1
 
 
-# ---- B5: a clean merge commit must clear the same commit gates ----
 def test_merge_commit_installs_a_pre_merge_commit_dispatcher(tmp_path: Path) -> None:
     from chock.hooks.installers import get_hooks_dir, install_policy_hooks
 
     init_repo(tmp_path)
-    # a minimal compiled policy so there is a git-pre-commit.sh to register
     compiled = tmp_path / ".chock" / "compiled" / "p" / "git-hook"
     compiled.mkdir(parents=True)
     (compiled / "git-pre-commit.sh").write_text("#!/bin/bash\nexit 0\n", encoding="utf-8")
     install_policy_hooks(tmp_path, get_hooks_dir(tmp_path))
     hooks = get_hooks_dir(tmp_path)
     assert (hooks / "pre-merge-commit").exists(), "merges bypass gates without this dispatcher"
-    # it runs the same commit shims the pre-commit dispatcher does
     assert list((hooks / "pre-merge-commit.d").glob("50-chock-policy-*"))
 
 

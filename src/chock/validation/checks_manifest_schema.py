@@ -25,10 +25,6 @@ def _manifest_ref(artifact_dir: Path) -> Path:
 
 
 def _check_manifest_id_folder(artifact_dir: Path, manifest: dict[str, Any], report: Report) -> None:
-    # Validate the *effective* id -- the folder name when no id field is present -- against
-    # the same rule compile and add enforce. Checking only a present id field left the
-    # defaulted-id path (an unsafe folder name, no id) unvalidated, while compile still turns
-    # that name into a shell token and an output path.
     effective_id = manifest.get("id") or artifact_dir.name
     try:
         validate_policy_id(effective_id, artifact_dir.name)

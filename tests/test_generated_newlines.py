@@ -1,12 +1,4 @@
-"""Generated artifacts must be written with LF on every platform.
-
-`Path.write_text()` without `newline=` translates "\\n" to "\\r\\n" on Windows. Because
-core.autocrlf=true is common there and `*.json` had no .gitattributes rule, a recompile
-rewrote 20 tracked files that `git status` then reported as modified while `git diff`
-reported no changes. That gap teaches people to run `git checkout --` over generated
-output, and it makes the byte-identity checks we rely on to prove enforcement did not
-change unreliable.
-"""
+"""Generated artifacts must be written with LF on every platform."""
 
 from __future__ import annotations
 
@@ -21,8 +13,6 @@ from chock.emit import write_generated, write_generated_json
 
 FRAMEWORK_ROOT = Path(__file__).resolve().parents[1]
 
-# Modules that write artifacts Chock regenerates into a repository. Files
-# scaffolded once and then owned by the adopter are deliberately not in this list.
 GENERATED_WRITERS = [
     "src/chock/compile/emitters/ambient.py",
     "src/chock/compile/emitters/claude_managed.py",
@@ -49,13 +39,7 @@ def test_write_generated_json_emits_lf(tmp_path: Path) -> None:
 
 
 def test_generated_writers_do_not_call_write_text() -> None:
-    """Structural guard, and the one that works on every platform.
-
-    The byte assertions above only bite on Windows, so on Linux CI they would pass
-    against a regression. This catches the twelfth call site directly: any module that
-    emits regenerated artifacts must go through the helper, which owns the newline
-    decision in one place.
-    """
+    """Structural guard, and the one that works on every platform."""
     offenders: list[str] = []
     for rel in GENERATED_WRITERS:
         text = (FRAMEWORK_ROOT / rel).read_text(encoding="utf-8")

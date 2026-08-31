@@ -16,19 +16,15 @@ from chock.validation.report import Finding, Report
 
 
 def load_frontier_standard(agent: str) -> dict[str, Any] | None:
-    # Map mode names to standard file names.
     standard_map = {
         "claude": "claude-code",
-        "codex": "agentskills",  # Codex uses Agent Skills
+        "codex": "agentskills",
         "cursor": "agentskills",
         "copilot": "agentskills",
         "devin": "agentskills",
         "openai": "agentskills",
     }
     standard_name = standard_map.get(agent, agent)
-    # The directory ingest writes is the directory validation reads. Recomputing the path
-    # here made that a coincidence of two identical expressions rather than a stated fact,
-    # and left validation reading a location no test could redirect.
     path = STANDARDS_DIR / f"{standard_name}.json"
     if not path.exists():
         return None
@@ -37,7 +33,6 @@ def load_frontier_standard(agent: str) -> dict[str, Any] | None:
         base = load_frontier_standard(data["extends"])
         if base:
             merged = base.copy()
-            # Deep merge to avoid shallow update bugs once nested keys overlap.
             for key, value in data.items():
                 if isinstance(value, dict) and key in merged and isinstance(merged[key], dict):
                     merged[key] = {**merged[key], **value}
@@ -64,7 +59,6 @@ def check_frontier_mode(
         )
         return
 
-    # FRS-1: warn if the frontier standard is older than 90 days.
     fetched_at = standard.get("fetched_at")
     if fetched_at:
         try:
@@ -80,7 +74,7 @@ def check_frontier_mode(
                     )
                 )
         except Exception:
-            pass  # staleness notice is advisory; a malformed fetched_at must not fail validation
+            pass
 
     if artifact_type == "skill":
         desc_std = standard.get("skill_description", {})

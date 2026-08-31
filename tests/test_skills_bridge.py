@@ -24,12 +24,7 @@ def _bridge_root(tmp_path: Path) -> Path:
 
 
 def _fingerprint(root: Path) -> set[tuple[str, int, int]]:
-    """Identity of every file in the tree: path, inode, mtime.
-
-    Comparing return values proves nothing about the filesystem -- the first version of
-    these tests did exactly that and passed while every skill was being deleted and
-    re-copied on each run.
-    """
+    """Identity of every file in the tree: path, inode, mtime."""
     out = set()
     for p in sorted(root.rglob("*")):
         if p.is_file():
@@ -89,11 +84,7 @@ class TestCopyFallback:
         assert (link / "SKILL.md").exists()
 
     def test_copy_is_not_rewritten_when_unchanged(self, tmp_path: Path) -> None:
-        """The churn fix: an up-to-date copy must be left alone, not re-copied.
-
-        This is the default path on Windows without Developer Mode, so a rewrite here
-        means every refresh rebuilds the whole bridge for no change.
-        """
+        """The churn fix: an up-to-date copy must be left alone, not re-copied."""
         _make_skill(tmp_path, "my-skill")
         with mock.patch("os.symlink", side_effect=OSError("not supported")):
             update_skill_bridges(tmp_path)

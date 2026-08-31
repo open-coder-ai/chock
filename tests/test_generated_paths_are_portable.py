@@ -1,17 +1,4 @@
-"""Nothing Chock generates may hardcode the path it was generated at.
-
-A wrapper containing an absolute path breaks the moment the repo is moved, renamed, or
-mounted at a different prefix in a container -- and it breaks by *blocking commits*, since
-a hook that cannot find its script exits non-zero. The installed policy wrapper did exactly
-this, and on Windows it embedded a backslash path inside a `/bin/sh` script, where
-backslashes are literal characters rather than separators:
-
-    bash 'C:\\Users\\me\\repo\\.chock\\compiled\\...\\git-pre-commit.sh' "$@"
-
-The check is empirical rather than a reading of the emitters: generate everything into a
-throwaway repo, then look for that repo's own path in the output. That catches the class
-however it is produced, including by code written later.
-"""
+"""Nothing Chock generates may hardcode the path it was generated at."""
 
 from __future__ import annotations
 
@@ -23,7 +10,6 @@ import pytest
 
 from chock.hooks.install import get_hooks_dir, install_policy_hooks, install_validate_hook
 
-# `.git/objects` and friends are binary and contain hashes, not paths.
 _SKIP_DIRS = {"objects", "refs", "logs", "info"}
 
 
@@ -44,7 +30,7 @@ def _forms(path: Path) -> list[str]:
     text = str(path)
     forms = {text, text.replace("\\", "/")}
     drive, _, rest = text.partition(":")
-    if len(drive) == 1:  # C:\... -> /c/... as MSYS bash renders it
+    if len(drive) == 1:
         forms.add(f"/{drive.lower()}{rest}".replace("\\", "/"))
     return sorted(forms)
 
@@ -56,7 +42,6 @@ def wired_repo(tmp_path: Path) -> Path:
     repo.mkdir()
     subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)
 
-    # A compiled gate to wrap. Built directly so this test does not depend on `init`.
     from conftest import baseline_policy
 
     from chock.compile.compiler import compile_policy
@@ -115,7 +100,5 @@ def test_a_policy_wrapper_still_runs_after_the_repo_moves(wired_repo: Path) -> N
 
     wrapper = next((get_hooks_dir(moved) / "pre-commit.d").glob("50-chock-policy-*"))
     proc = subprocess.run(["sh", str(wrapper)], cwd=str(moved), capture_output=True, text=True, check=False)
-    # protect-main-branch blocks commits on main, so exit 1 is a correct verdict. What must
-    # not happen is the shell failing to find the script at all.
     assert "No such file" not in (proc.stdout + proc.stderr), proc.stderr
     assert proc.returncode in (0, 1), f"wrapper broke after the move:\n{proc.stdout}\n{proc.stderr}"

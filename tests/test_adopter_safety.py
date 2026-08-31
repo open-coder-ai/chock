@@ -1,10 +1,4 @@
-"""Adopter-safety regressions from the 2026-08 audit tail (P1-G2/G3/G4, E3).
-
-Each pins a way a routine Chock command destroyed adopter work or hid a failure that
-broke teammates: an edited dispatcher overwritten with no copy, a second relocated hook
-clobbering the first, config keys and comments discarded by an init re-run, and a
-lockfile-write failure reported as success.
-"""
+"""Adopter-safety regressions from the 2026-08 audit tail (P1-G2/G3/G4, E3)."""
 
 from __future__ import annotations
 
@@ -19,7 +13,6 @@ from chock.hooks.ownership import relocate_existing_hook
 from chock.scaffold.init import cmd_init
 
 
-# ---- G2a: an adopter-edited dispatcher is backed up, never silently overwritten ----
 def test_edited_dispatcher_is_backed_up_before_overwrite(tmp_path: Path, capsys) -> None:
     init_repo(tmp_path)
     hooks = get_hooks_dir(tmp_path)
@@ -33,7 +26,6 @@ def test_edited_dispatcher_is_backed_up_before_overwrite(tmp_path: Path, capsys)
     backup = hooks / "pre-commit.chock-backup"
     assert backup.exists(), "the adopter's edited dispatcher vanished with no copy"
     assert "my-custom-step" in backup.read_text(encoding="utf-8")
-    # the live dispatcher is regenerated clean
     assert dispatcher.read_text(encoding="utf-8") == DISPATCHER_TEMPLATE.format(
         event="pre-commit", marker=GENERATED_MARKER
     )
@@ -48,7 +40,6 @@ def test_unedited_dispatcher_reinstall_leaves_no_backup(tmp_path: Path) -> None:
     assert not (hooks / "pre-commit.chock-backup").exists()
 
 
-# ---- G2b: a second foreign hook must not clobber the first relocation ----
 def test_second_foreign_hook_does_not_clobber_first_relocation(tmp_path: Path) -> None:
     impl_dir = tmp_path / "pre-commit.d"
     impl_dir.mkdir()
@@ -64,7 +55,6 @@ def test_second_foreign_hook_does_not_clobber_first_relocation(tmp_path: Path) -
     assert any("second-tool" in t for t in texts)
 
 
-# ---- G3: init re-run preserves unknown keys, comments (via no-op skip), and empty policies ----
 def test_init_rerun_preserves_unknown_config_keys_and_comments(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     cmd_init([str(repo), "--skip-hooks"])
@@ -79,7 +69,6 @@ def test_init_rerun_preserves_unknown_config_keys_and_comments(tmp_path: Path) -
     after = config.read_text(encoding="utf-8")
     assert "my_team_section" in after, "an unknown top-level key was dropped"
     assert yaml.safe_load(after)["my_team_section"] == {"owner": "platform"}
-    # the re-run merged to an identical document, so the file was not rewritten at all
     assert after == text, "a no-op init re-run rewrote config.yaml (comments would be lost)"
 
 
@@ -95,7 +84,6 @@ def test_init_rerun_does_not_resurrect_template_over_empty_policies(tmp_path: Pa
     assert yaml.safe_load(config.read_text(encoding="utf-8"))["policies"] == {}
 
 
-# ---- G4: a lockfile-write failure fails the command instead of warning ----
 def test_lock_write_failure_fails_the_sync(tmp_path: Path, monkeypatch) -> None:
     from chock.scaffold import recompile as recompile_mod
     from chock.toggles import recompile_main
@@ -126,7 +114,6 @@ def test_bookkeeping_error_carries_the_remedy(tmp_path: Path, monkeypatch) -> No
         recompile(repo, ["claude"], skip_hooks=True)
 
 
-# ---- E3: init scaffolds LF pinning; an adopter's own .gitattributes is preserved ----
 def test_init_scaffolds_gitattributes(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     cmd_init([str(repo), "--skip-hooks"])

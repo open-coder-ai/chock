@@ -1,20 +1,4 @@
-"""Install compiled Cursor hook fragments into .cursor/hooks.json.
-
-Cursor's beforeShellExecution speaks Claude's protocol -- JSON payload on stdin, exit 2
-to deny -- so the same vendored adapter and guard scripts enforce there; this module
-only handles the envelope: Cursor's flat hook entries inside `.cursor/hooks.json`.
-
-The committed-file discipline is pretooluse_install's, reused rather than copied:
-only Chock-owned entries are touched (the adapter path in the command), fragments
-carry the interpreter placeholder, and an installed entry that is this fragment under
-another machine's interpreter is kept byte-for-byte. `.cursor/hooks.json` is a
-committed file wherever the adopter commits it, exactly like the catalog's
-.claude/settings.json.
-
-Cursor's fail-open default (a non-2 non-zero exit lets the command run) is a
-documented per-agent caveat in docs/enforcement-surfaces.md, mitigated the same way as
-Claude's exit-127 gap: install bakes an interpreter that provably runs.
-"""
+"""Install compiled Cursor hook fragments into .cursor/hooks.json."""
 
 from __future__ import annotations
 
@@ -33,7 +17,6 @@ from chock.hooks.runtime_vendor import vendor_runtime
 
 CURSOR_HOOKS_REL = Path(".cursor") / "hooks.json"
 _EVENT = "beforeShellExecution"
-# Every Chock-owned entry runs the vendored adapter; nothing else should.
 _OWNED_MARKER = "/.chock/bin/cursor.py"
 
 
@@ -68,7 +51,7 @@ def _compiled_entries(repo_root: Path) -> list[dict]:
         try:
             fragment = json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
-            continue  # a malformed fragment must not take the others down
+            continue
         for entry in fragment.get(_EVENT, []) or []:
             if isinstance(entry, dict) and entry.get("command"):
                 entries.append(entry)
@@ -101,7 +84,7 @@ def install_cursor_hooks(repo_root: Path) -> list[str]:
         wanted = _normalize_entry(entry)
         for installed in ours_before:
             if _normalize_entry(installed) == wanted and _interpreter_runs_here(_wrap(installed)):
-                return installed  # same hook under another interpreter: keep it byte-for-byte
+                return installed
         return _bake_entry(entry)
 
     if not wanted_entries:
@@ -121,12 +104,7 @@ def install_cursor_hooks(repo_root: Path) -> list[str]:
 
 
 def installed_cursor_policy_ids(repo_root: Path) -> set[str]:
-    """Policy ids whose compiled Cursor entry is actually present in .cursor/hooks.json.
-
-    The same derivation rule as installed_pretooluse_policy_ids: identity is the
-    interpreter-normalised entry, so the verdict is machine-independent even though the
-    file may be committed with one machine's baked interpreter.
-    """
+    """Policy ids whose compiled Cursor entry is actually present in .cursor/hooks.json."""
     repo_root = Path(repo_root)
     hooks_path = repo_root / CURSOR_HOOKS_REL
     if not hooks_path.exists():
@@ -134,7 +112,7 @@ def installed_cursor_policy_ids(repo_root: Path) -> set[str]:
     try:
         settings = json.loads(hooks_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
-        return set()  # unreadable config proves nothing is installed, the safe claim
+        return set()
     entries = (settings.get("hooks") or {}).get(_EVENT) if isinstance(settings, dict) else None
     if not isinstance(entries, list):
         return set()

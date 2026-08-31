@@ -108,9 +108,6 @@ def test_adversarial_eval_exempt_from_injection_scan(tmp_path):
     )
     report = validator.Report()
     validator._scan_text_surfaces(skill_dir, {}, "skill", report)
-    # The payload is the test, so it is not an error -- but it is no longer silently
-    # exempt either: since the #49 hardening (I2), case payloads surface as info and
-    # only the non-case remainder of the suite stays an error surface.
     assert not report.errors and not report.warnings
     assert report.infos and all("eval case" in f.message for f in report.infos)
 
@@ -155,7 +152,6 @@ def test_scripts_shipped_for_code_skill(tmp_path):
 
 def test_script_integrity_verified_for_production_artifacts(tmp_path):
     """Production/verified+ artifacts must match registry script hashes."""
-    # Set up a code skill with a script and a registry claiming a different hash.
     chock_dir = tmp_path / ".chock"
     chock_dir.mkdir()
     skill_dir = tmp_path / "skills" / "test-skill"
@@ -197,7 +193,6 @@ def test_script_integrity_verified_for_production_artifacts(tmp_path):
     validator.check_script_integrity(skill_dir, manifest, "skill", tmp_path, report)
     assert any(f.check == "script_integrity" and "DET-2" in f.message for f in report.errors)
 
-    # Sandbox tier is exempt from hash verification.
     manifest["provenance"] = {"trust_tier": "sandbox"}
     manifest["lifecycle"] = {"status": "draft"}
     report = validator.Report()

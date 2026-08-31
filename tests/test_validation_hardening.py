@@ -1,9 +1,4 @@
-"""Audit-survivor fixes (issue #49): validation gaps I1, I2, I4, I5.
-
-Each test encodes the exact bypass the 2026-08 audit found still open at v0.2.0:
-discovery blind spots (I1, I4), the SEC-4 whole-file exemption (I2), and the
-unscanned hook implementations/ directory (I5).
-"""
+"""Audit-survivor fixes (issue #49): validation gaps I1, I2, I4, I5."""
 
 from chock.validation.checks_security import _split_eval_suite, check_security_baseline
 from chock.validation.loading import discover_artifacts
@@ -27,9 +22,6 @@ def _suite(cases_yaml: str, description: str = "Plain description.") -> str:
     )
 
 
-# --- I1: a manifest without `artifact` must be discovered as unknown, not invisible
-
-
 def test_manifest_without_artifact_is_discovered_not_invisible(tmp_path):
     pol = tmp_path / ".agents" / "policies" / "mystery"
     pol.mkdir(parents=True)
@@ -42,9 +34,6 @@ def test_root_manifest_without_artifact_is_discovered(tmp_path):
     (tmp_path / "manifest.yaml").write_text("id: mystery\nname: M\n", encoding="utf-8")
     found = list(discover_artifacts(tmp_path))
     assert found == [("unknown", tmp_path)]
-
-
-# --- I4: bare adopter dirs are only claimed with a recognizable manifest
 
 
 def test_bare_hooks_dir_without_manifest_is_not_claimed(tmp_path):
@@ -73,9 +62,6 @@ def test_bare_evals_dir_with_foreign_suite_yaml_not_claimed(tmp_path):
     sub.mkdir(parents=True)
     (sub / "suite.yaml").write_text("scenarios:\n- users: 100\n", encoding="utf-8")
     assert list(discover_artifacts(tmp_path)) == []
-
-
-# --- I2: one adversarial case no longer exempts the whole suite from SEC-4
 
 
 def test_injection_in_suite_description_is_error_despite_adversarial_case(tmp_path):
@@ -115,9 +101,6 @@ def test_split_eval_suite_none_for_non_suite_files(tmp_path):
     p.parent.mkdir(parents=True)
     p.write_text("- just\n- a\n- list\n", encoding="utf-8")
     assert _split_eval_suite(p) is None
-
-
-# --- I5: hook implementations/ are scanned by SEC-2
 
 
 def test_hook_implementation_calling_llm_is_error(tmp_path):

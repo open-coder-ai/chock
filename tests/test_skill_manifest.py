@@ -127,12 +127,7 @@ def test_metadata_chock_maps_to_fields(tmp_path: Path) -> None:
 
 
 def test_dotted_metadata_keys_expand(tmp_path: Path) -> None:
-    """Dotted metadata.chock.* keys expand, and flat-string typed values decode.
-
-    The Agent Skills spec requires metadata values to be strings, so the shipped
-    skills write lists comma-joined and booleans as "true"/"false"; ingestion
-    decodes them back to the types the manifest schema expects.
-    """
+    """Dotted metadata.chock.* keys expand, and flat-string typed values decode."""
     skill_dir = tmp_path / "dotted-skill"
     skill_dir.mkdir()
     (skill_dir / "SKILL.md").write_text(

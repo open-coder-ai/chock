@@ -1,8 +1,4 @@
-"""Remove an installed policy: the missing symmetry for `add`.
-
-Without this, `add` was a one-way door -- an adopter could only `disable` a policy,
-leaving its folder, compiled artifacts, and lockfile entry behind forever.
-"""
+"""Remove an installed policy: the missing symmetry for `add`."""
 
 from __future__ import annotations
 
@@ -33,11 +29,6 @@ def main(argv: list[str] | None = None) -> int:
     if target is None:
         print(f"Unknown policy: {args.policy_id}", file=sys.stderr)
         return 2
-    # An unreadable manifest is not permission to delete. `_load_manifest` reports the parse
-    # failure and returns {}, which reads as "not mandatory" -- so a mandatory policy whose
-    # manifest had a typo would be removed on the strength of a file nobody could parse.
-    # This is deletion in someone else's repository; the honest answer to "I cannot tell" is
-    # to refuse, not to proceed.
     if not manifest:
         print(
             f"Refusing to remove {args.policy_id}: its manifest could not be read, so whether "
@@ -52,8 +43,6 @@ def main(argv: list[str] | None = None) -> int:
     shutil.rmtree(target)
     print(f"Removed {target.relative_to(repo_root).as_posix()}")
 
-    # Resync so the compiled tree, hooks, index, registry, and lockfile all stop
-    # describing a policy that no longer exists.
     from chock.lifecycle import sync_main
 
     return sync_main(["--repo", str(repo_root)])

@@ -1,16 +1,4 @@
-"""Behavioural tests for the verify-dependency-exists gate.
-
-These drive the vendored runner against a real git index rather than asserting on
-manifest fields. The policy first shipped claiming ASI04 `full` coverage without anyone
-executing the gate; it in fact passed hallucinated dependencies in pyproject.toml and
-go.mod, and flagged name/version/scripts in package.json. A compliance claim is only
-worth what an executed test says it is.
-
-Each format is covered three ways, because all three can fail independently:
-  adds an unlisted dependency  -> blocked
-  adds an allowlisted one      -> allowed
-  changes nothing              -> allowed (the HEAD diff; see below)
-"""
+"""Behavioural tests for the verify-dependency-exists gate."""
 
 from __future__ import annotations
 
@@ -31,7 +19,6 @@ POLICY = baseline_policy(POLICY_ID) / "manifest.yaml"
 
 BASE_ALLOWLIST = "requests\ngithub.com/ok/requests\n"
 
-# (filename, committed content, staged content, name the staged content adds)
 FORMATS = [
     (
         "requirements.txt",
@@ -120,12 +107,7 @@ def test_allowlisted_dependency_is_permitted(
 def test_touching_a_manifest_without_adding_deps_is_allowed(
     tmp_path: Path, filename: str, committed: str, staged: str, added: str
 ) -> None:
-    """Only newly ADDED dependencies count.
-
-    The extractor reads the whole staged file, so without diffing against HEAD a
-    pre-existing unlisted package would block any commit that merely touched the
-    manifest. A gate that fires on untouched lines is one people switch off.
-    """
+    """Only newly ADDED dependencies count."""
     repo = _repo(tmp_path, "", filename, committed)
     result = _stage_and_run(repo, filename, committed + "\n")
     assert result.returncode == 0, (
@@ -186,13 +168,7 @@ def test_policy_claims_full_coverage_backed_by_the_matrix(tmp_path: Path) -> Non
 
 
 def test_init_disables_the_policy_only_when_it_is_installed(tmp_path: Path) -> None:
-    """A fresh adopter must not inherit a gate that blocks their first dependency.
-
-    The template disables this policy because it blocks every unlisted dependency on
-    arrival. The framework no longer installs it, so on an empty repo the toggle names
-    nothing and `validate` warns about a decision the adopter never made -- a warning on
-    every clean install. The toggle must survive exactly when the policy does.
-    """
+    """A fresh adopter must not inherit a gate that blocks their first dependency."""
     import shutil
 
     from chock.scaffold.init import _write_config
@@ -226,11 +202,7 @@ def test_init_preserves_an_existing_policies_block(tmp_path: Path) -> None:
 
 
 def test_unsupported_manifest_format_fails_validation(tmp_path: Path) -> None:
-    """A format with no extractor must be rejected at validate time, not ignored at runtime.
-
-    Before this, `manifests: [Gemfile]` validated cleanly and then did nothing when the
-    gate ran -- a policy reporting enforcement it did not provide.
-    """
+    """A format with no extractor must be rejected at validate time, not ignored at runtime."""
     from chock.gate.schema import SUPPORTED_MANIFESTS
     from chock.validation.checks_gate_shape import _validate_gate
     from chock.validation.report import Report

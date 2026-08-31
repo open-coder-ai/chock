@@ -1,15 +1,4 @@
-"""The framework ships mechanism. It ships no policies.
-
-That is an ownership decision, not a packaging detail: bundled policies were reinstalled
-over adopter edits on every `init`, silently, and the only way to stop fighting the edit is
-to have nothing framework-owned to overwrite. The decision is one commit away from being
-undone by a well-meaning `packs/_baseline/` reappearing, so the boundary is asserted here
-rather than remembered.
-
-Both halves are checked against the built wheel, not the source tree, because the wheel is
-what an adopter installs -- and `package-data` globs are exactly the kind of thing that
-starts sweeping up a directory nobody meant to ship.
-"""
+"""The framework ships mechanism. It ships no policies."""
 
 from __future__ import annotations
 
@@ -29,12 +18,7 @@ def test_no_policies_are_bundled_in_the_source_tree() -> None:
 
 
 def test_the_wheel_ships_no_policy_folder(built_wheel: Path) -> None:
-    """No file under any `.agents/policies/` path may reach an adopter's install.
-
-    Catches the two ways a policy could travel: a bundled pack tree, and a copy smuggled
-    into the `chock-init` template assets -- which is where a third, stale duplicate
-    of all twelve policies once lived, read by nothing and kept correct by nobody.
-    """
+    """No file under any `.agents/policies/` path may reach an adopter's install."""
     with zipfile.ZipFile(built_wheel) as whl:
         names = whl.namelist()
 

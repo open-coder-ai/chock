@@ -1,10 +1,4 @@
-"""Generated executables and the lockfile must be LF on every platform.
-
-`write_text` without `newline=` emits CRLF on Windows. For a shell script that git runs
-from the working tree that means `bad interpreter: /bin/sh^M`; for the lockfile it means a
-no-op sync shows as modified. The repo pins these to LF via .gitattributes AND writes them
-LF via emit.write_generated -- both halves are required, and these guard the writer half.
-"""
+"""Generated executables and the lockfile must be LF on every platform."""
 
 from __future__ import annotations
 
@@ -37,9 +31,6 @@ def test_lockfile_is_lf(tmp_path: Path) -> None:
 
 
 def test_shim_probe_requires_tomllib(tmp_path: Path) -> None:
-    # The vendored runner imports tomllib at module scope (3.11+). A probe of `python -c ''`
-    # accepted a 3.10 interpreter, which then ImportError'd on every commit. The probe must
-    # select an interpreter that can actually import tomllib.
     policy = baseline_policy("protect-main-branch")
     out = tmp_path / ".chock" / "compiled"
     compile_policy(policy, targets=[Surface.GIT_HOOK.value], output_root=out, agents=["claude"])

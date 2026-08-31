@@ -1,11 +1,4 @@
-"""recompile builds into a staging tree and swaps on success.
-
-Before this, recompile deleted .chock/compiled and zeroed coverage.json up front, then
-compiled. A failure partway through -- one malformed manifest among many -- left every
-policy's gate deleted, coverage empty, and chock.lock pointing at artifacts that no longer
-existed: one typo disabling enforcement repo-wide. A failed recompile must leave the repo
-exactly as it was.
-"""
+"""recompile builds into a staging tree and swaps on success."""
 
 from __future__ import annotations
 
@@ -34,7 +27,6 @@ def _snapshot(root: Path) -> dict[str, bytes]:
 
 def test_failed_recompile_leaves_the_live_tree_intact(tmp_path: Path, monkeypatch) -> None:
     repo = _repo_with_one_policy(tmp_path)
-    # a first, successful recompile establishes the live compiled tree + coverage
     recompile(repo, ["claude"], skip_hooks=True)
     compiled = repo / ".chock" / "compiled"
     coverage = repo / ".chock" / "coverage.json"
@@ -43,7 +35,6 @@ def test_failed_recompile_leaves_the_live_tree_intact(tmp_path: Path, monkeypatc
     before_compiled = _snapshot(compiled)
     before_coverage = coverage.read_bytes()
 
-    # now a build that blows up partway through
     def boom(*_a, **_k):
         raise RuntimeError("bad manifest partway through the loop")
 
@@ -51,13 +42,11 @@ def test_failed_recompile_leaves_the_live_tree_intact(tmp_path: Path, monkeypatc
     with pytest.raises(RuntimeError):
         recompile(repo, ["claude"], skip_hooks=True)
 
-    # the live tree is byte-for-byte what it was: no gate deleted, no coverage zeroed
     assert _snapshot(compiled) == before_compiled, "a failed recompile deleted live compiled artifacts"
     assert coverage.read_bytes() == before_coverage, "a failed recompile zeroed coverage.json"
 
 
 def test_successful_recompile_still_replaces_stale_output(tmp_path: Path) -> None:
-    # atomicity must not stop a good recompile from clearing artifacts of a removed policy.
     repo = _repo_with_one_policy(tmp_path)
     recompile(repo, ["claude"], skip_hooks=True)
     stale = repo / ".chock" / "compiled" / "ghost-policy" / "git-hook"

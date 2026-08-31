@@ -1,10 +1,4 @@
-"""`--event ci` (commit-range mode): the gate must judge a PR's base...head range, not the
-staged index, since a CI checkout has no staged index and index-mode scanning finds nothing.
-
-Each test builds a real throwaway git repo (the pattern `eval/execute.py` uses), because for
-"does the gate block this range" there is an observable answer -- asking whether it sounds
-right is the wrong tool.
-"""
+"""`--event ci` (commit-range mode): the gate must judge a PR's base...head range, not the"""
 
 from __future__ import annotations
 
@@ -27,9 +21,7 @@ def _write(repo: Path, rel: str, content: str) -> None:
 
 
 def _base_repo(tmp_path: Path) -> tuple[Path, str]:
-    """A repo with one commit on a base branch whose name we control -- CI environments vary
-    `init.defaultBranch` between `main` and `master`, and this must not depend on that.
-    """
+    """A repo with one commit on a base branch whose name we control -- CI environments vary"""
     repo = init_repo(tmp_path)
     _git(repo, "checkout", "-q", "-b", "trunk")
     _write(repo, "app.py", "x = 1\n")
@@ -160,9 +152,7 @@ def test_forbidden_ref_head_ref_override_blocks(tmp_path: Path) -> None:
 
 
 def test_forbidden_ref_detached_head_without_override_allows(tmp_path: Path) -> None:
-    """No --head-ref, detached HEAD: `current_branch()` sees nothing, so this must allow, not
-    false-block -- a gate that fires when it cannot judge the branch gets deleted within a week.
-    """
+    """No --head-ref, detached HEAD: `current_branch()` sees nothing, so this must allow, not"""
     repo, base = _base_repo(tmp_path)
     _git(repo, "checkout", "-q", "-b", "release/1.0")
     _detach(repo)
@@ -181,9 +171,7 @@ def test_forbidden_ref_detached_head_without_override_allows(tmp_path: Path) -> 
 
 
 def test_push_only_gate_does_not_fire_in_ci_mode(tmp_path: Path) -> None:
-    """CI has no equivalent of "pushing to a ref"; promoting a push-only gate would invent an
-    enforcement point the manifest never declared.
-    """
+    """CI has no equivalent of "pushing to a ref"; promoting a push-only gate would invent an"""
     repo, base = _base_repo(tmp_path)
     _git(repo, "checkout", "-q", "-b", "main")
 

@@ -1,8 +1,4 @@
-"""frontier_ingest turns upstream agent-standard docs into the pinned JSON the
-frontier validation modes read. Everything here runs offline: the fetch layer is
-exercised only for its refusal behavior, and parsing runs against synthetic
-documents shaped like the upstream pages.
-"""
+"""frontier_ingest turns upstream agent-standard docs into the pinned JSON the"""
 
 from __future__ import annotations
 
@@ -23,13 +19,9 @@ Dynamic context injection uses the !`command` syntax.
 """
 
 
-# --- helpers ------------------------------------------------------------------
-
-
 def test_extract_number_first_matching_pattern_wins():
     assert fi.extract_number("Max 64 characters", [r"Max\s+(\d+)\s+characters"]) == 64
     assert fi.extract_number("nothing here", [r"Max\s+(\d+)"]) is None
-    # A pattern with no capture group is skipped rather than crashing.
     assert fi.extract_number("Max 64", [r"Max\s+\d+", r"Max\s+(\d+)"]) == 64
 
 
@@ -38,9 +30,6 @@ def test_fetch_url_refuses_non_https(capsys):
     assert fi.fetch_url("file:///etc/passwd") == ""
     err = capsys.readouterr().err
     assert err.count("refusing non-https fetch") == 2
-
-
-# --- parsers ------------------------------------------------------------------
 
 
 def test_parse_agentskills_extracts_limits():
@@ -75,9 +64,6 @@ def test_merge_into_seed_recursive_and_seed_preserving():
     assert seed["a"]["y"] == 2, "the seed itself is not mutated at the top level"
 
 
-# --- ingest -------------------------------------------------------------------
-
-
 def test_ingest_offline_returns_seed(capsys):
     data = fi.ingest("agentskills", use_network=False)
     assert data == fi.SEEDS["agentskills"]
@@ -101,9 +87,6 @@ def test_ingest_claude_code_always_extends_agentskills(monkeypatch):
     monkeypatch.setattr(fi, "fetch_url", lambda url: CLAUDE_DOC)
     data = fi.ingest("claude-code", use_network=True)
     assert data["extends"] == "agentskills"
-
-
-# --- persistence + CLI ---------------------------------------------------------
 
 
 def test_save_and_load_standard_roundtrip(tmp_path, monkeypatch):
