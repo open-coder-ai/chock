@@ -86,8 +86,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --require-hashes --upgrade -r requirements/pip.txt
-          pip install -e .
-          pip install "cairosvg==2.9.0"
+          python -m pip install --require-hashes -r requirements/brand-assets.txt
+          pip install -e . --no-deps
 
       - name: Check the social preview matches the repository
         run: |
