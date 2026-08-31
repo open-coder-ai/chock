@@ -36,6 +36,15 @@ from chock.compile.levels import (
 )
 from chock.compile.surfaces import SURFACE_AGENTS, Surface, coverage_level
 
+#: Materialised once rather than iterated as `for s in Surface` inside a nested comprehension.
+#: Both spellings are correct Python -- an Enum class is iterable -- but CodeQL's
+#: `py/non-iterable-in-for-loop` loses track of the metaclass in the nested case and reports the
+#: inner clause as iterating a bare `type`. It does not report the same expression in a flat
+#: comprehension, which the rest of this repo uses freely (`compile/compiler.py:142`). Binding
+#: it here keeps the check green without a suppression, and the tuple is what these tests mean
+#: anyway: every surface, in declaration order.
+ALL_SURFACES = tuple(Surface)
+
 #: Agents whose host fails OPEN at the outer boundary -- the rows where the old vocabulary
 #: could not tell the two controls apart, and so the rows the new level applies to. Derived
 #: rather than listed: an agent qualifies precisely when its allow-degrading grade is the
@@ -194,7 +203,7 @@ def test_chock_does_not_award_itself_the_new_level() -> None:
     reported = {
         coverage_level({s}, a, pre_tool_use_installed=True, agent_hooks_installed=True, ci_gate_installed=True)
         for a in SURFACE_AGENTS
-        for s in Surface
+        for s in ALL_SURFACES
     }
     assert "fail-to-ask" not in reported, (
         "a surface now reports `fail-to-ask`; chock's guard still degrades to allow, so this is an overclaim"
@@ -211,7 +220,7 @@ def test_every_level_the_code_can_report_is_in_the_published_vocabulary() -> Non
     reported = {
         coverage_level({s}, a, pre_tool_use_installed=p, agent_hooks_installed=h, ci_gate_installed=c)
         for a in list(SURFACE_AGENTS) + ["no-such-agent"]
-        for s in Surface
+        for s in ALL_SURFACES
         for p in (True, False)
         for h in (True, False)
         for c in (True, False)
