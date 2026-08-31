@@ -134,7 +134,7 @@ fails closed, and an adopter deciding whether to trust a control needs to see th
 ### The in-agent ladder is ordered, and the order is the point
 
 The four in-agent levels plus `none` form a strength ladder, weakest first — the order
-`compile.surfaces.level_rank` returns, and the order this page is checked against:
+`compile.levels.level_rank` returns, and the order this page is checked against:
 
 ```
 none  <  detect  <  best-effort  <  fail-to-ask  <  enforceable  <  enforced

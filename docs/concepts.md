@@ -71,8 +71,9 @@ ordering axis and why chock's own in-agent control sits at the bottom of it.
 - **`enforceable`** — installed and blocks, and can be told to fail closed but does not by
   default. Cursor's hooks are this tier.
 - **`fail-to-ask`** — installed and blocks, and when the control cannot decide the action is
-  put to a human rather than let through. Chock does **not** earn this: its guard degrades to
-  allow. The level exists so a control stronger than ours can be graded as such.
+  put to a human rather than let through. Chock does **not** earn this: two of its guard's
+  five undecided paths ask, three still allow, and a mixed control is graded at its weakest
+  one. The level exists so a control stronger than ours can be graded as such.
 - **`best-effort`** — installed and blocks, but fails OPEN: a crashed hook silently allows.
   An installed Claude Code PreToolUse hook is this tier. `chock sync` merges the compiled
   fragments into `.claude/settings.json` and only then raises the claim, so a policy is never

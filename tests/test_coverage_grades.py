@@ -208,6 +208,13 @@ def test_chocks_degradation_constant_is_derived_from_the_running_guard(tmp_path:
     with monkeypatch.context() as no_bash:
         no_bash.setattr(guard_runner, "find_bash", lambda _: None)
         observed["no bash"] = _degradation(guard_runner.evaluate(crashing, "rm -rf /", "Bash"))
+    with monkeypatch.context() as impatient:
+        # The fifth path, and the one that cannot be provoked by a payload or a patched
+        # lookup -- it needs a guard that really hangs. 30s is shortened to 1 so the suite
+        # does not wait it out; the branch is unchanged by that, since `run_guard` reads the
+        # value at call time. Left out, "every path" would be four of five.
+        impatient.setattr(guard_runner, "_GUARD_TIMEOUT_SECONDS", 1)
+        observed["timeout"] = _degradation(guard_runner.evaluate(_guard(tmp_path, "sleep 30"), "rm -rf /", "Bash"))
 
     weakest = min(observed.values(), key=DEGRADATION_MODES.index)
     assert weakest == CONTROL_DEGRADES_TO, (

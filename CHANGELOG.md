@@ -43,10 +43,10 @@
   orders the in-agent ladder (`none` < `detect` < `best-effort` < `fail-to-ask` <
   `enforceable` < `enforced`) and deliberately refuses to rank `enforced-at-commit`,
   `advisory` and `disabled` against it -- different mechanisms, no honest common scale.
-  **No existing grade changed**: chock's own guard returns a deny reason or nothing, and
-  every "not checked" path returns nothing, so `pre-tool-use` and `agent-hooks` stay at
-  `best-effort`. The ladder now carries a word for something chock does not do, which is
-  the point.
+  **No existing grade changed**, and none moves with the ask above either: a mixed control
+  is declared at its weakest path, and three of the guard's five undecided paths still
+  allow, so `pre-tool-use` and `agent-hooks` stay at `best-effort`. The ladder carries a
+  word for something chock does not fully do, which is the point.
 - **Docs: stale enforcement grades corrected.** `docs/agentic-risk-coverage.md`,
   `docs/concepts.md`, `docs/architecture.md` and `docs/compatibility.md` still published
   `enforced` for an installed in-agent control and `unsupported` for the empty verdict --
