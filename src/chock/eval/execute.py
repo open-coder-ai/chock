@@ -135,9 +135,11 @@ def _run_gate(repo: Path, gate_spec: dict[str, Any], spec: dict[str, Any]) -> tu
 def _run_guard(repo: Path, guard: Path, command: str) -> tuple[str, str]:
     """Return (verdict, detail) by invoking a guard script with the argv it guards.
 
-    At runtime a guard that cannot run fails open, because turning a best-effort guard into
-    a total outage is worse than missing a check. Here the opposite is required: a guard
-    that did not run has produced no evidence, so it is an `error`, never a pass. Reading
+    At runtime a guard whose PRECONDITIONS failed (no usable bash, an untokenizable command)
+    still allows, because turning a best-effort guard into a total outage is worse than
+    missing a check; a guard that ran and errored asks for confirmation instead. Here
+    neither applies: a guard that did not run has produced no evidence, so it is an `error`,
+    never a pass. Reading
     "could not launch" as "blocked" is what made every allow-case fail on Windows, where
     `bash` on PATH is WSL's and cannot see a Windows path.
     """

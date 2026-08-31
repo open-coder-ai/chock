@@ -90,13 +90,21 @@ def _extract(module) -> str:
     return "\n\n".join(ast.unparse(seg) for seg in segments) + "\n"
 
 
+#: `ASK` and `DENY` are agentseam's own `contract` constants, which every bundle embeds
+#: verbatim -- so the handler asks for a confirmation in the vocabulary the adapter below it
+#: already speaks, and each adapter renders it in its client's dialect (or, on Codex CLI,
+#: degrades it to a deny, because that vendor's parser rejects `ask` and fails open on a
+#: response it rejects). `guard_runner.VERDICT_ASK` / `VERDICT_DENY` are spelled to match
+#: those constants; `tests/test_guard_fail_to_ask.py` pins the two spellings equal.
 _DISPATCH = """\
 
 
 def handle(event):
     if event.event == "pre_tool" and event.command:
-        reason = evaluate(sys.argv[1:], event.command, event.tool or "")
-        return Decision.deny(reason) if reason else None
+        verdict = evaluate(sys.argv[1:], event.command, event.tool or "")
+        if verdict is not None:
+            outcome, reason = verdict
+            return Decision.ask(reason) if outcome == ASK else Decision.deny(reason)
 {session_start_branch}    return None
 """
 

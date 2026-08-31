@@ -45,6 +45,34 @@ _LOG_MAX_BYTES = 1_048_576
 # still bounding the worst case; a timeout is "could not run", same as any other guard crash.
 _GUARD_TIMEOUT_SECONDS = 30
 
+# What `run_guard` observed. Four words rather than the older `bool | None`, because the two
+# "did not check" outcomes are no longer answered the same way and a two-valued "not checked"
+# cannot tell them apart:
+#
+#   GUARD_UNCHECKED  a PRECONDITION failed, so the guard never started -- no interpreter that
+#                    can see it, a command POSIX shlex cannot tokenize, nothing to tokenize.
+#                    A property of the machine or of the command's spelling, not evidence that
+#                    anything went wrong with the control.
+#   GUARD_ERRORED    the guard STARTED and did not deliver a verdict -- it crashed, exited a
+#                    code that is neither 0 nor 1, or hit the timeout above. The control was
+#                    installed, reachable and runnable, and still produced no answer.
+#
+# The split exists because only the second is anomalous. `evaluate` asks for confirmation on
+# it and stays silent on the first. `docs/enforcement-surfaces.md` ("What happens when the
+# guard cannot decide") carries the per-path reasoning and the per-client evidence, cited to
+# vendor source or vendor docs at a named ref, for what an `ask` becomes on the wire.
+GUARD_BLOCKED = "blocked"
+GUARD_CLEAN = "clean"
+GUARD_UNCHECKED = "unchecked"
+GUARD_ERRORED = "errored"
+
+# `evaluate`'s outcome words, spelled to match `agentseam.contract.DENY` / `.ASK` exactly --
+# the vendored runtime compares them against the contract's own constants, which the bundle
+# embeds verbatim, and `test_guard_fail_to_ask.py` pins the two spellings equal so they
+# cannot drift apart in a release where only one side moves.
+VERDICT_DENY = "deny"
+VERDICT_ASK = "ask"
+
 
 def guard_path_from_argv(argv: list[str]) -> Path | None:
     """The `--guard <path>` argument a vendored runtime was invoked with, or None.
@@ -80,35 +108,46 @@ def find_bash(guard: Path) -> str | None:
     return None
 
 
-def run_guard(guard: Path, command: str) -> bool | None:
-    """True when the guard ran and reported a violation, False when it ran clean.
+def run_guard(guard: Path, command: str) -> str:
+    """`GUARD_BLOCKED` / `GUARD_CLEAN` when the guard ran, otherwise why it did not.
 
-    None means the check did not happen -- unparseable command, no usable bash, a crash.
-    That is distinct from False and must stay distinct: every "not checked" path still
-    allows, so folding it into False changes no verdict, but it would let the outcome log
-    record a passing guard for a check that never ran.
+    The two "did not check" words are the whole point of the return type, and they are not
+    interchangeable. `GUARD_UNCHECKED` is a precondition -- no bash that can see the guard,
+    a command POSIX shlex will not tokenize -- and is the machine's or the command's
+    property. `GUARD_ERRORED` is the guard itself: it started, and it crashed, timed out, or
+    exited a code that means nothing. Only the second says something went wrong with the
+    control, and only the second is worth interrupting a developer over; see `evaluate`.
 
     Nothing here blocks on its own failure. Treating "could not run" as a violation would
     stop every Bash call the moment bash was missing -- turning a best-effort guard into a
-    total outage. Failing open is stated loudly on stderr instead of silently.
+    total outage. Every path still says what happened on stderr rather than going silent.
     """
     try:
         args = shlex.split(command)
     except ValueError:
         # Unbalanced quotes: we cannot faithfully reconstruct argv, so we must not pretend
         # to have checked it. Allow, and say so, rather than block on our own parse failure.
+        # NOT an ask: a POSIX-unparseable command is common and usually benign (PowerShell
+        # quoting, a Windows path), so prompting here would prompt constantly and teach the
+        # habit of clicking through -- which costs the prompts that matter.
         # The command itself is not echoed here -- it routinely carries bearer tokens and
         # passwords (same reasoning as log_outcome's redaction below), and a stderr line an
         # agent's transcript can capture is not a safe place to repeat one back verbatim.
         print("chock: could not parse command (unbalanced quotes), not checked", file=sys.stderr)
-        return None
+        return GUARD_UNCHECKED
     if not args:
-        return None
+        # Nothing to check. The one path with no stderr line, because there is no command to
+        # report an unchecked verdict about.
+        return GUARD_UNCHECKED
 
     bash = find_bash(guard)
     if bash is None:
+        # Also not an ask. This is uniform -- it holds for every command on the machine, not
+        # for this one -- so an ask here prompts on 100% of tool calls for a whole platform
+        # (Windows without Git Bash) rather than flagging an anomaly. The fix is an install
+        # step, and the plugin descriptions already name this exact condition.
         print(f"chock: no usable bash found, {guard.name} not checked", file=sys.stderr)
-        return None
+        return GUARD_UNCHECKED
 
     try:
         # CHOCK_RAW_COMMAND carries the untokenized command so a guard can pattern-match on
@@ -124,9 +163,24 @@ def run_guard(guard: Path, command: str) -> bool | None:
             env=env,
             timeout=_GUARD_TIMEOUT_SECONDS,
         )
-    except (OSError, UnicodeError, subprocess.TimeoutExpired) as exc:
+    except subprocess.TimeoutExpired:
+        # Deliberately NOT `{exc}`. TimeoutExpired's own str() is
+        # "Command '['bash', '/path/guard.sh', 'curl', '-H', 'Authorization: Bearer sk-...']'
+        # timed out after 30 seconds" -- it embeds `cmd`, which is bash, the guard, and every
+        # token of the command. That is the one thing this module refuses to write anywhere a
+        # transcript can capture (see the shlex branch above and log_outcome below), and it
+        # was reaching stderr on every guard that hung. The timeout is the whole message; the
+        # command adds nothing a reader needs and carries the credential.
+        print(
+            f"chock: guard timed out after {_GUARD_TIMEOUT_SECONDS}s, not checked",
+            file=sys.stderr,
+        )
+        return GUARD_ERRORED
+    except (OSError, UnicodeError) as exc:
+        # These two are safe to print: OSError names the interpreter it could not spawn and
+        # UnicodeError names an offset, neither of which is the command.
         print(f"chock: guard could not run, not checked: {exc}", file=sys.stderr)
-        return None
+        return GUARD_ERRORED
 
     if proc.returncode == GUARD_VIOLATION:
         sys.stderr.write(proc.stdout or "")
@@ -137,15 +191,15 @@ def run_guard(guard: Path, command: str) -> bool | None:
             # guard would become a silent ALLOW, the precise failure this project exists to
             # refuse. Every other client simply shows this line.
             print(f"chock: blocked by {Path(guard).name} (guard gave no reason)", file=sys.stderr)
-        return True
+        return GUARD_BLOCKED
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "").strip().splitlines()
         print(
             f"chock: guard exited {proc.returncode}, not checked" + (f": {detail[0][:120]}" if detail else ""),
             file=sys.stderr,
         )
-        return None
-    return False
+        return GUARD_ERRORED
+    return GUARD_CLEAN
 
 
 def log_outcome(guard: Path, tool: str, blocked: bool) -> None:
@@ -192,18 +246,50 @@ def log_outcome(guard: Path, tool: str, blocked: bool) -> None:
         return
 
 
-def evaluate(argv: list[str], command: str, tool: str = "") -> str | None:
+def evaluate(argv: list[str], command: str, tool: str = "") -> tuple[str, str] | None:
     """Run the guard named on `argv` (`--guard <path>`) against `command`.
 
-    Returns the deny reason when the guard reports a violation, None on allow (including
-    every "not checked" case -- the guard's own stderr already explains those). The one
-    caller-facing entry point `gate.runtime_bundle`'s spliced handler uses: locate the
-    guard, run it, log the outcome, word the verdict.
+    Returns `(VERDICT_DENY, reason)` when the guard reported a violation,
+    `(VERDICT_ASK, reason)` when the guard ran and could not deliver one, and None to allow.
+    The one caller-facing entry point `gate.runtime_bundle`'s spliced handler uses: locate
+    the guard, run it, log the outcome, word the verdict.
+
+    **The ask is per cause, not a blanket posture, and the causes are not symmetrical.** A
+    guard that crashed or timed out is rare and means the control genuinely did not run, so
+    a developer is asked. A command that will not tokenize, or a machine with no bash, is
+    common or uniform: asking there would prompt on a large fraction of tool calls and train
+    the habit of approving without reading, which costs the prompts that matter more than
+    the coverage gains. `run_guard`'s two "did not check" words carry that distinction and
+    this is the only place that acts on it.
+
+    **What an ask becomes depends on the client, and no client silently turns it into an
+    allow** -- which is what would have made this change cosmetic. Claude Code and VS Code
+    agent mode prompt (VS Code's `ask` also overrides its own auto-approve); Cursor's
+    `beforeShellExecution`, the event chock installs, honours `permission: "ask"`; Codex
+    CLI rejects `ask` at PreToolUse outright, so agentseam's adapter degrades it to a deny
+    there rather than emit a value the vendor's parser fails open on. Evidence, with vendor
+    source and doc citations at named refs, is in `docs/enforcement-surfaces.md`.
+
+    Nothing is logged for the ask. `log_outcome` records only checks that HAPPENED, and
+    `gatelog.summarize` buckets every non-`block` record as an allow -- so writing an ask
+    record there would report an unchecked command as a passing one, the precise
+    misreporting the "not checked" paths have always been kept out of the log to avoid. A
+    per-cause counter in `chock status --only log` is the follow-up, not this change.
     """
     guard = guard_path_from_argv(argv)
     if guard is None or not guard.exists():
         return None
-    blocked = run_guard(guard, command)
-    if blocked is not None:
-        log_outcome(guard, tool, blocked)
-    return f"Blocked by chock policy: {guard.stem}" if blocked else None
+    verdict = run_guard(guard, command)
+    if verdict in (GUARD_BLOCKED, GUARD_CLEAN):
+        log_outcome(guard, tool, verdict == GUARD_BLOCKED)
+    if verdict == GUARD_BLOCKED:
+        return (VERDICT_DENY, f"Blocked by chock policy: {guard.stem}")
+    if verdict == GUARD_ERRORED:
+        # No command text, for log_outcome's reason: a confirmation prompt is rendered into
+        # the client's UI and its transcript, and commands routinely carry credentials.
+        return (
+            VERDICT_ASK,
+            f"chock could not check this command: the {guard.stem} guard did not complete "
+            f"(see this hook's stderr). Approving runs it unchecked.",
+        )
+    return None
