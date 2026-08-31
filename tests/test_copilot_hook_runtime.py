@@ -1,13 +1,4 @@
-"""The emitted Copilot hook command, executed the way the client executes it.
-
-Split from `test_copilot_plugin.py`, which checks what the emitter *writes*. This file
-checks what the written thing *does* when a shell runs it, which is a different activity
-and — as the defect below shows — the one that was never covered.
-
-A guard reaches a developer as a string in a JSON file that some client hands to a shell.
-Every test that stops at the string is testing our intent. Only running it tests the
-control.
-"""
+"""The emitted Copilot hook command, executed the way the client executes it."""
 
 from __future__ import annotations
 
@@ -63,25 +54,7 @@ def _emitted_command(policy, tmp_path: Path) -> str:
 
 
 def test_hook_allows_when_the_plugin_root_cannot_be_resolved(policy, tmp_path: Path) -> None:
-    """An unresolvable plugin root must ALLOW. It used to deny every tool call in the session.
-
-    This is the regression test for a defect that reached published packages. VS Code's
-    `AGENT_PLUGIN_FORMAT` declares `pluginRootTokens: []` and `pluginRootEnvVars: []`
-    (src/vs/platform/agentPlugins/common/pluginParsers.ts), where `CLAUDE_FORMAT`,
-    `OPEN_PLUGIN_FORMAT` and legacy `COPILOT_FORMAT` all declare both. So the old command's
-    `${PLUGIN_ROOT}` reached `sh -c` verbatim, expanded to nothing, and `python3` exited 2 on
-    the missing file -- which is VS Code's *blocking* code, not its error code. Matchers are
-    ignored in that client, so the blast radius was every tool call: reads, edits, searches.
-
-    Nothing caught it. CI was green, `chock check` passed, the eval suite passed, and the
-    string-pinning test above asserted the broken command was exactly what we meant to ship.
-    What was missing was any test that RAN the thing. So this one runs it, through `sh -c`,
-    the way the client does, and asserts the number that decides whether a developer's
-    session works.
-
-    Fail-open is the correct posture here and is what every description already claims: a
-    guard that cannot find itself must not be the reason a session stops.
-    """
+    """An unresolvable plugin root must ALLOW. It used to deny every tool call in the session."""
     command = _emitted_command(policy, tmp_path)
 
     env = {k: v for k, v in os.environ.items() if k != "PLUGIN_ROOT"}
@@ -101,14 +74,7 @@ def test_hook_allows_when_the_plugin_root_cannot_be_resolved(policy, tmp_path: P
 
 
 def test_copilot_and_claude_packages_run_the_same_hook(policy, tmp_path: Path) -> None:
-    """Two formats, one enforcement system -- same matcher, same guard bytes, own dialect.
-
-    The GUARD script is byte-identical in both layouts. The adapter itself is legitimately
-    NOT byte-identical any more: `vscode_copilot.py`/`claude_code.py` are two different
-    agentseam bundles (`gate/runtime_bundle.py`), each speaking that vendor's own
-    live-verified dialect -- a real difference the old shared, sniffing adapter only
-    approximated. What must never differ is matcher/timeout and the guard's bytes.
-    """
+    """Two formats, one enforcement system -- same matcher, same guard bytes, own dialect."""
     pack = policy(GUARD_MANIFEST, guard=True)
     copilot = copilot_plugin_files(pack, GUARD_MANIFEST, tmp_path)
     claude = claude_plugin_files(pack, GUARD_MANIFEST, tmp_path)
@@ -117,9 +83,6 @@ def test_copilot_and_claude_packages_run_the_same_hook(policy, tmp_path: Path) -
     claude_entry = json.loads(claude[Path("hooks/hooks.json")])["hooks"]["PreToolUse"][0]
     assert copilot_entry["matcher"] == claude_entry["matcher"]
     assert copilot_entry["hooks"][0]["timeout"] == claude_entry["hooks"][0]["timeout"]
-    # No longer a token-substitution of one another, and that is the fix, not drift: Claude's
-    # format interpolates and exports; Agent Plugins 1.0 does neither (`pluginRootTokens: []`).
-    # What must still match is what enforces -- same adapter, same guard, same layout.
     copilot_command = copilot_entry["hooks"][0]["command"]
     claude_command = claude_entry["hooks"][0]["command"]
     for script in ("vscode_copilot.py", "block-destructive-commands.sh"):

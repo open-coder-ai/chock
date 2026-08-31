@@ -9,29 +9,11 @@ from chock.emit import write_generated_json
 
 
 def emit(policy_dir: Path, output_dir: Path, manifest: dict[str, Any]) -> list[Path]:
-    """Write a managed-settings.json fragment reflecting the policy's controls.
-
-    Managed-setting is a static deny/ask list; it cannot run code or read repo state. So it
-    faithfully represents only controls that reduce to a path/text match at tool-call time,
-    and it is a NON-CREDITED surface (coverage never counts it as enforced). We therefore
-    emit a fragment only where a static match is honest, and leave it empty otherwise --
-    an empty fragment is the truthful managed-setting for a control this surface cannot carry.
-    """
+    """Write a managed-settings.json fragment reflecting the policy's controls."""
     policy_id = manifest.get("id", policy_dir.name)
     fragments: dict[str, Any] = {"deny": [], "ask": []}
 
-    # protect-main-branch enforces at commit/push time by RESOLVING the current branch
-    # (forbidden_ref -> git rev-parse); a static managed-setting cannot read branch state, so
-    # any command-text approximation either misses `git commit` on main (the branch name is
-    # not in the command) or false-positives on "main" in a message. The honest managed-setting
-    # for branch protection is therefore empty -- enforcement lives in its git-hook and ci-gate
-    # surfaces, which do read branch state.
     if policy_id == "scan-secrets":
-        # A best-effort in-session echo of the credential-file and high-confidence prefix
-        # shapes the scan-secrets git-hook blocks; the git-hook (which scans the staged diff)
-        # remains authoritative. Kept lookahead-free so it holds under any client's regex
-        # engine; the file variants and unquoted-assignment patterns the hook adds are left to
-        # the hook rather than approximated unsafely here.
         fragments["deny"].append(
             {
                 "type": "file",

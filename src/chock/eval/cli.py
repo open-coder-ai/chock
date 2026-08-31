@@ -1,9 +1,4 @@
-"""`chock check --only evals` -- run a policy's eval suite.
-
-Deterministic mode replays a policy's own mechanism and needs no model, no budget, and no
-sandbox, so it runs on every build. Agent mode is not implemented yet and says so rather
-than silently reporting a pass.
-"""
+"""`chock check --only evals` -- run a policy's eval suite."""
 
 from __future__ import annotations
 
@@ -21,8 +16,6 @@ from chock.eval.suites import Policy, discover_policies
 def run_deterministic(policy: Policy, repo_root: Path) -> PolicyResult:
     result = PolicyResult(policy.id, "deterministic")
     if not policy.deterministic:
-        # Honest: a bare rule has a behavioural expectation, not a mechanism. Reporting it
-        # as a pass would claim evidence that was never gathered.
         for case in policy.cases():
             result.results.append(run_case(case, policy.dir, repo_root, policy.guards))
         return result

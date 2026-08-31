@@ -1,9 +1,4 @@
-"""Clean-venv wheel install acceptance for packaging (P1-A).
-
-The wheel comes from the session-scoped `built_wheel` fixture in conftest, which
-builds once from a clean copy. This module used to build it again, in place --
-duplicating the work and reusing `build/lib`.
-"""
+"""Clean-venv wheel install acceptance for packaging (P1-A)."""
 
 from __future__ import annotations
 
@@ -21,10 +16,7 @@ FRAMEWORK_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_wheel_contains_skills_and_schemas(built_wheel: Path) -> None:
-    """The wheel must ship the bundled authoring skills and the validation schemas.
-
-    Policies are deliberately absent -- see tests/test_packaging_boundary.py.
-    """
+    """The wheel must ship the bundled authoring skills and the validation schemas."""
     with zipfile.ZipFile(built_wheel) as whl:
         names = whl.namelist()
     assert any("_skills/" in n for n in names), "skills packs missing"
@@ -32,16 +24,7 @@ def test_wheel_contains_skills_and_schemas(built_wheel: Path) -> None:
 
 
 def test_wheel_contains_the_files_plugin_packages_ship(built_wheel: Path) -> None:
-    """`chock plugin build` reads these at emit time, so a wheel without them cannot package.
-
-    They are a `.txt` and a `.svg` under `chock/plugin/data/`, and the package-data glob beside
-    them is `data/*.json` -- the mistake this pins against is real and was made while writing
-    it. Without the entry the emitter raises `FileNotFoundError` from a `pip install` while
-    working perfectly from a source checkout, which is the worst shape a packaging bug takes.
-
-    Derived from what the emitter actually reads, not from a hardcoded list: the paths come
-    from the module, so a renamed data file fails here instead of at an adopter's first build.
-    """
+    """`chock plugin build` reads these at emit time, so a wheel without them cannot package."""
     from chock.plugin import listing
 
     with zipfile.ZipFile(built_wheel) as whl:
@@ -75,8 +58,6 @@ def test_wheel_installs_and_init_passes(tmp_path: Path, built_wheel: Path) -> No
     )
     assert result.returncode == 0, result.stdout + result.stderr
 
-    # init scaffolds wiring and installs no policies, so the scaffolding is what proves the
-    # wheel is complete -- AGENTS.md and INDEX.md are both written from packaged files.
     assert (consumer / "AGENTS.md").exists(), f"AGENTS.md not scaffolded: {result.stdout}{result.stderr}"
     assert (consumer / ".agents" / "policies" / "INDEX.md").exists(), result.stdout + result.stderr
     assert "enforces nothing yet" in result.stdout, f"init did not say the repo is unguarded: {result.stdout}"

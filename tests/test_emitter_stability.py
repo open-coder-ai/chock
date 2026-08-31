@@ -1,16 +1,4 @@
-"""Patch releases must compile byte-identical output: the adopter contract.
-
-Every adopter commits compiled artifacts, and every engine bump makes their drift
-checks compare those bytes against what the new engine produces. The versioning
-policy therefore promises: a PATCH release never changes emitter output, so a patch
-bump never requires `chock sync`. This suite is that promise, tested.
-
-Two frozen fixture policies compile against a committed golden tree. If an emitter
-change is intentional, regenerate the goldens (CHOCK_REGEN_GOLDENS=1 pytest
-tests/test_emitter_stability.py) and land the diff in the same PR -- reviewers then
-see exactly what every adopter's next `chock sync` will rewrite, and the version
-bump must be MINOR, not patch.
-"""
+"""Patch releases must compile byte-identical output: the adopter contract."""
 
 from __future__ import annotations
 
@@ -27,8 +15,6 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures" / "emitter_stability"
 POLICIES = FIXTURES / "policies"
 GOLDEN = FIXTURES / "golden"
 
-#: Frozen agent list: golden bytes must not depend on which agents a dev machine
-#: configures. Two agents with different surface sets keeps coverage honest.
 AGENTS = ["claude", "cursor"]
 
 
@@ -81,14 +67,9 @@ def test_emitters_compile_the_goldens_byte_identically(tmp_path: Path) -> None:
 
 
 def test_golden_tree_covers_every_surface_worth_freezing() -> None:
-    """The guarantee is only as wide as the fixtures. If a golden tree exists but no
-    longer contains a gate, shim, or ambient file, the stability test is passing on
-    an empty promise."""
+    """The guarantee is only as wide as the fixtures. If a golden tree exists but no"""
     if not GOLDEN.exists():
         pytest.skip("goldens not generated yet")
     names = {p.name for p in GOLDEN.rglob("*") if p.is_file()}
-    # pretooluse.json/cursor-hooks.json joined the contract with the #49 K1 fix: the
-    # session-enforcement emitters were the one surface the byte-stability promise
-    # skipped, exactly where a silent output change hurts the most installed clients.
     for required in ("gate.json", "ambient.md", "pretooluse.json", "cursor-hooks.json", "agent-hooks.json"):
         assert any(required in n for n in names), f"golden tree lost its {required} coverage"

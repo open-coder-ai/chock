@@ -81,15 +81,10 @@ def test_declarative_shim_probes_for_python_interpreter(tmp_path: Path) -> None:
 
 
 def test_no_emission_removes_a_stale_surface_dir(tmp_path: Path) -> None:
-    """A gateway gate that stops opting in must not leave its old gateway-gate.json behind.
-
-    Review finding on #54: single-policy compile into an existing tree left the stale
-    file, which the gateway would still load. The compiler now removes any surface dir an
-    emitter produced nothing for.
-    """
+    """A gateway gate that stops opting in must not leave its old gateway-gate.json behind."""
     from chock.compile.surfaces import Surface as _S
 
-    policy_dir = baseline_policy("protect-main-branch")  # forbidden_ref: never a gateway kind
+    policy_dir = baseline_policy("protect-main-branch")
     output_root = tmp_path / ".chock" / "compiled"
     surface_dir = output_root / "protect-main-branch" / _S.MCP_GATEWAY.value
     surface_dir.mkdir(parents=True)

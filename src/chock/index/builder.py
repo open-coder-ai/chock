@@ -53,13 +53,7 @@ def _load_policy(root: Path, artifact_dir: Path, warnings: list[str]) -> tuple[d
 
 
 def _summarize_hook(manifest: dict[str, Any], artifact_dir: Path, root: Path) -> str:
-    """One-line gate summary from a hook manifest, resolved against this repo's config.
-
-    INDEX.md is the first thing an agent reads, so it must describe the gate that actually
-    runs. The raw manifest message is pre-resolution: for protect-main-branch it names the
-    default branches (and, now that it is templated, a literal `{refs}`) rather than the set
-    an adopter configured.
-    """
+    """One-line gate summary from a hook manifest, resolved against this repo's config."""
     from chock.compile.emitters.advisory import template_message
     from chock.gate.build import build_gate_json
 

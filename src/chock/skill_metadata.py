@@ -1,13 +1,4 @@
-"""The SKILL.md frontmatter metadata codec.
-
-The Agent Skills spec (which Agent Plugins 1.0 defers to for SKILL.md) requires
-`metadata` to map string keys to string values, so everything chock keeps there rides a
-flat-string encoding: nesting as dotted keys (`chock.provenance.author`), lists
-comma-joined, booleans as "true"/"false". This module is the one place that dialect is
-decoded -- `manifest.py` projects the decoded map into a manifest, and nothing else
-should re-implement the parsing. The pre-flat nested dialect still decodes unchanged,
-so third-party skills that used it keep working.
-"""
+"""The SKILL.md frontmatter metadata codec."""
 
 from __future__ import annotations
 
@@ -55,23 +46,14 @@ def _chock_metadata(frontmatter: dict[str, Any]) -> dict[str, Any]:
 
 
 def _as_list(value: Any) -> Any:
-    """A list, decoded from the flat-string metadata encoding when needed.
-
-    A list-typed field is written as a comma-separated string (`chock.effects:
-    "read_only"` or `"a, b"`). Nested YAML lists from the pre-flat dialect still
-    pass through unchanged.
-    """
+    """A list, decoded from the flat-string metadata encoding when needed."""
     if isinstance(value, str):
         return [part.strip() for part in value.split(",") if part.strip()]
     return value
 
 
 def _as_bool(value: Any) -> Any:
-    """A boolean, decoded from the flat-string metadata encoding when needed.
-
-    Only the exact spellings the flat dialect writes are decoded; anything else is
-    returned untouched so schema validation reports it rather than a silent guess.
-    """
+    """A boolean, decoded from the flat-string metadata encoding when needed."""
     if isinstance(value, str) and value in ("true", "false"):
         return value == "true"
     return value

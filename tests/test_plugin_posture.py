@@ -1,13 +1,4 @@
-"""Packaged claims match the package: the frontmatter side of the posture discipline.
-
-Every plugin format states its posture in three places -- the manifest description, the
-skill's closing note, and the SKILL.md frontmatter metadata. The first cut of the copilot
-emitter fixed the first two and missed the third: a guarded package whose plugin.json
-deleted `coverage_without_chock` as false still shipped a frontmatter stating exactly that
-claim -- one package stating and refuting it at once. These tests pin the frontmatter side
-for both hook-carrying formats, next to nothing else, so the three surfaces cannot drift
-apart again without a test naming the contradiction.
-"""
+"""Packaged claims match the package: the frontmatter side of the posture discipline."""
 
 from __future__ import annotations
 
@@ -88,6 +79,5 @@ def test_copilot_frontmatter_claim_matches_the_package(policy, tmp_path: Path) -
     assert "chock.coverage_without_chock" not in guarded
     assert bare["chock.coverage_without_chock"] == "advisory"
     assert "chock.hooks" not in bare
-    # The Agent Skills spec constraint holds in every posture: string keys, string values.
     for meta in (guarded, bare):
         assert all(isinstance(k, str) and isinstance(v, str) for k, v in meta.items())

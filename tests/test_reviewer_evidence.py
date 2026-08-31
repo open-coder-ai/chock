@@ -1,15 +1,4 @@
-"""Reviewer evidence: what it refuses, and the one thing it deliberately does not check.
-
-The format exists to keep two kinds of claim apart. `verified` is worth what an independent
-re-run says; `attested` is worth what the named reviewer is worth. Every test here is either an
-attempt to make an attestation pass as a verification, or a check that an honest weak
-attestation still passes -- because refusing those would push reviewers toward silence, which
-is worse than a recorded "I only skimmed it".
-
-The injection test is the load-bearing one. Evidence is contributor-authored, so a verifier
-that executed its `command` field would be arbitrary code in CI, handed over by the very
-artefact that is supposed to increase trust.
-"""
+"""Reviewer evidence: what it refuses, and the one thing it deliberately does not check."""
 
 from __future__ import annotations
 
@@ -68,12 +57,7 @@ def evidence(repo: Path) -> dict:
 
 
 def test_diff_sha_does_not_depend_on_the_platform_locale(repo: Path, monkeypatch) -> None:
-    """A cp1252 machine and a UTF-8 machine must name the same diff.
-
-    `_git` used to decode with the locale encoding and re-encode UTF-8 for the digest, so a
-    diff containing `—` hashed as mojibake on Windows and verification failed as "stale" on
-    a branch that had not moved. The digest must equal a byte-level hash of the diff.
-    """
+    """A cp1252 machine and a UTF-8 machine must name the same diff."""
     import hashlib
 
     (repo / "feature.txt").write_text("an em dash — and a middot ·\n", encoding="utf-8")
@@ -88,7 +72,6 @@ def test_diff_sha_does_not_depend_on_the_platform_locale(repo: Path, monkeypatch
         cwd=repo,
         capture_output=True,
     ).stdout
-    # bytes, minus the \r\n -> \n translation text mode performs on every platform
     expected = hashlib.sha256(raw.replace(b"\r\n", b"\n")).hexdigest()
 
     assert diff_sha(repo, "main") == expected
@@ -113,13 +96,7 @@ def test_a_forged_result_is_caught_by_re_running(repo: Path, evidence: dict) -> 
 
 
 def test_the_recorded_command_is_never_executed(repo: Path, evidence: dict, tmp_path: Path) -> None:
-    """Evidence is contributor-authored. Running its `command` would be RCE in CI.
-
-    The verifier looks the check up in the registry and runs *that*; the recorded string is
-    compared and reported, never executed. This test would pass trivially if the field were
-    ignored entirely, so it asserts both halves: the canary is not created, and the mismatch
-    is still surfaced rather than silently tolerated.
-    """
+    """Evidence is contributor-authored. Running its `command` would be RCE in CI."""
     canary = tmp_path / "PWNED"
     evidence["verified"][0]["command"] = f"chock check; touch {canary}"
 
@@ -165,11 +142,7 @@ def test_evidence_expires_when_the_content_changes(repo: Path, evidence: dict) -
 
 
 def test_the_evidence_file_does_not_invalidate_itself(repo: Path, evidence: dict) -> None:
-    """`diff_sha` excludes the evidence directory, or nothing could ever be committed.
-
-    Without the exclusion, writing evidence changes the diff the evidence describes, and every
-    file is stale the instant it lands.
-    """
+    """`diff_sha` excludes the evidence directory, or nothing could ever be committed."""
     before = diff_sha(repo, "main")
     dest = repo / ".chock" / "evidence" / "x.json"
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -182,12 +155,7 @@ def test_the_evidence_file_does_not_invalidate_itself(repo: Path, evidence: dict
 
 
 def test_a_weak_attestation_still_passes(repo: Path, evidence: dict) -> None:
-    """Verification says nothing about attestations, on purpose.
-
-    Failing a low-confidence claim would teach reviewers to write nothing rather than write
-    "I only skimmed it" -- and the recorded weak claim is far more useful to the next reader
-    than silence. The CLI surfaces it without a tick; that is where the judgement lives.
-    """
+    """Verification says nothing about attestations, on purpose."""
     evidence["attested"] = [
         {"criterion": "satisfiability", "claim": "regex looks fine", "basis": "skimmed", "confidence": "low"}
     ]
@@ -218,16 +186,7 @@ def test_the_registry_is_not_influenced_by_evidence(repo: Path) -> None:
 
 
 def test_emitting_with_uncommitted_work_is_refused(repo: Path) -> None:
-    """The mistake this guard exists for, and the one I made while wiring the catalog up.
-
-    `diff_sha` is computed from committed state, so running `emit` before committing produces
-    evidence describing *no change* while the checks report on a working tree that has it. The
-    digest is the SHA-256 of the empty string, which reads as a plausible digest rather than as
-    "there is nothing here".
-
-    It fails safe -- `verify` recomputes once the work lands and reports stale -- but silently
-    and much later. The message is what saves the time.
-    """
+    """The mistake this guard exists for, and the one I made while wiring the catalog up."""
     _git(repo, "checkout", "-q", "main")
     _git(repo, "checkout", "-q", "-B", "feat/empty")
     (repo / "wip.txt").write_text("uncommitted\n", encoding="utf-8")

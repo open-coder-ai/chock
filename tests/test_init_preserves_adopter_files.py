@@ -1,17 +1,4 @@
-"""Re-running `init` must never silently destroy what the adopter wrote.
-
-`init` is not a one-shot command -- it is re-run after adding a policy and after every
-upgrade. It used to rewrite every scaffolded file unconditionally, so an edit to `AGENTS.md`
-(the file this framework calls the single source of truth and tells adopters to own) or to
-`.claude/CLAUDE.md` was gone, while the command printed "Initialized Chock" and
-exited 0. Silent data loss inside the command that establishes trust in the tool.
-
-Per-agent instruction files moved to agentseam's marker-block model (owner decision #8,
-`scaffold/adapters.py`): chock never again claims a whole file, only a delimited region
-inside one, so most of the cases below now assert coexistence -- the adopter's own content
-survives OUTSIDE the marker, unconditionally, while chock's own block INSIDE it is always
-kept current, unconditionally, with no `--force` escape hatch needed for either half.
-"""
+"""Re-running `init` must never silently destroy what the adopter wrote."""
 
 from __future__ import annotations
 
@@ -42,7 +29,6 @@ def _append(path: Path, text: str = CUSTOM) -> str:
     return path.read_text(encoding="utf-8")
 
 
-# --------------------------------------------------------------- adopter content survives
 def test_agents_md_edits_survive_a_second_init(onboarded: Path) -> None:
     agents_md = onboarded / "AGENTS.md"
     _append(agents_md)
@@ -55,10 +41,7 @@ def test_agents_md_edits_survive_a_second_init(onboarded: Path) -> None:
 
 
 def test_content_outside_the_marker_survives_a_second_init(onboarded: Path) -> None:
-    """The default agent set (claude, copilot, gemini) resolves to one dedicated file,
-    `CLAUDE.md` at the repo root -- copilot and gemini both read AGENTS.md natively
-    (agentseam.instructions.reads_shared) and get none. Content the adopter adds outside
-    chock's marker block must survive exactly like it does in AGENTS.md itself."""
+    """The default agent set (claude, copilot, gemini) resolves to one dedicated file,"""
     claude_md = onboarded / "CLAUDE.md"
     before = _append(claude_md)
 
@@ -69,19 +52,13 @@ def test_content_outside_the_marker_survives_a_second_init(onboarded: Path) -> N
 
 
 def test_a_deselected_wrapper_with_edits_is_not_deleted(tmp_path: Path) -> None:
-    """Deleting a file the adopter added content to destroys it as surely as overwriting it.
-
-    grok does not read AGENTS.md natively, so selecting it gets a dedicated marker-block
-    file (`.grok/GROK.md`). Deselecting it again correctly strips chock's own block (grok
-    is no longer selected, so chock no longer owns any of this file) -- but must not take
-    the adopter's own content, appended outside that block, down with it.
-    """
+    """Deleting a file the adopter added content to destroys it as surely as overwriting it."""
     repo = init_repo(tmp_path)
     assert _init(repo, "--agents", "grok") == 0
     grok_md = repo / ".grok" / "GROK.md"
     _append(grok_md)
 
-    assert _init(repo, "--agents", "claude") == 0  # explicitly deselects grok
+    assert _init(repo, "--agents", "claude") == 0
 
     assert grok_md.exists(), "init deleted an adopter-edited wrapper"
     after = grok_md.read_text(encoding="utf-8")
@@ -96,20 +73,14 @@ def test_a_wrapper_with_no_adopter_content_is_deleted_on_deselect(tmp_path: Path
     grok_md = repo / ".grok" / "GROK.md"
     assert grok_md.exists()
 
-    assert _init(repo, "--agents", "claude") == 0  # explicitly deselects grok
+    assert _init(repo, "--agents", "claude") == 0
 
     assert not grok_md.exists(), "an orphaned wrapper with no adopter content was left behind"
     assert not grok_md.parent.exists(), "its now-empty parent directory was left behind"
 
 
-# --------------------------------------------------- the marker region is always current
 def test_the_marker_region_is_refreshed_with_no_force_needed(onboarded: Path) -> None:
-    """A managed region is not a whole file: there is nothing to preserve-then-force
-    inside it, since it is never the adopter's to begin with -- only what surrounds it is.
-    Hand-editing inside the markers (simulating drift, or an older chock version's text)
-    is silently corrected on the very next `init`, same as `agents_md.render_agents_md`
-    already does for AGENTS.md's own pointer block.
-    """
+    """A managed region is not a whole file: there is nothing to preserve-then-force"""
     from agentseam.instructions import BEGIN, END
 
     claude_md = onboarded / "CLAUDE.md"
@@ -126,7 +97,6 @@ def test_the_marker_region_is_refreshed_with_no_force_needed(onboarded: Path) ->
     assert "Authoritative rules and conventions" in after
 
 
-# -------------------------------------------------------------------- idempotency preserved
 def test_an_untouched_repo_is_byte_identical_after_a_rerun(onboarded: Path) -> None:
     """Preservation must not come at the cost of refreshing files nobody touched."""
     tracked = ["AGENTS.md", "CLAUDE.md", "docs/README.md"]

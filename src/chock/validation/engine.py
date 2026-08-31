@@ -100,7 +100,6 @@ def validate_artifact(
         base_schema = load_schema("manifest.schema.json")
         validate_yaml_against_schema(manifest, base_schema, str(manifest_path), report)
 
-    # Deterministic framework checks
     check_token_budgets(artifact_dir, manifest, artifact_type, report)
     check_progressive_disclosure(artifact_dir, manifest, artifact_type, report)
     check_yagni(artifact_dir, manifest, artifact_type, report)

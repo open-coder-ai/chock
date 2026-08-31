@@ -20,10 +20,7 @@ def _resolve_dotted(config: dict[str, Any], key: str) -> Any:
 
 
 def build_gate_json(policy_dir: Path, repo_root: Path) -> dict[str, Any] | None:
-    """Load a manifest hook.gate, resolve config references, and return a flat gate.json dict.
-
-    Returns None if the policy has no declarative hook.gate.
-    """
+    """Load a manifest hook.gate, resolve config references, and return a flat gate.json dict."""
     from chock.manifest import load_manifest
 
     result = load_manifest(policy_dir)
@@ -55,20 +52,9 @@ def build_gate_json(policy_dir: Path, repo_root: Path) -> dict[str, Any] | None:
 
 
 def vendor_runner(artifact_root: Path) -> Path:
-    """Copy the stdlib-only runner into `<artifact_root>/bin/gate.py`.
-
-    `artifact_root` is the `.chock` directory that owns the compiled tree being
-    written -- the same root `coverage.json` goes to -- and is passed in, never inferred
-    from the repo. It used to take a repo root resolved by walking up from the output
-    directory, which fell through to `git rev-parse` in the current working directory when
-    compiling into a temp tree. `recompile --check` does exactly that, so a read-only check
-    wrote into the working tree it was measuring: it silently restored a tampered
-    `.chock/bin/gate.py` and reported no difference.
-    """
+    """Copy the stdlib-only runner into `<artifact_root>/bin/gate.py`."""
     source = Path(__file__).resolve().parent / "runner.py"
     if not source.exists():
-        # In a frozen (PyInstaller) build, .py modules are bytecode inside the binary and are
-        # not extracted as files. runner.py must be shipped as DATA — see packaging/chock.spec.
         raise FileNotFoundError(
             f"Vendored gate runner source not found at {source}. "
             "If this is a packaged binary, ensure gate/runner.py is bundled as a data file."
@@ -79,5 +65,5 @@ def vendor_runner(artifact_root: Path) -> Path:
     try:
         dest.chmod(0o755)
     except OSError:
-        pass  # best-effort: chmod is a no-op/denied on Windows; the gate is invoked as `python <path>`
+        pass
     return dest

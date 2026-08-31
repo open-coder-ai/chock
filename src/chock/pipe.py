@@ -1,19 +1,4 @@
-"""Keep a closed stdout from abandoning a command halfway through.
-
-`chock sync --repo . | head -2` exited 1 and left the repository unusable: the
-registry and `INDEX.md` were never refreshed, so the validate hook the same command had just
-installed failed on every subsequent commit with `registry_freshness: Registry is stale`.
-
-Nothing was wrong with the compile. `head` closed the pipe after two lines, the next `print`
-raised `BrokenPipeError`, and the process died between installing hooks and doing the
-bookkeeping that makes them usable. `| less` quit early, `| grep -m1` and `| head` are all
-ordinary things to do to a chatty command, and each of them bricked the repo.
-
-The usual Unix answer -- restore `SIGPIPE` to `SIG_DFL` and let the process die quietly -- is
-wrong for a *mutating* command. Dying quietly mid-way is precisely the failure. So writes are
-made non-fatal instead: once the reader is gone we stop printing and carry on working, because
-the output was never the deliverable.
-"""
+"""Keep a closed stdout from abandoning a command halfway through."""
 
 from __future__ import annotations
 
@@ -28,12 +13,7 @@ def _is_broken_pipe(exc: OSError) -> bool:
 
 
 class PipeTolerantWriter:
-    """Wrap a text stream so a vanished reader stops output rather than the program.
-
-    Deliberately not an `io.TextIOBase` subclass: this only needs to stand in for the handful
-    of attributes `print` and friends touch, and inheriting the ABC would invite callers to
-    rely on stream behaviour that is not actually forwarded.
-    """
+    """Wrap a text stream so a vanished reader stops output rather than the program."""
 
     def __init__(self, stream: TextIO) -> None:
         self._stream = stream
@@ -72,13 +52,7 @@ def guard_stdout() -> PipeTolerantWriter:
 
 
 def silence_interpreter_flush(writer: PipeTolerantWriter) -> None:
-    """Stop CPython's exit-time flush from printing to a pipe that is gone.
-
-    Even with every `write` guarded, the interpreter flushes the real stdout during shutdown
-    and prints `Exception ignored in: <_io.TextIOWrapper ...> BrokenPipeError` to stderr. That
-    is noise on a command that in fact succeeded, and it looks like a crash. Pointing fd 1 at
-    the null device gives the final flush somewhere harmless to go.
-    """
+    """Stop CPython's exit-time flush from printing to a pipe that is gone."""
     if not writer.closed_by_reader:
         return
     try:
@@ -86,5 +60,4 @@ def silence_interpreter_flush(writer: PipeTolerantWriter) -> None:
         os.dup2(devnull, sys.__stdout__.fileno())
         os.close(devnull)
     except OSError:
-        # Nothing left to salvage, and the command's real work is already done.
         pass

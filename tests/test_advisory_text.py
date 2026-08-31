@@ -1,17 +1,4 @@
-"""The ambient rule must describe the policy that is actually installed.
-
-Two defects, one root cause: the ambient text was a four-entry dict keyed by policy id.
-
-It went stale. `protect-main-branch` resolves `params.config_key` against config, so an
-adopter who sets `protected_branches: [main, release, production]` got a gate blocking
-three branches and an ambient rule still naming two. An agent that reads AGENTS.md and
-concludes `production` is writable is then blocked by a message denying it is protected.
-
-And it said nothing about any policy outside the dict. That is the half that matters more:
-v3 is built on drop-in third-party policies, 10 of 12 baselines are advise-tier, and for an
-advise-tier policy the ambient rule is the ONLY enforcement surface. `on(any): enforce
-policy '<id>'` was therefore the complete user-visible output of those policies.
-"""
+"""The ambient rule must describe the policy that is actually installed."""
 
 from __future__ import annotations
 
@@ -63,10 +50,7 @@ chock:
 
 
 def test_customised_protected_branches_reach_the_ambient_text(tmp_path: Path) -> None:
-    """The assertion that matters: config -> resolved gate -> the text the agent reads.
-
-    Before the fix this said "main/master" while the compiled gate blocked three branches.
-    """
+    """The assertion that matters: config -> resolved gate -> the text the agent reads."""
     policy = _repo(tmp_path, "protect-main-branch", CUSTOMISED)
     text = _ambient(tmp_path, policy)
 
@@ -187,12 +171,7 @@ def test_an_empty_manifest_falls_back_to_the_pointer(tmp_path: Path) -> None:
 
 
 def test_policy_dir_in_rule_text_compiles_to_the_installed_path(tmp_path: Path) -> None:
-    """`{policy_dir}` resolves to where the policy actually lives.
-
-    A rule pointing at its own `references/` must name a path, but the same source lives at
-    `base/<id>/` in a catalog and `.agents/policies/<id>/` in an adopter. Authors hardcoded
-    one and were wrong in the other; the placeholder is right in both.
-    """
+    """`{policy_dir}` resolves to where the policy actually lives."""
     policy_dir = _repo(tmp_path, "injection-defense")
     manifest_path = policy_dir / "manifest.yaml"
     manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))

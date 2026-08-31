@@ -1,35 +1,4 @@
-"""Emit a Cursor plugin (`.cursor-plugin/`) from a policy directory.
-
-Cursor reads its own plugin layout: a `.cursor-plugin/plugin.json` manifest that points at
-its components explicitly (`"skills": "./skills/"`, `"hooks": "./hooks/hooks.json"`), and a
-hooks file in Cursor's own envelope. Cursor ignores Agent Plugins 1.0 hooks entirely, so
-neither the Claude nor the Copilot package reaches Cursor's hook engine -- this format
-exists because those two cannot enforce anything there.
-
-Three deliberate differences from the other hook formats, each load-bearing:
-
-- The event is `beforeShellExecution`, not `preToolUse`. Cursor ships BOTH as distinct
-  APIs (not aliases): `preToolUse` fires for every tool, `beforeShellExecution` only for
-  shell commands. A policy guard evaluates a shell command, so the shell-scoped event is
-  the honest subscription -- and it is the same event `chock sync` already installs into
-  `.cursor/hooks.json`, so a repo install and a plugin install run the identical hook.
-- No `matcher` is emitted. Under `beforeShellExecution` the matcher is a regex over the
-  COMMAND TEXT, not over a tool name -- the other formats' `MATCHER = "Bash"` would be
-  read as a command regex here and match almost nothing, silently disabling the guard.
-  Matching every shell command is what a policy guard wants.
-- The deny is spoken in Cursor's dialect by the shared adapter, not by this emitter.
-  Cursor documents exit 2 as "equivalent to returning permission: deny", and that is
-  false for plugin hooks: a hook returning exit 2 with the reason on stderr was
-  witnessed NOT blocking on a real install. The adapter emits Cursor's stdout response
-  as well, which is what actually blocks.
-- No `failClosed: true`. Cursor defaults to fail-open on a hook error, and that default is
-  kept deliberately: a plugin resolves `python3` from PATH at run time (there is no install
-  step to bake an interpreter, unlike the repo path), so fail-closed on a machine without
-  python3 would refuse every shell command in the editor. The posture text states the
-  fail-open consequence instead of hiding it.
-
-`manifest.yaml` stays canonical; every file here is derived and never hand-authored.
-"""
+"""Emit a Cursor plugin (`.cursor-plugin/`) from a policy directory."""
 
 from __future__ import annotations
 
@@ -54,26 +23,14 @@ from chock.plugin.build import (
 )
 from chock.plugin.claude import POSTURE_ADVISORY, _adapter_source
 
-#: This format's package-layout knowledge -- plugin-root token, manifest path, and the
-#: hooks/skills path templates -- comes from agentseam's PACKAGING row for cursor.
 _LAYOUT = packaging.layout("cursor")
 PLUGIN_ROOT = packaging.plugin_root("cursor")
 HOOKS_REL = packaging.supports("cursor", packaging.HOOKS)
 SKILLS_REL = _LAYOUT["declares"][packaging.SKILL][1]
 EVENT = "beforeShellExecution"
 
-#: agentseam's own EXECUTABLE row for cursor is deliberately empty (PART_LIMITS: "no
-#: scripts/executable location was established for this closed-source plugin format; the
-#: documented layout ... names no place for one") -- a real, honest gap, not a bug. This
-#: plugin has shipped scripts/ here regardless, so the convention stays chock's own rather
-#: than being force-fit through a template agentseam does not vouch for.
 _SCRIPTS_TEMPLATE = "scripts/{name}"
 
-#: Cursor's manifest schema is `additionalProperties: false`, so this is a fresh dict and
-#: never `build_manifest()` output: that function emits `$schema` and `extensions`, which
-#: Cursor's schema does not declare and therefore REJECTS. Chock's enforcement metadata
-#: has nowhere to ride in this manifest, so it rides where every marketplace UI shows it
-#: instead -- the description -- exactly as the Claude package does.
 MANIFEST_KEYS = (
     "name",
     "displayName",
@@ -88,10 +45,6 @@ MANIFEST_KEYS = (
     "hooks",
 )
 
-#: Cursor blocks on exit 2 and treats EVERY other non-zero exit as "proceed" -- so a
-#: missing python3 here is silently permissive rather than loudly broken. That is stated
-#: plainly: a posture that reads better than the mechanism behaves is the overclaim this
-#: project refuses.
 POSTURE_ENFORCED_CURSOR = (
     "Session-enforced in Cursor by a beforeShellExecution hook: a matched command is "
     "denied before it runs (witnessed blocking on a real install). The hook needs python3 "
@@ -111,12 +64,7 @@ _ENFORCED_NOTE_CURSOR = (
 
 
 def _hook_command(script: str) -> str:
-    """One interpreter invocation against the plugin's own bundled copies.
-
-    Deliberately without a fallback chain, for the reason measured in claude.py: `||`
-    fires on ANY non-zero exit, so a real denial (exit 2) would cascade into the next
-    leg's exit code and be read as allow.
-    """
+    """One interpreter invocation against the plugin's own bundled copies."""
     adapter = packaging.executable_ref("cursor", _SCRIPTS_TEMPLATE.format(name="cursor.py"))
     guard = packaging.executable_ref("cursor", _SCRIPTS_TEMPLATE.format(name=script))
     return f'python3 "{adapter}" --guard "{guard}"'
@@ -133,8 +81,6 @@ def build_cursor_manifest(manifest: dict[str, Any], policy_dir: Path, enforced: 
         "displayName": _one_line(manifest.get("name")) or policy_id,
         "description": f"{_one_line(manifest.get('description'))} [{posture}]".strip(),
         "keywords": _keywords(manifest),
-        # Cursor's own plugins use this kebab-case category; deliberately NOT shared with
-        # the Codex emitter, whose directory uses title-case categories.
         "category": "developer-tools",
         "skills": SKILLS_REL,
     }
@@ -148,9 +94,6 @@ def build_cursor_manifest(manifest: dict[str, Any], policy_dir: Path, enforced: 
     if provenance.get("source_repo"):
         data["repository"] = str(provenance["source_repo"])
     if enforced:
-        # Declared rather than left to convention discovery: Cursor's own template
-        # validator checks that a declared path exists, which turns a broken emitter
-        # into a loud failure instead of a silently hookless package.
         data["hooks"] = f"./{HOOKS_REL}"
     return {key: data[key] for key in MANIFEST_KEYS if key in data}
 
@@ -162,8 +105,6 @@ def cursor_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
     name = plugin_name(policy_id)
     script = _guard_script(policy_dir, policy_id)
 
-    # Frontmatter claim and closing note are posture-dependent: a package shipping a hook
-    # must not carry a file saying it is advisory without chock.
     skill = build_skill(policy_dir, manifest, Path(repo_root), hooks=HOOKS_REL if script else None)
     if script:
         skill = skill.replace(_ADVISORY_NOTE_RULE, _ENFORCED_NOTE_CURSOR).replace(
@@ -177,16 +118,10 @@ def cursor_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
         + "\n",
         Path(packaging.supports("cursor", packaging.SKILL).format(name=name)): skill,
     }
-    # Same reason as every other format: these packages are published on their own, and the
-    # distribution repos carry a licence at the root only. `license_text` writes nothing when
-    # the policy's own provenance cannot supply the notice.
     licence = license_text(manifest)
     if licence:
         files[LICENSE_REL] = licence
     if script:
-        # Cursor's envelope: a version stamp and FLAT entries -- no per-entry `hooks`
-        # array and no `type`, unlike the Claude/Codex shape. Identical to what
-        # `chock sync` writes into .cursor/hooks.json, so the two installs agree.
         hooks = {
             "version": 1,
             "hooks": {EVENT: [{"command": _hook_command(script), "timeout": TIMEOUT_SECONDS}]},
@@ -199,10 +134,6 @@ def cursor_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
     return files
 
 
-#: Everything this emitter may write. Reconciliation needs the list because the file set
-#: CHANGES: a policy that loses its guard stops emitting hooks and scripts, and a build
-#: that only wrote current files would leave the old hook enforcing while the manifest
-#: and skill say advisory.
 OWNED_SUBTREES = ("hooks", "scripts")
 
 

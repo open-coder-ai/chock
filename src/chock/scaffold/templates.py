@@ -1,8 +1,4 @@
-"""Reading packaged templates, and writing them without destroying adopter edits.
-
-Shared by `init` and by the per-agent adapter writer, so it lives apart from both rather
-than being imported across them.
-"""
+"""Reading packaged templates, and writing them without destroying adopter edits."""
 
 from __future__ import annotations
 
@@ -12,17 +8,7 @@ from chock.emit import write_generated
 
 
 def packaged_template(rel_path: str) -> str:
-    """Read a file from the packaged chock-init template tree.
-
-    Single source of truth: the same files the onboarding skill hands to an agent. An
-    inline copy here is a second definition free to drift -- `DOCS_README` did exactly
-    that, shrinking to a three-line stub while the packaged guide grew to fifteen lines,
-    so `init` and the skill produced different repos.
-
-    Reading the packaged file also makes its absence *loud*. The 42 dot-directory
-    templates were missing from every built wheel for a long time precisely because
-    nothing read them; the gap only surfaced once `init` started to.
-    """
+    """Read a file from the packaged chock-init template tree."""
     import chock
 
     base = Path(chock.__file__).parent / "packs" / "_skills" / "chock-init"
@@ -33,14 +19,6 @@ def _dependency_allowlist_template() -> str:
     return packaged_template(".chock/dependency-allowlist.txt")
 
 
-#: Directory-scoped guardrails dropped next to vendored content in adopter repos. An agent
-#: that starts editing a file loads the nearest AGENTS.md / CLAUDE.md up the tree, so the
-#: provenance-and-editing contract arrives at exactly the editing moment -- an edit-time
-#: guardrail, not a discovery surface. They sit at the PARENT level, never inside a policy
-#: pack: `compute_pack_hash` covers every file in a pack, so a file injected into
-#: `.agents/policies/<id>/` would break `--verify-sha` and every published-hash comparison.
-#: AGENTS.md and CLAUDE.md are two identical generated files, not a symlink -- symlinks
-#: need Developer Mode on Windows, and a broken link guards nothing.
 _GITATTRIBUTES_TEMPLATE = """\
 # Written by `chock init`; yours to extend. Chock's pack hashes and compiled artifacts
 # are raw bytes, so they must check out identically on every platform -- with
@@ -75,10 +53,7 @@ preserves local edits.
 
 
 def write_vendored_guardrails(repo_root: Path, force: bool) -> list[str]:
-    """Write the guardrail pair into .agents/policies/ and .agents/skills/.
-
-    Returns the relative paths left alone because the adopter edited them.
-    """
+    """Write the guardrail pair into .agents/policies/ and .agents/skills/."""
     preserved: list[str] = []
     for rel_dir, content in ((".agents/policies", POLICIES_GUARDRAIL), (".agents/skills", SKILLS_GUARDRAIL)):
         for name in ("AGENTS.md", "CLAUDE.md"):
@@ -89,16 +64,7 @@ def write_vendored_guardrails(repo_root: Path, force: bool) -> list[str]:
 
 
 def _preserve_or_write(path: Path, content: str, force: bool) -> bool:
-    """Write `content` unless the adopter has already edited what is there. True if left alone.
-
-    `init` is re-run routinely -- after adding a policy, after an upgrade -- and it used to
-    rewrite every scaffolded file every time, so local edits to the adapter wrappers vanished
-    while the command printed "Initialized Chock" and exited 0.
-    `.chock/dependency-allowlist.txt` never had the bug because that path checked
-    first; this is the same check, applied everywhere it was missing. Byte-comparing against
-    what would be written keeps a re-run idempotent for untouched files, with no state to
-    go stale.
-    """
+    """Write `content` unless the adopter has already edited what is there. True if left alone."""
     if path.exists() and not force and path.read_text(encoding="utf-8") != content:
         return True
     path.parent.mkdir(parents=True, exist_ok=True)

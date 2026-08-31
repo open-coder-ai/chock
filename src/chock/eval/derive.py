@@ -1,18 +1,4 @@
-"""Cases generated from a policy's own gate declaration.
-
-Derived cases catch *declared but not implemented*: a gate that names four manifest
-formats and silently handles one. That is not hypothetical -- `dependency_allowlist`
-shipped passing three of its four declared formats, and a derived case per declared format
-would have failed on the build that declared them.
-
-They cannot catch *implemented but wrong*, because they are generated from the same
-declaration the implementation reads. `PolicyResult.attestable` enforces that limit: a
-derived pass never earns an attestation.
-
-Not every kind is derivable. `content_regex` has no derivation, because producing a string
-that matches an arbitrary regex is not something you can do mechanically without becoming a
-regex engine -- and a wrong guess would report a policy defect that does not exist.
-"""
+"""Cases generated from a policy's own gate declaration."""
 
 from __future__ import annotations
 
@@ -20,14 +6,12 @@ from typing import Any
 
 from chock.eval.model import Case
 
-#: A name no registry will ever hold, so a derived block case cannot be satisfied by luck.
 UNLISTED = "chock-derived-eval-absent-package"
 
 _MANIFEST_BODIES = {
     "requirements.txt": lambda dep: f"{dep}==1.0.0\n",
     "pyproject.toml": lambda dep: f'[project]\nname = "derived"\nversion = "0.0.1"\ndependencies = ["{dep}"]\n',
     "package.json": lambda dep: '{"name": "derived", "version": "1.0.0", "dependencies": {"%s": "^1.0.0"}}\n' % dep,
-    # The go.mod extractor requires a dotted module path, which is what real modules look like.
     "go.mod": lambda dep: f"module derived\n\ngo 1.21\n\nrequire (\n\tgithub.com/absent/{dep} v1.0.0\n)\n",
 }
 
@@ -78,8 +62,6 @@ def _forbidden_ref(policy_id: str, gate: dict[str, Any]) -> list[Case]:
                 )
             )
 
-    # Negative space. A gate that blocks everything is a gate that gets switched off, and
-    # the derivation is worthless without the case that would catch it.
     if refs and "commit" in events:
         cases.append(
             _case(
@@ -107,8 +89,6 @@ def _dependency_allowlist(policy_id: str, gate: dict[str, Any]) -> list[Case]:
     for manifest in [str(m) for m in (params.get("manifests") or [])]:
         body = _MANIFEST_BODIES.get(manifest)
         if body is None:
-            # A format with no sample here is a format `validate` should have rejected.
-            # Deriving nothing is correct: inventing a body would test our guess, not the gate.
             continue
         listed = _GO_PREFIX + UNLISTED if manifest == "go.mod" else UNLISTED
         cases.append(

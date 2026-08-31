@@ -1,21 +1,5 @@
 #!/usr/bin/env python3
-"""Chock vendored gate runner — SELF-CONTAINED, STDLIB ONLY.
-
-Copied verbatim to <repo>/.chock/bin/gate.py by `chock compile`.
-MUST NOT import any third-party package (no pyyaml) or anything from `chock`.
-Reads a compiled gate.json and enforces a deterministic gate at git-hook time, or over a
-commit range in CI.
-
-Usage (from a compiled shim):
-  python3 .chock/bin/gate.py run --gate <path/to/gate.json> --event {pre-commit,pre-push}
-  python3 .chock/bin/gate.py run --gate <path/to/gate.json> --event ci --base <ref> \
-      [--head-ref <name>]
-Exit codes: 0 = allow, 1 = block, 2 = usage/spec error.
-
-This file is exempt from the repo's 300-line review budget (tests/test_repo_standards.py).
-It is vendored into adopter repos as ONE self-contained file, so "split it by activity" --
-the remedy the budget assumes -- is not available here without breaking that guarantee.
-"""
+"""Chock vendored gate runner — SELF-CONTAINED, STDLIB ONLY."""
 
 from __future__ import annotations
 
@@ -40,17 +24,7 @@ class GateResult:
 
 
 class GateContext:
-    """Read-only git facts. Every accessor swallows git errors and returns empty.
-
-    `base` selects what "the change" means. None is index mode (pre-commit/pre-push): the
-    accessors read the staged index, exactly as before. Set, they diff `base...HEAD` -- the
-    whole range a pull request adds. A CI checkout has no staged index, so an index-mode gate
-    run there scans nothing and passes everything, which is why the previous CI step could not
-    have enforced anything regardless of how it was wired.
-
-    Three dots, not two: `base...HEAD` is the head side since the merge base, so a gate does
-    not fire on work that arrived on the base branch after the PR was opened.
-    """
+    """Read-only git facts. Every accessor swallows git errors and returns empty."""
 
     def __init__(
         self,
@@ -69,15 +43,6 @@ class GateContext:
         return [f"{self.base}...HEAD"] if self.base else ["--cached"]
 
     def _git(self, *args: str) -> str:
-        # Explicit encoding, never the locale's: `text=True` alone decodes with cp1252 on Windows, so a staged
-        # U+2190 arrow (E2 86 90; 0x90 undefined there) crashed the hook and blocked the commit with a traceback
-        # instead of a verdict. errors="replace" keeps scanning -- a scanner dying on odd bytes protects nothing.
-        #
-        # core.quotePath=false: with git's default, a path containing any non-ASCII byte is
-        # emitted by --name-only wrapped in quotes with octal escapes ("caf\303\251.txt"). The
-        # follow-up `git show :<that-string>` then fails and this method swallows the error, so
-        # a secret committed in `sécrets.txt` was scanned as zero lines and allowed. Forcing raw
-        # UTF-8 output makes every path round-trip to the show/diff calls unchanged.
         try:
             proc = subprocess.run(
                 ["git", "-c", "core.quotePath=false", *args],
@@ -96,9 +61,6 @@ class GateContext:
         """True when `ref` resolves to a commit. Used to fail CI closed on a missing base."""
         return bool(self._git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}").strip())
 
-    # ACMRT, not AM: a rename-with-edit reports as R and a file swapped for a symlink as T,
-    # both of which git's default rename detection hid from an AM filter -- `git mv notes.txt
-    # config.txt` then pasting a secret was never scanned. D (delete) stays out: nothing to scan.
     def staged_paths(self, diff_filter: str = "ACMRT") -> list[str]:
         out = self._git("diff", *self._range(), "--name-only", f"--diff-filter={diff_filter}")
         return [line.strip() for line in out.splitlines() if line.strip()]
@@ -116,12 +78,7 @@ class GateContext:
         return self._git("show", f"HEAD:{path}" if self.base else f":{path}")
 
     def head_blob(self, path: str) -> str:
-        """Content before the change, or "" when the path is new in it.
-
-        In range mode this must read the BASE side. Left as HEAD it would compare the
-        proposed file against itself, so `dependency_allowlist` -- which reports only what a
-        change ADDS -- would compute an empty set and pass every unlisted package in CI.
-        """
+        """Content before the change, or "" when the path is new in it."""
         return self._git("show", f"{self.base or 'HEAD'}:{path}")
 
     def current_branch(self) -> str:
@@ -135,11 +92,10 @@ class GateContext:
         for line in self._push_stdin.splitlines():
             parts = line.split()
             if len(parts) >= 3:
-                refs.append(parts[2])  # <local_ref> <local_sha> <remote_ref> <remote_sha>
+                refs.append(parts[2])
         return refs
 
 
-# ------------------------------------------------------------------ kind: content_regex
 def _kind_content_regex(ctx: GateContext, params: dict, event: str) -> GateResult:
     content_re = re.compile(params["content_pattern"])
     path_re = re.compile(params["forbidden_path_regex"]) if params.get("forbidden_path_regex") else None
@@ -163,20 +119,11 @@ def _kind_content_regex(ctx: GateContext, params: dict, event: str) -> GateResul
     return GateResult(allowed=not matches, matches=matches)
 
 
-# ------------------------------------------------------------------ kind: forbidden_ref
 def _kind_forbidden_ref(ctx: GateContext, params: dict, event: str) -> GateResult:
-    # fnmatchcase, never fnmatch: fnmatch normcases on Windows while git refs are case-sensitive everywhere.
-    # With no metacharacter it degrades to plain equality, so exact refs behave exactly as before; `*` spans `/`,
-    # so `release/*` also covers `release/1.2/rc` -- protecting a namespace means protecting the whole namespace.
     protected = [str(r) for r in params.get("refs", [])]
-    # One branch-name test drives every event, so a pattern cannot enforce on push and not on commit.
     if event == "push":
         candidates = [(r, r.removeprefix("refs/heads/")) for r in ctx.push_refs() if r.startswith("refs/heads/")]
     else:
-        # `head_ref` names the branch under test when git cannot: a CI checkout is normally a
-        # detached HEAD, where current_branch() finds nothing. Without the override the
-        # detached case still yields no candidate and allows, exactly as before -- a ref gate
-        # that guessed a branch name in CI would block work it was never pointed at.
         branch = ctx.head_ref or ctx.current_branch()
         candidates = [(b, b) for b in [branch] if b and b != "HEAD"]
     for shown, name in candidates:
@@ -185,11 +132,6 @@ def _kind_forbidden_ref(ctx: GateContext, params: dict, event: str) -> GateResul
     return GateResult(allowed=True)
 
 
-# ------------------------------------------------------------ kind: dependency_allowlist
-# Extractors parse the WHOLE staged file, not added diff lines. A diff line carries no
-# section context, so the previous generic "quoted key" regex could not tell a dependency
-# from any other key: it flagged name/version/scripts in package.json and matched nothing
-# at all in pyproject.toml or go.mod, silently passing hallucinated packages.
 _REQ_RE = re.compile(r"^\s*([A-Za-z0-9._-]+)")
 _GOMOD_RE = re.compile(r"^\s*([A-Za-z0-9._~/-]+\.[A-Za-z0-9._~/-]+)\s+v")
 
@@ -250,8 +192,6 @@ def _deps_go_mod(text: str) -> set[str]:
     return names
 
 
-# Only formats with a real extractor may be watched. `chock check` rejects
-# anything absent here, so a policy cannot claim a format the runtime silently ignores.
 EXTRACTORS = {
     "requirements.txt": _deps_requirements,
     "pyproject.toml": _deps_pyproject,
@@ -266,7 +206,7 @@ def _extract(path: str, text: str) -> set[str]:
         return set()
     try:
         return fn(text)
-    except Exception:  # malformed file: report nothing rather than block on a parse error
+    except Exception:
         return set()
 
 
@@ -280,15 +220,9 @@ def _kind_dependency_allowlist(ctx: GateContext, params: dict, event: str) -> Ga
             if s and not s.startswith("#"):
                 allow.add(s.lower())
 
-    # Match on basename, not full path: `watched` holds bare names ("package.json"), while
-    # staged paths are repo-relative ("web/package.json"). A set intersection only ever hit a
-    # root-level manifest, so every nested manifest in a monorepo was silently unscanned.
     matches: list[str] = []
     staged = sorted(p for p in ctx.staged_paths() if p.rsplit("/", 1)[-1] in watched)
     for path in staged:
-        # Report only dependencies this commit ADDS. Scanning the staged file alone would
-        # block a commit that merely touches a manifest already containing an unlisted
-        # package -- a gate that fires on untouched lines gets switched off.
         added = _extract(path, ctx.staged_blob(path)) - _extract(path, ctx.head_blob(path))
         for name in sorted(added):
             if name.lower() not in allow:
@@ -303,11 +237,6 @@ KINDS = {
 }
 
 
-# -------------------------------------------------------------------------- outcome log
-# Local evidence, never telemetry: one JSONL line per gate that actually evaluated, so
-# "has this gate ever fired, and does it fire wrongly" stops being unanswerable. Nothing
-# leaves the machine. Disable with CHOCK_GATE_LOG=0 -- an env var because the runner
-# is stdlib-only and so cannot read .chock/config.yaml, which needs a yaml parser.
 GATE_LOG_ENV = "CHOCK_GATE_LOG"
 _LOG_MAX_BYTES = 1_048_576
 _LOG_MATCH_CAP = 20
@@ -318,19 +247,12 @@ def _log_outcome(gate_path: Path, event: str, spec: dict, result: GateResult) ->
     try:
         if os.environ.get(GATE_LOG_ENV) == "0":
             return
-        # `<artifact_root>/compiled/<policy_id>/<surface>/gate.json` is the only shape a
-        # compiled shim invokes, and the path carries the policy id that gate.json
-        # deliberately does not -- which is why logging needs no change to compiled specs.
-        # Any other shape (an eval replaying a spec against a temp repo) is not an
-        # enforcement event, so it is not evidence and is not recorded.
         parents = gate_path.resolve().parents
         if len(parents) < 4 or parents[2].name != "compiled":
             return
         log_dir = parents[3] / "log"
         log_dir.mkdir(parents=True, exist_ok=True)
         log_path = log_dir / "gate-events.jsonl"
-        # One generation of rotation. An append-only file in a repo that never shrinks is a
-        # slow disk leak, and the recent tail is the part anyone reads.
         if log_path.exists() and log_path.stat().st_size > _LOG_MAX_BYTES:
             log_path.replace(log_dir / "gate-events.1.jsonl")
         record = {
@@ -340,21 +262,15 @@ def _log_outcome(gate_path: Path, event: str, spec: dict, result: GateResult) ->
             "event": event,
             "kind": spec.get("kind"),
             "verdict": "allow" if result.allowed else "block",
-            # Recorded separately from `matches` so the cap below can never understate a hit.
             "match_count": len(result.matches),
-            # Safe to record only because no kind puts scanned content in `matches`: they
-            # carry paths, ref names and package names. scan-secrets reports "<path>: content
-            # pattern", never the credential it matched -- keep it that way, or this log
-            # becomes the plaintext secret store that policy exists to prevent.
             "matches": result.matches[:_LOG_MATCH_CAP],
         }
         with log_path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(record, ensure_ascii=False) + "\n")
-    except Exception:  # a gate that fails while logging must still deliver its verdict
+    except Exception:
         return
 
 
-# ------------------------------------------------------------------------------- runner
 _EVENT_NAME = {"pre-commit": "commit", "pre-push": "push"}
 
 
@@ -368,35 +284,24 @@ def run(
 ) -> int:
     gate_path = Path(gate_path)
     if not gate_path.exists():
-        return 0  # no gate -> allow
+        return 0
     try:
         spec = json.loads(gate_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:
         print(f"gate: cannot read {gate_path}: {exc}", file=sys.stderr)
         return 2
     if event == "ci":
-        # A gate declaring `commit` runs here too: "this must not enter the codebase" is the
-        # same claim whether it is checked at the index or over a pull request's range, and CI
-        # exists to catch the commit-time gate that was skipped with --no-verify.
-        #
-        # `push`-only gates are deliberately NOT promoted. CI has no equivalent of pushing to a
-        # named ref, so running one here would invent an enforcement point no policy declared.
         name, covered = "ci", "commit" in spec.get("on", [])
     else:
         name = _EVENT_NAME.get(event, event)
         covered = name in spec.get("on", [])
     if not covered:
-        return 0  # event not covered -> allow
+        return 0
     kind = KINDS.get(spec.get("kind"))
     if kind is None:
         print(f"gate: unknown kind {spec.get('kind')!r}", file=sys.stderr)
         return 2
     ctx = GateContext(repo_root=repo_root, push_stdin=push_stdin, base=base, head_ref=head_ref)
-    # Fail closed, not open, on a base CI cannot resolve. A shallow checkout, an empty
-    # GITHUB_BASE_REF, or a renamed base branch makes `git diff <base>...HEAD` error; every
-    # accessor then swallows the error and returns empty, so the gate would scan nothing and
-    # pass -- the CI backstop reporting green over a diff it never read. Better to break the
-    # build with a diagnosis than to vouch for an unscanned range.
     if event == "ci" and base and not ctx.rev_exists(base):
         print(
             f"gate: base ref {base!r} does not resolve -- refusing to scan an empty range. "
@@ -405,8 +310,6 @@ def run(
         )
         return 2
     result = kind(ctx, spec.get("params", {}), name)
-    # Logged here, after a kind ran: the early returns above (no gate file, event not
-    # covered, unknown kind) are "this gate did not apply", which is not an outcome.
     _log_outcome(gate_path, name, spec, result)
     if not result.allowed:
         print(result.message or spec.get("message", ""), file=sys.stderr)
@@ -436,8 +339,6 @@ def main(argv: list[str] | None = None) -> int:
     run_p.add_argument("--head-ref", help="Branch under test, e.g. $GITHUB_HEAD_REF (used by forbidden_ref)")
     args = parser.parse_args(argv)
 
-    # Refused rather than defaulted. Guessing a base (origin/main, say) would silently scan
-    # the wrong range and report a clean result for a diff nobody checked.
     if args.event == "ci" and not args.base:
         parser.error("--event ci requires --base")
 

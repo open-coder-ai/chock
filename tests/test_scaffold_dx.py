@@ -36,11 +36,8 @@ def test_install_skills_are_canonical_and_validate_clean(tmp_path: Path) -> None
     repo = _init(tmp_path / "r")
     _run([sys.executable, "-m", "chock.cli", "install-skills", str(repo)], repo)
 
-    # .agents/skills is the authoritative source
     assert (repo / ".agents" / "skills" / "policy-init").exists()
-    # refresh (called by install-skills) creates the .claude/skills bridge
     assert (repo / ".claude" / "skills" / "policy-init").exists()
-    # other agent dirs are not touched
     assert not (repo / ".github" / "skills").exists()
     assert not (repo / ".cursor" / "skills").exists()
 

@@ -1,7 +1,4 @@
-"""Deterministic `chock init` implementation.
-
-Scaffolds a consumer repo without requiring a framework checkout.
-"""
+"""Deterministic `chock init` implementation."""
 
 from __future__ import annotations
 
@@ -39,10 +36,6 @@ def _write_agents_md(repo_root: Path, force: bool) -> Path:
         repo_name = repo_root.name or "chock-consumer"
         write_generated(path, packaged_template("AGENTS.md").replace("{{repo_name}}", repo_name))
     else:
-        # AGENTS.md is the file this framework calls the single source of truth and tells
-        # adopters to own, so skipping it on edit is not enough -- a repo that grew its own
-        # conventions would stop receiving pointer updates. `update_agents_md` rewrites
-        # only what is between the managed markers.
         update_agents_md(path)
     return path
 
@@ -57,13 +50,7 @@ def _fresh_config(agents: list[str], agent_agnostic: bool) -> dict[str, object]:
 
 
 def _fresh_policies(repo_root: Path, fresh: dict[str, object]) -> dict[str, object]:
-    """The template's `policies` block, minus toggles for policies that are not installed.
-
-    The template disables `verify-dependency-exists`, which used to be bundled. Nothing is
-    bundled now, so on a fresh repo that entry names a policy that does not exist and
-    `validate` rightly warns -- a warning on every clean install, about a decision the
-    adopter never made. Toggles are for installed policies; an empty repo has none.
-    """
+    """The template's `policies` block, minus toggles for policies that are not installed."""
     from chock.scaffold.recompile import discover_policy_dirs
 
     policies = dict(fresh.get("policies") or {})  # type: ignore[arg-type]
@@ -83,31 +70,18 @@ def _write_config(repo_root: Path, agents: list[str], agent_agnostic: bool) -> P
     existing = load_config(repo_root) if path.exists() else {}
     fresh = _fresh_config(agents, agent_agnostic)
 
-    # The fresh template wins only for the keys this run was explicitly asked to set
-    # (supported_agents comes from --agents); every other chock.* key the adopter added
-    # survives, as do their defaults. `chock = dict(fresh)` dropped both.
     existing_chock = existing.get("chock") or {}
     chock = {**existing_chock, **dict(fresh.get("chock", {}))}
     merged_defaults = {**dict(fresh.get("chock", {})).get("defaults", {}), **existing_chock.get("defaults", {})}
     if merged_defaults:
         chock["defaults"] = merged_defaults
-    # "Onboarded at" is when this repo was onboarded, not when init last ran -- and a fresh
-    # timestamp on every run made the no-op re-run below impossible, forcing a rewrite that
-    # destroyed the adopter's comments each time.
     if "onboarded_at" in existing_chock:
         chock["onboarded_at"] = existing_chock["onboarded_at"]
 
-    # An existing config wins: the adopter's enable/disable choices are theirs, including a
-    # deliberately-empty `policies: {}` -- an `or` here resurrected the template block over
-    # it. Unknown top-level keys survive too: the merge starts from the adopter's document,
-    # not from a fresh dict holding only the keys this scaffold knows about.
     merged: dict[str, object] = dict(existing)
     merged["chock"] = chock
     merged["policies"] = existing["policies"] if "policies" in existing else _fresh_policies(repo_root, fresh)
 
-    # Write only when the parsed content actually changes. yaml round-tripping cannot
-    # preserve comments, so the routine no-op re-run must not touch the file at all --
-    # that is what keeps an adopter's comments alive across `init` re-runs.
     if not path.exists() or existing != merged:
         if path.exists():
             print("[WARN] .chock/config.yaml rewritten; YAML comments are not preserved", file=sys.stderr)
@@ -116,8 +90,6 @@ def _write_config(repo_root: Path, agents: list[str], agent_agnostic: bool) -> P
             encoding="utf-8",
         )
 
-    # Ship the allowlist alongside the config so enabling the policy is a one-step
-    # action rather than a debugging session against a gate that blocks everything.
     allowlist = path.parent / "dependency-allowlist.txt"
     if not allowlist.exists():
         allowlist.write_text(_dependency_allowlist_template(), encoding="utf-8")
@@ -128,33 +100,19 @@ def _normalize_agents(args_agents: list[str] | None, agent_agnostic: bool, repo_
     if agent_agnostic:
         return sorted(CHOCK_AGENT)
     if args_agents:
-        return list(args_agents)  # validated at the CLI edge; unknown names have already errored
-    # A re-run without --agents keeps the adopter's pinned set: the config records a choice
-    # they already made, and resetting it to the template trio deselected (and so deleted)
-    # any extra wrapper they had asked for. agents_from_config validates the names, so a
-    # typo'd config still dies loudly rather than silently selecting nothing.
+        return list(args_agents)
     from chock.config import agents_from_config, load_config
 
     if (load_config(repo_root).get("chock") or {}).get("supported_agents"):
         return agents_from_config(repo_root)
-    # Default: AGENTS.md (always written) plus the holdouts that can't read it natively.
-    # Replit Agent can't either, but it auto-creates replit.md inside its own workspace,
-    # so a default wrapper duplicates what the host does; opt in with --agents replit.
-    # Keeps a fresh repo small; use --agents / --agent-agnostic for more.
     return ["claude", "copilot", "gemini"]
 
 
-#: Where policies come from now that the framework ships none.
 CATALOG_URL = "https://github.com/open-coder-ai/chock-catalog"
 
 
 def _report_policy_state(repo_root: Path) -> None:
-    """Say plainly whether anything is being enforced, and how to change that.
-
-    The framework ships mechanism, not policies, so a fresh repo enforces nothing. Silence
-    here would let an adopter believe a scaffolded repo is a guarded one -- the cost of the
-    ownership trade, paid without being told it was made.
-    """
+    """Say plainly whether anything is being enforced, and how to change that."""
     from chock.scaffold.recompile import discover_policy_dirs
 
     installed = discover_policy_dirs(repo_root)
@@ -177,8 +135,6 @@ def cmd_init(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    # Selection errors must fire before the first write: a bad --agents value once fell
-    # through to an empty selection and deselected every wrapper in the defaulted repo.
     selection: list[str] | None = None
     if args.agents is not None:
         try:
@@ -197,39 +153,25 @@ def cmd_init(argv: list[str] | None = None) -> int:
         print(str(exc), file=sys.stderr)
         return 2
 
-    # Scaffolding is useful without git; enforcement is not. Decided before anything
-    # downstream can reach for `.git/hooks` and conjure the directory on the way.
     hookable = is_git_repo(repo_root)
     skip_hooks = args.skip_hooks or not hookable
     if not hookable and not args.skip_hooks:
         print(f"[WARN] {NOT_A_GIT_REPO.format(root=repo_root)}\n[WARN] Scaffolding only: no enforcement is active.")
 
-    # Core directories
     (repo_root / ".chock").mkdir(exist_ok=True)
     (repo_root / ".agents" / "policies").mkdir(parents=True, exist_ok=True)
     (repo_root / ".agents" / "skills").mkdir(parents=True, exist_ok=True)
     (repo_root / "docs").mkdir(exist_ok=True)
 
-    # Scaffolded files: refreshed on every run, but never at the cost of adopter edits.
     preserved: list[str] = []
     _write_agents_md(repo_root, args.force)
     if _preserve_or_write(repo_root / "docs" / "README.md", packaged_template("docs/README.md"), args.force):
         preserved.append("docs/README.md")
-    # Without LF pinning, core.autocrlf=true (common on Windows) checks pack files out as
-    # CRLF, the raw-byte pack hashes differ from what a Linux teammate locked, and
-    # `chock check --only verify` fails on every pack in an innocent clone. The framework
-    # repo pins its own tree the same way; adopters need the same protection.
     if _preserve_or_write(repo_root / ".gitattributes", _GITATTRIBUTES_TEMPLATE, args.force):
         preserved.append(".gitattributes")
     preserved += write_vendored_guardrails(repo_root, args.force)
     _write_config(repo_root, agents, args.agent_agnostic)
 
-    # Authoring skills are mechanism, not content: they are how an agent learns to write,
-    # validate and evaluate a policy. Without them a scaffolded repo has an empty
-    # .agents/skills/ and an agent that cannot invoke `policy-init` at all. Policies are
-    # deliberately not installed -- those are content, and the adopter picks them.
-    # overwrite=False so a re-run never discards an edited skill; `install-skills` is the
-    # explicit way to refresh them from what ships.
     from chock.scaffold.skills import install_skills
 
     installed_skills = install_skills(repo_root, overwrite=False)
@@ -253,14 +195,11 @@ def cmd_init(argv: list[str] | None = None) -> int:
     try:
         write_lock(build_lock(repo_root), repo_root)
     except OSError as exc:
-        # The lockfile is the attestation `verify` compares against; a repo scaffolded
-        # without one (or with a stale one) fails verify for everyone who clones it.
         print(
             f"[ERROR] chock.lock was not written ({exc}). Re-run `chock init` once the cause is fixed.", file=sys.stderr
         )
         return 1
 
-    # Scan the registry so a fresh repo validates clean (no "registry not found" warnings).
     from chock.registry.core import save_registry, scan
     from chock.validation import engine as validator_engine
 
@@ -271,13 +210,11 @@ def cmd_init(argv: list[str] | None = None) -> int:
             print(f"  [ERROR] {skip.path} :: manifest_parse: {skip.reason}")
     save_registry(entries, repo_root)
 
-    # Self-check: run validate directly so this works in a frozen binary.
     if validator_engine.main([str(repo_root)]) != 0:
         return 1
 
     print(f"Initialized Chock in {repo_root}")
     print(f"Agents: AGENTS.md + {', '.join(agents)}")
-    # A silent skip is the same lie as a silent overwrite, pointed the other way.
     for rel in sorted(set(preserved)):
         print(f"[KEPT] {rel} has local edits; left unchanged (use --force to overwrite)")
     if installed_skills:

@@ -143,11 +143,7 @@ def test_cli_table_prints_partial_for_bare_string(tmp_path: Path, capsys: pytest
 
 
 def test_disabled_policy_does_not_claim_coverage(tmp_path: Path) -> None:
-    """A policy the adopter turned off enforces nothing, so it must not claim coverage.
-
-    Reporting a control as covered by a disabled policy is false assurance -- the same
-    class of error as treating a bare string claim as `full`.
-    """
+    """A policy the adopter turned off enforces nothing, so it must not claim coverage."""
     _make_policy(tmp_path, "p1", {"owasp_asi": [{"control": "ASI04", "coverage": "full", "note": "n"}]})
     (tmp_path / ".chock").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".chock" / "config.yaml").write_text("policies:\n  disabled: [p1]\n  overrides: {}\n", encoding="utf-8")

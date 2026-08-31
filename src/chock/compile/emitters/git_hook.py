@@ -39,7 +39,7 @@ def _emit_shims(output_dir: Path, policy_id: str, events: list[str]) -> list[Pat
         try:
             shim.chmod(0o755)
         except OSError:
-            pass  # best-effort: chmod is a no-op/denied on Windows; the bash shim still runs via `bash <path>`
+            pass
         emitted.append(shim)
     return emitted
 
@@ -55,29 +55,16 @@ def emit(policy_dir: Path, output_dir: Path, manifest: dict[str, Any]) -> list[P
     if spec is None:
         return []
 
-    # Only a gate that fires at commit or push is a git-hook. A gate declaring, say, only
-    # `tool_use` produces no shim, yet emitting gate.json + the runner still returned a
-    # non-empty artifact list -- so coverage credited the policy `enforced-at-commit` with
-    # nothing installed at commit time. Mirror ci-gate: no relevant event, no surface.
     hook_events = [e for e in spec.get("on", []) if e in ("commit", "push")]
     if not hook_events:
         return []
 
-    # The block message the agent actually sees must name the params the gate actually
-    # enforces. Authored as "(main/master)", it kept saying that after config resolution
-    # changed the protected set -- so the gate blocked `production` while its own message
-    # denied that `production` was protected.
     spec["message"] = template_message(spec["message"], spec["params"])
 
     gate_json = output_dir / "gate.json"
     write_generated_json(gate_json, spec)
     emitted: list[Path] = [gate_json]
 
-    # `<artifact_root>/bin/gate.py`, derived from the output tree rather than the repo:
-    # output_dir is `<artifact_root>/compiled/<policy_id>/git-hook`. Compiling into a temp
-    # tree must vendor into that tree, not into the working repo -- see vendor_runner.
-    # The runner is part of compiled output, so `recompile --check` compares it like any
-    # other artifact, which is what makes tampering with it visible.
     emitted.append(vendor_runner(output_dir.parents[2]))
     emitted.extend(_emit_shims(output_dir, policy_id, hook_events))
     return emitted

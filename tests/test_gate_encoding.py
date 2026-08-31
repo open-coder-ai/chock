@@ -1,16 +1,4 @@
-"""The gate must decode git output as UTF-8, never as the machine's locale codec.
-
-`subprocess.run(..., text=True)` without `encoding=` decodes using
-`locale.getpreferredencoding()` -- cp1252 on a default Windows install. Git emits UTF-8, so
-any staged file containing a byte that codec lacks raised UnicodeDecodeError inside
-subprocess's reader thread, `proc.stdout` came back None, and the gate died on
-`None.splitlines()`.
-
-Found the way it would find an adopter: committing a design doc containing `←`
-(U+2190 -> E2 86 90; 0x90 is undefined in cp1252). The hook printed a traceback and blocked
-the commit. A crash is not a verdict -- this was a denial of service on valid content, and
-on Windows it would have hit any adopter writing an arrow, a dash variant, or CJK text.
-"""
+"""The gate must decode git output as UTF-8, never as the machine's locale codec."""
 
 from __future__ import annotations
 
@@ -21,7 +9,6 @@ from conftest import init_repo, stage
 
 from chock.gate.runner import GateContext, run
 
-# Characters whose UTF-8 encoding contains a byte cp1252 cannot decode.
 HOSTILE = {
     "left arrow U+2190": "note = 'value'  # ← chosen default\n",
     "CJK": "# 設定ファイル\n",
@@ -65,12 +52,7 @@ def test_a_hostile_file_does_not_crash_the_gate(tmp_path: Path) -> None:
 
 
 def test_a_secret_next_to_hostile_bytes_is_still_caught(tmp_path: Path) -> None:
-    """Failing open on undecodable bytes would be the worse bug.
-
-    `errors="replace"` keeps scanning rather than refusing the file, so a real match beside
-    an odd character must still be found -- otherwise the fix would have turned a crash into
-    a silent miss.
-    """
+    """Failing open on undecodable bytes would be the worse bug."""
     repo = init_repo(tmp_path)
     stage(repo, "config.py", "# ← default\nAWS_KEY = 'AKIAIOSFODNN7EXAMPLE'\n")  # pragma: allowlist secret
 

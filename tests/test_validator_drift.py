@@ -117,7 +117,6 @@ def test_index_freshness_and_pointer_are_validated(tmp_path):
     assert not any(f.check == "ambient_pointer" for f in report.warnings)
     assert not any(f.check == "index_freshness" for f in report.warnings)
 
-    # Stale index.
     (tmp_path / ".agents" / "policies" / "INDEX.md").write_text("stale\n", encoding="utf-8")
     report = validator.Report()
     validator.check_ambient_rule_blocks(tmp_path, report)
@@ -125,8 +124,7 @@ def test_index_freshness_and_pointer_are_validated(tmp_path):
 
 
 def test_install_skills_places_schemas(tmp_path):
-    """install-skills must inject the installed package's manifest schemas into the
-    consumer's .agents/skills/validate/assets/ directory."""
+    """install-skills must inject the installed package's manifest schemas into the"""
     from chock.scaffold.skills import install_skills
     from chock.validation.loading import SCHEMA_DIR
 
@@ -155,17 +153,7 @@ def test_release_consistency(tmp_path):
 
 
 def test_release_consistency_reads_the_whole_pep440_version(tmp_path):
-    """The version pattern must capture pre-release suffixes, not truncate them.
-
-    `\\d+\\.\\d+\\.\\d+` stopped at the numeric release segment, and the two directions failed
-    differently. A matched pre-release (`0.0.1a0` both sides) captured `0.0.1` and reported a
-    mismatch that was not real -- noisy, but safe.
-
-    The mismatched direction is the defect worth a test: a CHANGELOG topped by `0.0.1a0`
-    against a pyproject on `0.0.1` also captured `0.0.1`, compared equal, and PASSED. The
-    check that gates a release failed open on the one comparison it exists to make, so a
-    release could ship with a changelog describing a different version.
-    """
+    """The version pattern must capture pre-release suffixes, not truncate them."""
     validator = _load_validator()
 
     (tmp_path / "pyproject.toml").write_text('[project]\nversion = "0.0.1a0"\n', encoding="utf-8")
@@ -218,12 +206,7 @@ def _copy_policies(tmp_path) -> list[str]:
 
 
 def test_installed_policies_resolve_from_a_fresh_install(tmp_path):
-    """A repo with policies copied in must not warn about the policies it holds.
-
-    `_resolve_id` once ran a second implementation of discovery that had fallen out of step
-    with `discover_artifacts`, and reported eleven installed policies unresolvable. This
-    pins the behaviour rather than the implementation.
-    """
+    """A repo with policies copied in must not warn about the policies it holds."""
     from chock.validation.checks_repo import _resolve_id
 
     installed = _copy_policies(tmp_path)
@@ -240,13 +223,7 @@ def test_policies_table_columns_fit_the_longest_value(tmp_path):
 
 
 def test_a_policy_folder_validated_directly_is_the_policy_not_its_children(tmp_path):
-    """`validate <policy-folder>` is the documented authoring loop, and it used to misfire.
-
-    Discovery only walked subdirectories, so the folder's own manifest was never read while
-    its `evals/` was misread as a standalone eval artifact -- no manifest, empty id, and a
-    false SEC-1 error against its own suite.yaml. The folder must discover as exactly one
-    artifact: itself.
-    """
+    """`validate <policy-folder>` is the documented authoring loop, and it used to misfire."""
     import shutil
 
     from conftest import baseline_policy

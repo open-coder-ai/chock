@@ -1,13 +1,4 @@
-"""Frontier validation modes: `chock check --only validate --mode frontier-<agent>`.
-
-A documented, user-facing profile that had almost no coverage. What it decides matters:
-these findings are the difference between a skill that a frontier client will accept and one
-it will reject at load time, and every limit here comes from a standard file that ingest
-pins rather than from a constant someone typed.
-
-The standards directory is redirected in every test. Reading whatever happens to be pinned
-in the installed package would make these assertions depend on when someone last ran ingest.
-"""
+"""Frontier validation modes: `chock check --only validate --mode frontier-<agent>`."""
 
 from __future__ import annotations
 
@@ -52,11 +43,7 @@ def _checks(report: Report) -> list[str]:
 
 
 def test_missing_standard_warns_with_the_command_that_fixes_it(tmp_path: Path, standards) -> None:
-    """An absent standard is not a validation failure -- the adopter simply has not ingested one.
-
-    The message carries the exact command, because a warning that leaves someone guessing
-    costs more than it saves.
-    """
+    """An absent standard is not a validation failure -- the adopter simply has not ingested one."""
     standards("agentskills", STANDARD)
     report = Report()
     frontier.check_frontier_mode(tmp_path, {"id": "x"}, "skill", "frontier-nosuchagent", report)

@@ -85,8 +85,6 @@ def cmd_new(argv: list[str] | None = None) -> int:
         print(f"[ERROR] {exc}", file=sys.stderr)
         return 2
 
-    # Refresh the registry so `validate` passes immediately after `new` — no manual
-    # `registry scan` step, no confusing "registry is stale" error on a brand-new artifact.
     from chock.registry.core import save_registry, scan
 
     entries, skips = scan(root)

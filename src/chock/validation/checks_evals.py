@@ -30,7 +30,6 @@ def _schema_validate_suite(suite_file: Path, report: Report) -> None:
 
 def check_eval_first(artifact_dir: Path, manifest: dict[str, Any], artifact_type: str, report: Report) -> None:
     """Eval suite must exist and meet minimum case counts before an artifact is valid."""
-    # The spec requires eval suites for every artifact in the taxonomy.
     if artifact_type not in ARTIFACT_TYPES:
         return
 
@@ -55,8 +54,6 @@ def check_eval_first(artifact_dir: Path, manifest: dict[str, Any], artifact_type
         report.add(Finding(str(suite_file), "eval_first", "error", f"Invalid YAML: {exc}"))
         return
 
-    # A top-level list (or any non-mapping shape) used to raise AttributeError here and
-    # take down the entire validate run -- a parse-shaped problem must be a finding.
     if not isinstance(doc, dict):
         report.add(Finding(str(suite_file), "eval_first", "error", "Eval suite must be a YAML mapping."))
         return
@@ -104,7 +101,6 @@ def check_eval_first(artifact_dir: Path, manifest: dict[str, Any], artifact_type
             )
         )
 
-    # SEC-6: skills that process external content require an adversarial eval case.
     if artifact_type == "skill" and manifest.get("security", {}).get("processes_external_content"):
         if categories.count("adversarial") < 1 and categories.count("security") < 1:
             report.add(

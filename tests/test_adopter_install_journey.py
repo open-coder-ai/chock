@@ -1,19 +1,4 @@
-"""Copying a policy in and recompiling must leave a repo you can still commit to.
-
-The framework ships no policies, so `cp -r <catalog>/base/<id> .agents/policies/<id>` then
-`chock sync` is the ONLY way to install one. That flow used to brick the repo:
-compiling wrote the gate but left the registry and INDEX.md describing a repo that no
-longer existed, so the installed validate hook failed on EVERY commit --
-
-    [ERROR] registry_freshness: Registry is stale: hook 'protect-main-branch' not found.
-    [WARN]  index_freshness: INDEX.md is stale. Run `chock sync`.
-
--- which is the failure this project calls worse than no guard at all.
-
-The half that matters is the negative one. Asserting only that a commit on `main` is
-blocked passes just as well when EVERYTHING is blocked; it took asserting that a feature
-branch still commits to find this.
-"""
+"""Copying a policy in and recompiling must leave a repo you can still commit to."""
 
 from __future__ import annotations
 
@@ -88,10 +73,7 @@ def test_a_copied_policy_enforces_and_leaves_the_repo_usable(adopter: Path) -> N
 
 
 def test_recompile_leaves_validation_clean(adopter: Path) -> None:
-    """The direct cause, asserted without going through git.
-
-    `recompile` must reconcile the registry and the index, not only the compiled tree.
-    """
+    """The direct cause, asserted without going through git."""
     _install_policy(adopter, "protect-main-branch")
 
     result = _ac(["validate", "."], adopter)
@@ -102,12 +84,7 @@ def test_recompile_leaves_validation_clean(adopter: Path) -> None:
 
 
 def test_verify_actually_tracks_what_was_installed(adopter: Path) -> None:
-    """`verify` must be able to fail.
-
-    `init` writes the lockfile, but `init` installs nothing now -- so a lock built there is
-    empty by definition. Nothing rebuilt it afterwards, and `verify` reported "all packs
-    match lockfile" over zero packs: it passed even after an installed policy was edited.
-    """
+    """`verify` must be able to fail."""
     _install_policy(adopter, "protect-main-branch")
 
     clean = _ac(["verify"], adopter)
@@ -123,19 +100,11 @@ def test_verify_actually_tracks_what_was_installed(adopter: Path) -> None:
 
 
 def test_every_next_step_add_prints_actually_runs(adopter: Path, tmp_path: Path) -> None:
-    """The quickstart ends with a paste: `chock add <id>`, then the command `add` names.
-
-    That hint said `chock sync .`, but `sync` takes `--repo` and no positional (uv-sync
-    semantics), so the documented path's final step died on `unrecognized arguments: .`.
-    Run whatever `add` prints rather than asserting the string, so a reworded hint stays
-    covered.
-    """
+    """The quickstart ends with a paste: `chock add <id>`, then the command `add` names."""
     catalog = tmp_path / "catalog"
     (catalog / "base").mkdir(parents=True)
     shutil.copytree(REPO_POLICIES / "protect-main-branch", catalog / "base" / "protect-main-branch")
 
-    # Both hint paths: --skip-compile points at sync to compile; the default points at it
-    # to activate enforcement.
     for extra in (["--skip-compile"], ["--force"]):
         result = _ac(["add", "protect-main-branch", "--from", str(catalog), *extra], adopter)
         assert result.returncode == 0, result.stdout + result.stderr
@@ -150,11 +119,7 @@ def test_every_next_step_add_prints_actually_runs(adopter: Path, tmp_path: Path)
 
 
 def test_check_stays_side_effect_free(adopter: Path) -> None:
-    """`recompile --check` must measure, never repair.
-
-    A check that fixes what it reports cannot fail a build twice, and would hide exactly the
-    drift it exists to surface.
-    """
+    """`recompile --check` must measure, never repair."""
     _install_policy(adopter, "protect-main-branch")
     index = adopter / ".agents" / "policies" / "INDEX.md"
     index.write_text("deliberately stale\n", encoding="utf-8")

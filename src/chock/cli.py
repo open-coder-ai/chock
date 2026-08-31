@@ -20,8 +20,7 @@ def _module_main(module_name: str):
 
 
 def _module_fn(module_name: str, fn_name: str):
-    """Lazy handler for a named function: keeps the dispatcher import-light and the
-    import graph one-directional (cli never imports command modules at load time)."""
+    """Lazy handler for a named function: keeps the dispatcher import-light and the"""
 
     def _main(argv: list[str] | None) -> int:
         return int(getattr(import_module(module_name), fn_name)(argv) or 0)
@@ -29,8 +28,6 @@ def _module_fn(module_name: str, fn_name: str):
     return _main
 
 
-# The adopter surface follows the Python toolchain's verbs (uv init/add/sync,
-# poetry check, git status) so nothing here needs learning twice.
 EVERYDAY = {
     "init": (_module_main("chock.scaffold.init"), "Scaffold a consumer repo (wiring only -- no policies)"),
     "add": (_module_main("chock.scaffold.add"), "Install a policy or skill from a catalog and compile it"),
@@ -81,8 +78,6 @@ AUTHORING = {
     ),
 }
 
-# Pre-launch aliases: the pre-consolidation names, behaving exactly as before.
-# Hidden from --help; deleted at launch so the public CLI is born with 12 commands.
 ALIASES = {
     "validate": (_module_main("chock.validation.engine"), "alias of: check --only validate"),
     "verify": (_module_main("chock.lock"), "alias of: check --only verify"),
@@ -96,15 +91,10 @@ ALIASES = {
     "gate-log": (_module_main("chock.gatelog"), "alias of: status --only log"),
 }
 
-#: Every invocable command. External tooling (the catalog's check_console) reads this
-#: as the definition of "a real chock command", so aliases belong in it.
 COMMANDS = {**EVERYDAY, **AUTHORING, **ALIASES}
 
 
 def main(argv: list[str] | None = None) -> int:
-    # Before any command runs. `sync | head -2` used to die between installing hooks and
-    # refreshing the registry they depend on, leaving the repo failing validation on every
-    # commit -- a closed pager must stop the output, never the work. See chock.pipe.
     writer = guard_stdout()
     try:
         return _dispatch(list(sys.argv[1:] if argv is None else argv))
@@ -115,9 +105,6 @@ def main(argv: list[str] | None = None) -> int:
 def _dispatch(argv: list[str]) -> int:
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__.strip())
-        # Generated from the tables, never hand-maintained: a previous hard-coded summary
-        # silently omitted `refresh` from the moment that command was added. Aliases are
-        # dispatchable but not advertised.
         print("\nEveryday:")
         for name, (_, help_text) in EVERYDAY.items():
             print(f"  {name:10} {help_text}")

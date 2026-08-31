@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Verify that every spec invariant ID appears in the enforcement matrix.
-
-Scans spec/ for invariant IDs (e.g. SEC-1, DET-2) and ensures each one has a
-matching row in spec/enforcement-matrix.md. Fails if any spec invariant is
-missing from the matrix or if a matrix row lacks a Check column.
-"""
+"""Verify that every spec invariant ID appears in the enforcement matrix."""
 
 from __future__ import annotations
 
@@ -12,7 +7,7 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path.cwd()  # repo-root tool: operates on the current working directory
+ROOT = Path.cwd()
 SPEC_DIR = ROOT / "spec"
 MATRIX_FILE = SPEC_DIR / "enforcement-matrix.md"
 
@@ -44,9 +39,7 @@ def collect_matrix_ids_and_rows() -> tuple[set[str], list[str]]:
             continue
         inv_id = match.group(1)
         ids.add(inv_id)
-        # A valid row must have at least 5 pipe-separated columns and a non-empty Check column.
         parts = [p.strip() for p in line.split("|")]
-        # parts[0] is empty before the first |, parts[1] is ID, parts[3] is Check, etc.
         if len(parts) < 5 or not parts[3] or parts[3].lower() == "check":
             rows_without_check.append(line.strip())
     return ids, rows_without_check
@@ -62,10 +55,6 @@ For work on Chock itself. Anywhere without spec/enforcement-matrix.md it exits n
 
 
 def main(argv=None) -> int:
-    # The only command taking no arguments, so it parsed none -- and `check-matrix --help`
-    # therefore ran the check and failed with "enforcement matrix not found", which reads like
-    # a broken install rather than a misunderstanding about flags. Every other command answers
-    # --help; matching them is cheaper than the support question.
     if argv and argv[0] in ("-h", "--help"):
         print(USAGE.strip())
         return 0

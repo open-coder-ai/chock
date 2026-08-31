@@ -1,9 +1,4 @@
-"""Write a per-agent vendored runtime into `.chock/bin/`.
-
-One tiny module shared by every installer that needs to vendor a runtime file
-(`pretooluse_install`, `cursor_install`, `agenthooks_install`, `sessionstart_install`), so
-the render-and-chmod step exists in exactly one place rather than four copies.
-"""
+"""Write a per-agent vendored runtime into `.chock/bin/`."""
 
 from __future__ import annotations
 
@@ -11,7 +6,6 @@ from pathlib import Path
 
 from chock.gate import runtime_bundle
 
-#: agent -> the file its vendored runtime is written as under `.chock/bin/`.
 RUNTIME_FILENAME = {
     "claude_code": "claude_code.py",
     "cursor": "cursor.py",
@@ -31,5 +25,5 @@ def vendor_runtime(repo_root: Path, agent: str) -> Path:
     try:
         dest.chmod(0o755)
     except OSError:
-        pass  # best-effort: chmod is a no-op/denied on Windows; invoked as `python <path>`
+        pass
     return dest

@@ -17,14 +17,7 @@ def _token_estimate(text: str) -> int:
 
 
 def _rule_lines(entry: IndexEntry) -> list[str]:
-    """Render a rule, preserving its line structure.
-
-    Rules are capped at ~2 lines by design and each line is an independent directive.
-    Joining them with a space runs two directives together -- "... lint_clean
-    never(fix_test_by): ..." reads as one malformed statement -- which destroys the
-    structure the cap exists to create. Single-line rules keep the compact inline form;
-    multi-line rules use a markdown list continuation.
-    """
+    """Render a rule, preserving its line structure."""
     body = [line.strip() for line in entry.rule_text.strip().splitlines() if line.strip()]
     if not body:
         return [f"- **{entry.id}**: (no rule text)"]
@@ -110,7 +103,6 @@ def render_index(entries: Iterable[IndexEntry], max_tokens: int) -> IndexOutput:
         tokens = _token_estimate(text)
         if tokens <= max_tokens:
             break
-        # Remove the last advise-tier entry (by sorted order) to protect block/verify.
         moved = False
         for entry in reversed(sorted_entries):
             if entry.enforcement == "advise" and entry.id not in demoted:

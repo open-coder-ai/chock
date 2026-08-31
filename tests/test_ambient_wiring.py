@@ -1,18 +1,4 @@
-"""Compiled advisory text has exactly one destination, and it is not AGENTS.md.
-
-`compile/emitters/ambient.py` derives correct, config-aware advisory text per policy.
-INDEX.md publishes it: generated, config-resolved, and required reading via the pointer
-AGENTS.md carries at line ~60. Inlining the same text into AGENTS.md as per-policy
-`chock:hooks` blocks made the always-loaded surface half a second copy of its other
-half -- +112% on the one file every agent loads on every task -- which is what
-`minimal_content: {target: [redundancy, ...]}` forbids and what PR #62 had already
-compressed away once.
-
-So AGENTS.md carries the pointer and nothing per-policy, and refresh strips both legacy
-inlined forms. The objection that an agent might skip the pointer is answered by the repo's
-own design: anything that must always hold is a hook, so skipping INDEX.md loses guidance,
-never enforcement.
-"""
+"""Compiled advisory text has exactly one destination, and it is not AGENTS.md."""
 
 from __future__ import annotations
 
@@ -83,7 +69,6 @@ def _compiled(repo: Path, policy_id: str, body: str) -> Path:
     return path
 
 
-# ------------------------------------------------------ AGENTS.md must not accumulate copies
 def test_compiled_ambient_text_is_not_inlined(tmp_path: Path) -> None:
     """The regression worth preventing: AGENTS.md growing one block per installed policy."""
     repo = _adopter_repo(tmp_path)
@@ -134,7 +119,6 @@ def test_refresh_is_idempotent(tmp_path: Path) -> None:
     assert (repo / "AGENTS.md").read_bytes() == first
 
 
-# -------------------------------------------------------------------- what must not be lost
 def test_hand_written_content_outside_the_markers_survives(tmp_path: Path) -> None:
     """This repo just fixed a data-loss bug of exactly this shape."""
     repo = _adopter_repo(tmp_path, hooks=INLINED)
@@ -151,15 +135,8 @@ def test_hand_written_content_outside_the_markers_survives(tmp_path: Path) -> No
         assert owned in text, owned
 
 
-# -------------------------------------------------------------- the assertion that matters
 def test_customised_protected_branches_reach_the_agent(tmp_path: Path) -> None:
-    """config -> recompile -> refresh -> the branches named in what the agent is told to read.
-
-    Before PR #67 this said "main/master" whatever the adopter configured, so an agent
-    concluded `production` was writable and was then blocked by a gate naming branches its
-    guidance had never mentioned. The text must be resolved and reachable in one hop from
-    AGENTS.md -- but it lives in INDEX.md rather than being copied into AGENTS.md.
-    """
+    """config -> recompile -> refresh -> the branches named in what the agent is told to read."""
     repo = _adopter_repo(tmp_path)
     dest = repo / ".agents" / "policies" / "protect-main-branch"
     dest.parent.mkdir(parents=True)
@@ -181,7 +158,6 @@ def test_customised_protected_branches_reach_the_agent(tmp_path: Path) -> None:
     assert "Hand-written preamble the adopter owns." in agents_md
 
 
-# ---------------------------------------------------------------------- staleness reporting
 def test_check_reports_an_inlined_block(tmp_path: Path) -> None:
     """No check covered AGENTS.md's managed form before, so drift survived until refresh ran."""
     repo = _adopter_repo(tmp_path)

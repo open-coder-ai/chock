@@ -1,13 +1,4 @@
-"""`chock add` is the step that turns a scaffolded repo into a governed one.
-
-The framework ships no policies, so before this existed adopting one meant cloning a
-catalog, copying a folder, recompiling, and installing hooks -- four operations, one of
-which is easy to forget, as the documented flow proved by leaving repos unable to commit.
-
-Transport is `git clone --depth 1`, which inherits the adopter's existing credentials, so a
-private catalog works with no token handling here. These tests use a local path, which is
-the same code path minus the clone.
-"""
+"""`chock add` is the step that turns a scaffolded repo into a governed one."""
 
 from __future__ import annotations
 
@@ -65,10 +56,7 @@ def test_an_unknown_id_is_refused(catalog: Path, repo: Path) -> None:
 
 
 def test_an_installed_artifact_is_never_silently_replaced(catalog: Path, repo: Path) -> None:
-    """Once installed, the content is the adopter's -- that is why it is not bundled.
-
-    Overwriting on a re-add would recreate exactly the loss the split exists to prevent.
-    """
+    """Once installed, the content is the adopter's -- that is why it is not bundled."""
     dest = add(repo, "protect-main-branch", str(catalog), None, force=False).path
     manifest = dest / "manifest.yaml"
     manifest.write_text(manifest.read_text(encoding="utf-8") + "\n# our edit\n", encoding="utf-8")
@@ -100,12 +88,7 @@ def test_locate_prefers_the_declared_areas(catalog: Path) -> None:
 
 
 def test_a_wrong_verify_sha_installs_nothing(repo: Path, catalog: Path) -> None:
-    """A catalog policy carries guard scripts that run on every commit.
-
-    So the hash is checked while the content is still in the temp clone. Verifying after the
-    copy would mean an unexpected script had already been written into a repo whose next
-    commit executes it.
-    """
+    """A catalog policy carries guard scripts that run on every commit."""
     from chock.scaffold.add import IntegrityError
 
     with pytest.raises(IntegrityError):
@@ -131,11 +114,7 @@ def test_a_local_catalog_reports_no_commit(repo: Path, catalog: Path) -> None:
 
 
 def test_a_cloned_catalog_records_the_commit_it_resolved_to(repo: Path, catalog: Path) -> None:
-    """`--ref main` means "whatever main pointed at then", so the answer must be recorded.
-
-    Cloned over file:// rather than a local path, because a path short-circuits the clone --
-    and the clone is the code path that has provenance to capture.
-    """
+    """`--ref main` means "whatever main pointed at then", so the answer must be recorded."""
     for args in (
         ["git", "init", "--quiet", "-b", "main", "."],
         ["git", "config", "user.email", "c@example.invalid"],
@@ -153,11 +132,7 @@ def test_a_cloned_catalog_records_the_commit_it_resolved_to(repo: Path, catalog:
 
 
 def test_provenance_survives_the_lockfile_rebuild(repo: Path, catalog: Path) -> None:
-    """`recompile` rebuilds the lockfile from disk, which knows the bytes but not the origin.
-
-    Without recording it afterwards, "which catalog, at which commit" became unanswerable as
-    soon as the terminal scrolled.
-    """
+    """`recompile` rebuilds the lockfile from disk, which knows the bytes but not the origin."""
     import json
 
     from chock.lock import build_lock, write_lock

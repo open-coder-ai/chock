@@ -46,21 +46,11 @@ def read_lock(repo_root: Path | None = None) -> dict[str, Any]:
 def write_lock(data: dict[str, Any], repo_root: Path | None = None) -> None:
     repo_root = repo_root or Path.cwd().resolve()
     path = repo_root / LOCKFILE_NAME
-    # newline="\n", not bare write_text: on Windows the latter emits CRLF, so every sync
-    # rewrote chock.lock with the other platform's line endings -- a no-op recompile showed
-    # the lockfile as modified, the git-status noise emit.write_generated exists to prevent.
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
 def compute_artifacts_hash(repo_root: Path, policy_id: str) -> str | None:
-    """Hash the compiled tree a pack produced, or None when it has not been compiled.
-
-    The pack hash covers `.agents/policies/<id>` -- the source. What actually enforces is
-    `.chock/compiled/<id>`, and nothing hashed it: deleting or weakening a compiled
-    gate left `verify` printing "all packs match lockfile" while enforcement was off. A
-    lockfile that attests the wrong artifact is worse than none, because it is quoted as
-    evidence.
-    """
+    """Hash the compiled tree a pack produced, or None when it has not been compiled."""
     compiled_dir = repo_root / ".chock" / "compiled" / policy_id
     if not compiled_dir.is_dir():
         return None
@@ -68,12 +58,7 @@ def compute_artifacts_hash(repo_root: Path, policy_id: str) -> str | None:
 
 
 def build_lock(repo_root: Path, source_root: Path | None = None) -> dict[str, Any]:
-    """Build a lockfile from the policies installed in a repo.
-
-    Every pack is `managed: false` / `source: local`. The framework ships no policies, so
-    there is no framework-owned tree to distinguish from the adopter's -- content is
-    installed, and once installed it is theirs.
-    """
+    """Build a lockfile from the policies installed in a repo."""
     lock: dict[str, Any] = {
         "lockfile_version": LOCKFILE_VERSION,
         "engine": ENGINE_CONSTRAINT,
@@ -108,12 +93,6 @@ def verify_lock(repo_root: Path | None = None) -> tuple[bool, list[str]]:
     lock = read_lock(repo_root)
     failures: list[str] = []
 
-    # The vendored runtimes are not hashed per pack -- they are shared by every policy in the
-    # repo -- but they are what executes, so `verify` has to judge them. Skipping them left
-    # the attestation command reporting "all packs match" against a runner whose `run()` had
-    # been replaced with `return 0`, which is the one bypass that disables every gate at once.
-    # Imported here rather than at module scope: `lock` is imported by callers that only
-    # need the hashing helpers, and the drift check pulls in importlib.resources.
     from chock.vendored import vendored_differences
 
     failures += [
@@ -129,9 +108,6 @@ def verify_lock(repo_root: Path | None = None) -> tuple[bool, list[str]]:
         if actual != entry.get("sha256"):
             failures.append(f"{entry['id']}: hash mismatch (expected {entry.get('sha256')}, got {actual})")
 
-        # Optional on read, so a lockfile written before this field existed reports as
-        # unpinned rather than as a false mismatch. It is written on the next `verify init`
-        # or `recompile`.
         expected_artifacts = entry.get("artifacts_sha256")
         if expected_artifacts is None:
             continue

@@ -1,8 +1,4 @@
-"""Locate installed policy folders.
-
-Lives below both `scaffold.recompile` and `hooks.autocompile` so hook-time code can
-enumerate policies without importing the orchestrator that compiles them.
-"""
+"""Locate installed policy folders."""
 
 from __future__ import annotations
 

@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-"""Install the Chock validation and policy hooks as dispatcher-based implementations.
-
-The installer creates pre-commit and pre-push dispatchers that run every executable script
-in .git/hooks/<event>.d/. Existing hooks are backed up before being replaced.
-The dispatcher respects `core.hooksPath`.
-
-Usage:
-  chock sync
-"""
+"""Install the Chock validation and policy hooks as dispatcher-based implementations."""
 
 from __future__ import annotations
 
@@ -16,9 +8,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Re-exported: the installers moved to `installers.py` (so `scaffold.recompile` can use
-# them without importing this entrypoint, which imports the orchestrator back), but every
-# historical caller imports them from here.
 from chock.hooks.installers import (  # noqa: F401
     DISPATCHER_TEMPLATE,
     GENERATED_MARKER,
@@ -35,8 +24,6 @@ from chock.hooks.installers import (  # noqa: F401
     relocate_existing_hook,
 )
 
-# The re-exported surface, spelled out so static analysis knows the imports above are
-# this module's API rather than dead code.
 __all__ = [
     "DISPATCHER_TEMPLATE",
     "GENERATED_MARKER",
@@ -77,9 +64,6 @@ def main(argv=None) -> int:
     install_validate_hook(hooks_dir, repo_root)
     install_policy_hooks(repo_root, hooks_dir)
 
-    # PreToolUse fragments were compiled but never installed, so the policies that rely on
-    # them enforced nothing while coverage reported otherwise. Cursor's hook config gets
-    # the identical treatment: install both, then derive coverage once.
     from chock.hooks.agenthooks_install import install_agent_hooks
     from chock.hooks.cursor_install import install_cursor_hooks
     from chock.hooks.pretooluse_install import install_pretooluse_hooks
@@ -110,13 +94,10 @@ def main(argv=None) -> int:
             print(f"Registered {len(agent_installed)} agent hook(s) in .github/hooks/chock.json")
             wired = True
     if wired:
-        # Installing changed what is enforced, and coverage is derived from that.
         from chock.scaffold.recompile import refresh_after_install
 
         refresh_after_install(repo_root)
 
-    # No coverage interaction: the arm hook is repo wiring (it installs the git hooks on
-    # a fresh clone), not a policy surface, so it can follow the refresh safely.
     from chock.hooks.sessionstart_install import install_sessionstart_hook
 
     try:

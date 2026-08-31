@@ -1,19 +1,4 @@
-"""The grading ladder, and the distinction it was extended to be able to make.
-
-agentseam's five words -- `enforced` / `enforceable` / `best-effort` / `detect` / `none` --
-read one axis: what the HOST does when our hook never runs. Two materially different controls
-therefore collapsed onto `best-effort`: one that degrades to silently allowing, and one that
-degrades to putting the action to a human. The second is strictly stronger, and a grading
-layer that cannot say so cannot rank a competitor above us -- which is a defect in the
-grading layer, not a detail, because being able to report that we are behind is the whole
-reason anyone should believe the grades that flatter us.
-
-`fail-to-ask` is that missing word. These tests pin three things: that the ladder is ordered
-and the ordering is usable, that the new level is DERIVED from the mechanism rather than
-asserted per agent, and -- the one that matters most -- that chock does not quietly award
-itself the new level. `CONTROL_DEGRADES_TO` is checked against the guard runner actually
-running, not taken on trust.
-"""
+"""The grading ladder, and the distinction it was extended to be able to make."""
 
 from __future__ import annotations
 
@@ -36,19 +21,8 @@ from chock.compile.levels import (
 )
 from chock.compile.surfaces import SURFACE_AGENTS, Surface, coverage_level
 
-#: Materialised once rather than iterated as `for s in Surface` inside a nested comprehension.
-#: Both spellings are correct Python -- an Enum class is iterable -- but CodeQL's
-#: `py/non-iterable-in-for-loop` loses track of the metaclass in the nested case and reports the
-#: inner clause as iterating a bare `type`. It does not report the same expression in a flat
-#: comprehension, which the rest of this repo uses freely (`compile/compiler.py:142`). Binding
-#: it here keeps the check green without a suppression, and the tuple is what these tests mean
-#: anyway: every surface, in declaration order.
 ALL_SURFACES = tuple(Surface)
 
-#: Agents whose host fails OPEN at the outer boundary -- the rows where the old vocabulary
-#: could not tell the two controls apart, and so the rows the new level applies to. Derived
-#: rather than listed: an agent qualifies precisely when its allow-degrading grade is the
-#: `best-effort` tier, which is the condition `in_agent_level` itself branches on.
 FAIL_OPEN_AGENTS = [
     a for a in sorted(SURFACE_AGENTS) if in_agent_level(a, degrades_to=DEGRADES_TO_ALLOW) == "best-effort"
 ]
@@ -59,27 +33,17 @@ def test_the_ladder_is_ordered_weakest_first() -> None:
     ranks = [level_rank(level) for level in IN_AGENT_LEVELS]
     assert ranks == sorted(ranks), f"{IN_AGENT_LEVELS} is not ordered by its own rank"
     assert len(set(ranks)) == len(ranks), "two levels share a rank; they would compare equal"
-    # The two ends are the claims the ladder is anchored on, so they are pinned by name.
     assert IN_AGENT_LEVELS[0] == "none"
     assert IN_AGENT_LEVELS[-1] == "enforced"
 
 
 def test_the_new_level_sits_between_best_effort_and_enforceable() -> None:
-    """Where `fail-to-ask` was placed, stated as a checkable fact rather than left to the prose.
-
-    Above `best-effort` because the action does not proceed unattended; below `enforceable`
-    because asking always needs a person present and a configured fail-closed hook does not.
-    """
+    """Where `fail-to-ask` was placed, stated as a checkable fact rather than left to the prose."""
     assert level_rank("best-effort") < level_rank("fail-to-ask") < level_rank("enforceable")
 
 
 def test_unranked_levels_refuse_a_rank_rather_than_inventing_one() -> None:
-    """Ranking a git hook against an in-agent hook would be the translation the module refuses.
-
-    Returning some plausible number is the failure mode worth guarding: it reads as an
-    answer, and every caller comparing strengths would then be comparing mechanisms that
-    have no common scale.
-    """
+    """Ranking a git hook against an in-agent hook would be the translation the module refuses."""
     for level in UNRANKED_LEVELS:
         with pytest.raises(ValueError) as excinfo:
             level_rank(level)
@@ -87,12 +51,7 @@ def test_unranked_levels_refuse_a_rank_rather_than_inventing_one() -> None:
 
 
 def test_degrading_to_a_prompt_grades_strictly_stronger_than_degrading_to_allowing() -> None:
-    """The case that motivated the whole change, and the one it must not get wrong.
-
-    A control that blocks and, when it cannot decide, asks a human, versus one that blocks
-    and, when it cannot decide, lets the command through. The old vocabulary gave both the
-    same word. This asserts a strict inequality in rank, not merely that the strings differ.
-    """
+    """The case that motivated the whole change, and the one it must not get wrong."""
     assert FAIL_OPEN_AGENTS, "no fail-open agent left to test the distinction on"
     for agent in FAIL_OPEN_AGENTS:
         allowing = in_agent_level(agent, degrades_to=DEGRADES_TO_ALLOW)
@@ -104,11 +63,7 @@ def test_degrading_to_a_prompt_grades_strictly_stronger_than_degrading_to_allowi
 
 
 def test_a_deny_on_failure_is_graded_no_lower_than_an_ask() -> None:
-    """Denying when it cannot decide is stronger than asking; it must never grade weaker.
-
-    Graded the same rather than higher, deliberately: the ladder ranks on whether the action
-    proceeds unattended, and a control whose hook never starts denies nobody either.
-    """
+    """Denying when it cannot decide is stronger than asking; it must never grade weaker."""
     for agent in FAIL_OPEN_AGENTS:
         denying = in_agent_level(agent, degrades_to=DEGRADES_TO_DENY)
         asking = in_agent_level(agent, degrades_to=DEGRADES_TO_ASK)
@@ -116,12 +71,7 @@ def test_a_deny_on_failure_is_graded_no_lower_than_an_ask() -> None:
 
 
 def test_the_hosts_fail_mode_still_dominates() -> None:
-    """Asking cannot rescue a hook that never ran, so it never moves a non-fail-open row.
-
-    Cursor is the live case: FAIL_CONFIGURABLE, so `enforceable` whatever our guard does. If
-    this ever loosened, a control could be promoted on our own say-so past a boundary that is
-    the host's to set -- exactly the overclaim the surrounding module exists to refuse.
-    """
+    """Asking cannot rescue a hook that never ran, so it never moves a non-fail-open row."""
     not_fail_open = [a for a in sorted(SURFACE_AGENTS) if a not in FAIL_OPEN_AGENTS]
     assert "cursor" in not_fail_open
     for agent in not_fail_open:
@@ -140,11 +90,6 @@ def test_an_unmapped_agent_has_no_in_agent_level() -> None:
     assert in_agent_level("codex") == "none", "codex has no in-agent surface in SURFACE_AGENTS"
 
 
-# ---------------------------------------------------------------------------------------
-# The half that keeps this honest: what chock's own control actually does.
-# ---------------------------------------------------------------------------------------
-
-
 def _guard(tmp_path: Path, body: str) -> list[str]:
     """A guard script on disk, and the argv the vendored runtime would invoke it with."""
     path = tmp_path / "guard.sh"
@@ -154,14 +99,7 @@ def _guard(tmp_path: Path, body: str) -> list[str]:
 
 
 def _degradation(evaluate_result) -> str:
-    """The degradation word for one `evaluate` return value.
-
-    `evaluate` has THREE channels, not two: `None` (allow), `(VERDICT_ASK, reason)`, and
-    `(VERDICT_DENY, reason)`. Reading it as two -- `None` or "not None" -- is the specific
-    mistake this helper exists to prevent: it reports an `ask` as a `deny`, which flatters the
-    control by a whole rung of the ladder and would have this test demand a constant the
-    mechanism does not earn.
-    """
+    """The degradation word for one `evaluate` return value."""
     from chock.gate import guard_runner
 
     if evaluate_result is None:
@@ -171,37 +109,15 @@ def _degradation(evaluate_result) -> str:
 
 
 def test_chocks_degradation_constant_is_derived_from_the_running_guard(tmp_path: Path, monkeypatch) -> None:
-    """`CONTROL_DEGRADES_TO` is checked by running the mechanism, not by reading the constant.
-
-    A constant that merely says "we fail open" would keep saying it after someone wired an
-    ask path in, and the grade would then understate. So the value is recomputed here by
-    running `gate.guard_runner.evaluate` down EVERY path that reaches "could not decide" and
-    taking the weakest -- which is what `DEGRADES_TO_DENY`'s own comment above requires: "a
-    control mixing the two must be declared at its weakest path".
-
-    Every path, not one, is the point. `guard_runner` no longer answers them alike: a guard
-    that ran and errored asks, while a precondition failure (nothing to tokenize, no usable
-    bash) still allows. Deriving from the crash alone would report `ask` and demand a
-    constant this control has not earned; deriving from `is None` alone would report `deny`,
-    which is the reading that broke this test when the ask landed.
-
-    Two assertions guard the ends of the range, because "the weakest is allow" is also true
-    of a control that does nothing at all:
-      * exit 1 must still deny -- the control really blocks;
-      * at least one path must ask -- otherwise this passes by the ask having been removed,
-        which is the drift the whole test was written to catch.
-    """
+    """`CONTROL_DEGRADES_TO` is checked by running the mechanism, not by reading the constant."""
     from chock.gate import guard_runner
 
-    # Exit 1 is the violation channel: the control really does block.
     assert guard_runner.evaluate(_guard(tmp_path, "exit 1"), "rm -rf /", "Bash") is not None
 
     crashing = _guard(tmp_path, "exit 3")
     observed = {
-        # The guard ran and did not deliver a verdict.
         "crash": _degradation(guard_runner.evaluate(crashing, "rm -rf /", "Bash")),
         "killed": _degradation(guard_runner.evaluate(_guard(tmp_path, "kill -9 $$"), "rm -rf /", "Bash")),
-        # Preconditions: the guard never started.
         "unparseable": _degradation(guard_runner.evaluate(crashing, 'echo "unbalanced', "Bash")),
         "empty command": _degradation(guard_runner.evaluate(crashing, "   ", "Bash")),
     }
@@ -209,10 +125,6 @@ def test_chocks_degradation_constant_is_derived_from_the_running_guard(tmp_path:
         no_bash.setattr(guard_runner, "find_bash", lambda _: None)
         observed["no bash"] = _degradation(guard_runner.evaluate(crashing, "rm -rf /", "Bash"))
     with monkeypatch.context() as impatient:
-        # The fifth path, and the one that cannot be provoked by a payload or a patched
-        # lookup -- it needs a guard that really hangs. 30s is shortened to 1 so the suite
-        # does not wait it out; the branch is unchanged by that, since `run_guard` reads the
-        # value at call time. Left out, "every path" would be four of five.
         impatient.setattr(guard_runner, "_GUARD_TIMEOUT_SECONDS", 1)
         observed["timeout"] = _degradation(guard_runner.evaluate(_guard(tmp_path, "sleep 30"), "rm -rf /", "Bash"))
 
@@ -226,26 +138,15 @@ def test_chocks_degradation_constant_is_derived_from_the_running_guard(tmp_path:
         f"the claims in docs/enforcement-surfaces.md must move with it (per path: {observed})"
     )
 
-    # A guard that is not on disk at all never reaches the five paths above: `evaluate`
-    # returns before running anything, so it allows, and it is listed separately rather than
-    # folded in as though it were one of them.
     assert guard_runner.evaluate(["--guard", str(tmp_path / "absent.sh")], "rm -rf /", "Bash") is None
 
 
 def test_chock_does_not_award_itself_the_new_level() -> None:
-    """The point of the ladder is that it can say we are behind, so this pins that it does.
-
-    chock's PreToolUse and agent-hooks surfaces stay at the weaker tier while the vocabulary
-    now has a word for something we do not do. If someone wires an ask path in, this test
-    fails and is meant to -- the grade moves with the mechanism, and the mechanism is what
-    would have changed.
-    """
+    """The point of the ladder is that it can say we are behind, so this pins that it does."""
     assert CONTROL_DEGRADES_TO == DEGRADES_TO_ALLOW
     assert coverage_level({Surface.PRE_TOOL_USE}, "claude", pre_tool_use_installed=True) == "best-effort"
     assert coverage_level({Surface.AGENT_HOOKS}, "copilot", agent_hooks_installed=True) == "best-effort"
     assert coverage_level({Surface.AGENT_HOOKS}, "vscode", agent_hooks_installed=True) == "best-effort"
-    # Cursor is `enforceable` for the host's reason, not ours -- included so a reader does not
-    # take the three rows above as the whole story.
     assert coverage_level({Surface.PRE_TOOL_USE}, "cursor", pre_tool_use_installed=True) == "enforceable"
 
     reported = {
@@ -259,12 +160,7 @@ def test_chock_does_not_award_itself_the_new_level() -> None:
 
 
 def test_every_level_the_code_can_report_is_in_the_published_vocabulary() -> None:
-    """`COVERAGE_LEVELS` is what the docs are checked against, so it has to be complete.
-
-    Brute-forced over the witness combinations rather than listed, so a new branch in
-    `coverage_level` returning a word nobody published fails here instead of in a reader's
-    coverage report.
-    """
+    """`COVERAGE_LEVELS` is what the docs are checked against, so it has to be complete."""
     reported = {
         coverage_level({s}, a, pre_tool_use_installed=p, agent_hooks_installed=h, ci_gate_installed=c)
         for a in list(SURFACE_AGENTS) + ["no-such-agent"]

@@ -86,7 +86,6 @@ def test_install_py_relocates_existing_hook_and_replays_stdin(tmp_path: Path) ->
     preexisting.write_text('#!/bin/sh\nread line; echo "legacy-pre-push:$line"\n')
     preexisting.chmod(0o755)
 
-    # Two declarative policies both cover the pre-push event.
     _make_policy(repo, "first", ["main"])
     _make_policy(repo, "second", ["release"])
     for policy_id in ("first", "second"):

@@ -1,11 +1,4 @@
-"""Umbrella lifecycle commands: sync, check, status.
-
-The adopter surface follows the verbs the Python toolchain already taught people
-(`uv init/add/sync`, `poetry check`, `git status`). Each umbrella translates one
-`--repo` flag into the per-tool conventions of the commands it wraps; the wrapped
-entrypoints stay importable and are still exposed as hidden aliases for one
-pre-launch cycle.
-"""
+"""Umbrella lifecycle commands: sync, check, status."""
 
 from __future__ import annotations
 
@@ -53,9 +46,6 @@ def sync_main(argv: list[str] | None) -> int:
     return rc
 
 
-# Matrix reads the cwd by design, which is why it ignores --repo; `chock check`
-# documents that it must run from the repo root, exactly as CI already does. Every
-# member is read-only: `check` never regenerates what it measures.
 CHECKS = ("validate", "verify", "evals", "matrix", "index")
 
 
@@ -95,10 +85,6 @@ def check_main(argv: list[str] | None) -> int:
     if "matrix" in selected:
         from pathlib import Path
 
-        # The enforcement matrix is a framework-authoring artifact (spec/). Adopter
-        # repos have no spec/ tree, and the default `chock check` must not fail them
-        # for lacking one -- that is this framework's homework, not theirs. Asking for
-        # it explicitly (--only matrix) still fails loudly when it is missing.
         matrix_file = Path(args.repo) / "spec" / "enforcement-matrix.md"
         if matrix_file.exists() or args.only:
             from chock.authoring.matrix import main as matrix_main

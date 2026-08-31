@@ -1,9 +1,4 @@
-"""`chock status --only log`: turning the outcome JSONL into an answer.
-
-The reader exists so the log is not write-only. Its most valuable output is the part that
-is *absent* from the log -- a policy with no recorded event has never been consulted, which
-reads as "fine" everywhere else in the tooling.
-"""
+"""`chock status --only log`: turning the outcome JSONL into an answer."""
 
 from __future__ import annotations
 
@@ -53,7 +48,7 @@ def test_torn_and_foreign_lines_are_skipped_not_fatal(tmp_path: Path) -> None:
     """Hooks append concurrently. A half-written line loses a record, not the report."""
     path = write_log(tmp_path, RECORDS)
     with path.open("a", encoding="utf-8") as fh:
-        fh.write('{"ts": "2026-08-05T00:00:00Z", "policy_id": "scan-sec\n')  # torn
+        fh.write('{"ts": "2026-08-05T00:00:00Z", "policy_id": "scan-sec\n')
         fh.write("\n")
         fh.write('{"note": "no policy_id"}\n')
 

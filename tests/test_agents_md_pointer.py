@@ -34,7 +34,6 @@ def test_pointer_is_constant_regardless_of_installed_policies(tmp_path: Path) ->
     text = (repo / "AGENTS.md").read_text(encoding="utf-8")
     assert POINTER_BLOCK in text
 
-    # Add a new policy and ensure pointer bytes stay the same.
     dir_ = repo / ".agents" / "policies" / "p3"
     dir_.mkdir()
     (dir_ / "manifest.yaml").write_text(

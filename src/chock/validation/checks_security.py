@@ -25,16 +25,7 @@ def _is_script_file(path: Path) -> bool:
 
 
 def _split_eval_suite(path: Path) -> tuple[str, list[str]] | None:
-    """Split an eval suite into (non-adversarial remainder, adversarial case texts).
-
-    One adversarial case used to exempt the ENTIRE file from the SEC-4 scan -- a
-    smuggling channel: any payload passed unscanned by riding in a suite with one
-    legitimately adversarial case. Eval cases of every category are test payloads by
-    nature (injection-defense's own *trigger* case carries the injection string) and
-    are replayed visibly by the eval runner, so cases downgrade to info -- but the
-    non-case remainder (metadata, descriptions) stays an error surface.
-    Returns None when the file is not a parseable eval suite with cases.
-    """
+    """Split an eval suite into (non-adversarial remainder, adversarial case texts)."""
     if path.name not in ("suite.yaml", "suite.yml"):
         return None
     if "evals" not in path.parts:
@@ -42,8 +33,6 @@ def _split_eval_suite(path: Path) -> tuple[str, list[str]] | None:
     try:
         doc = yaml.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, yaml.YAMLError):
-        # The caller already read the file tolerantly; this strict re-read must not
-        # abort the scan -- fall back to scanning the tolerant text as one surface.
         return None
     if not isinstance(doc, dict):
         return None
@@ -65,19 +54,13 @@ def _split_eval_suite(path: Path) -> tuple[str, list[str]] | None:
 
 
 def _scan_text_surfaces(artifact_dir: Path, manifest: dict[str, Any], artifact_type: str, report: Report) -> None:
-    """Scan every text surface in the artifact folder for prompt-injection tripwires (SEC-4).
-
-    Covers manifest files, references, examples, eval suites, templates, and any
-    other .md/.yaml/.txt file. Adversarial/security eval cases are allowed and
-    downgraded to info.
-    """
+    """Scan every text surface in the artifact folder for prompt-injection tripwires (SEC-4)."""
     text_suffixes = {".md", ".yaml", ".yml", ".txt"}
     for path in artifact_dir.rglob("*"):
         if not path.is_file():
             continue
         if path.suffix.lower() not in text_suffixes:
             continue
-        # Skip hidden metadata or cache files inside the artifact folder.
         rel_parts = path.relative_to(artifact_dir).parts
         if any(part.startswith(".") for part in rel_parts):
             continue
@@ -85,9 +68,6 @@ def _scan_text_surfaces(artifact_dir: Path, manifest: dict[str, Any], artifact_t
             text = path.read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
-        # Adversarial/security eval cases legitimately contain injection strings --
-        # they are the test payload. Only those cases are downgraded (to info); the
-        # rest of the suite stays an error surface (SEC-4).
         split = _split_eval_suite(path)
         if split is not None:
             remainder, adversarial_cases = split
@@ -114,21 +94,16 @@ def check_security_baseline(artifact_dir: Path, manifest: dict[str, Any], artifa
     manifest_path = find_manifest(artifact_dir, artifact_type)
     manifest_ref = str(manifest_path or artifact_dir / CANONICAL_MANIFEST)
 
-    # SEC-1: never-obey applies to every artifact type.
     security = manifest.get("security", {})
     if security.get("content_instructions") != "never-obey":
         report.add(
             Finding(manifest_ref, "security", "error", "security.content_instructions must be 'never-obey' (SEC-1).")
         )
 
-    # SEC-2: deterministic scripts must not call LLMs or the network.
     skill_type = (manifest.get("skill") or {}).get("skill_type") or manifest.get("skill_type")
     script_dirs: list[Path] = []
     if artifact_type == "skill" and skill_type in {"code", "hybrid"}:
         script_dirs.append(artifact_dir / "scripts")
-    # Hook implementations are the enforcement-critical scripts a policy ships; they
-    # were never scanned, so the one directory whose compromise defeats the guard was
-    # the one directory SEC-2 skipped.
     if artifact_type == "hook":
         script_dirs.append(artifact_dir / "implementations")
 
@@ -156,7 +131,6 @@ def check_security_baseline(artifact_dir: Path, manifest: dict[str, Any], artifa
                     )
                 )
 
-    # SEC-4: scan all text surfaces for prompt-injection tripwires.
     _scan_text_surfaces(artifact_dir, manifest, artifact_type, report)
 
 

@@ -66,18 +66,7 @@ def test_manifest_sandbox_production(tmp_path: Path) -> None:
 
 
 def test_last_validated_cannot_be_an_empty_attestation(tmp_path: Path) -> None:
-    """A recorded attestation must carry evidence, or be absent.
-
-    The old `manifest_unvalidated_block` check warned whenever a block policy had no
-    `validation.last_validated`. Nothing could satisfy it honestly: there is no eval
-    runner, so neither we nor an adopter can validate a policy, and the schema required no
-    fields -- meaning the only way to clear the warning was to write `{}` or invent a date.
-    A check whose only satisfying action is fabrication manufactures the false verification
-    this project exists to prevent, so it was removed.
-
-    What replaces it is this: the field stays optional, but writing it partially is now a
-    schema error. Looking validated and being validated are the same thing again.
-    """
+    """A recorded attestation must carry evidence, or be absent."""
     from chock.validation.loading import load_schema, schema_validator
 
     validator = schema_validator(load_schema("manifest.schema.json"))
@@ -105,18 +94,7 @@ def test_manifest_local_propagation(tmp_path: Path) -> None:
 
 
 def test_composition_check_sees_unvalidated_skill_type(tmp_path):
-    """The composition check runs BEFORE schema validation, so it sees raw values.
-
-    A design review originally argued the
-    `skill_type == "workflow"` branch in checks_orchestration.py was dead code, because the
-    schema constrains skillType to nl|code|hybrid. The schema does — but engine.py calls
-    check_composition_contract before check_manifest_schema, so an out-of-enum value has not
-    been rejected yet and the branch is reachable.
-
-    This pins the behaviour so the branch is not deleted as a cleanup: doing so would
-    suppress the workflow-contract findings below in favour of a later, less specific
-    schema error.
-    """
+    """The composition check runs BEFORE schema validation, so it sees raw values."""
     from pathlib import Path
 
     from chock.validation.checks_orchestration import check_composition_contract

@@ -1,19 +1,4 @@
-"""Install the SessionStart arm hook into .claude/settings.json.
-
-Git never clones hooks, so a fresh clone of a Chock repo enforces nothing at commit
-time until `chock sync` runs. The SessionStart hook closes that gap for Claude Code:
-the committed settings.json (consented through the workspace-trust prompt) runs the
-vendored `.chock/bin/claude_code.py` (agentseam's bundle plus chock's own handler -- see
-`gate/runtime_bundle.py`) when a session opens, which arms the git hooks
-or tells the agent the one command that will.
-
-This is repo wiring, not a policy surface: it is installed whenever hooks are wired,
-carries no coverage claim, and one entry serves the whole repo. The committed-file
-discipline is shared with `pretooluse_install`: only Chock-owned entries are touched
-(identified by the adapter path in the command), the fragment carries the interpreter
-placeholder, and an installed entry that is this fragment under another machine's
-interpreter is kept byte-for-byte rather than re-baked into diff churn.
-"""
+"""Install the SessionStart arm hook into .claude/settings.json."""
 
 from __future__ import annotations
 
@@ -32,15 +17,8 @@ from chock.hooks.pretooluse_install import (
 from chock.hooks.runtime_vendor import runtime_rel, vendor_runtime
 
 ADAPTER_REL = runtime_rel("claude_code")
-# Every Chock-owned SessionStart command contains this; nothing else should. Same file
-# `pretooluse_install` vendors -- claude_code's bundled runtime handles both branches.
 _OWNED_MARKER = "/.chock/bin/claude_code.py"
 
-#: The one entry this module manages. `timeout` covers a full `chock sync` on a large
-#: repo; the adapter's own subprocess timeout is shorter, so the hook still returns
-#: (with the manual instruction) rather than being killed mid-print. No `--guard`: that
-#: argument is what routes the bundled runtime's `handle()` to its pre_tool branch: absent,
-#: a SessionStart event falls through to the session_start branch instead.
 ARM_FRAGMENT = {
     "hooks": [
         {
@@ -75,8 +53,6 @@ def install_sessionstart_hook(repo_root: Path) -> bool:
             if isinstance(loaded, dict):
                 settings = loaded
         except (json.JSONDecodeError, OSError):
-            # Refuse to overwrite a file we cannot parse: it is the adopter's, and a
-            # rewrite would silently discard whatever they had in it.
             raise ValueError(f"{settings_path} is not readable JSON; leaving it untouched") from None
 
     hooks = settings.setdefault("hooks", {}) if isinstance(settings.get("hooks", {}), dict) else {}
@@ -89,7 +65,7 @@ def install_sessionstart_hook(repo_root: Path) -> bool:
     install_form = None
     for entry in ours_before:
         if _normalize_fragment(entry) == wanted and _interpreter_runs_here(entry):
-            install_form = entry  # same hook under another interpreter: keep it byte-for-byte
+            install_form = entry
             break
     if install_form is None:
         install_form = _bake_interpreter(ARM_FRAGMENT)

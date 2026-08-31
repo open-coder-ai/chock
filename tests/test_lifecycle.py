@@ -1,9 +1,4 @@
-"""The umbrella verbs are flag-translation contracts: `sync`/`check`/`status` each
-turn one --repo flag into the per-tool conventions of the commands they wrap. These
-tests pin that translation and the rc/short-circuit semantics — the CLI surface is
-covered end-to-end by the acceptance tier, but the wiring itself deserves direct
-tests: a silently dropped flag here breaks every documented invocation at once.
-"""
+"""The umbrella verbs are flag-translation contracts: `sync`/`check`/`status` each"""
 
 from __future__ import annotations
 
@@ -20,9 +15,6 @@ class Recorder:
     def __call__(self, argv):
         self.calls.append(list(argv or []))
         return self.rc
-
-
-# --- sync ---------------------------------------------------------------------
 
 
 def test_sync_translates_flags_to_recompile(monkeypatch):
@@ -69,9 +61,6 @@ def test_sync_installer_failure_raises_rc(monkeypatch):
     assert lifecycle.sync_main(["--repo", "R", "--ci"]) == 2
 
 
-# --- check --------------------------------------------------------------------
-
-
 def test_check_rejects_unknown_subset(capsys):
     assert lifecycle.check_main(["--only", "validate,nope"]) == 2
     assert "Unknown check(s): nope" in capsys.readouterr().err
@@ -96,7 +85,6 @@ def test_check_verify_and_evals_and_index_wiring(monkeypatch):
 
 
 def test_check_matrix_skipped_in_adopter_repo(tmp_path, monkeypatch, capsys):
-    # No spec/enforcement-matrix.md and no explicit --only: matrix must skip, not fail.
     matrix = Recorder()
     monkeypatch.setattr("chock.authoring.matrix.main", matrix)
     for mod, name in [
@@ -122,9 +110,6 @@ def test_check_rc_is_max_of_members(monkeypatch):
     monkeypatch.setattr("chock.lock.main", Recorder(rc=1))
     monkeypatch.setattr("chock.eval.cli.main", Recorder(rc=0))
     assert lifecycle.check_main(["--repo", "R", "--only", "verify,evals"]) == 1
-
-
-# --- status -------------------------------------------------------------------
 
 
 def test_status_defaults_to_policies_only(monkeypatch):

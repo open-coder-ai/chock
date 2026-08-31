@@ -33,9 +33,6 @@ def main(argv: list[str] | None = None) -> int:
         parser.print_help()
         return 0 if args.command is None else 2
 
-    # Drop only the leading `--` separator, not every occurrence: a downstream command
-    # can legitimately contain `--` (e.g. `-- npx server -- --inner-flag`), and stripping
-    # them all would rewrite the server's own arguments.
     downstream = args.downstream[1:] if args.downstream and args.downstream[0] == "--" else list(args.downstream)
     if not downstream:
         print("gateway: no downstream command given; put the real MCP server after `--`", file=sys.stderr)
@@ -44,9 +41,6 @@ def main(argv: list[str] | None = None) -> int:
     repo = Path(args.repo).resolve()
     compiled = repo / ".chock" / "compiled"
     if not compiled.is_dir():
-        # Fail closed on the likeliest silent-disable: the client spawns the proxy from
-        # its own cwd, so a wrong --repo or an unsynced repo would otherwise forward every
-        # call with zero gates and no warning. Refuse to serve instead.
         print(
             f"gateway: no compiled gates at {compiled} -- run `chock sync` there, or pass "
             f"--repo <repo root>. Refusing to serve unguarded (fail closed).",

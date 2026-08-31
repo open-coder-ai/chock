@@ -1,11 +1,4 @@
-"""Marketplace index emission: derived-only, byte-identical mirrors, loud on empty.
-
-The index is a claim about what the distribution repo publishes. Three properties keep
-that claim honest: entries are derived from the built plugin manifests (never a second
-hand-maintained list), the Claude and Copilot index paths carry byte-identical content
-(Copilot's official marketplace uses a symlink; we emit a copy for Windows checkouts), and
-an empty tree refuses to produce an index rather than silently delisting every plugin.
-"""
+"""Marketplace index emission: derived-only, byte-identical mirrors, loud on empty."""
 
 from __future__ import annotations
 
@@ -69,8 +62,6 @@ def test_entries_are_derived_from_the_built_manifests(dist: Path) -> None:
     index = json.loads((dist / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
 
     assert index["name"] == "chock"
-    # `claude plugin validate` warns without it, and it is what a browsing user reads
-    # before trusting the source -- so it names the origin and the enforcement caveat.
     assert index["description"] == DESCRIPTION
     assert "advisory" in DESCRIPTION, "the caveat belongs in the first thing a user reads"
     assert [e["name"] for e in index["plugins"]] == ["block-destructive-commands", "code-safety"], "sorted"
@@ -110,21 +101,13 @@ def test_output_is_byte_stable(dist: Path) -> None:
 
 
 def test_lockfile_content_addresses_every_published_directory(dist: Path) -> None:
-    """One sha256 per plugin directory, across every format tree.
-
-    This is what lets an auditor or a `require_sha` fleet check that the directory they
-    received is the one that was published, without trusting the index or the commit
-    history to have been honest about it.
-    """
+    """One sha256 per plugin directory, across every format tree."""
     import json as _json
 
     marketplace_main(["build", "--dist", str(dist)])
     lock = _json.loads((dist / LOCKFILE_NAME).read_text(encoding="utf-8"))
 
     assert lock["lockfile_version"] == 1
-    # Derived from FORMATS, never enumerated by hand: an enumerated list is how a newly
-    # added format silently escapes the lockfile while the check still reads as "covers
-    # everything" -- the same under-coverage the catalog's trees.py exists to prevent.
     expected = {f"{fmt}/{manifest['id']}" for fmt in FORMATS for manifest in MANIFESTS}
     assert set(lock["plugins"]) == expected, "every tree is covered, not just the one the index points at"
     assert all(len(h) == 64 for h in lock["plugins"].values())
@@ -135,11 +118,7 @@ def test_lockfile_content_addresses_every_published_directory(dist: Path) -> Non
 
 
 def test_check_catches_a_tampered_plugin_directory(dist: Path) -> None:
-    """The lockfile must fail when content changes, not only when the index does.
-
-    A hand-edited guard script is exactly what the generated-only invariant exists to
-    catch, and the index would not notice it: the manifest it reads is unchanged.
-    """
+    """The lockfile must fail when content changes, not only when the index does."""
     marketplace_main(["build", "--dist", str(dist)])
     assert marketplace_main(["build", "--dist", str(dist), "--check"]) == 0
 
@@ -149,12 +128,7 @@ def test_check_catches_a_tampered_plugin_directory(dist: Path) -> None:
 
 
 def test_catalog_page_is_generated_not_typed(dist: Path) -> None:
-    """A page that counts its own contents goes stale the moment a policy is added.
-
-    A wrong count in the first thing a user reads is the same class of defect as a wrong
-    coverage claim, so the page is generated rather than remembered. It is a file of its own
-    because the repository's rules put README.md off limits to tooling.
-    """
+    """A page that counts its own contents goes stale the moment a policy is added."""
     marketplace_main(["build", "--dist", str(dist)])
     body = (dist / CATALOG_PAGE).read_text(encoding="utf-8")
 
@@ -177,13 +151,7 @@ def test_check_catches_a_stale_catalog_page(dist: Path) -> None:
 
 
 def test_readme_is_never_touched(dist: Path) -> None:
-    """The repository's rules put README.md off limits to tooling; honour it in both modes.
-
-    Checked through `stat()` rather than by reading the file, because a test that opened
-    README.md to prove nothing opens README.md would be the very thing it is asserting
-    against. Size and modification time change on any rewrite, including one that produced
-    identical bytes.
-    """
+    """The repository's rules put README.md off limits to tooling; honour it in both modes."""
     readme = dist / "README.md"
     readme.write_bytes(b"# hand written" + bytes([10]))
     before = readme.stat()
@@ -198,12 +166,7 @@ def test_readme_is_never_touched(dist: Path) -> None:
 
 
 def test_cursor_tree_gets_cursors_own_index_schema(dist: Path) -> None:
-    """`--tree cursor` writes `.cursor-plugin/marketplace.json` in Cursor's schema.
-
-    Copied from cursor/plugins and cursor/plugin-template verbatim: description under
-    `metadata`, name-only owner, entries of exactly {name, source, description} with
-    sources pointing into the cursor tree. Cursor never reads the Claude index paths.
-    """
+    """`--tree cursor` writes `.cursor-plugin/marketplace.json` in Cursor's schema."""
     assert marketplace_main(["build", "--dist", str(dist), "--name", "chock-cursor", "--tree", "cursor"]) == 0
     index = json.loads((dist / ".cursor-plugin" / "marketplace.json").read_text(encoding="utf-8"))
 
@@ -217,19 +180,11 @@ def test_cursor_tree_gets_cursors_own_index_schema(dist: Path) -> None:
 
 
 def test_codex_tree_reuses_the_witnessed_legacy_index(dist: Path) -> None:
-    """`--tree codex` writes the legacy Claude-shape index with codex sources.
-
-    Codex reads `.claude-plugin/marketplace.json` from git marketplaces -- witnessed on a
-    real install (this machine's Codex pulled chock from exactly that file), not inferred
-    from documentation -- so the codex repo speaks the index dialect Codex is known to
-    consume, pointing at the `.codex-plugin` packages.
-    """
+    """`--tree codex` writes the legacy Claude-shape index with codex sources."""
     assert marketplace_main(["build", "--dist", str(dist), "--name", "chock-codex", "--tree", "codex"]) == 0
     index = json.loads((dist / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
 
     assert index["description"], "legacy shape keeps the top-level description"
     sources = [entry["source"] for entry in index["plugins"]]
     assert sources and all(s.startswith("./codex/") for s in sources)
-    # Only the legacy path is written for codex: the Copilot mirror belongs to the
-    # claude tree's clients.
     assert not (dist / ".github" / "plugin" / "marketplace.json").exists()

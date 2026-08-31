@@ -1,21 +1,4 @@
-"""Coverage must report what is enforced, not what an agent could support.
-
-`coverage.json` is the framework's central claim about itself, and it was wrong: 14 of 15
-policies reported `enforced` -- documented as "a hard, pre-execution control" -- including
-advise-only rules with no gate of any kind.
-
-Two causes, independent:
-
-  `coverage_level` asked only whether the policy's target surfaces were a subset of the
-  agent's supported ones. It never checked whether a gate existed or whether anything was
-  installed, so it measured agent capability.
-
-  The compiler records a key per attempted surface, including emitters that produced
-  nothing, so a policy was credited with surfaces it never emitted to.
-
-Nothing in the suite covered any of this before, which is how it stayed wrong. For a
-governance tool, overstating its own enforcement is the failure that discredits the rest.
-"""
+"""Coverage must report what is enforced, not what an agent could support."""
 
 from __future__ import annotations
 
@@ -95,40 +78,19 @@ def test_surfaces_that_emit_nothing_do_not_count() -> None:
 
 
 def test_pre_tool_use_alone_is_not_enforced() -> None:
-    """A compiled fragment that nothing installed enforces nothing.
-
-    The flag is the switch, so the claim cannot get ahead of the mechanism. The compiler
-    derives it from .claude/settings.json rather than taking anyone's word for it.
-    """
+    """A compiled fragment that nothing installed enforces nothing."""
     assert coverage_level({Surface.PRE_TOOL_USE}, "claude") == "none"
-    # claude_code's PreToolUse is FAIL_OPEN (agentseam.matrix_data) -- installed, it reads
-    # `best-effort`, never a flat `enforced` (owner decision #9).
     assert coverage_level({Surface.PRE_TOOL_USE}, "claude", pre_tool_use_installed=True) == "best-effort"
 
 
 def test_absence_from_installed_surfaces_means_two_different_things() -> None:
-    """`pre-tool-use` and `managed-setting` are both absent from the constant, for opposite reasons.
-
-    This is the distinction the comment on `INSTALLED_SURFACES` exists to state, and the one a
-    reader is most likely to get backwards: absence there is not "nothing installs this". It is
-    "compiling this is not by itself proof that it enforces". `pre-tool-use` has an installer
-    (`hooks/pretooluse_install.py` writes it into the Claude settings file) and is credited
-    through a per-policy witness; `managed-setting` has no installer at all, so nothing credits it.
-
-    Pinned as behaviour rather than as words: each half is the verdict `coverage_level` actually
-    returns, so this fails if an installer lands for `managed-setting`, if the `pre-tool-use`
-    witness stops crediting, or if either surface is quietly moved into the constant.
-    """
+    """`pre-tool-use` and `managed-setting` are both absent from the constant, for opposite reasons."""
     from chock.compile.surfaces import INSTALLED_SURFACES
 
     assert Surface.PRE_TOOL_USE not in INSTALLED_SURFACES
     assert Surface.MANAGED_SETTING not in INSTALLED_SURFACES
 
-    # pre-tool-use: absent from the constant, and still reachable -- the witness is the route.
     assert coverage_level({Surface.PRE_TOOL_USE}, "claude", pre_tool_use_installed=True) != "none"
-    # managed-setting: absent from the constant, and unreachable by ANY witness this function
-    # takes. Every keyword is tried rather than only the plausible one, because the claim is that
-    # no argument credits it -- not that the one argument someone thought of does not.
     for witness in ("pre_tool_use_installed", "ci_gate_installed", "agent_hooks_installed"):
         level = coverage_level({Surface.MANAGED_SETTING}, "claude", **{witness: True})
         assert level == "none", f"managed-setting is credited {level!r} via {witness}; it has no installer"
@@ -139,16 +101,7 @@ def test_unsupported_agent_reports_none() -> None:
 
 
 def test_every_agent_we_write_a_wrapper_for_has_surfaces() -> None:
-    """The two tables must name the same agents, or an adopter is told a lie.
-
-    `init --agents tabnine` wrote `guidelines.md` and then reported every policy as
-    `unsupported` on tabnine, because SURFACE_AGENTS listed 11 agents while AGENT_FILES
-    wrote 13. The wrapper is an ambient rule by construction -- that is all it is -- so an
-    agent with a wrapper and no surfaces is a bookkeeping gap, not an honest disclaimer.
-
-    Understating coverage is a milder failure than overstating it, but it is the same
-    failure: the number does not describe the repo.
-    """
+    """The two tables must name the same agents, or an adopter is told a lie."""
     assert set(CHOCK_AGENT) == set(SURFACE_AGENTS)
 
 
@@ -160,15 +113,7 @@ def test_a_wrapper_agent_gets_at_least_the_ambient_rule() -> None:
 
 
 def test_repo_coverage_matches_actual_enforcement() -> None:
-    """End to end on this repo: every enforcement claim names its real witness.
-
-    `enforced-at-commit` is a git-hook claim, so it requires the compiled gate.
-    `enforced` is a pre-execution in-agent claim, so it requires the policy's fragment to
-    be INSTALLED in that agent's committed hook config -- a compiled fragment nothing
-    installed is the exact overclaim this test exists to prevent. (The original version
-    demanded a git-hook gate for every claim; that was right until this repo's settings
-    became committed and guard-script policies honestly reached `enforced` without one.)
-    """
+    """End to end on this repo: every enforcement claim names its real witness."""
     from chock.hooks.agenthooks_install import installed_agent_hooks_policy_ids
     from chock.hooks.cursor_install import installed_cursor_policy_ids
     from chock.hooks.pretooluse_install import installed_pretooluse_policy_ids
@@ -183,10 +128,6 @@ def test_repo_coverage_matches_actual_enforcement() -> None:
         "vscode": agent_hooks_witness,
     }
 
-    # Agent-hook levels (owner decision #9): whichever of agentseam's honest per-agent
-    # words PRE_TOOL_USE/AGENT_HOOKS earns once installed -- `enforced` is only one of them
-    # (claude_code's own PreToolUse is FAIL_OPEN, so it reads `best-effort`, never
-    # `enforced`), but every one of them still requires the same install witness.
     AGENT_HOOK_LEVELS = {"enforced", "enforceable", "best-effort"}
 
     for policy_id, agents in coverage.items():

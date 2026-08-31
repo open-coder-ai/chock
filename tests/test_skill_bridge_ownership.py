@@ -1,10 +1,4 @@
-"""The skill bridge must never delete an adopter's own .claude/skills/ entries.
-
-`.claude/skills/` is Claude's native skill location, shared with whatever the adopter
-puts there. update_skill_bridges swept every entry not mirrored from .agents/skills/, so a
-team skill installed the Claude-native way vanished on the next `chock sync` / add / init.
-Chock now removes only the bridges it created.
-"""
+"""The skill bridge must never delete an adopter's own .claude/skills/ entries."""
 
 from __future__ import annotations
 
@@ -32,18 +26,15 @@ def test_adopter_authored_skill_survives_a_bridge_run(tmp_path: Path) -> None:
     update_skill_bridges(tmp_path)
     assert mine.exists(), "the adopter's own Claude skill was deleted by the bridge"
     assert (mine / "SKILL.md").read_text(encoding="utf-8").endswith("hand-written\n")
-    # and the real bridge still landed
     assert (tmp_path / ".claude" / "skills" / "policy-init").exists()
 
 
 def test_a_removed_chock_skill_bridge_is_still_swept(tmp_path: Path) -> None:
-    # A bridge Chock created for a skill that no longer exists must still be cleaned up.
     _chock_skill(tmp_path, "policy-init")
     _chock_skill(tmp_path, "going-away")
     update_skill_bridges(tmp_path)
     assert (tmp_path / ".claude" / "skills" / "going-away").exists()
 
-    # remove the source skill, re-run; its bridge must go
     import shutil
 
     shutil.rmtree(tmp_path / ".agents" / "skills" / "going-away")
@@ -53,8 +44,6 @@ def test_a_removed_chock_skill_bridge_is_still_swept(tmp_path: Path) -> None:
 
 
 def test_copy_bridge_is_marked_and_idempotent(tmp_path: Path, monkeypatch) -> None:
-    # Force the copy fallback (no symlink privilege) and confirm the marker is written and
-    # a second run does not churn the copy.
     from chock.scaffold import skills_bridge as sb
 
     def no_symlink(*_a, **_k):
@@ -65,7 +54,6 @@ def test_copy_bridge_is_marked_and_idempotent(tmp_path: Path, monkeypatch) -> No
     update_skill_bridges(tmp_path)
     bridge = tmp_path / ".claude" / "skills" / "policy-init"
     assert (bridge / _BRIDGE_MARKER).is_file(), "copy bridge must carry the ownership marker"
-    # a second run leaves the adopter-shared dir intact and still marked
     update_skill_bridges(tmp_path)
     assert (bridge / "SKILL.md").exists()
     assert (bridge / _BRIDGE_MARKER).is_file()

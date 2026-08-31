@@ -1,16 +1,4 @@
-"""`chock status --only log` -- read the local gate outcome log.
-
-The log is written by the vendored git-hook runner (`gate/runner.py`) and by each per-agent
-runtime `gate/runtime_bundle.py` renders (`gate/guard_runner.py`'s `log_outcome`, spliced
-into every one). It answers one question policy authoring could not answer before: which
-enforcement actually happens. Two findings come out of it, and the second is the one nobody expects.
-
-  fired and blocked   -> the gate works, and the block rate says whether it over-fires
-  never recorded      -> the policy has never been consulted at all
-
-A policy that has never been consulted is not "passing". It is unenforced, and reporting it
-alongside the ones that fire is the point of the `silent` section below.
-"""
+"""`chock status --only log` -- read the local gate outcome log."""
 
 from __future__ import annotations
 
@@ -32,11 +20,7 @@ def log_files(repo_root: Path) -> list[Path]:
 
 
 def read_events(repo_root: Path, since_days: int | None = None) -> list[dict[str, Any]]:
-    """Every readable record, oldest first.
-
-    A malformed line is skipped rather than fatal. This file is appended to by git hooks
-    running concurrently; a torn write is a lost record, not a reason to refuse to report.
-    """
+    """Every readable record, oldest first."""
     cutoff = None
     if since_days is not None:
         cutoff = (datetime.now(timezone.utc) - timedelta(days=since_days)).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -56,8 +40,6 @@ def read_events(repo_root: Path, since_days: int | None = None) -> list[dict[str
                 continue
             if not isinstance(record, dict) or not record.get("policy_id"):
                 continue
-            # Timestamps are fixed-width UTC, so a string compare orders them correctly and
-            # needs no parsing -- which also means one unparseable ts cannot drop a record.
             if cutoff and str(record.get("ts", "")) < cutoff:
                 continue
             events.append(record)
@@ -85,12 +67,7 @@ def summarize(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def installed_policies(repo_root: Path) -> list[str]:
-    """Policy ids present in the repo, from the directory tree rather than the registry.
-
-    `_baseline` and other grouping directories hold policies one level down, so a nested
-    manifest counts as its own policy. Reading the tree keeps this honest for a repo whose
-    registry is stale, which is exactly the repo most likely to have unenforced policies.
-    """
+    """Policy ids present in the repo, from the directory tree rather than the registry."""
     root = Path(repo_root) / ".agents" / "policies"
     if not root.is_dir():
         return []
@@ -113,7 +90,6 @@ def render_text(summary: list[dict[str, Any]], silent: list[str]) -> str:
                 f"{entry['events']:>6} {entry['allow']:>6} {entry['block']:>6}  {last}"
             )
     if silent:
-        # Named, not counted. "9 policies never fired" is a statistic; the list is a worklist.
         lines.append("")
         lines.append(f"Never recorded ({len(silent)}): {', '.join(silent)}")
         lines.append("Advisory policies emit no runtime event, so absence here is not evidence of a gap.")

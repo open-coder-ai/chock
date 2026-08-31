@@ -1,10 +1,4 @@
-"""--agents parsing: comma and space forms both work, and mistakes stop the run.
-
-Regression for a live incident: `init --agents claude,cursor,grok <path>` swallowed the
-path into the agent list (nargs="*"), silently filtered every unknown entry to nothing,
-and the deselect pass then deleted the pristine wrappers of the repo the positional
-defaulted to -- the current directory.
-"""
+"""--agents parsing: comma and space forms both work, and mistakes stop the run."""
 
 from __future__ import annotations
 
@@ -17,10 +11,6 @@ from chock.toggles import recompile_main
 def test_comma_separated_agents(tmp_path):
     repo = tmp_path / "repo"
     cmd_init([str(repo), "--skip-hooks", "--agents", "claude,cursor"])
-    # claude_code does not read AGENTS.md natively (agentseam.instructions.reads_shared),
-    # so it gets its own pointer file -- CLAUDE.md at the repo root, agentseam's preferred
-    # path for it. cursor DOES read AGENTS.md natively, so it gets no file of its own at
-    # all: the shared AGENTS.md block IS its instructions.
     assert (repo / "CLAUDE.md").exists()
     assert not (repo / ".cursorrules").exists()
     assert not (repo / ".cursor").exists()
@@ -46,9 +36,6 @@ def test_unknown_agent_stops_before_any_write(tmp_path, capsys):
 
 
 def test_swallowed_repo_path_cannot_retarget_cwd(tmp_path, monkeypatch, capsys):
-    # The incident shape: a path after --agents is eaten by nargs="*", the positional
-    # falls back to ".". The run must die on the unknown "agent", not init the CWD
-    # with an empty selection.
     cwd = tmp_path / "cwd"
     cwd.mkdir()
     monkeypatch.chdir(cwd)
@@ -76,16 +63,12 @@ def test_sync_rejects_unknown_agents(tmp_path, capsys):
 
 
 def test_duplicate_agents_are_deduped(tmp_path):
-    # `--agents claude claude,cursor` is two agents, not three -- a duplicate once
-    # wrote the wrapper twice and persisted twice into supported_agents.
     from chock.compile.surfaces import parse_agent_selection
 
     assert parse_agent_selection(["claude", "claude,cursor", "cursor"]) == ["claude", "cursor"]
 
 
 def test_compile_rejects_unknown_agents(capsys):
-    # `chock compile` is the third --agents consumer; it used to treat "claude,cursro"
-    # as one agent name and write a silent `unsupported` coverage row for it.
     from chock.compile.compiler import main as compile_main
 
     with pytest.raises(SystemExit):
@@ -96,9 +79,6 @@ def test_compile_rejects_unknown_agents(capsys):
 
 
 def test_compile_defaults_to_configured_agents(tmp_path, monkeypatch):
-    # A repo pinned to a subset must not have a bare `compile` rewrite coverage for all
-    # thirteen agents -- that put the repo into drift `sync --check` then failed. Goes
-    # through the CLI so the --repo-based config resolution itself is what is pinned.
     from chock.compile import compiler as compiler_mod
 
     (tmp_path / ".chock").mkdir()
@@ -117,8 +97,6 @@ def test_compile_defaults_to_configured_agents(tmp_path, monkeypatch):
 
 
 def test_config_typo_is_as_loud_as_a_flag_typo(tmp_path, capsys):
-    # The config path used to bypass validation entirely: supported_agents [claud]
-    # compiled `unsupported` coverage and skipped the wrapper with a clean exit.
     (tmp_path / ".chock").mkdir()
     (tmp_path / ".chock" / "config.yaml").write_text("chock:\n  supported_agents: [claud]\n", encoding="utf-8")
     with pytest.raises(SystemExit):
@@ -129,10 +107,6 @@ def test_config_typo_is_as_loud_as_a_flag_typo(tmp_path, capsys):
 
 
 def test_skill_references_use_cli_agent_vocabulary():
-    # The chock-init skill names agents a caller feeds straight to --agents; a spelling
-    # the CLI rejects turns the skill's documented flow into a loud failure. Walk the
-    # WHOLE skill tree, not just references/*.md -- the rename first missed evals/suite.yaml
-    # and interface.yaml, which live in sibling dirs a references-only glob never reached.
     from pathlib import Path
 
     from chock.scaffold.adapters import CHOCK_AGENT
@@ -146,7 +120,6 @@ def test_skill_references_use_cli_agent_vocabulary():
         for f in [*root.rglob("*.md"), *root.rglob("*.yaml")]:
             text = f.read_text(encoding="utf-8")
             assert "github_copilot" not in text, f"{f}: the --agents name is 'copilot', not 'github_copilot'"
-            # a bare "kimi" that is not the "kimi-code" key is the pre-rename spelling
             assert "kimi," not in text and "kimi." not in text, f"{f}: the --agents name is 'kimi-code', not 'kimi'"
         table = (root / "references" / "adapters.md").read_text(encoding="utf-8")
         assert "kimi-code" in table, f"{root}: the --agents name is 'kimi-code'"
@@ -154,8 +127,6 @@ def test_skill_references_use_cli_agent_vocabulary():
 
 
 def test_config_duplicate_agents_are_deduped(tmp_path):
-    # The config path shares the whole selection contract, not half: a duplicated
-    # supported_agents entry once compiled the wrapper twice and re-persisted itself.
     from chock.config import agents_from_config
 
     (tmp_path / ".chock").mkdir()
@@ -168,8 +139,6 @@ def test_config_duplicate_agents_are_deduped(tmp_path):
 def test_antigravity_agent_selection(tmp_path):
     repo = tmp_path / "repo"
     cmd_init([str(repo), "--skip-hooks", "--agents", "antigravity"])
-    # antigravity does not read AGENTS.md natively (agentseam.instructions.reads_shared),
-    # so it gets its own marker-block pointer file at agentseam's own path for it.
     path = repo / ".agents" / "rules" / "agentseam.md"
     assert path.exists()
     content = path.read_text(encoding="utf-8")

@@ -17,8 +17,6 @@ from chock.scaffold.recompile import discover_policy_dirs
 DATA_DIR = Path(__file__).parent / "data"
 
 
-# Derived from the data files, not a hand-kept list: a framework exists exactly when its
-# controls ship, so the CLI help and the loader can never disagree about what is builtin.
 BUILTIN_FRAMEWORKS = {p.stem for p in sorted(DATA_DIR.glob("*.json"))}
 
 
@@ -46,22 +44,7 @@ def _parse_claim(claim: Any) -> tuple[str, str, str] | None:
 
 
 def _collect_claims(repo_root: Path, framework: str) -> dict[str, list[tuple[str, str, str]]]:
-    """Map control id -> list of (policy_id, coverage, note).
-
-    Disabled policies are excluded. A policy the adopter turned off enforces nothing,
-    so letting it keep its claim would report coverage that does not exist -- the exact
-    false assurance a compliance report has to avoid.
-
-    In a repo that has been compiled at least once, a claim also requires the policy's
-    compiled output to still exist: a declared control whose mechanism was deleted
-    (`rm -rf .chock/compiled/<id>`) is a claim without enforcement, which `chock check`
-    already fails on -- the report must not still call it covered. "Has been compiled" is
-    read from `coverage.json`, which every sync writes: keying off the compiled/ tree being
-    non-empty would flip back to declaration-only the moment the last policy's mechanism was
-    deleted, re-hiding the very overclaim this guards. In a repo that was never compiled (a
-    fresh scaffold, a unit fixture), there is nothing to measure, so the report falls back to
-    what the manifests declare.
-    """
+    """Map control id -> list of (policy_id, coverage, note)."""
     disabled = _disabled_list(load_config(repo_root))
     compiled_root = repo_root / ".chock" / "compiled"
     repo_compiled = (repo_root / ".chock" / "coverage.json").exists()
@@ -86,7 +69,7 @@ def _collect_claims(repo_root: Path, framework: str) -> dict[str, list[tuple[str
         if repo_compiled:
             out = compiled_root / policy_id
             if not (out.is_dir() and any(out.iterdir())):
-                continue  # declared, but nothing compiled enforces it here
+                continue
         for claim in framework_claims:
             parsed = _parse_claim(claim)
             if parsed is None:
@@ -177,21 +160,15 @@ def main(argv: list[str] | None = None) -> int:
         print("Usage: chock compliance report [--repo .] [--framework owasp_asi] [--json]")
         return 0
     if argv[0] != "report":
-        # A wrong subcommand is a usage error, not a success. Exit 0 here let a typo'd CI
-        # step ("chock compliance repot") pass green while doing nothing.
         print(f"Unknown compliance subcommand: {argv[0]!r}. Usage: chock compliance report ...", file=sys.stderr)
         return 2
 
     args = _parse_report_args(argv[1:])
     repo_root = Path(args.repo).resolve()
     if not repo_root.exists():
-        # Fail closed: a CI job pointed at a wrong --repo must not report clean coverage
-        # over a repository that is not there.
         print(f"Repo not found: {repo_root}", file=sys.stderr)
         return 2
     if args.framework not in BUILTIN_FRAMEWORKS and not _collect_claims(repo_root, args.framework):
-        # An unknown framework (a typo like `owasp-asi`) otherwise printed a header-only,
-        # all-uncovered report and exited 0 -- indistinguishable from real coverage news.
         print(
             f"Unknown framework {args.framework!r} and no policy declares claims for it. "
             f"Known: {', '.join(sorted(BUILTIN_FRAMEWORKS))}.",

@@ -1,11 +1,4 @@
-"""`chock remove` deletes a folder from someone else's repository.
-
-That is the whole reason this file exists. Every other command writes or reports; this one
-destroys, and it had no tests at all. The cases below are the ones where getting it wrong
-costs an adopter real work: removing the wrong policy, removing a mandatory one, removing
-one whose manifest nobody could read, and leaving the compiled tree describing something
-that is gone.
-"""
+"""`chock remove` deletes a folder from someone else's repository."""
 
 from __future__ import annotations
 
@@ -29,13 +22,7 @@ POLICY = {
 
 @pytest.fixture
 def repo(tmp_path: Path, monkeypatch):
-    """An adopter repo with policies on disk, and resync stubbed out.
-
-    `remove` ends by calling sync, which recompiles the whole repo. Stubbing it keeps these
-    tests about deletion, and records that the resync was requested -- because a removal that
-    skipped it would leave the compiled tree, hooks and lockfile describing a policy that no
-    longer exists.
-    """
+    """An adopter repo with policies on disk, and resync stubbed out."""
     calls: list[list[str]] = []
     monkeypatch.setattr("chock.lifecycle.sync_main", lambda argv: calls.append(list(argv)) or 0)
 
@@ -81,12 +68,7 @@ def test_mandatory_policy_is_refused(repo, capsys) -> None:
 
 
 def test_an_unreadable_manifest_is_refused_not_assumed_optional(repo, capsys) -> None:
-    """`_load_manifest` reports a parse failure and returns {}, which reads as "not mandatory".
-
-    Acting on that would delete a mandatory policy on the strength of a file nobody could
-    parse. When the tool cannot tell, refusing is the honest answer -- this is deletion in
-    someone else's repository.
-    """
+    """`_load_manifest` reports a parse failure and returns {}, which reads as "not mandatory"."""
     root, make, calls = repo
     pack = make(None, "broken-policy", raw="id: [unclosed")
 

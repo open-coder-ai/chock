@@ -1,13 +1,4 @@
-"""Claude-format packaging: layout, verbatim copies, and the fail-posture statement.
-
-The layout is mechanical; two properties matter. First, the adapter and guard ship as
-byte-identical copies of their sources -- a plugin that parses payloads differently from a
-repo install is two enforcement systems wearing one name. Second, every emitted
-description states its fail posture out loud: a Claude plugin's PreToolUse hook fails OPEN
-when python3 is missing, and a policy without a guard is advisory text however it is
-packaged. A marketplace listing that overclaims enforcement is the one failure this
-project cannot ship.
-"""
+"""Claude-format packaging: layout, verbatim copies, and the fail-posture statement."""
 
 from __future__ import annotations
 
@@ -82,14 +73,6 @@ def test_guard_policy_ships_hooks_adapter_and_guard(policy, tmp_path: Path) -> N
     command = entry["hooks"][0]["command"]
     assert "${CLAUDE_PLUGIN_ROOT}/scripts/claude_code.py" in command
     assert "${CLAUDE_PLUGIN_ROOT}/scripts/block-destructive-commands.sh" in command
-    # The EXACT command, not properties of it. Property checks (no ||, one invocation)
-    # still admitted a pipeline: `python3 ... | cat` would swallow the adapter's exit 2.
-    # One interpreter invocation is load-bearing -- a fallback chain converts a real
-    # denial into the next leg's behaviour (on Debian-class machines with no `python`
-    # name, into 127, which Claude Code treats as allow), and the first leg that runs
-    # consumes the stdin payload so a fallback could never re-adjudicate anyway. Both
-    # verified empirically. Any change to this string is a change to enforcement and
-    # must be a reviewed decision, which is exactly what an exact-match assertion forces.
     assert command == (
         'python3 "${CLAUDE_PLUGIN_ROOT}/scripts/claude_code.py" '
         '--guard "${CLAUDE_PLUGIN_ROOT}/scripts/block-destructive-commands.sh"'
@@ -97,12 +80,7 @@ def test_guard_policy_ships_hooks_adapter_and_guard(policy, tmp_path: Path) -> N
 
 
 def test_adapter_and_guard_are_verbatim_copies(policy, tmp_path: Path) -> None:
-    """Byte-identity is the contract, not similarity.
-
-    The adapter's own docstring promises "copied verbatim"; a plugin copy that drifted from
-    the module would parse payloads differently from every repo install and the difference
-    would surface only in someone else's session.
-    """
+    """Byte-identity is the contract, not similarity."""
     pack = policy(GUARD_MANIFEST, guard=True)
     out = tmp_path / "out"
     build_claude_plugin(pack, GUARD_MANIFEST, tmp_path, out)
@@ -121,21 +99,12 @@ def test_descriptions_state_the_fail_posture(policy, tmp_path: Path) -> None:
 
     assert POSTURE_ENFORCED in json.loads(guarded_manifest)["description"]
     assert POSTURE_ADVISORY in json.loads(bare_manifest)["description"]
-    # Both fail-open conditions must be named. The guards are bash scripts and the adapter
-    # allows when it cannot find a usable bash, so a posture line mentioning only python3
-    # would describe one of the two ways this plugin silently stops enforcing.
-    # Clients disagree about hook errors (Claude Code allows, VS Code denies), so the
-    # posture must name both directions rather than promising fail-open to everyone.
     assert "fail-open" in POSTURE_ENFORCED and "fail-closed" in POSTURE_ENFORCED
     assert "Python" in POSTURE_ENFORCED and "bash" in POSTURE_ENFORCED
 
 
 def test_rule_policy_gets_no_hooks_or_scripts(policy, tmp_path: Path) -> None:
-    """A policy with no guard must not grow one in packaging.
-
-    Emitting an empty hooks file would read as "this plugin enforces" to anyone listing the
-    directory -- the packaged version of the stale-surface-table overclaim.
-    """
+    """A policy with no guard must not grow one in packaging."""
     pack = policy(RULE_MANIFEST)
     files = claude_plugin_files(pack, RULE_MANIFEST, tmp_path)
     assert set(files) == {Path(".claude-plugin/plugin.json"), Path("skills/code-safety/SKILL.md")}
@@ -149,13 +118,7 @@ def test_advisory_skill_is_the_shared_builder_output(policy, tmp_path: Path) -> 
 
 
 def test_enforcing_package_skill_does_not_call_itself_advisory(policy, tmp_path: Path) -> None:
-    """The packaged skill must not contradict the hook shipped beside it.
-
-    `build_skill` closes with "this skill is advisory: the client reading it has no mechanism
-    to enforce it" -- true of the Agent Plugins package, false inside a Claude package that
-    ships hooks.json. A file claiming nothing enforces this, sitting next to the thing that
-    does, is a claim that does not match its own directory even though it under-claims.
-    """
+    """The packaged skill must not contradict the hook shipped beside it."""
     pack = policy(GUARD_MANIFEST, guard=True)
     skill = claude_plugin_files(pack, GUARD_MANIFEST, tmp_path)[Path("skills/block-destructive-commands/SKILL.md")]
     assert "advisory: the client reading it has no mechanism to enforce it" not in skill
@@ -186,11 +149,7 @@ def test_check_detects_drift_and_writes_nothing(policy, tmp_path: Path) -> None:
 
 
 def test_cli_claude_format_requires_out_dir(policy, tmp_path: Path, capsys) -> None:
-    """In-place claude output is refused, not defaulted.
-
-    A `.claude-plugin/` directory inside a policy folder would be discovered by any client
-    pointed at the repo and installed as a plugin nobody published.
-    """
+    """In-place claude output is refused, not defaulted."""
     policy(GUARD_MANIFEST, guard=True)
     assert plugin_main(["build", "--repo", str(tmp_path), "--format", "claude"]) == 2
     assert "--out-dir" in capsys.readouterr().err
@@ -203,10 +162,6 @@ def test_cli_builds_a_distribution_tree(policy, tmp_path: Path) -> None:
 
     assert plugin_main(["build", "--repo", str(tmp_path), "--format", "all", "--out-dir", str(dist)]) == 0
     for plugin_id in ("block-destructive-commands", "code-safety"):
-        # Each format owns its own subtree. They cannot share one: the Claude package of a
-        # guard policy states the policy is enforced here, and the hookless Agent Plugins
-        # package of the same policy states it is advisory. Both are true of their own
-        # package, so a shared `skills/<id>/SKILL.md` would have to lie to one client.
         claude_root = dist / "claude" / plugin_id
         assert (claude_root / ".claude-plugin" / "plugin.json").exists()
         assert (claude_root / "skills" / plugin_id / "SKILL.md").exists()
@@ -225,13 +180,7 @@ def test_cli_builds_a_distribution_tree(policy, tmp_path: Path) -> None:
 
 
 def test_losing_a_guard_removes_its_hook(policy, tmp_path: Path) -> None:
-    """A policy that stops shipping a guard must stop shipping the hook that ran it.
-
-    Writing only current files would leave the old `hooks/hooks.json` and script in place:
-    a package still denying commands while its own manifest and skill say it is advisory.
-    That is this project's central failure -- a claim and a mechanism disagreeing -- arriving
-    by omission rather than by assertion.
-    """
+    """A policy that stops shipping a guard must stop shipping the hook that ran it."""
     pack = policy(GUARD_MANIFEST, guard=True)
     out = tmp_path / "out"
     build_claude_plugin(pack, GUARD_MANIFEST, tmp_path, out)
@@ -275,11 +224,7 @@ def test_a_removed_policy_stops_being_published(policy, tmp_path: Path) -> None:
 
 
 def test_duplicate_policy_ids_are_refused(policy, tmp_path: Path, capsys) -> None:
-    """Two folders declaring one id would package into one directory, the second winning.
-
-    The run would report both as packaged while the distribution contained a single package
-    built from a mixture of the two -- so this refuses rather than picking a winner.
-    """
+    """Two folders declaring one id would package into one directory, the second winning."""
     policy(GUARD_MANIFEST, guard=True)
     twin = dict(RULE_MANIFEST)
     twin["id"] = "block-destructive-commands"

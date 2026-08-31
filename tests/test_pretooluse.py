@@ -1,13 +1,4 @@
-"""PreToolUse enforcement: the vendored runtime, the installer, and the end-to-end path.
-
-`compile` emitted PreToolUse fragments that nothing installed, in a shape Claude Code would
-never have read, invoking guards that read argv while Claude sends JSON on stdin. Three
-independent breaks, and `coverage.json` reported the policies as `enforced` throughout.
-
-Wiring up the installer alone would have been *worse* than leaving it: the hooks would fire,
-the guards would receive no arguments, every destructive command would be allowed, and the
-enforcement claim would finally have looked justified.
-"""
+"""PreToolUse enforcement: the vendored runtime, the installer, and the end-to-end path."""
 
 from __future__ import annotations
 
@@ -58,15 +49,13 @@ def _adapter(claude_code_runtime: Path, command: str, guard: Path = GUARD) -> su
 
 
 def _denied(result: subprocess.CompletedProcess) -> bool:
-    """Claude Code's deny rides entirely in the JSON body on a clean exit -- see
-    agentseam's `claude_code.respond()` for why exit 2 is deliberately not used."""
+    """Claude Code's deny rides entirely in the JSON body on a clean exit -- see"""
     if result.returncode != 0 or not result.stdout.strip():
         return False
     decision = json.loads(result.stdout)
     return decision.get("hookSpecificOutput", {}).get("permissionDecision") == "deny"
 
 
-# ----------------------------------------------------------------- the adapter contract
 @pytest.mark.parametrize(
     "command",
     ["rm -rf /", "git push --force origin main", "git reset --hard HEAD~1"],
@@ -85,11 +74,7 @@ def test_safe_commands_are_allowed(command: str, claude_code_runtime: Path) -> N
 
 
 def test_argv_guard_receives_the_stdin_command(claude_code_runtime: Path) -> None:
-    """The original defect: guards read argv, Claude sends JSON on stdin.
-
-    Invoking the guard directly with no argv -- which is what an installed hook would have
-    done before the adapter existed -- allows `rm -rf /`.
-    """
+    """The original defect: guards read argv, Claude sends JSON on stdin."""
     bash = find_bash(GUARD)
     assert bash, "no usable bash on this machine; cannot exercise the guard"
     direct = subprocess.run([bash, str(GUARD)], input=_payload("rm -rf /"), capture_output=True, text=True)
@@ -135,14 +120,8 @@ def test_non_command_tool_input_is_ignored(claude_code_runtime: Path) -> None:
     assert not _denied(result)
 
 
-# ------------------------------------------------------------------------- the installer
 def _fresh_repo() -> tuple[Path, dict]:
-    """A scaffolded repo holding the two policies that compile a PreToolUse guard.
-
-    `init` installs no policies, so they are copied in explicitly -- the same
-    copy-a-folder step an adopter takes. Without them there is nothing to install and the
-    installer would be asserted against an empty input.
-    """
+    """A scaffolded repo holding the two policies that compile a PreToolUse guard."""
     import shutil
 
     repo = Path(tempfile.mkdtemp()) / "r"

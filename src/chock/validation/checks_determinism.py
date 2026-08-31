@@ -71,7 +71,6 @@ def check_scripts_shipped(artifact_dir: Path, manifest: dict[str, Any], artifact
                 )
             )
             return
-        # If scripts.entrypoint is declared, it must resolve within scripts/.
         entrypoint = manifest.get("scripts", {}).get("entrypoint")
         if entrypoint:
             entrypoint_path = scripts_dir / entrypoint
@@ -195,8 +194,6 @@ def check_determinization_heuristic(
     skill_type = skill.get("skill_type") or manifest.get("skill_type")
     if skill_type != "nl":
         return
-    # A reviewed acknowledgment records that determinization was considered and
-    # deliberately declined (or the skill wraps a deterministic tool already).
     if manifest.get("determinization_reviewed"):
         return
 
@@ -227,10 +224,7 @@ def check_determinization_heuristic(
 
 
 def _compute_script_hashes(artifact_dir: Path, manifest: dict[str, Any]) -> dict[str, str]:
-    """Compute sha256 hashes for deterministic scripts shipped with an artifact.
-
-    Mirrors the registry scanner so the validator can detect drift.
-    """
+    """Compute sha256 hashes for deterministic scripts shipped with an artifact."""
     artifact_type = manifest.get("artifact", "")
     hashes: dict[str, str] = {}
 

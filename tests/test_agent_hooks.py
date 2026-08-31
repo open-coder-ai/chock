@@ -1,10 +1,4 @@
-"""agent-hooks surface (chock#48): the .github/hooks entry for Copilot CLI + VS Code.
-
-The load-bearing test is end-to-end: a real temp git repo with the vendored adapter and a
-real guard, running the EMITTED command through the shell -- proving git-root discovery,
-interpreter resolution, stdin passthrough and exit-2 deny all work together, not just that
-the JSON has the right shape.
-"""
+"""agent-hooks surface (chock#48): the .github/hooks entry for Copilot CLI + VS Code."""
 
 from __future__ import annotations
 
@@ -22,11 +16,6 @@ from chock.gate import runtime_bundle
 
 
 def _payload(command: str) -> str:
-    # VS Code / Copilot CLI PreToolUse wire contract (IPreToolUseHookCommandInput, per
-    # hookCommandTypes.ts): {tool_name, tool_input, tool_use_id} plus the envelope's own
-    # `timestamp`, which every real VS Code payload carries and which distinguishes it
-    # from Claude Code's identically-named events -- see agentseam's vscode_copilot
-    # adapter.
     return json.dumps(
         {
             "tool_name": "Bash",
@@ -69,7 +58,6 @@ def test_build_entry_has_all_four_command_fields(tmp_path):
 
 
 def test_matcher_excludes_read_tools():
-    # view/glob are not shell tools -- the guard must not run on them.
     import re
 
     rx = re.compile(f"^(?:{SHELL_MATCHER})$")
@@ -91,15 +79,12 @@ def test_emitted_bash_command_denies_end_to_end(tmp_path):
     if not bash:
         pytest.skip("no working bash (WSL relay does not count)")
     repo, manifest = _synced_repo(tmp_path)
-    # emitter uses repo-relative paths resolved via git rev-parse at runtime
     entry = build_entry(Path(".agents/policies/block-destructive-commands"), manifest)
     bash_cmd = entry["bash"]
 
     blocked = subprocess.run(
         [bash, "-c", bash_cmd], cwd=repo, input=_payload("rm -rf /"), capture_output=True, text=True
     )
-    # vscode_copilot's deny rides in hookSpecificOutput.permissionDecision on a clean
-    # exit -- see agentseam's vscode_copilot.respond().
     assert blocked.returncode == 0, (blocked.stdout, blocked.stderr)
     decision = json.loads(blocked.stdout)
     assert decision["hookSpecificOutput"]["permissionDecision"] == "deny", (blocked.stdout, blocked.stderr)

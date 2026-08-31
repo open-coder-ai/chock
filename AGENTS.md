@@ -71,6 +71,13 @@ short_code_english: {
   prefer: [schemas, pseudocode, command_formats, structured_variables],
   avoid: [prose, essays, conversational_filler, ambiguity]
 }
+code_comments: {
+  applies_to: source_files,
+  docstring: one_line, inline: nonobvious_only, why: [pr_body, docs/],
+  understanding: deepwiki(open-coder-ai/chock),
+  keep: [noqa, pragma, "type:", "fmt:", "ruff:", shebang, adopter_template_markers],
+  target: prose_to_code <=0.15, enforcement: advisory
+}
 progressive_disclosure: {SKILL.md: activation_surface, depth: references/, inline: false}
 budgets: {SKILL.md: <=150, description: <=500, references: <=300, ambient_rule: <=2}
 validation: {pre_change: chock check, touched: [validate, eval]}

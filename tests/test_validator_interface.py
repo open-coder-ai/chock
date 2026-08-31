@@ -18,31 +18,26 @@ def test_effects_and_approval(tmp_path):
     skill_dir.mkdir()
     (skill_dir / "manifest.yaml").write_text("id: test-skill\nartifact: skill\n", encoding="utf-8")
 
-    # Missing approval with non-none effects.
     manifest = {"effects": ["writes_external"], "enforcement": "verify"}
     report = validator.Report()
     validator.check_effects_and_approval(skill_dir, manifest, "skill", report)
     assert any(f.check == "effects" and "approval" in f.message for f in report.errors)
 
-    # Wrong enforcement with non-none effects.
     manifest = {"effects": ["writes_external"], "enforcement": "advise", "approval": {"required": True}}
     report = validator.Report()
     validator.check_effects_and_approval(skill_dir, manifest, "skill", report)
     assert any(f.check == "effects" and "enforcement" in f.message for f in report.errors)
 
-    # Valid non-none effects.
     manifest = {"effects": ["writes_external"], "enforcement": "verify", "approval": {"required": True}}
     report = validator.Report()
     validator.check_effects_and_approval(skill_dir, manifest, "skill", report)
     assert not any(f.check == "effects" for f in report.errors)
 
-    # Mixing none with other effects is an error.
     manifest = {"effects": ["none", "writes_external"], "enforcement": "verify", "approval": {"required": True}}
     report = validator.Report()
     validator.check_effects_and_approval(skill_dir, manifest, "skill", report)
     assert any(f.check == "effects" and "mix" in f.message for f in report.errors)
 
-    # [none] is allowed with any enforcement.
     manifest = {"effects": ["none"], "enforcement": "advise"}
     report = validator.Report()
     validator.check_effects_and_approval(skill_dir, manifest, "skill", report)
@@ -104,7 +99,6 @@ def test_skill_schema_enforces_interface_rigor():
     with pytest.raises(jsonschema.ValidationError):
         v.validate(instance=invalid)
 
-    # Missing skill effects is a schema error for skills.
     missing_effects = valid.copy()
     missing_effects["skill"] = dict(valid["skill"])
     del missing_effects["skill"]["effects"]
@@ -131,13 +125,11 @@ def test_verb_first_naming_int3(tmp_path):
     validator.check_verb_first_naming(skill_dir, manifest, "skill", report)
     assert not any(f.check == "interface" for f in report.warnings)
 
-    # Rules are exempt.
     manifest["id"] = "new-artifact"
     report = validator.Report()
     validator.check_verb_first_naming(skill_dir, manifest, "rule", report)
     assert not any(f.check == "interface" for f in report.warnings)
 
-    # Grandfathered IDs are exempt.
     manifest["id"] = "chock-init"
     report = validator.Report()
     validator.check_verb_first_naming(skill_dir, manifest, "skill", report)
@@ -240,7 +232,7 @@ def test_determinization_reviewed_suppresses_det3(tmp_path):
     (art / "SKILL.md").write_text("body with ^(feat|fix)/ regex heuristics\n", encoding="utf-8")
     report = validator.Report()
     validator.check_determinization_heuristic(art, {"skill": {"skill_type": "nl"}}, "skill", report)
-    assert report.infos  # unacknowledged -> info
+    assert report.infos
     report2 = validator.Report()
     validator.check_determinization_heuristic(
         art, {"skill": {"skill_type": "nl"}, "determinization_reviewed": True}, "skill", report2
