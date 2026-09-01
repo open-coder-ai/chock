@@ -114,16 +114,14 @@ def test_a_wrapper_agent_gets_at_least_the_ambient_rule() -> None:
 
 def test_repo_coverage_matches_actual_enforcement() -> None:
     """End to end on this repo: every enforcement claim names its real witness."""
-    from chock.hooks.agenthooks_install import installed_agent_hooks_policy_ids
-    from chock.hooks.cursor_install import installed_cursor_policy_ids
-    from chock.hooks.pretooluse_install import installed_pretooluse_policy_ids
+    from chock.hooks.in_agent_install import installed_policy_ids
 
     coverage = json.loads((FRAMEWORK_ROOT / ".chock" / "coverage.json").read_text(encoding="utf-8"))
     compiled = FRAMEWORK_ROOT / ".chock" / "compiled"
-    agent_hooks_witness = installed_agent_hooks_policy_ids(FRAMEWORK_ROOT)
+    agent_hooks_witness = installed_policy_ids(FRAMEWORK_ROOT, "vscode_copilot")
     witnesses = {
-        "claude": installed_pretooluse_policy_ids(FRAMEWORK_ROOT),
-        "cursor": installed_cursor_policy_ids(FRAMEWORK_ROOT),
+        "claude": installed_policy_ids(FRAMEWORK_ROOT, "claude_code"),
+        "cursor": installed_policy_ids(FRAMEWORK_ROOT, "cursor"),
         "copilot": agent_hooks_witness,
         "vscode": agent_hooks_witness,
     }

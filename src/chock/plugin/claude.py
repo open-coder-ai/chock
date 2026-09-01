@@ -8,7 +8,7 @@ from typing import Any
 
 from agentseam import packaging
 
-from chock.compile.emitters.claude_pretooluse import MATCHER, TIMEOUT_SECONDS, _guard_script
+from chock.compile.emitters.in_agent import _guard_script, hooks_map_file
 from chock.gate import runtime_bundle
 from chock.plugin import store
 from chock.plugin.build import (
@@ -100,17 +100,7 @@ def claude_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
         files[LICENSE_REL] = licence
     if script:
         hooks_rel = packaging.supports("claude_code", packaging.HOOKS)
-        hooks = {
-            "hooks": {
-                "PreToolUse": [
-                    {
-                        "matcher": MATCHER,
-                        "hooks": [{"type": "command", "command": _hook_command(script), "timeout": TIMEOUT_SECONDS}],
-                    }
-                ]
-            }
-        }
-        files[Path(hooks_rel)] = json.dumps(hooks, indent=2) + "\n"
+        files[Path(hooks_rel)] = json.dumps(hooks_map_file("claude_code", _hook_command(script)), indent=2) + "\n"
         files[Path(_SCRIPTS_TEMPLATE.format(name="claude_code.py"))] = _adapter_source("claude_code")
         files[Path(_SCRIPTS_TEMPLATE.format(name=script))] = (policy_dir / "implementations" / script).read_text(
             encoding="utf-8"

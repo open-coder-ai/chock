@@ -64,35 +64,18 @@ def main(argv=None) -> int:
     install_validate_hook(hooks_dir, repo_root)
     install_policy_hooks(repo_root, hooks_dir)
 
-    from chock.hooks.agenthooks_install import install_agent_hooks
-    from chock.hooks.cursor_install import install_cursor_hooks
-    from chock.hooks.pretooluse_install import install_pretooluse_hooks
+    from chock.hooks.in_agent_install import WIRED_VENDORS, install_hooks, install_label
 
     wired = False
-    try:
-        installed = install_pretooluse_hooks(repo_root)
-    except ValueError as exc:
-        print(f"[WARN] {exc}", file=sys.stderr)
-    else:
-        if installed:
-            print(f"Registered {len(installed)} PreToolUse hook(s) in .claude/settings.json")
-            wired = True
-    try:
-        cursor_installed = install_cursor_hooks(repo_root)
-    except ValueError as exc:
-        print(f"[WARN] {exc}", file=sys.stderr)
-    else:
-        if cursor_installed:
-            print(f"Registered {len(cursor_installed)} Cursor hook entr(y/ies) in .cursor/hooks.json")
-            wired = True
-    try:
-        agent_installed = install_agent_hooks(repo_root)
-    except ValueError as exc:
-        print(f"[WARN] {exc}", file=sys.stderr)
-    else:
-        if agent_installed:
-            print(f"Registered {len(agent_installed)} agent hook(s) in .github/hooks/chock.json")
-            wired = True
+    for vendor in WIRED_VENDORS:
+        try:
+            installed = install_hooks(repo_root, vendor)
+        except ValueError as exc:
+            print(f"[WARN] {exc}", file=sys.stderr)
+        else:
+            if installed:
+                print(f"Registered {len(installed)} {install_label(vendor)}")
+                wired = True
     if wired:
         from chock.scaffold.recompile import refresh_after_install
 

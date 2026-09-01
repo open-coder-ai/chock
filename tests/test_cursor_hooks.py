@@ -14,8 +14,7 @@ from conftest import baseline_policy
 
 from chock.compile.compiler import compile_policy
 from chock.compile.surfaces import Surface
-from chock.hooks.cursor_install import install_cursor_hooks, installed_cursor_policy_ids
-from chock.hooks.pretooluse_install import INTERPRETER_PLACEHOLDER, install_pretooluse_hooks
+from chock.hooks.in_agent_install import INTERPRETER_PLACEHOLDER, install_hooks, installed_policy_ids
 
 FRAMEWORK_ROOT = Path(__file__).resolve().parents[1]
 
@@ -74,7 +73,7 @@ def test_install_bakes_and_preserves_foreign_entries() -> None:
     hooks_path.parent.mkdir(parents=True, exist_ok=True)
     theirs = {"command": "./scripts/audit.sh"}
     hooks_path.write_text(json.dumps({"version": 1, "hooks": {"beforeShellExecution": [theirs]}}), encoding="utf-8")
-    install_cursor_hooks(repo)
+    install_hooks(repo, "cursor")
     settings = json.loads(hooks_path.read_text(encoding="utf-8"))
     entries = settings["hooks"]["beforeShellExecution"]
     assert entries[0] == theirs, "the adopter's own entry must survive, first"
@@ -95,7 +94,7 @@ def _fake_but_real_interpreter(tmp_path: Path) -> str:
 
 def test_reinstall_does_not_churn_a_committed_entry(tmp_path: Path) -> None:
     repo = _fresh_repo()
-    install_cursor_hooks(repo)
+    install_hooks(repo, "cursor")
     hooks_path = repo / ".cursor" / "hooks.json"
     settings = json.loads(hooks_path.read_text(encoding="utf-8"))
     entry = settings["hooks"]["beforeShellExecution"][0]
@@ -103,14 +102,14 @@ def test_reinstall_does_not_churn_a_committed_entry(tmp_path: Path) -> None:
     entry["command"] = f'"{other}"' + entry["command"][entry["command"].index(' "') :]
     hooks_path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
     before = hooks_path.read_text(encoding="utf-8")
-    install_cursor_hooks(repo)
+    install_hooks(repo, "cursor")
     assert json.loads(hooks_path.read_text(encoding="utf-8")) == json.loads(before)
-    assert "block-destructive-commands" in installed_cursor_policy_ids(repo)
+    assert "block-destructive-commands" in installed_policy_ids(repo, "cursor")
 
 
 def test_reinstall_rebakes_an_interpreter_that_no_longer_resolves() -> None:
     repo = _fresh_repo()
-    install_cursor_hooks(repo)
+    install_hooks(repo, "cursor")
     hooks_path = repo / ".cursor" / "hooks.json"
     settings = json.loads(hooks_path.read_text(encoding="utf-8"))
     entry = settings["hooks"]["beforeShellExecution"][0]
@@ -118,7 +117,7 @@ def test_reinstall_rebakes_an_interpreter_that_no_longer_resolves() -> None:
         '"/usr/local/bin/definitely-not-a-real-interpreter3"' + entry["command"][entry["command"].index(' "') :]
     )
     hooks_path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
-    install_cursor_hooks(repo)
+    install_hooks(repo, "cursor")
     settings = json.loads(hooks_path.read_text(encoding="utf-8"))
     command = settings["hooks"]["beforeShellExecution"][0]["command"]
     assert sys.executable in command, "a dead interpreter path must be rebaked to one that runs here"
@@ -151,19 +150,19 @@ def test_coverage_witness_is_per_agent() -> None:
     baseline = recompile_and_read()
     assert baseline["claude"] != "enforced" and baseline["cursor"] != "enforced"
 
-    install_pretooluse_hooks(repo)
+    install_hooks(repo, "claude_code")
     after_claude = recompile_and_read()
     assert after_claude["claude"] == "best-effort"
     assert after_claude["cursor"] != "enforced", "Claude's install is not evidence for Cursor"
 
-    install_cursor_hooks(repo)
+    install_hooks(repo, "cursor")
     after_both = recompile_and_read()
     assert after_both["cursor"] == "enforceable"
 
 
 def test_adapter_parses_cursor_payload_and_denies() -> None:
     repo = _fresh_repo()
-    install_cursor_hooks(repo)
+    install_hooks(repo, "cursor")
     settings = json.loads((repo / ".cursor" / "hooks.json").read_text(encoding="utf-8"))
     command = settings["hooks"]["beforeShellExecution"][0]["command"].replace("${CLAUDE_PROJECT_DIR}", str(repo))
     payload = json.dumps({"command": "rm -rf /", "cwd": str(repo), "hook_event_name": "beforeShellExecution"})

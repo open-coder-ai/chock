@@ -8,7 +8,7 @@ from typing import Any
 
 from agentseam import packaging
 
-from chock.compile.emitters.claude_pretooluse import MATCHER, TIMEOUT_SECONDS, _guard_script
+from chock.compile.emitters.in_agent import _guard_script, hooks_map_file
 from chock.plugin import posture, store
 from chock.plugin.build import (
     _ADVISORY_NOTE_HOOK,
@@ -27,7 +27,6 @@ _LAYOUT = packaging.layout("codex_cli")
 PLUGIN_ROOT = packaging.plugin_root("codex_cli")
 HOOKS_REL = packaging.supports("codex_cli", packaging.HOOKS)
 SKILLS_REL = _LAYOUT["declares"][packaging.SKILL][1]
-EVENT = "PreToolUse"
 
 MANIFEST_KEYS = (
     "name",
@@ -114,17 +113,7 @@ def codex_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
     if licence:
         files[LICENSE_REL] = licence
     if script:
-        hooks = {
-            "hooks": {
-                EVENT: [
-                    {
-                        "matcher": MATCHER,
-                        "hooks": [{"type": "command", "command": _hook_command(script), "timeout": TIMEOUT_SECONDS}],
-                    }
-                ]
-            },
-        }
-        files[Path(HOOKS_REL)] = json.dumps(hooks, indent=2) + "\n"
+        files[Path(HOOKS_REL)] = json.dumps(hooks_map_file("codex_cli", _hook_command(script)), indent=2) + "\n"
         files[Path(_SCRIPTS_TEMPLATE.format(name="codex_cli.py"))] = _adapter_source("codex_cli")
         files[Path(_SCRIPTS_TEMPLATE.format(name=script))] = (policy_dir / "implementations" / script).read_text(
             encoding="utf-8"

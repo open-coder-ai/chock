@@ -13,11 +13,7 @@ from conftest import baseline_policy
 
 from chock.compile.compiler import compile_policy
 from chock.compile.surfaces import Surface
-from chock.hooks.pretooluse_install import (
-    INTERPRETER_PLACEHOLDER,
-    install_pretooluse_hooks,
-    installed_pretooluse_policy_ids,
-)
+from chock.hooks.in_agent_install import INTERPRETER_PLACEHOLDER, install_hooks, installed_policy_ids
 
 FRAMEWORK_ROOT = Path(__file__).resolve().parents[1]
 
@@ -69,7 +65,7 @@ def test_compiled_fragment_keeps_the_placeholder(tmp_path: Path) -> None:
 
 def test_installed_command_bakes_a_real_interpreter() -> None:
     repo, _ = _fresh_repo()
-    install_pretooluse_hooks(repo)
+    install_hooks(repo, "claude_code")
     settings = json.loads((repo / ".claude" / "settings.json").read_text(encoding="utf-8"))
     command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
     assert INTERPRETER_PLACEHOLDER not in command, "install must substitute the placeholder"
@@ -78,7 +74,7 @@ def test_installed_command_bakes_a_real_interpreter() -> None:
 
 def test_guard_blocks_even_with_no_python_on_path() -> None:
     repo, _ = _fresh_repo()
-    install_pretooluse_hooks(repo)
+    install_hooks(repo, "claude_code")
     settings = json.loads((repo / ".claude" / "settings.json").read_text(encoding="utf-8"))
     command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"].replace("${CLAUDE_PROJECT_DIR}", str(repo))
     stripped = {k: v for k, v in os.environ.items() if k != "PATH"}
@@ -96,8 +92,8 @@ def test_guard_blocks_even_with_no_python_on_path() -> None:
 
 def test_coverage_detection_survives_the_bake() -> None:
     repo, _ = _fresh_repo()
-    install_pretooluse_hooks(repo)
-    assert "block-destructive-commands" in installed_pretooluse_policy_ids(repo)
+    install_hooks(repo, "claude_code")
+    assert "block-destructive-commands" in installed_policy_ids(repo, "claude_code")
 
 
 def _rewrite_interpreter(repo: Path, token: str) -> None:
@@ -112,10 +108,10 @@ def _rewrite_interpreter(repo: Path, token: str) -> None:
 
 def test_coverage_is_machine_independent() -> None:
     repo, _ = _fresh_repo()
-    install_pretooluse_hooks(repo)
+    install_hooks(repo, "claude_code")
     for token in ('"/usr/bin/python3.12"', "python"):
         _rewrite_interpreter(repo, token)
-        assert "block-destructive-commands" in installed_pretooluse_policy_ids(repo), token
+        assert "block-destructive-commands" in installed_policy_ids(repo, "claude_code"), token
 
 
 def _fake_but_real_interpreter(tmp_path: Path) -> str:
@@ -130,20 +126,20 @@ def _fake_but_real_interpreter(tmp_path: Path) -> str:
 
 def test_reinstall_does_not_churn_a_committed_entry(tmp_path: Path) -> None:
     repo, _ = _fresh_repo()
-    install_pretooluse_hooks(repo)
+    install_hooks(repo, "claude_code")
     other = _fake_but_real_interpreter(tmp_path)
     _rewrite_interpreter(repo, f'"{other}"')
     before = (repo / ".claude" / "settings.json").read_text(encoding="utf-8")
-    install_pretooluse_hooks(repo)
+    install_hooks(repo, "claude_code")
     after = (repo / ".claude" / "settings.json").read_text(encoding="utf-8")
     assert json.loads(after) == json.loads(before), "an equivalent, still-runnable installed entry was re-baked"
 
 
 def test_reinstall_rebakes_an_interpreter_that_no_longer_resolves() -> None:
     repo, _ = _fresh_repo()
-    install_pretooluse_hooks(repo)
+    install_hooks(repo, "claude_code")
     _rewrite_interpreter(repo, '"/usr/local/bin/definitely-not-a-real-interpreter3"')
-    install_pretooluse_hooks(repo)
+    install_hooks(repo, "claude_code")
     settings = json.loads((repo / ".claude" / "settings.json").read_text(encoding="utf-8"))
     command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
     assert sys.executable in command, "a dead interpreter path must be rebaked to one that runs here"

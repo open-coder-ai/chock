@@ -13,34 +13,32 @@ from typing import Any, NoReturn
 import yaml
 
 from chock.compile.emitters import (
-    agent_hooks,
     ambient,
     ci,
     claude_managed,
-    claude_pretooluse,
     git_hook,
+    in_agent,
     mcp_gateway,
 )
-from chock.compile.levels import Grade, render_grade
+from chock.compile.levels import IN_AGENT_TODAY, Grade, render_grade
 from chock.compile.surfaces import SURFACE_AGENTS, Surface, coverage_cell, parse_agent_selection
 from chock.config import agents_from_config
-from chock.hooks.agenthooks_install import installed_agent_hooks_policy_ids
-from chock.hooks.cursor_install import installed_cursor_policy_ids
-from chock.hooks.pretooluse_install import installed_pretooluse_policy_ids
+from chock.hooks.in_agent_install import WIRED_VENDORS, installed_policy_ids
 from chock.manifest import ManifestSourceError, load_manifest
 from chock.policy_id import InvalidPolicyId, validate_policy_id
 from chock.scaffold.install_ci import ci_workflow_installed
+from chock.vendors import CHOCK_AGENT
 
 DEFAULT_OUTPUT_ROOT = Path(".chock") / "compiled"
 
 EMITTERS: dict[Surface, Any] = {
     Surface.GIT_HOOK: git_hook,
     Surface.CI_GATE: ci,
-    Surface.PRE_TOOL_USE: claude_pretooluse,
+    Surface.PRE_TOOL_USE: in_agent.pre_tool_use,
     Surface.MANAGED_SETTING: claude_managed,
     Surface.AMBIENT_RULE: ambient,
     Surface.MCP_GATEWAY: mcp_gateway,
-    Surface.AGENT_HOOKS: agent_hooks,
+    Surface.AGENT_HOOKS: in_agent.agent_hooks,
 }
 
 
@@ -126,12 +124,17 @@ def compile_policy(
     selected_set = {Surface(t) for t, paths in artifacts.items() if paths}
     agent_list = agents or sorted(SURFACE_AGENTS)
     root = Path(repo_root) if repo_root else output_root.parent.parent
+    vendor_installed = {vendor: installed_policy_ids(root, vendor) for vendor in WIRED_VENDORS}
     installed_for = {
-        "claude": policy_id in installed_pretooluse_policy_ids(root),
-        "cursor": policy_id in installed_cursor_policy_ids(root),
+        agent: policy_id in vendor_installed[CHOCK_AGENT[agent]]
+        for agent in IN_AGENT_TODAY
+        if Surface.PRE_TOOL_USE in SURFACE_AGENTS[agent]
     }
-    agent_hooks_ok = policy_id in installed_agent_hooks_policy_ids(root)
-    agent_hooks_for = {"copilot": agent_hooks_ok, "vscode": agent_hooks_ok}
+    agent_hooks_for = {
+        agent: policy_id in vendor_installed[CHOCK_AGENT[agent]]
+        for agent in IN_AGENT_TODAY
+        if Surface.AGENT_HOOKS in SURFACE_AGENTS[agent]
+    }
     ci_installed = ci_workflow_installed(root)
     coverage: dict[str, dict[str, dict[str, object]]] = {policy_id: {}}
     for agent in agent_list:

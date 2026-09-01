@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 
 from chock.gate import runtime_bundle
-from chock.hooks.pretooluse_install import INTERPRETER_PLACEHOLDER
+from chock.hooks.in_agent_install import INTERPRETER_PLACEHOLDER
 from chock.hooks.sessionstart_install import install_sessionstart_hook
 
 FRAMEWORK_ROOT = Path(__file__).resolve().parents[1]

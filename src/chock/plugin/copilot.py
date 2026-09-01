@@ -8,7 +8,7 @@ from typing import Any
 
 from agentseam import packaging
 
-from chock.compile.emitters.claude_pretooluse import MATCHER, TIMEOUT_SECONDS, _guard_script
+from chock.compile.emitters.in_agent import _guard_script, hooks_map_file
 from chock.plugin import store
 from chock.plugin.build import (
     _ADVISORY_NOTE_HOOK,
@@ -95,17 +95,7 @@ def copilot_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: 
     if licence:
         files[LICENSE_REL] = licence
     if script:
-        hooks = {
-            "hooks": {
-                "PreToolUse": [
-                    {
-                        "matcher": MATCHER,
-                        "hooks": [{"type": "command", "command": _hook_command(script), "timeout": TIMEOUT_SECONDS}],
-                    }
-                ]
-            }
-        }
-        files[Path(HOOKS_REL)] = json.dumps(hooks, indent=2) + "\n"
+        files[Path(HOOKS_REL)] = json.dumps(hooks_map_file("vscode_copilot", _hook_command(script)), indent=2) + "\n"
         files[Path(_SCRIPTS_TEMPLATE.format(name="vscode_copilot.py"))] = _adapter_source("vscode_copilot")
         files[Path(_SCRIPTS_TEMPLATE.format(name=script))] = (policy_dir / "implementations" / script).read_text(
             encoding="utf-8"

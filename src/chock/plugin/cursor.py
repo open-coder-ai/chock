@@ -8,7 +8,7 @@ from typing import Any
 
 from agentseam import packaging
 
-from chock.compile.emitters.claude_pretooluse import TIMEOUT_SECONDS, _guard_script
+from chock.compile.emitters.in_agent import _guard_script, cursor_hooks_file
 from chock.plugin import posture, store
 from chock.plugin.build import (
     _ADVISORY_NOTE_HOOK,
@@ -28,7 +28,6 @@ _LAYOUT = packaging.layout("cursor")
 PLUGIN_ROOT = packaging.plugin_root("cursor")
 HOOKS_REL = packaging.supports("cursor", packaging.HOOKS)
 SKILLS_REL = _LAYOUT["declares"][packaging.SKILL][1]
-EVENT = "beforeShellExecution"
 
 MANIFEST_KEYS = (
     "name",
@@ -113,11 +112,7 @@ def cursor_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
     if licence:
         files[LICENSE_REL] = licence
     if script:
-        hooks = {
-            "version": 1,
-            "hooks": {EVENT: [{"command": _hook_command(script), "timeout": TIMEOUT_SECONDS}]},
-        }
-        files[Path(HOOKS_REL)] = json.dumps(hooks, indent=2) + "\n"
+        files[Path(HOOKS_REL)] = json.dumps(cursor_hooks_file(_hook_command(script)), indent=2) + "\n"
         files[Path(_SCRIPTS_TEMPLATE.format(name="cursor.py"))] = _adapter_source("cursor")
         files[Path(_SCRIPTS_TEMPLATE.format(name=script))] = (policy_dir / "implementations" / script).read_text(
             encoding="utf-8"

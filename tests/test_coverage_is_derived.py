@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from chock.hooks.pretooluse_install import install_pretooluse_hooks, installed_pretooluse_policy_ids
+from chock.hooks.in_agent_install import install_hooks, installed_policy_ids
 from chock.scaffold.recompile import compiled_differences, recompile
 
 AGENTS = ["claude"]
@@ -58,7 +58,7 @@ def _level(repo_root: Path) -> str:
 
 def test_uninstalled_guard_does_not_claim_enforcement(repo: Path) -> None:
     assert _fragment(repo).exists(), "fixture emitted no PreToolUse fragment; nothing under test"
-    assert installed_pretooluse_policy_ids(repo) == set()
+    assert installed_policy_ids(repo, "claude_code") == set()
     assert _level(repo) != "enforced"
 
 
@@ -66,8 +66,8 @@ def test_installing_raises_the_claim_and_recompile_keeps_it(repo: Path) -> None:
     """The regression, stated directly: recompile must not undo what install established."""
     assert _fragment(repo).exists(), "fixture emitted no PreToolUse fragment; nothing under test"
 
-    install_pretooluse_hooks(repo)
-    assert installed_pretooluse_policy_ids(repo) == {GUARD["id"]}
+    install_hooks(repo, "claude_code")
+    assert installed_policy_ids(repo, "claude_code") == {GUARD["id"]}
 
     recompile(repo, AGENTS, skip_hooks=True)
     assert _level(repo) == "best-effort", "recompile dropped the claim install-hooks established"
@@ -80,7 +80,7 @@ def test_check_is_clean_once_coverage_is_refreshed(repo: Path) -> None:
     """`recompile --check` used to fail the moment hooks were installed."""
     assert _fragment(repo).exists(), "fixture emitted no PreToolUse fragment; nothing under test"
 
-    install_pretooluse_hooks(repo)
+    install_hooks(repo, "claude_code")
     recompile(repo, AGENTS, skip_hooks=True)
     assert compiled_differences(repo, AGENTS) == []
 
@@ -99,7 +99,7 @@ def test_uninstalling_lowers_the_claim_again(repo: Path) -> None:
     """Coverage tracks settings.json in both directions, or it is not derived."""
     assert _fragment(repo).exists(), "fixture emitted no PreToolUse fragment; nothing under test"
 
-    install_pretooluse_hooks(repo)
+    install_hooks(repo, "claude_code")
     recompile(repo, AGENTS, skip_hooks=True)
     assert _level(repo) == "best-effort"
 
