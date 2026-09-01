@@ -31,7 +31,7 @@ GUARD_UNCHECKED = "unchecked"
 GUARD_ERRORED = "errored"
 
 VERDICT_DENY = "deny"
-VERDICT_ASK = "ask"
+VERDICT_ESCALATE = "escalate"
 
 
 def guard_path_from_argv(argv: list[str]) -> Path | None:
@@ -160,7 +160,7 @@ def evaluate(argv: list[str], command: str, tool: str = "") -> tuple[str, str] |
         return (VERDICT_DENY, f"Blocked by chock policy: {guard.stem}")
     if verdict == GUARD_ERRORED:
         return (
-            VERDICT_ASK,
+            VERDICT_ESCALATE,
             f"chock could not check this command: the {guard.stem} guard did not complete "
             f"(see this hook's stderr). Approving runs it unchecked.",
         )

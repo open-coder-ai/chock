@@ -3,6 +3,7 @@
     "agent": "claude_code",
     "claim": "honours_ask",
     "verdict": "ask",
+    "honours": true,
     "evidence": "tested",
     "test": "tests/test_guard_fail_to_ask.py::test_a_crashed_guard_asks_rather_than_allowing"
   },
@@ -10,6 +11,7 @@
     "agent": "vscode_copilot",
     "claim": "honours_ask",
     "verdict": "ask",
+    "honours": true,
     "evidence": "tested",
     "test": "tests/test_guard_fail_to_ask.py::test_a_crashed_guard_asks_rather_than_allowing"
   },
@@ -17,6 +19,7 @@
     "agent": "cursor",
     "claim": "honours_ask",
     "verdict": "ask",
+    "honours": true,
     "evidence": "tested",
     "test": "tests/test_guard_fail_to_ask.py::test_a_crashed_guard_asks_rather_than_allowing"
   },
@@ -24,6 +27,7 @@
     "agent": "codex_cli",
     "claim": "honours_ask",
     "verdict": "deny",
+    "honours": false,
     "evidence": "tested",
     "test": "tests/test_guard_fail_to_ask.py::test_a_crashed_guard_asks_rather_than_allowing"
   }

@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- **agentseam 0.2.0, and the claim table now separates wire words from semantics.** The
+  dependency pin moves from 0.1.1 to 0.2.0 (the post-ACS release: canonical outcome
+  `escalate`, `ask` kept only as a deprecated alias). Under 0.1.1 chock's claim table
+  validated its `verdict` field against agentseam's canonical constants and derived the
+  fail-to-ask lift by `verdict == ASK` -- correct only because canonical and wire words
+  coincided. Each `src/chock/data/claims.json` row now records BOTH the word witnessed on
+  the vendor's wire (`verdict`, validated against a chock-owned wire vocabulary that a
+  live-runtime test recomputes from fixtures) and an explicit `honours` boolean; the lift
+  derives from `honours` alone, and a mutation test pins that equality with any verdict
+  constant fails. The vendored runtimes speak agentseam's canonical words
+  (`guard_runner.VERDICT_ESCALATE`, `Decision.escalate`) and every runtime fixture runs
+  with `-W error::DeprecationWarning`, so a deprecated spelling cannot ship silently.
+  No behavior change: a crashed guard still asks where it asked and codex still gets its
+  deny, and no coverage word moves.
+
 - **Coverage cells now carry their evidence, and a witness ledger replaces hand-asserted
   posture prose.** Each `.chock/coverage.json` cell is `{level, basis, witnessed}` rather than
   a bare word, and every report prints the pair -- `best-effort (live-run)`. The level is

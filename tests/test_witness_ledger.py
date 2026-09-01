@@ -27,6 +27,7 @@ CLAIM_ROW = {
     "agent": "cursor",
     "claim": "honours_ask",
     "verdict": "ask",
+    "honours": True,
     "evidence": "tested",
     "test": "tests/test_guard_fail_to_ask.py::test_a_crashed_guard_asks_rather_than_allowing",
 }
@@ -55,7 +56,7 @@ def test_a_witness_row_missing_any_field_is_refused(field: str) -> None:
     assert evidence.parse_witnesses([WITNESS_ROW]), "the unmutated row must still load"
 
 
-@pytest.mark.parametrize("field", ("agent", "claim", "verdict", "evidence", "test"))
+@pytest.mark.parametrize("field", ("agent", "claim", "verdict", "honours", "evidence", "test"))
 def test_a_claim_missing_its_evidence_is_refused(field: str) -> None:
     """Test (d): strip the basis off a claim and the loader refuses it, rather than grading on it."""
     stripped = {k: v for k, v in CLAIM_ROW.items() if k != field}
@@ -76,6 +77,18 @@ def test_a_documented_only_claim_may_not_name_a_test_and_never_honours_ask() -> 
     table = evidence.parse_claims([{k: v for k, v in documented.items() if k != "test"}])
     assert not evidence.honours_ask("cursor", table=table)
     assert evidence.honours_ask("cursor", table=evidence.parse_claims([CLAIM_ROW]))
+
+
+def test_honours_derives_from_the_semantic_field_not_the_wire_word() -> None:
+    """The mutation gate: equality with any verdict constant would fail one of these two rows."""
+    assert evidence.honours_ask("cursor", table=evidence.parse_claims([CLAIM_ROW]))
+    assert not evidence.honours_ask("cursor", table=evidence.parse_claims([{**CLAIM_ROW, "honours": False}]))
+
+
+def test_a_canonical_outcome_word_is_not_a_wire_verdict() -> None:
+    """agentseam's post-ACS vocabulary must not leak into a field that records what vendors said."""
+    with pytest.raises(evidence.EvidenceError):
+        evidence.parse_claims([{**CLAIM_ROW, "verdict": "escalate"}])
 
 
 def test_an_unknown_agent_surface_or_date_is_refused() -> None:

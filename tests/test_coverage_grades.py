@@ -105,7 +105,7 @@ def _degradation(evaluate_result) -> str:
     if evaluate_result is None:
         return DEGRADES_TO_ALLOW
     outcome, _reason = evaluate_result
-    return DEGRADES_TO_ASK if outcome == guard_runner.VERDICT_ASK else DEGRADES_TO_DENY
+    return DEGRADES_TO_ASK if outcome == guard_runner.VERDICT_ESCALATE else DEGRADES_TO_DENY
 
 
 def test_chocks_degradation_constant_is_derived_from_the_running_guard(tmp_path: Path, monkeypatch) -> None:

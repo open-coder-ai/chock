@@ -255,7 +255,7 @@ D2 vendor config, D3–D5 family engines, D6 bundler.
 | :--- | :--- | :--- | :--- |
 | C0 | 3-role packager collapse into `plugin/store.py` + store data; alias-table unification (`MATRIX_AGENT`+`CHOCK_AGENT` → one table); `RUNTIME_FILENAME` deleted; `marketplace.py` TREES → `packaging.layout`; `scripts/{name}` hardcodes → `packaging.supports` | nothing — agentseam 0.1.1 already ships `packaging` **[v]** | D1–D6, all |
 | C1 | witness ledger + basis-qualified coverage + posture templating (§3); posture prose changes, wire bytes don't | nothing — reads today's `matrix` API | D1–D6, all |
-| C2 | wire facts → vendor-config reads (config paths, events, hook entries, tool lists); one emitter + one installer; settles map M.5(4) and M.5(5) with witness evidence recorded upstream | **D2 landed + released** (chock pins `agentseam==0.1.1` at `pyproject.toml:63`; a pin bump needs a release, freeze or not) | D3–D6 |
+| C2 | wire facts → vendor-config reads (config paths, events, hook entries, tool lists); one emitter + one installer; settles map M.5(4) and M.5(5) with witness evidence recorded upstream | **D2 landed + released** (chock pins `agentseam==0.2.0` at `pyproject.toml:63`; a pin bump needs a release, freeze or not) | D3–D6 |
 | C3 | derived `SURFACE_AGENTS` + in-agent extension to the 9 vendors; day-one coverage per §3.3; per-vendor golden fixtures for fragments and runtimes | C2; runtime bundles for new vendors work off today's `bundler.bundle` **[v]**, so D3–D6 are *not* blockers | D3–D6 |
 | C4 | re-golden vendored runtimes against agentseam's engine-built bundles; byte-stability | D6 released | — |
 
