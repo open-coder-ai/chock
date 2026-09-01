@@ -129,3 +129,30 @@ except `codex.py:31` and `cursor.py:32`, which hardcode `"scripts/{name}"` inste
 9. Windows powershell wrapping: `compile/emitters/agent_hooks.py:23-31` vs agentseam
    `adapters/_windows.py`.
 
+
+### M.6 Day one for the 9 newly reachable vendors, basis-capped [v]
+
+Matrix executed at the agentseam pin; grades per the main doc §3 rule
+`min(matrix word, cap(weakest basis under the resting claims))`, before any
+hand-verification, with the in-agent surface emitted and installed. Row-level basis
+shown; once D2's per-claim evidence lands, the binding basis is the weakest claim's.
+
+| vendor | tier | fail mode | row basis | `pre_tool` observed | day-one cell |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| antigravity | block | open | vendor-docs | no | `best-effort (vendor-docs)` · unwitnessed |
+| codex_cli | block+rewrite | open | live-run-partial | yes | `best-effort (live-run-partial)` · unwitnessed for the repo-level hook; the existing plugin-store witness (2026-08-24, `plugin/codex.py:48-49`) stays scoped to the plugin surface |
+| devin | block+rewrite | open | vendor-docs | no | `best-effort (vendor-docs)` · unwitnessed |
+| gemini_cli | block+rewrite | open | vendor-source | no | `best-effort (vendor-source)` · unwitnessed |
+| grok | block | open | vendor-docs | no | `best-effort (vendor-docs)` · unwitnessed, plus the `needs_trust` caveat from its entry |
+| junie | block+rewrite | open | vendor-docs | no | `best-effort (vendor-docs)` · unwitnessed |
+| kimi_code | block | open | vendor-docs | no | `best-effort (vendor-docs)` · unwitnessed; deny-only gates ⇒ never `fail-to-ask` |
+| tabnine | block | open | vendor-docs | no | `best-effort (vendor-docs)` · unwitnessed; its `vocabulary_basis: unverified` claim may bind lower once per-claim evidence lands — owner call (main doc §3.4) |
+| windsurf | block | open | third-party-install | no | `best-effort (third-party-install)` · unwitnessed (exit-code grammar, G5) |
+
+Never gain a claim: `aider`, `replit`, raw `copilot`, `zed` — `can_block` false ⇒ no
+in-agent surface ⇒ `enforced-at-commit`/`advisory` only, today's words for installed
+git/CI/ambient surfaces (`compile/surfaces.py:85-92`). `cursor` (already enforced)
+remains the only `enforceable` — `live-run-partial` clears its cap, contingent on
+chock actually setting `failClosed` (M.5(5)). No day-one *word* differs from the
+uncapped derivation; every *cell* now carries its basis, which is what prevents a
+future `vendor-docs` row from ever surfacing as `enforced`.

@@ -1,34 +1,31 @@
 # Deriving chock's per-vendor surface from agentseam's vendor config
 
 Design document (W36, design only — no implementation). chock citations are at main
-`bb25bbe`; agentseam citations are at `427fc26`, the commit that merged the approved
-dialect-families design (`docs/design/dialect-families.md` there, cited below as DF §n).
-That design's D2 wave creates `src/agentseam/data/vendors/<agent>.json`; this document
-designs what chock deletes, derives, and keeps once that config exists. It consumes the
-upstream design and must not fork it: no fact recorded in a vendor entry is ever
-re-recorded here.
+`bb25bbe`; agentseam citations are at `427fc26`, the merge of the approved
+dialect-families design (`docs/design/dialect-families.md` there, cited as DF §n),
+whose D2 wave creates `src/agentseam/data/vendors/<agent>.json`. This document designs
+what chock deletes, derives, and keeps once that config exists; it consumes the
+upstream design and never re-records a fact a vendor entry carries.
 
-Legend: **[v]** verified by recount/execution at the pins; **[r]** reported upstream
-(brief or orchestrator), not independently re-derived; **[h]** hypothesis for
-implementation to verify.
+Legend: **[v]** verified by recount/execution at the pins; **[r]** reported upstream,
+not independently re-derived; **[h]** hypothesis for implementation to verify.
 
 ## 0. The goal that sizes everything
 
 chock enforces in-agent on 4 chock agent names today — `claude` + `cursor` via
 pre-tool-use, `copilot` + `vscode` via agent-hooks (`compile/surfaces.py:44-56`) — which
-map to **3** agentseam vendors (`claude_code`, `cursor`, `vscode_copilot`,
-`compile/levels.py:8-13`). agentseam adapts **12** (`matrix.adapted_agents()` at the pin
-**[v]**). The design is therefore judged on what vendors #5–#12 cost, not on cleaning up
-today's 4: the newly reachable set is **9 vendors** (12 − 3): `antigravity`, `codex_cli`
-(reachable today only through its plugin store, not the repo-level hook surface),
-`devin`, `gemini_cli`, `grok`, `junie` (absent from chock entirely today **[v]** — no
-`SURFACE_AGENTS` or `CHOCK_AGENT` row), `kimi_code`, `tabnine`, `windsurf`. The dispatch
-brief said 8; the recount says 9, because `copilot`/`vscode` are one vendor and `junie`
-is missing today.
+map to **3** agentseam vendors (`compile/levels.py:8-13`); agentseam adapts **12**
+(`matrix.adapted_agents()` at the pin **[v]**). The design is therefore judged on what
+vendors #5–#12 cost, not on cleaning up today's 4. The newly reachable set is **9**
+(12 − 3): `antigravity`, `codex_cli` (today reachable only through its plugin store,
+not the repo-level hook surface), `devin`, `gemini_cli`, `grok`, `junie` (absent from
+chock entirely today **[v]**), `kimi_code`, `tabnine`, `windsurf`. The dispatch brief
+said 8; the recount says 9, because `copilot`/`vscode` are one vendor and `junie` is
+missing today.
 
 Data literals are only ~8% of `src/chock` **[r]** — extraction is not the lever;
-derivation is. Most per-vendor bulk here is five hand-written modules per vendor doing
-the same three jobs with different words in them.
+derivation is: the per-vendor bulk is five hand-written modules per vendor doing the
+same three jobs with different words in them.
 
 ## 1. The derivation map
 
@@ -44,12 +41,10 @@ builds on:
   vocabularies, envelopes) are all DA; chock re-records nine of them today, and in two
   places the repos *disagree* (VS Code `preToolUse` vs `PreToolUse` entry shape; cursor
   `failClosed`) — the drift class the derivation kills.
-- Store layout facts already derive from `agentseam.packaging`; two hardcoded
-  `"scripts/{name}"` templates (`plugin/codex.py:31`, `plugin/cursor.py:32`) are the
-  unfinished half of that derivation [v].
-- The three shared packager roles are AST-identical across the four stores with the
-  store token normalized (162 lines) [v]; the two schema-bound roles differ 4-way
-  (§5 here).
+- Store layout already derives from `agentseam.packaging` bar two hardcoded
+  `"scripts/{name}"` templates (`plugin/codex.py:31`, `plugin/cursor.py:32`) [v]; the
+  three shared packager roles are AST-identical across the four stores with the store
+  token normalized (162 lines) [v]; the two schema-bound roles differ 4-way (§5 here).
 - What stays CC is policy, not vendor facts: guard-script conventions, timeout budget,
   interpreter discovery/baking, merge-and-ownership logic, the SessionStart arm,
   claude-managed fragments, fail-posture choices.
@@ -57,15 +52,13 @@ builds on:
 ## 2. Target shape
 
 ```
-src/chock/vendors.py          # NEW ~60 lines: loads agentseam vendor config + matrix;
-                              #   the alias table; derived enforcement set; nothing else
-compile/emitters/in_agent.py  # NEW: one emitter; writes <agent>-hooks.json fragments
-                              #   rendered from hook_entry (replaces claude_pretooluse
-                              #   vendor parts + agent_hooks.py)
+src/chock/vendors.py          # NEW ~60 lines: loads vendor config + matrix; alias
+                              #   table; derived enforcement set; nothing else
+compile/emitters/in_agent.py  # NEW: one emitter; <agent>-hooks.json fragments from
+                              #   hook_entry (replaces the two vendor emitters)
 hooks/in_agent_install.py     # NEW: one installer (config_path + chock merge policy +
-                              #   interpreter baking + ownership marker), replaces
-                              #   pretooluse_install/cursor_install/agenthooks_install;
-                              #   sessionstart_install stays (claude-only, CC)
+                              #   interpreter baking + ownership marker) replacing the
+                              #   three; sessionstart_install stays (claude-only, CC)
 plugin/store.py               # NEW: 3 shared roles parametrized + manifest renderer
 plugin/data/stores/<store>.json  # NEW: SD per marketplace (§5)
 ```
@@ -83,76 +76,93 @@ The ACS vocabulary wave renames canonical decision words upstream (`ask`→`esca
 `agentseam.contract`/`matrix` (`compile/levels.py:5-6`) **[v]**, so the rename reaches
 chock as a pin bump, and nothing here hardcodes the old words.
 
-## 3. Coverage honesty: grade = matrix row × witness ledger
+## 3. Coverage honesty: grade = matrix row × per-claim basis × witness ledger
+
+Amended per the owner's 2026-09-01 decision (org-plan, W36 brief amendment `4f8f1b8`):
+D2's vendor entries will carry a **per-claim evidence entry** — `basis` from
+`matrix_terms.BASES`, `date`, and the test id where a basis claims testing — keeping
+**tested** (an automated fixture exercises the claim against agentseam's runtime)
+distinct from **witnessed** (observed `live-run` in the vendor's real client). chock
+consumes that; it never re-grades it.
 
 ### 3.1 The derivation
 
-Membership first: vendor V gets the in-agent surface iff
-`matrix.can_block(V, PRE_TOOL)` — the same predicate `surfaces.py:44-56` asserts today,
-made generative instead of a guarded allowlist. A vendor whose row cannot block
-(`aider`, `replit`, raw `copilot`, `zed` **[v]**) never gains an in-agent surface, no
-matter what any config file says, because **the grading path reads capability from
-`agentseam.matrix` only — never from the vendor config**. That is the consistency
-property, and it is structural, not asserted: vendor config carries wire facts (paths,
-shapes, words); the matrix carries capability with evidence (DF §3.3 keeps them apart
-deliberately, so a config edit cannot widen a claim past the matrix in either repo).
+Membership: vendor V gets the in-agent surface iff `matrix.can_block(V, PRE_TOOL)` —
+the predicate `surfaces.py:44-56` asserts today, made generative instead of a guarded
+allowlist. A vendor whose row cannot block (`aider`, `replit`, raw `copilot`, `zed`
+**[v]**) never gains an in-agent surface, no matter what any config file says: the
+grading path reads capability from `agentseam.matrix` only, and per-claim evidence
+from the vendor entry only as a **cap**, never as a source of capability — wire facts
+and their evidence live in the vendor entry, the capability tier in the matrix
+(DF §3.3), so no edit to either can widen a claim past the other's evidence.
 
-The reported word stays what `in_agent_level` already computes
-(`compile/levels.py:57-67`): `matrix.enforcement_level(V, PRE_TOOL)`, lifted to
-`fail-to-ask` only when the host is `best-effort` *and* chock's guard degrades to ask —
-which is itself only claimable when the vendor's pre-tool gate honours ask
-(`verdicts.gates.pre_tool.honours_ask` in the vendor entry; hosts that degrade ask→deny
-like `codex_cli` or ask→allow never earn it).
+The word: start from what `in_agent_level` computes today (`compile/levels.py:57-67`),
+i.e. `matrix.enforcement_level(V, PRE_TOOL)`, lifted to `fail-to-ask` only when the
+host is `best-effort` and the gate's `honours_ask` claim is **tested** (a fixture id in
+its evidence entry — documented-only never earns the lift; deny-degrading hosts like
+`codex_cli` never earn it at all). Then cap by evidence: the grade is
+`min(matrix word, cap(weakest basis under the claims the grade rests on))`. The resting
+claims for an in-agent grade: the matrix row itself, plus the vendor-entry claims
+chock's wiring consumes — `config_path` is read, the hook entry fires, the pre-tool
+grammar is spoken, the deny word lands. The binding basis is per-claim, not per-row:
+one weak claim caps the cell even when the row's headline basis is strong.
+
+Cap table (drawn here for owner review; the amendment fixes one anchor — `vendor-docs`
+can never back an `enforced`-tier grade):
+
+| weakest basis under the resting claims | max reportable word |
+| :--- | :--- |
+| `live-run` | `enforced` |
+| `live-run-partial` | `enforceable` |
+| `vendor-source`, `vendor-docs`, `third-party-install` | `best-effort` |
+| `inherited` | `detect` — unreportable (`compile/levels.py:38`), surfaces as `none` **[h]** owner call |
+
+**[h]** Whether `enforceable` should demand full `live-run`: only `cursor` is
+affected (`live-run-partial`, `pre_tool` observed **[v]**), and the stricter line would
+demote a word chock already publishes; this design keeps the line as drawn and flags it.
 
 ### 3.2 The witness ledger (chock-data, evidence-bearing)
 
 Today chock's posture strings hand-assert witness ("witnessed blocking on Codex
-Desktop, Windows, 2026-08-24", `plugin/codex.py:48-49`; "witnessed blocking on a real
-install", `plugin/cursor.py:51`). Those claims are chock's own live evidence about
-chock's own wiring — agentseam's matrix cannot carry them. They move to one data table —
+Desktop, Windows, 2026-08-24", `plugin/codex.py:48-49`; same for cursor at
+`plugin/cursor.py:51`) — chock's own live evidence about chock's own wiring, which
+upstream evidence entries cannot carry. They move to one data table —
 `data/witnesses.json` under `src/chock` (new in C1) — rows of
-`{agent, surface, client, date, method}`.
-Rules:
+`{agent, surface, client, date, method}`, schema-validated (partial rows fail loud).
+A "witnessed" posture template renders iff a ledger row exists for that
+vendor × surface and the matrix row blocks; otherwise the unwitnessed template
+("documented by the vendor; not witnessed by chock") renders. The ledger never moves
+the word — it gates prose only.
 
-- A "witnessed" posture template renders **iff** a ledger row exists for that
-  vendor × surface AND the matrix row can block. No row → the unwitnessed template
-  ("documented by the vendor; not witnessed by chock") renders, and `coverage.json`
-  carries `{"level": <word>, "basis": <matrix basis>, "witnessed": false}`.
-- The level *word* never depends on the ledger — the word is agentseam's
-  evidence-graded claim and chock must not exceed **or** inflate it; the ledger only
-  gates which *prose* chock adds on top.
-- Adding a ledger row requires all evidence fields; the schema validator rejects
-  partial rows (a typo'd row must fail loud, DF §5.1 discipline).
+Per-cell visibility (amendment requirement): each `coverage.json` cell becomes
+`{"level": <word>, "basis": <binding basis>, "witnessed": bool}` and every rendered
+report prints the pair — `best-effort (vendor-docs)` — so a strong word over weak
+evidence cannot exist (the cap) and the evidence behind every word is one glance away
+(the cell).
 
-Consistency tests (all derivations, not presence checks — the chock#81 lesson): (a) the
-derived in-agent set equals `{V : can_block(V, PRE_TOOL)}` recomputed in the test from
-the matrix; (b) every "witnessed" phrase in emitted posture text maps to a ledger row
-via the template engine (mutation: delete the row, the phrase must disappear and the
-test must fail if it doesn't); (c) grading-path imports: `chock.vendors` grading
-functions take matrix objects only — enforced by a test that grades a synthetic vendor
-whose config claims gates its matrix row denies, and asserts the claim loses.
+### 3.3 Consistency tests
 
-### 3.3 Day one for the 9 new vendors [v — matrix executed at the pin]
+All derivations with stated mutations, never presence checks (the chock#81 lesson):
+(a) the derived in-agent set equals `{V : can_block(V, PRE_TOOL)}` recomputed from the
+matrix in the test; (b) every "witnessed" phrase in emitted posture text maps to a
+ledger row via the template engine — delete the row, the phrase must disappear;
+(c) capability cannot enter from config: grade a synthetic vendor whose entry claims a
+gate its matrix row denies, and assert the claim loses; (d) every vendor-entry claim
+chock consumes carries an evidence entry — strip one basis from a fixture entry and the
+loader must refuse it; (e) cap monotonicity: weaken any basis in a synthetic entry and
+the grade must never rise, and must drop when it crosses a cap boundary.
 
-With the derived surface emitted and installed, before any hand-verification:
+### 3.4 Day one for the 9 new vendors, basis-capped [v]
 
-| vendor | tier | fail mode | basis | `pre_tool` observed | day-one report |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| antigravity | block | open | vendor-docs | no | `best-effort` · unwitnessed |
-| codex_cli | block+rewrite | open | live-run-partial | yes | `best-effort` · unwitnessed for the repo-level hook; the existing plugin-store witness (2026-08-24) stays scoped to the plugin surface |
-| devin | block+rewrite | open | vendor-docs | no | `best-effort` · unwitnessed |
-| gemini_cli | block+rewrite | open | vendor-source | no | `best-effort` · unwitnessed |
-| grok | block | open | vendor-docs | no | `best-effort` · unwitnessed (plus `needs_trust` caveat from its entry) |
-| junie | block+rewrite | open | vendor-docs | no | `best-effort` · unwitnessed |
-| kimi_code | block | open | vendor-docs | no | `best-effort` · unwitnessed; deny-only gates ⇒ never `fail-to-ask` |
-| tabnine | block | open | vendor-docs | no | `best-effort` · unwitnessed, **plus** `vocabulary_basis: unverified` surfaced verbatim — its decision words themselves are unconfirmed upstream |
-| windsurf | block | open | third-party-install | no | `best-effort` · unwitnessed (exit-code grammar, G5) |
-
-And the ones that must never gain a claim: `aider`, `replit`, raw `copilot`, `zed` —
-`can_block` false ⇒ no in-agent surface ⇒ `enforced-at-commit`/`advisory` only, exactly
-today's words for installed git/CI/ambient surfaces (`compile/surfaces.py:85-92`).
-`cursor` remains the only `enforceable` (fail-configurable) — contingent on chock
-actually setting `failClosed` (map M.5(5)).
+Full table in the map, §M.6. Summary: all nine matrix words are `best-effort` and
+every binding basis clears the `best-effort` cap, so no day-one *word* changes — every
+day-one *cell* changes shape, to `best-effort (<basis>) · unwitnessed`. The cap's bite
+is the future case: a fail-closed vendor documented only in `vendor-docs` surfaces as
+`best-effort (vendor-docs)`, never `enforced`. One open row: if D2 records `tabnine`'s
+vocabulary claim below `vendor-docs` (its decision words are `unverified` upstream),
+that claim binds — owner decides whether it sinks below `best-effort` **[h]**. The
+never-gain set and `cursor`'s `enforceable` (contingent on `failClosed`, map M.5(5))
+are unchanged in the map table.
 
 ## 4. The new-vendor walkthrough
 
@@ -180,9 +190,9 @@ consistency tests require that pairing):
    `hook_entry` as step 2 — not restated.
 6. Golden fixtures for the built package; `chock plugin build --check` and
    `chock marketplace build` pick the store up from the data directory.
-7. Renderer code changes **only** if X's manifest schema cannot be expressed by the
-   §5 renderer — a measured criterion (a schema needing content-dependent branching),
-   not a convenience door.
+7. Renderer code changes **only** if X's manifest schema needs content-dependent
+   branching the §5 renderer cannot express — a measured criterion, not a convenience
+   door.
 
 ## 5. The two schema-bound roles, tested against the real schemas
 
@@ -258,16 +268,16 @@ Survive re-targeted: the per-vendor suites (`test_claude_plugin.py`,
 `test_cursor_codex_plugin.py`, `test_copilot_plugin.py`, `test_cursor_hooks.py`,
 `test_agent_hooks.py`) become the store/installer conformance load over derived
 output — none die. `test_coverage_is_derived.py`, `test_coverage_honesty*.py`,
-`test_enforcement_matrix.py` extend to the derived agent set and the basis field.
+`test_enforcement_matrix.py` extend to the derived agent set and the basis cell.
 
-Must be written: (1) the three §3.2 consistency derivations with their stated
-mutations; (2) store-data schema validation, unknown keys fatal; (3) golden wire
-fixtures per vendor × surface captured **before** C2 flips any read (the empty-diff
-proof, agentseam D1's trick applied to chock); (4) a thirteenth-vendor test: a synthetic
-agentseam vendor entry + matrix row must yield surfaces, fragments, coverage and (with
-a synthetic store entry) a package with zero chock code edits; (5) a legitimate-edit
-case per guard — a rewrapped posture paragraph must still pass. These mutations failing
-is not a claim the class is closed.
+Must be written: (1) the five §3.3 consistency derivations with their stated mutations;
+(2) store-data schema validation, unknown keys fatal; (3) golden wire fixtures per
+vendor × surface captured **before** C2 flips any read (the empty-diff proof, agentseam
+D1's trick applied to chock); (4) a thirteenth-vendor test: a synthetic vendor entry +
+matrix row must yield surfaces, fragments, coverage and (with a synthetic store entry)
+a package with zero chock code edits; (5) a legitimate-edit case per guard — a
+rewrapped posture paragraph must still pass. These mutations failing is not a claim the
+class is closed.
 
 ## 9. Open questions carried as hypotheses
 
