@@ -160,30 +160,20 @@ def recompile(repo_root: Path | str, agents: list[str], skip_hooks: bool = False
         except ValueError as exc:
             print(f"[WARN] {exc}", file=sys.stderr)
 
-        from chock.hooks.agenthooks_install import install_agent_hooks, installed_agent_hooks_policy_ids
-        from chock.hooks.cursor_install import install_cursor_hooks, installed_cursor_policy_ids
-        from chock.hooks.pretooluse_install import install_pretooluse_hooks, installed_pretooluse_policy_ids
+        from chock.hooks.in_agent_install import WIRED_VENDORS, install_hooks, install_label, installed_policy_ids
 
-        def _witness() -> tuple[set[str], set[str], set[str]]:
-            return (
-                installed_pretooluse_policy_ids(repo_root),
-                installed_cursor_policy_ids(repo_root),
-                installed_agent_hooks_policy_ids(repo_root),
-            )
+        def _witness() -> tuple[set[str], ...]:
+            return tuple(installed_policy_ids(repo_root, vendor) for vendor in WIRED_VENDORS)
 
         before = _witness()
-        for label, installer in (
-            ("PreToolUse hook(s) in .claude/settings.json", install_pretooluse_hooks),
-            ("Cursor hook entr(y/ies) in .cursor/hooks.json", install_cursor_hooks),
-            ("agent hook(s) in .github/hooks/chock.json", install_agent_hooks),
-        ):
+        for vendor in WIRED_VENDORS:
             try:
-                installed = installer(repo_root)
+                installed = install_hooks(repo_root, vendor)
             except ValueError as exc:
                 print(f"[WARN] {exc}", file=sys.stderr)
             else:
                 if installed:
-                    print(f"Registered {len(installed)} {label}")
+                    print(f"Registered {len(installed)} {install_label(vendor)}")
         if _witness() != before:
             with tempfile.TemporaryDirectory(prefix="chock-coverage-", dir=chock_dir) as tmp2:
                 coverage = _compile_all(repo_root, agents, Path(tmp2) / "compiled")

@@ -11,7 +11,8 @@ from pathlib import Path
 import pytest
 from conftest import working_bash
 
-from chock.compile.emitters.agent_hooks import SHELL_MATCHER, build_entry, emit
+from chock.compile.emitters.in_agent import SHELL_MATCHER, build_entry
+from chock.compile.emitters.in_agent import emit_agent_hooks as emit
 from chock.gate import runtime_bundle
 
 

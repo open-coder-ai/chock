@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- **Per-vendor wire facts are now reads of agentseam 0.2.0's vendor config, and the vendor
+  emitters/installers collapse into one of each.** Config paths (`.claude/settings.json`,
+  `.cursor/hooks.json`, the `.github/hooks/` directory), pre-tool event spellings
+  (`PreToolUse`, `beforeShellExecution`), the cursor `version: 1` envelope, the SessionStart
+  event name, and the Claude shell matcher (`Bash`, from `tools.shell`) come from
+  `agentseam.vendor_config` / `agentseam.adapters` through `chock.vendors`, so those facts
+  are recorded once, upstream. The two vendor emitters (`claude_pretooluse`, `agent_hooks`)
+  become one `compile/emitters/in_agent.py`; the three installers (`pretooluse_install`,
+  `cursor_install`, `agenthooks_install`) become one `hooks/in_agent_install.py` with the
+  per-vendor differences reduced to a small wiring table; the plugin packagers render their
+  hooks files through the same two shape builders. **Emitted bytes are unchanged** -- proven
+  by a full before/after build of every artifact (compiled fragments, installed configs,
+  vendored runtimes, all five plugin formats, marketplace index): 450/450 files sha256-equal.
+  Three witnessed facts stay chock-recorded because agentseam 0.2.0 disagrees or records
+  nothing: the agent-hooks `preToolUse` spelling and entry keys (live deny witnessed;
+  upstream says `PreToolUse` + `{type, command, windows}`), the agent-hooks shell matcher,
+  and the `${CLAUDE_PROJECT_DIR}` token (no schema field). `tests/test_vendor_wire_facts.py`
+  binds each override to its witness row and to the upstream value it disagrees with, so the
+  moment upstream ingests the witnessed shape the suite says "delete the override and
+  derive". Cursor's `failClosed` stays unset: agentseam's accessor exists (`fail_closed`),
+  but flipping it is an enforcement-behaviour change that needs an owner decision and a
+  witnessed run, and a test now pins that no cursor wire byte carries the flag.
+
 - **agentseam 0.2.0, and the claim table now separates wire words from semantics.** The
   dependency pin moves from 0.1.1 to 0.2.0 (the post-ACS release: canonical outcome
   `escalate`, `ask` kept only as a deprecated alias). Under 0.1.1 chock's claim table

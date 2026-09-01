@@ -6,18 +6,22 @@ import json
 import sys
 from pathlib import Path
 
+from agentseam import contract as _contract
+
+from chock import vendors
 from chock.emit import write_generated_json
-from chock.hooks.pretooluse_install import (
+from chock.hooks.in_agent_install import (
     INTERPRETER_PLACEHOLDER,
-    SETTINGS_REL,
     _bake_interpreter,
     _interpreter_runs_here,
     _normalize_fragment,
 )
 from chock.hooks.runtime_vendor import runtime_rel, vendor_runtime
 
+SETTINGS_REL = Path(vendors.config_path("claude_code"))
+ARM_EVENT = vendors.wire_event("claude_code", _contract.SESSION_START)
 ADAPTER_REL = runtime_rel("claude_code")
-_OWNED_MARKER = "/.chock/bin/claude_code.py"
+_OWNED_MARKER = f"/{ADAPTER_REL.as_posix()}"
 
 ARM_FRAGMENT = {
     "hooks": [
@@ -57,7 +61,7 @@ def install_sessionstart_hook(repo_root: Path) -> bool:
 
     hooks = settings.setdefault("hooks", {}) if isinstance(settings.get("hooks", {}), dict) else {}
     settings["hooks"] = hooks
-    existing = hooks.get("SessionStart")
+    existing = hooks.get(ARM_EVENT)
     ours_before = [e for e in existing if _is_ours(e)] if isinstance(existing, list) else []
     kept = [e for e in existing if not _is_ours(e)] if isinstance(existing, list) else []
 
@@ -75,7 +79,7 @@ def install_sessionstart_hook(repo_root: Path) -> bool:
     desired = kept + [install_form]
     if isinstance(existing, list) and desired == existing:
         return False
-    hooks["SessionStart"] = desired
+    hooks[ARM_EVENT] = desired
     settings_path.parent.mkdir(parents=True, exist_ok=True)
     write_generated_json(settings_path, settings)
     return True

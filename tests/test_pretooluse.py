@@ -146,7 +146,7 @@ def _fresh_repo() -> tuple[Path, dict]:
 
 
 def test_install_writes_claude_settings_schema() -> None:
-    from chock.hooks.pretooluse_install import install_pretooluse_hooks
+    from chock.hooks.in_agent_install import install_hooks
 
     repo, env = _fresh_repo()
     subprocess.run(
@@ -155,7 +155,7 @@ def test_install_writes_claude_settings_schema() -> None:
         capture_output=True,
         env=env,
     )
-    install_pretooluse_hooks(repo)
+    install_hooks(repo, "claude_code")
 
     settings = json.loads((repo / ".claude" / "settings.json").read_text(encoding="utf-8"))
     entries = settings["hooks"]["PreToolUse"]
@@ -170,7 +170,7 @@ def test_install_writes_claude_settings_schema() -> None:
 
 def test_install_preserves_unrelated_settings() -> None:
     """The settings file is the adopter's; only our own entries may be rewritten."""
-    from chock.hooks.pretooluse_install import install_pretooluse_hooks
+    from chock.hooks.in_agent_install import install_hooks
 
     repo, env = _fresh_repo()
     settings_path = repo / ".claude" / "settings.json"
@@ -193,7 +193,7 @@ def test_install_preserves_unrelated_settings() -> None:
         capture_output=True,
         env=env,
     )
-    install_pretooluse_hooks(repo)
+    install_hooks(repo, "claude_code")
 
     settings = json.loads(settings_path.read_text(encoding="utf-8"))
     assert settings["permissions"] == {"allow": ["Bash(ls *)"]}
@@ -203,7 +203,7 @@ def test_install_preserves_unrelated_settings() -> None:
 
 
 def test_reinstall_is_idempotent() -> None:
-    from chock.hooks.pretooluse_install import install_pretooluse_hooks
+    from chock.hooks.in_agent_install import install_hooks
 
     repo, env = _fresh_repo()
     subprocess.run(
@@ -212,9 +212,9 @@ def test_reinstall_is_idempotent() -> None:
         capture_output=True,
         env=env,
     )
-    install_pretooluse_hooks(repo)
+    install_hooks(repo, "claude_code")
     first = (repo / ".claude" / "settings.json").read_text(encoding="utf-8")
-    install_pretooluse_hooks(repo)
+    install_hooks(repo, "claude_code")
     assert (repo / ".claude" / "settings.json").read_text(encoding="utf-8") == first
 
 
@@ -222,7 +222,7 @@ def test_removing_the_fragments_removes_the_hooks() -> None:
     """A disabled or deleted policy must stop enforcing."""
     import shutil as sh
 
-    from chock.hooks.pretooluse_install import install_pretooluse_hooks
+    from chock.hooks.in_agent_install import install_hooks
 
     repo, env = _fresh_repo()
     subprocess.run(
@@ -231,10 +231,10 @@ def test_removing_the_fragments_removes_the_hooks() -> None:
         capture_output=True,
         env=env,
     )
-    install_pretooluse_hooks(repo)
+    install_hooks(repo, "claude_code")
     for path in (repo / ".chock" / "compiled").glob("*/pre-tool-use"):
         sh.rmtree(path)
-    install_pretooluse_hooks(repo)
+    install_hooks(repo, "claude_code")
 
     settings = json.loads((repo / ".claude" / "settings.json").read_text(encoding="utf-8"))
     assert not settings.get("hooks", {}).get("PreToolUse")
