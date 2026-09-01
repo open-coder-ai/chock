@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-from chock.compile.levels import MATRIX_AGENT, Grade, _matrix_can_block, in_agent_grade
+from chock.compile.levels import IN_AGENT_TODAY, Grade, _matrix_can_block, in_agent_grade
 
 
 class Surface(str, Enum):
@@ -77,7 +77,7 @@ def coverage_cell(
         (pre_tool_use_installed, Surface.PRE_TOOL_USE),
         (agent_hooks_installed, Surface.AGENT_HOOKS),
     ):
-        if installed and surface in active and MATRIX_AGENT.get(agent):
+        if installed and surface in active and agent in IN_AGENT_TODAY:
             return in_agent_grade(agent, surface.value)
     commit_time = active & INSTALLED_SURFACES & {Surface.GIT_HOOK}
     if ci_gate_installed:

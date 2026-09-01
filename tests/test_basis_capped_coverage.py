@@ -13,7 +13,7 @@ from chock.compile.levels import (
     CONTROL_DEGRADES_TO,
     DEGRADES_TO_ASK,
     IN_AGENT_LEVELS,
-    MATRIX_AGENT,
+    IN_AGENT_TODAY,
     cap_for,
     capped,
     in_agent_grade,
@@ -24,6 +24,11 @@ from chock.compile.levels import (
     weakest_basis,
 )
 from chock.compile.surfaces import SURFACE_AGENTS, Surface
+from chock.vendors import CHOCK_AGENT
+
+# The in-agent alias view of the one unified table (chock.vendors.CHOCK_AGENT, scoped
+# by IN_AGENT_TODAY) -- read-only here; patch IN_AGENT_TODAY/CHOCK_AGENT, not this.
+MATRIX_AGENT = {a: CHOCK_AGENT[a] for a in IN_AGENT_TODAY}
 
 WEAKEST_FIRST = tuple(sorted(_matrix.BASES, key=lambda basis: level_rank(cap_for(basis))))
 
@@ -82,7 +87,8 @@ def test_evidence_can_never_add_capability_the_matrix_denies(basis: str, monkeyp
     assert _matrix.enforcement_level(unable, _contract.PRE_TOOL) in ("none", "detect")
     assert capped(_matrix.enforcement_level(unable, _contract.PRE_TOOL), [basis]) == "none"
 
-    monkeypatch.setitem(MATRIX_AGENT, "synthetic", unable)
+    monkeypatch.setattr(levels, "IN_AGENT_TODAY", (*levels.IN_AGENT_TODAY, "synthetic"))
+    monkeypatch.setitem(CHOCK_AGENT, "synthetic", unable)
     monkeypatch.setattr(levels, "resting_bases", lambda _mapped: (basis,))
     claiming = evidence.parse_claims(
         [{"agent": unable, "claim": "honours_ask", "verdict": "ask", "evidence": "tested", "test": "t.py::t"}]

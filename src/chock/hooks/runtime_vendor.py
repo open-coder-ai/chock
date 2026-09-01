@@ -6,15 +6,9 @@ from pathlib import Path
 
 from chock.gate import runtime_bundle
 
-RUNTIME_FILENAME = {
-    "claude_code": "claude_code.py",
-    "cursor": "cursor.py",
-    "vscode_copilot": "vscode_copilot.py",
-}
-
 
 def runtime_rel(agent: str) -> Path:
-    return Path(".chock") / "bin" / RUNTIME_FILENAME[agent]
+    return Path(".chock") / "bin" / f"{agent}.py"
 
 
 def vendor_runtime(repo_root: Path, agent: str) -> Path:

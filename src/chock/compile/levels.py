@@ -9,18 +9,22 @@ from agentseam import matrix as _matrix
 from agentseam import matrix_terms as _terms
 
 from chock import evidence
+from chock.vendors import CHOCK_AGENT
 
-MATRIX_AGENT = {
-    "claude": "claude_code",
-    "cursor": "cursor",
-    "copilot": "vscode_copilot",
-    "vscode": "vscode_copilot",
-}
+#: Chock agents with an in-agent pre-tool surface today. A narrower concept than
+#: `CHOCK_AGENT` (adapter-instruction coverage) -- both read the same alias table,
+#: so this is a membership set, not a second copy of the vendor-id mapping.
+IN_AGENT_TODAY = ("claude", "cursor", "copilot", "vscode")
+
+
+def _mapped_vendor(chock_agent: str) -> str | None:
+    """`chock_agent`'s agentseam vendor id, only among agents with an in-agent surface today."""
+    return CHOCK_AGENT.get(chock_agent) if chock_agent in IN_AGENT_TODAY else None
 
 
 def _matrix_can_block(chock_agent: str) -> bool:
     """Whether agentseam's verified matrix confirms `chock_agent` can block a pre-tool call."""
-    mapped = MATRIX_AGENT.get(chock_agent)
+    mapped = _mapped_vendor(chock_agent)
     return bool(mapped) and _matrix.can_block(mapped, _contract.PRE_TOOL)
 
 
@@ -116,7 +120,7 @@ def in_agent_level(agent: str, *, degrades_to: str = CONTROL_DEGRADES_TO) -> str
     """The honest word for an INSTALLED in-agent pre-execution control on `agent`."""
     if degrades_to not in DEGRADATION_MODES:
         raise ValueError(f"unknown degradation mode {degrades_to!r}; expected one of {DEGRADATION_MODES}")
-    mapped = MATRIX_AGENT.get(agent)
+    mapped = _mapped_vendor(agent)
     if not mapped:
         return "none"
     host = _matrix.enforcement_level(mapped, _contract.PRE_TOOL)
@@ -126,7 +130,7 @@ def in_agent_level(agent: str, *, degrades_to: str = CONTROL_DEGRADES_TO) -> str
 
 def in_agent_grade(agent: str, surface: str, *, degrades_to: str = CONTROL_DEGRADES_TO) -> Grade:
     """`in_agent_level` with the evidence that bounds it and chock's own witness for `surface`."""
-    mapped = MATRIX_AGENT.get(agent)
+    mapped = _mapped_vendor(agent)
     if not mapped:
         return Grade("none", None, False)
     return Grade(

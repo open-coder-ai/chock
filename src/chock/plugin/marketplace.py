@@ -8,24 +8,24 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from agentseam import packaging
+
 from chock.emit import write_generated
 from chock.lock import compute_pack_hash
+from chock.vendors import CHOCK_AGENT
 
 OWNER = {"name": "open-coder-ai", "url": "https://github.com/open-coder-ai"}
 
 TREES: dict[str, dict[str, Any]] = {
     "claude": {
-        "manifest": ".claude-plugin/plugin.json",
         "index_paths": (Path(".claude-plugin/marketplace.json"), Path(".github/plugin/marketplace.json")),
         "style": "claude",
     },
     "codex": {
-        "manifest": ".codex-plugin/plugin.json",
         "index_paths": (Path(".claude-plugin/marketplace.json"),),
         "style": "claude",
     },
     "cursor": {
-        "manifest": ".cursor-plugin/plugin.json",
         "index_paths": (Path(".cursor-plugin/marketplace.json"),),
         "style": "cursor",
     },
@@ -35,9 +35,14 @@ CLAUDE_TREE = "claude"
 INDEX_PATHS = TREES["claude"]["index_paths"]
 
 
+def _manifest_rel(tree: str) -> str:
+    """This tree's plugin manifest path, from agentseam's packaging layout."""
+    return packaging.layout(CHOCK_AGENT[tree])["manifest"]
+
+
 def collect_entries(dist_root: Path, tree: str = CLAUDE_TREE) -> list[dict[str, Any]]:
     """Index entries from the built plugin manifests, sorted by directory name."""
-    manifest_rel = TREES[tree]["manifest"]
+    manifest_rel = _manifest_rel(tree)
     entries: list[dict[str, Any]] = []
     for manifest_path in sorted(Path(dist_root).glob(f"{tree}/*/{manifest_rel}")):
         data = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -119,7 +124,7 @@ def render_catalog_page(dist_root: Path, tree: str = CLAUDE_TREE) -> str:
     dist_root = Path(dist_root)
     rows = []
     enforcing = 0
-    manifest_rel = TREES[tree]["manifest"]
+    manifest_rel = _manifest_rel(tree)
     for manifest_path in sorted(dist_root.glob(f"{tree}/*/{manifest_rel}")):
         pkg = manifest_path.parent.parent
         data = json.loads(manifest_path.read_text(encoding="utf-8"))
