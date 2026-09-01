@@ -79,7 +79,7 @@ def test_unchecked_guard_is_not_recorded_as_a_pass(tmp_path: Path, monkeypatch) 
 
     monkeypatch.setattr(guard_runner, "run_guard", lambda *_: guard_runner.GUARD_ERRORED)
     outcome, reason = evaluate(guard, "ls -la")
-    assert outcome == guard_runner.VERDICT_ASK
+    assert outcome == guard_runner.VERDICT_ESCALATE
     assert reason, "a confirmation request must say why it is being asked for"
     assert read_log(tmp_path) == []
 

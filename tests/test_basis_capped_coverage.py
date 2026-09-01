@@ -91,7 +91,16 @@ def test_evidence_can_never_add_capability_the_matrix_denies(basis: str, monkeyp
     monkeypatch.setitem(CHOCK_AGENT, "synthetic", unable)
     monkeypatch.setattr(levels, "resting_bases", lambda _mapped: (basis,))
     claiming = evidence.parse_claims(
-        [{"agent": unable, "claim": "honours_ask", "verdict": "ask", "evidence": "tested", "test": "t.py::t"}]
+        [
+            {
+                "agent": unable,
+                "claim": "honours_ask",
+                "verdict": "ask",
+                "honours": True,
+                "evidence": "tested",
+                "test": "t.py::t",
+            }
+        ]
     )
     monkeypatch.setattr(evidence, "honours_ask", lambda agent, table=None: agent in {c.agent for c in claiming})
 
@@ -114,10 +123,10 @@ def test_the_fail_to_ask_lift_needs_a_tested_claim(monkeypatch) -> None:
 
 
 def test_a_deny_degrading_host_never_earns_the_lift() -> None:
-    """Codex rejects the prompt outright, so its recorded verdict must keep it off the rung."""
+    """Codex rejects the prompt outright, so its recorded claim must keep it off the rung."""
     codex = evidence.claim("codex_cli", evidence.HONOURS_ASK)
 
-    assert codex is not None and codex.verdict == _contract.DENY
+    assert codex is not None and codex.verdict == evidence.WIRE_DENY and not codex.honours
     assert not evidence.honours_ask("codex_cli")
 
 

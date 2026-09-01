@@ -13,7 +13,6 @@ import re
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from agentseam import contract as _contract
 from agentseam import matrix as _matrix
 
 from chock.resources import package_data_dir
@@ -32,7 +31,11 @@ TESTED = "tested"
 DOCUMENTED = "documented"
 CLAIM_EVIDENCE = (TESTED, DOCUMENTED)
 
-VERDICTS = (_contract.ALLOW, _contract.ASK, _contract.DENY)
+# A claim's `verdict` is the word witnessed on the vendor's wire, never agentseam's
+# canonical outcome vocabulary; tests/test_guard_fail_to_ask.py ties it to live fixtures.
+WIRE_ASK = "ask"
+WIRE_DENY = "deny"
+WIRE_VERDICTS = (WIRE_ASK, WIRE_DENY)
 
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -57,6 +60,7 @@ class Claim(NamedTuple):
     agent: str
     claim: str
     verdict: str
+    honours: bool
     evidence: str
     test: str | None
 
@@ -113,12 +117,15 @@ def parse_claims(source: Path | list[dict[str, Any]] | None = None) -> tuple[Cla
     for row in rows:
         agent = _one_of(_text(row, "agent", where), tuple(_matrix.agents()), "agent", where)
         name = _one_of(_text(row, "claim", where), CLAIM_NAMES, "claim", where)
-        verdict = _one_of(_text(row, "verdict", where), VERDICTS, "verdict", where)
+        verdict = _one_of(_text(row, "verdict", where), WIRE_VERDICTS, "verdict", where)
+        honours = row.get("honours")
+        if not isinstance(honours, bool):
+            raise EvidenceError(f"{where}: honours is missing or not a boolean in {row!r}")
         evidence = _one_of(_text(row, "evidence", where), CLAIM_EVIDENCE, "evidence", where)
         test = _text(row, "test", where) if evidence == TESTED else row.get("test")
         if evidence != TESTED and test is not None:
             raise EvidenceError(f"{where}: {agent} {name} names a test but is only {evidence!r}")
-        claims.append(Claim(agent, name, verdict, evidence, test))
+        claims.append(Claim(agent, name, verdict, honours, evidence, test))
     _no_duplicates([(c.agent, c.claim) for c in claims], where)
     return tuple(claims)
 
@@ -148,4 +155,4 @@ def claim(agent: str, name: str, *, table: tuple[Claim, ...] | None = None) -> C
 def honours_ask(agent: str, *, table: tuple[Claim, ...] | None = None) -> bool:
     """Whether a guard that cannot decide reaches a human on `agent`, per a TESTED claim."""
     row = claim(agent, HONOURS_ASK, table=table)
-    return bool(row and row.evidence == TESTED and row.verdict == _contract.ASK)
+    return bool(row and row.evidence == TESTED and row.honours)

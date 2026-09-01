@@ -18,6 +18,9 @@ block_cipher = None
 
 # Ship every data file under src/chock: packs, schemas, hook scripts, etc.
 datas = collect_data_files("chock")
+# agentseam >= 0.2.0 loads data/vendors/*.json at import; without these the frozen
+# binary dies in `chock init` with FileNotFoundError from agentseam._data.load().
+datas += collect_data_files("agentseam")
 # Make importlib.metadata.version('chock') work in the frozen binary.
 datas += copy_metadata("chock")
 # Fallback for version lookup: the root pyproject.toml travels with the binary.

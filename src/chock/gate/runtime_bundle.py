@@ -64,7 +64,7 @@ def handle(event):
         verdict = evaluate(sys.argv[1:], event.command, event.tool or "")
         if verdict is not None:
             outcome, reason = verdict
-            return Decision.ask(reason) if outcome == ASK else Decision.deny(reason)
+            return Decision.escalate(reason) if outcome == ESCALATE else Decision.deny(reason)
 {session_start_branch}    return None
 """
 

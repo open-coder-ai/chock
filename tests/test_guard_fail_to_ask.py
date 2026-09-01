@@ -70,9 +70,12 @@ PAYLOADS = {
 
 
 def run(runtimes: dict[str, Path], agent: str, guard: Path, command: str) -> subprocess.CompletedProcess:
+    """Errors on DeprecationWarning: no path may lean on an agentseam spelling 0.2.0 retired."""
     payload = json.dumps(PAYLOADS[agent](command)).encode("utf-8")
     return subprocess.run(
-        [sys.executable, str(runtimes[agent]), "--guard", str(guard)], input=payload, capture_output=True
+        [sys.executable, "-W", "error::DeprecationWarning", str(runtimes[agent]), "--guard", str(guard)],
+        input=payload,
+        capture_output=True,
     )
 
 
@@ -152,7 +155,7 @@ def test_a_timed_out_guard_asks(tmp_path: Path, monkeypatch) -> None:
 
     assert guard_runner.run_guard(guard, "ls -la") == guard_runner.GUARD_ERRORED
     outcome, reason = guard_runner.evaluate(["--guard", str(guard)], "ls -la", "Bash")
-    assert outcome == guard_runner.VERDICT_ASK
+    assert outcome == guard_runner.VERDICT_ESCALATE
     assert reason
 
 
@@ -171,8 +174,17 @@ def test_the_ask_reason_never_carries_the_command(tmp_path: Path, runtimes) -> N
 
 def test_chocks_verdict_words_are_agentseams_own() -> None:
     """`guard_runner` is stdlib-only -- it cannot import the contract it must agree with."""
-    assert guard_runner.VERDICT_ASK == _contract.ASK
+    assert guard_runner.VERDICT_ESCALATE == _contract.ESCALATE
     assert guard_runner.VERDICT_DENY == _contract.DENY
+
+
+def test_the_wire_vocabulary_is_the_words_the_fixtures_witness(tmp_path: Path, runtimes) -> None:
+    """`WIRE_VERDICTS` is recomputed from live runs, so a word nobody witnessed cannot join it."""
+    guard = make_guard(tmp_path, "crash.sh", "exit 3")
+
+    observed = {decision(run(runtimes, agent, guard, "ls -la")).get("decision") for agent in sorted(ASK_ON_THE_WIRE)}
+
+    assert observed == set(evidence.WIRE_VERDICTS)
 
 
 def test_every_gated_runtime_is_covered_here() -> None:
