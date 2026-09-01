@@ -21,7 +21,8 @@ from chock.compile.emitters import (
     git_hook,
     mcp_gateway,
 )
-from chock.compile.surfaces import SURFACE_AGENTS, Surface, coverage_level, parse_agent_selection
+from chock.compile.levels import Grade, render_grade
+from chock.compile.surfaces import SURFACE_AGENTS, Surface, coverage_cell, parse_agent_selection
 from chock.config import agents_from_config
 from chock.hooks.agenthooks_install import installed_agent_hooks_policy_ids
 from chock.hooks.cursor_install import installed_cursor_policy_ids
@@ -47,7 +48,7 @@ EMITTERS: dict[Surface, Any] = {
 class CompileResult:
     policy_id: str
     artifacts: dict[str, list[Path]] = field(default_factory=dict)
-    coverage: dict[str, dict[str, str]] = field(default_factory=dict)
+    coverage: dict[str, dict[str, dict[str, object]]] = field(default_factory=dict)
 
 
 def _parser_fail(parser: argparse.ArgumentParser, message: str) -> NoReturn:
@@ -71,8 +72,8 @@ def _load_manifest(policy_dir: Path) -> dict[str, Any]:
     return data
 
 
-def _write_coverage(coverage_path: Path, entry: dict[str, dict[str, str]]) -> None:
-    existing: dict[str, dict[str, str]] = {}
+def _write_coverage(coverage_path: Path, entry: dict[str, dict[str, dict[str, object]]]) -> None:
+    existing: dict[str, dict[str, dict[str, object]]] = {}
     if coverage_path.exists():
         try:
             existing = json.loads(coverage_path.read_text(encoding="utf-8"))
@@ -132,15 +133,15 @@ def compile_policy(
     agent_hooks_ok = policy_id in installed_agent_hooks_policy_ids(root)
     agent_hooks_for = {"copilot": agent_hooks_ok, "vscode": agent_hooks_ok}
     ci_installed = ci_workflow_installed(root)
-    coverage: dict[str, dict[str, str]] = {policy_id: {}}
+    coverage: dict[str, dict[str, dict[str, object]]] = {policy_id: {}}
     for agent in agent_list:
-        coverage[policy_id][agent] = coverage_level(
+        coverage[policy_id][agent] = coverage_cell(
             selected_set,
             agent,
             pre_tool_use_installed=installed_for.get(agent, False),
             ci_gate_installed=ci_installed,
             agent_hooks_installed=agent_hooks_for.get(agent, False),
-        )
+        )._asdict()
 
     coverage_path = output_root.parent / "coverage.json"
     _write_coverage(coverage_path, coverage)
@@ -203,6 +204,6 @@ def main(argv: list[str] | None = None) -> int:
         if paths:
             print(f"  {surface}: {', '.join(str(p) for p in paths)}")
     print("Coverage:")
-    for agent, level in sorted(result.coverage.get(result.policy_id, {}).items()):
-        print(f"  {agent}: {level}")
+    for agent, cell in sorted(result.coverage.get(result.policy_id, {}).items()):
+        print(f"  {agent}: {render_grade(Grade(**cell))}")
     return 0

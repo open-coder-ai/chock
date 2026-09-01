@@ -100,6 +100,7 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
+"chock" = ["data/*.json"]
 "chock.validation" = ["schemas/*.json", "frontier_standards/*.json"]
 "chock.hooks" = ["data/*"]
 # `**/*` does NOT match dotfiles or dot-directories, so the chock-init

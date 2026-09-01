@@ -58,7 +58,11 @@ def test_disable_removes_compiled_artifacts_and_hook_wrappers(tmp_path: Path) ->
 
     assert not (repo / ".chock" / "compiled" / "block-no-verify").exists()
     coverage = json.loads((repo / ".chock" / "coverage.json").read_text())
-    assert coverage["block-no-verify"] == {"claude": "disabled", "copilot": "disabled", "gemini": "disabled"}
+    assert {a: c["level"] for a, c in coverage["block-no-verify"].items()} == {
+        "claude": "disabled",
+        "copilot": "disabled",
+        "gemini": "disabled",
+    }
 
     result = _run([sys.executable, "-m", "chock.cli", "validate", str(repo)], cwd=repo, check=False)
     assert result.returncode == 0, result.stderr
@@ -104,7 +108,7 @@ def test_enable_restores_policy_and_coverage(tmp_path: Path) -> None:
     _run([sys.executable, "-m", "chock.cli", "enable", "block-no-verify"], cwd=repo)
     assert (repo / ".chock" / "compiled" / "block-no-verify").exists()
     coverage = json.loads((repo / ".chock" / "coverage.json").read_text())
-    assert coverage["block-no-verify"]["claude"] != "disabled"
+    assert coverage["block-no-verify"]["claude"]["level"] != "disabled"
 
 
 def test_init_preserves_user_policies_block(tmp_path: Path) -> None:

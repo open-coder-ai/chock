@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from chock.compile.compiler import _load_manifest, compile_policy
-from chock.compile.levels import DISABLED
+from chock.compile.levels import DISABLED, Grade
 from chock.config import load_config, policy_status
 from chock.emit import write_generated_json
 from chock.policies import discover_policy_dirs
@@ -21,10 +21,10 @@ class BookkeepingError(RuntimeError):
     """Bookkeeping the attestation chain depends on failed after a successful compile."""
 
 
-def _compile_all(repo_root: Path, agents: list[str], compiled_root: Path) -> dict[str, dict[str, str]]:
+def _compile_all(repo_root: Path, agents: list[str], compiled_root: Path) -> dict[str, dict[str, dict[str, object]]]:
     """Compile every enabled policy into `compiled_root`. Returns the coverage map."""
     config = load_config(repo_root)
-    coverage: dict[str, dict[str, str]] = {}
+    coverage: dict[str, dict[str, dict[str, object]]] = {}
 
     for pack_dir in discover_policy_dirs(repo_root):
         manifest = _load_manifest(pack_dir)
@@ -32,7 +32,7 @@ def _compile_all(repo_root: Path, agents: list[str], compiled_root: Path) -> dic
         status = policy_status(config, policy_id, manifest)
 
         if status["state"] == "disabled":
-            coverage[policy_id] = {agent: DISABLED for agent in agents}
+            coverage[policy_id] = {agent: Grade(DISABLED, None, False)._asdict() for agent in agents}
             continue
 
         result = compile_policy(

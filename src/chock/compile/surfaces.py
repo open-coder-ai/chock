@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-from chock.compile.levels import MATRIX_AGENT, _matrix_can_block, in_agent_level
+from chock.compile.levels import MATRIX_AGENT, Grade, _matrix_can_block, in_agent_grade
 
 
 class Surface(str, Enum):
@@ -59,6 +59,36 @@ del _agent, _surface
 INSTALLED_SURFACES: set[Surface] = {Surface.GIT_HOOK, Surface.CI_GATE, Surface.AMBIENT_RULE}
 
 
+def coverage_cell(
+    emitted: set[Surface],
+    agent: str,
+    *,
+    pre_tool_use_installed: bool = False,
+    ci_gate_installed: bool = False,
+    agent_hooks_installed: bool = False,
+) -> Grade:
+    """The enforcement level a policy achieves on an agent, with the evidence bounding it."""
+    supported = SURFACE_AGENTS.get(agent, set())
+    active = emitted & supported if supported else set()
+    if not active:
+        return Grade("none", None, False)
+
+    for installed, surface in (
+        (pre_tool_use_installed, Surface.PRE_TOOL_USE),
+        (agent_hooks_installed, Surface.AGENT_HOOKS),
+    ):
+        if installed and surface in active and MATRIX_AGENT.get(agent):
+            return in_agent_grade(agent, surface.value)
+    commit_time = active & INSTALLED_SURFACES & {Surface.GIT_HOOK}
+    if ci_gate_installed:
+        commit_time |= active & INSTALLED_SURFACES & {Surface.CI_GATE}
+    if commit_time:
+        return Grade("enforced-at-commit", None, False)
+    if Surface.AMBIENT_RULE in active & INSTALLED_SURFACES:
+        return Grade("advisory", None, False)
+    return Grade("none", None, False)
+
+
 def coverage_level(
     emitted: set[Surface],
     agent: str,
@@ -68,28 +98,13 @@ def coverage_level(
     agent_hooks_installed: bool = False,
 ) -> str:
     """Return the enforcement level a policy actually achieves on an agent."""
-    supported = SURFACE_AGENTS.get(agent, set())
-    if not supported:
-        return "none"
-
-    active = emitted & supported
-    if not active:
-        return "none"
-
-    if pre_tool_use_installed and Surface.PRE_TOOL_USE in active:
-        if MATRIX_AGENT.get(agent):
-            return in_agent_level(agent)
-    if agent_hooks_installed and Surface.AGENT_HOOKS in active:
-        if MATRIX_AGENT.get(agent):
-            return in_agent_level(agent)
-    commit_time = active & INSTALLED_SURFACES & {Surface.GIT_HOOK}
-    if ci_gate_installed:
-        commit_time |= active & INSTALLED_SURFACES & {Surface.CI_GATE}
-    if commit_time:
-        return "enforced-at-commit"
-    if Surface.AMBIENT_RULE in active & INSTALLED_SURFACES:
-        return "advisory"
-    return "none"
+    return coverage_cell(
+        emitted,
+        agent,
+        pre_tool_use_installed=pre_tool_use_installed,
+        ci_gate_installed=ci_gate_installed,
+        agent_hooks_installed=agent_hooks_installed,
+    ).level
 
 
 def parse_agent_selection(groups: list[str], valid: dict[str, object] | None = None) -> list[str]:

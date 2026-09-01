@@ -10,12 +10,18 @@ from typing import Any, NoReturn
 
 import yaml
 
+from chock.compile.levels import Grade, render_grade
 from chock.config import agents_from_config as _agents_from_config
 from chock.config import load_config, policy_status, set_disabled
 from chock.manifest import ManifestSourceError, load_manifest
 from chock.policies import discover_policy_dirs
 from chock.scaffold.adapters import parse_agent_selection
 from chock.scaffold.recompile import BookkeepingError, recompile
+
+
+def _cell(value: Any) -> str:
+    """One coverage cell as a table prints it; a pre-cell coverage.json still reads as its word."""
+    return value if isinstance(value, str) else render_grade(Grade(**value))
 
 
 def _parser_fail(parser: argparse.ArgumentParser, message: str) -> NoReturn:
@@ -125,7 +131,7 @@ def policies_main(argv: list[str] | None) -> int:
     repo_root = Path(args.repo).resolve()
     config = load_config(repo_root)
     coverage_path = repo_root / ".chock" / "coverage.json"
-    coverage: dict[str, dict[str, str]] = {}
+    coverage: dict[str, dict[str, Any]] = {}
     if coverage_path.exists():
         try:
             coverage = json.loads(coverage_path.read_text(encoding="utf-8"))
@@ -136,11 +142,11 @@ def policies_main(argv: list[str] | None) -> int:
     for policy_id in sorted(_policy_ids(repo_root)):
         manifest = _find_policy_manifest(repo_root, policy_id)
         status = policy_status(config, policy_id, manifest)
-        cov = coverage.get(policy_id, {})
+        cov = {agent: _cell(value) for agent, value in coverage.get(policy_id, {}).items()}
         if not cov:
             cov_str = "none"
-        elif all(v == list(cov.values())[0] for v in cov.values()):
-            cov_str = list(cov.values())[0]
+        elif len(set(cov.values())) == 1:
+            cov_str = next(iter(cov.values()))
         else:
             cov_str = "; ".join(f"{a}: {v}" for a, v in sorted(cov.items()))
         rows.append((policy_id, status["state"], cov_str, "yes" if status["mandatory"] else "no"))
@@ -210,6 +216,6 @@ def recompile_main(argv: list[str] | None) -> int:
     print(f"Recompiled {len(coverage)} policies")
     for policy_id, cov in sorted(coverage.items()):
         print(f"{policy_id}:")
-        for agent, level in sorted(cov.items()):
-            print(f"  {agent}: {level}")
+        for agent, value in sorted(cov.items()):
+            print(f"  {agent}: {_cell(value)}")
     return 0

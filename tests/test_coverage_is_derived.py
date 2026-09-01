@@ -53,7 +53,7 @@ def _fragment(repo_root: Path) -> Path:
 
 def _level(repo_root: Path) -> str:
     coverage = json.loads((repo_root / ".chock" / "coverage.json").read_text(encoding="utf-8"))
-    return coverage[GUARD["id"]]["claude"]
+    return coverage[GUARD["id"]]["claude"]["level"]
 
 
 def test_uninstalled_guard_does_not_claim_enforcement(repo: Path) -> None:

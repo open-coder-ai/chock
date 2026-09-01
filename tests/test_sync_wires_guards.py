@@ -60,8 +60,8 @@ def test_one_sync_wires_and_claims_every_guard_surface() -> None:
 
     coverage = json.loads((repo / ".chock" / "coverage.json").read_text(encoding="utf-8"))
     row = coverage["block-destructive-commands"]
-    assert row["claude"] == "best-effort", f"coverage must reflect the wiring sync just did: {row}"
-    assert row["cursor"] == "enforceable", row
+    assert row["claude"]["level"] == "best-effort", f"coverage must reflect the wiring sync just did: {row}"
+    assert row["cursor"]["level"] == "enforceable", row
 
 
 def test_second_sync_is_stable() -> None:

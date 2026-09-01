@@ -1,302 +1,1342 @@
 {
   "agent-discipline": {
-    "aider": "advisory",
-    "claude": "advisory",
-    "codex": "advisory",
-    "copilot": "advisory",
-    "cursor": "advisory",
-    "devin": "advisory",
-    "gemini": "advisory",
-    "grok": "advisory",
-    "kimi-code": "advisory",
-    "replit": "advisory",
-    "tabnine": "advisory",
-    "vscode": "advisory",
-    "windsurf": "advisory"
+    "aider": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "codex": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "cursor": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "devin": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "windsurf": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    }
   },
   "block-destructive-commands": {
-    "aider": "advisory",
-    "claude": "best-effort",
-    "codex": "advisory",
-    "copilot": "best-effort",
-    "cursor": "enforceable",
-    "devin": "advisory",
-    "gemini": "advisory",
-    "grok": "advisory",
-    "kimi-code": "advisory",
-    "replit": "advisory",
-    "tabnine": "advisory",
-    "vscode": "best-effort",
-    "windsurf": "advisory"
+    "aider": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "best-effort",
+      "basis": "live-run",
+      "witnessed": false
+    },
+    "codex": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
+    },
+    "cursor": {
+      "level": "enforceable",
+      "basis": "live-run-partial",
+      "witnessed": false
+    },
+    "devin": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
+    },
+    "windsurf": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    }
   },
   "block-invisible-unicode": {
-    "aider": "enforced-at-commit",
-    "claude": "enforced-at-commit",
-    "codex": "enforced-at-commit",
-    "copilot": "enforced-at-commit",
-    "cursor": "enforced-at-commit",
-    "devin": "enforced-at-commit",
-    "gemini": "enforced-at-commit",
-    "grok": "enforced-at-commit",
-    "kimi-code": "enforced-at-commit",
-    "replit": "enforced-at-commit",
-    "tabnine": "enforced-at-commit",
-    "vscode": "enforced-at-commit",
-    "windsurf": "enforced-at-commit"
+    "aider": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "codex": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "cursor": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "devin": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "windsurf": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    }
   },
   "block-no-verify": {
-    "aider": "advisory",
-    "claude": "best-effort",
-    "codex": "advisory",
-    "copilot": "best-effort",
-    "cursor": "enforceable",
-    "devin": "advisory",
-    "gemini": "advisory",
-    "grok": "advisory",
-    "kimi-code": "advisory",
-    "replit": "advisory",
-    "tabnine": "advisory",
-    "vscode": "best-effort",
-    "windsurf": "advisory"
+    "aider": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "best-effort",
+      "basis": "live-run",
+      "witnessed": false
+    },
+    "codex": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
+    },
+    "cursor": {
+      "level": "enforceable",
+      "basis": "live-run-partial",
+      "witnessed": false
+    },
+    "devin": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
+    },
+    "windsurf": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    }
   },
   "block-wildcard-agent-permissions": {
-    "aider": "enforced-at-commit",
-    "claude": "enforced-at-commit",
-    "codex": "enforced-at-commit",
-    "copilot": "enforced-at-commit",
-    "cursor": "enforced-at-commit",
-    "devin": "enforced-at-commit",
-    "gemini": "enforced-at-commit",
-    "grok": "enforced-at-commit",
-    "kimi-code": "enforced-at-commit",
-    "replit": "enforced-at-commit",
-    "tabnine": "enforced-at-commit",
-    "vscode": "enforced-at-commit",
-    "windsurf": "enforced-at-commit"
+    "aider": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "codex": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "cursor": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "devin": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "windsurf": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    }
   },
   "code-safety": {
-    "aider": "advisory",
-    "claude": "advisory",
-    "codex": "advisory",
-    "copilot": "advisory",
-    "cursor": "advisory",
-    "devin": "advisory",
-    "gemini": "advisory",
-    "grok": "advisory",
-    "kimi-code": "advisory",
-    "replit": "advisory",
-    "tabnine": "advisory",
-    "vscode": "advisory",
-    "windsurf": "advisory"
+    "aider": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "codex": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "cursor": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "devin": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "windsurf": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    }
   },
   "context-hygiene": {
-    "aider": "advisory",
-    "claude": "advisory",
-    "codex": "advisory",
-    "copilot": "advisory",
-    "cursor": "advisory",
-    "devin": "advisory",
-    "gemini": "advisory",
-    "grok": "advisory",
-    "kimi-code": "advisory",
-    "replit": "advisory",
-    "tabnine": "advisory",
-    "vscode": "advisory",
-    "windsurf": "advisory"
+    "aider": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "codex": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "cursor": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "devin": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "windsurf": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    }
   },
   "git-safety": {
-    "aider": "advisory",
-    "claude": "advisory",
-    "codex": "advisory",
-    "copilot": "advisory",
-    "cursor": "advisory",
-    "devin": "advisory",
-    "gemini": "advisory",
-    "grok": "advisory",
-    "kimi-code": "advisory",
-    "replit": "advisory",
-    "tabnine": "advisory",
-    "vscode": "advisory",
-    "windsurf": "advisory"
+    "aider": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "codex": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "cursor": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "devin": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "windsurf": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    }
   },
   "injection-defense": {
-    "aider": "advisory",
-    "claude": "advisory",
-    "codex": "advisory",
-    "copilot": "advisory",
-    "cursor": "advisory",
-    "devin": "advisory",
-    "gemini": "advisory",
-    "grok": "advisory",
-    "kimi-code": "advisory",
-    "replit": "advisory",
-    "tabnine": "advisory",
-    "vscode": "advisory",
-    "windsurf": "advisory"
+    "aider": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "codex": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "cursor": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "devin": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "windsurf": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    }
   },
   "memory-discipline": {
-    "aider": "advisory",
-    "claude": "advisory",
-    "codex": "advisory",
-    "copilot": "advisory",
-    "cursor": "advisory",
-    "devin": "advisory",
-    "gemini": "advisory",
-    "grok": "advisory",
-    "kimi-code": "advisory",
-    "replit": "advisory",
-    "tabnine": "advisory",
-    "vscode": "advisory",
-    "windsurf": "advisory"
+    "aider": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "codex": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "cursor": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "devin": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "windsurf": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    }
   },
   "minimal-content": {
-    "aider": "advisory",
-    "claude": "advisory",
-    "codex": "advisory",
-    "copilot": "advisory",
-    "cursor": "advisory",
-    "devin": "advisory",
-    "gemini": "advisory",
-    "grok": "advisory",
-    "kimi-code": "advisory",
-    "replit": "advisory",
-    "tabnine": "advisory",
-    "vscode": "advisory",
-    "windsurf": "advisory"
+    "aider": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "codex": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "cursor": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "devin": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "windsurf": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    }
   },
   "pre-generated-scripts": {
-    "aider": "advisory",
-    "claude": "advisory",
-    "codex": "advisory",
-    "copilot": "advisory",
-    "cursor": "advisory",
-    "devin": "advisory",
-    "gemini": "advisory",
-    "grok": "advisory",
-    "kimi-code": "advisory",
-    "replit": "advisory",
-    "tabnine": "advisory",
-    "vscode": "advisory",
-    "windsurf": "advisory"
+    "aider": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "codex": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "cursor": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "devin": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "windsurf": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    }
   },
   "protect-agent-config": {
-    "aider": "advisory",
-    "claude": "best-effort",
-    "codex": "advisory",
-    "copilot": "best-effort",
-    "cursor": "enforceable",
-    "devin": "advisory",
-    "gemini": "advisory",
-    "grok": "advisory",
-    "kimi-code": "advisory",
-    "replit": "advisory",
-    "tabnine": "advisory",
-    "vscode": "best-effort",
-    "windsurf": "advisory"
+    "aider": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "best-effort",
+      "basis": "live-run",
+      "witnessed": false
+    },
+    "codex": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
+    },
+    "cursor": {
+      "level": "enforceable",
+      "basis": "live-run-partial",
+      "witnessed": false
+    },
+    "devin": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
+    },
+    "windsurf": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    }
   },
   "protect-commit-privacy": {
-    "aider": "advisory",
-    "claude": "best-effort",
-    "codex": "advisory",
-    "copilot": "best-effort",
-    "cursor": "enforceable",
-    "devin": "advisory",
-    "gemini": "advisory",
-    "grok": "advisory",
-    "kimi-code": "advisory",
-    "replit": "advisory",
-    "tabnine": "advisory",
-    "vscode": "best-effort",
-    "windsurf": "advisory"
+    "aider": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "best-effort",
+      "basis": "live-run",
+      "witnessed": false
+    },
+    "codex": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
+    },
+    "cursor": {
+      "level": "enforceable",
+      "basis": "live-run-partial",
+      "witnessed": false
+    },
+    "devin": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
+    },
+    "windsurf": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    }
   },
   "protect-main-branch": {
-    "aider": "enforced-at-commit",
-    "claude": "enforced-at-commit",
-    "codex": "enforced-at-commit",
-    "copilot": "enforced-at-commit",
-    "cursor": "enforced-at-commit",
-    "devin": "enforced-at-commit",
-    "gemini": "enforced-at-commit",
-    "grok": "enforced-at-commit",
-    "kimi-code": "enforced-at-commit",
-    "replit": "enforced-at-commit",
-    "tabnine": "enforced-at-commit",
-    "vscode": "enforced-at-commit",
-    "windsurf": "enforced-at-commit"
+    "aider": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "codex": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "cursor": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "devin": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "windsurf": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    }
   },
   "scan-secrets": {
-    "aider": "enforced-at-commit",
-    "claude": "enforced-at-commit",
-    "codex": "enforced-at-commit",
-    "copilot": "enforced-at-commit",
-    "cursor": "enforced-at-commit",
-    "devin": "enforced-at-commit",
-    "gemini": "enforced-at-commit",
-    "grok": "enforced-at-commit",
-    "kimi-code": "enforced-at-commit",
-    "replit": "enforced-at-commit",
-    "tabnine": "enforced-at-commit",
-    "vscode": "enforced-at-commit",
-    "windsurf": "enforced-at-commit"
+    "aider": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "codex": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "cursor": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "devin": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "windsurf": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    }
   },
   "token-efficiency": {
-    "aider": "advisory",
-    "claude": "advisory",
-    "codex": "advisory",
-    "copilot": "advisory",
-    "cursor": "advisory",
-    "devin": "advisory",
-    "gemini": "advisory",
-    "grok": "advisory",
-    "kimi-code": "advisory",
-    "replit": "advisory",
-    "tabnine": "advisory",
-    "vscode": "advisory",
-    "windsurf": "advisory"
+    "aider": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "codex": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "cursor": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "devin": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "windsurf": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    }
   },
   "verify-dependency-exists": {
-    "aider": "disabled",
-    "claude": "disabled",
-    "codex": "disabled",
-    "copilot": "disabled",
-    "cursor": "disabled",
-    "devin": "disabled",
-    "gemini": "disabled",
-    "grok": "disabled",
-    "kimi-code": "disabled",
-    "replit": "disabled",
-    "tabnine": "disabled",
-    "vscode": "disabled",
-    "windsurf": "disabled"
+    "aider": {
+      "level": "disabled",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "disabled",
+      "basis": null,
+      "witnessed": false
+    },
+    "codex": {
+      "level": "disabled",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "disabled",
+      "basis": null,
+      "witnessed": false
+    },
+    "cursor": {
+      "level": "disabled",
+      "basis": null,
+      "witnessed": false
+    },
+    "devin": {
+      "level": "disabled",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "disabled",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "disabled",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "disabled",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "disabled",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "disabled",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "disabled",
+      "basis": null,
+      "witnessed": false
+    },
+    "windsurf": {
+      "level": "disabled",
+      "basis": null,
+      "witnessed": false
+    }
   },
   "verify-framework-conformance": {
-    "aider": "advisory",
-    "claude": "advisory",
-    "codex": "advisory",
-    "copilot": "advisory",
-    "cursor": "advisory",
-    "devin": "advisory",
-    "gemini": "advisory",
-    "grok": "advisory",
-    "kimi-code": "advisory",
-    "replit": "advisory",
-    "tabnine": "advisory",
-    "vscode": "advisory",
-    "windsurf": "advisory"
+    "aider": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "codex": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "cursor": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "devin": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "windsurf": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    }
   },
   "yagni": {
-    "aider": "advisory",
-    "claude": "advisory",
-    "codex": "advisory",
-    "copilot": "advisory",
-    "cursor": "advisory",
-    "devin": "advisory",
-    "gemini": "advisory",
-    "grok": "advisory",
-    "kimi-code": "advisory",
-    "replit": "advisory",
-    "tabnine": "advisory",
-    "vscode": "advisory",
-    "windsurf": "advisory"
+    "aider": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "codex": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "cursor": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "devin": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "windsurf": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    }
   }
 }

@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+from typing import Iterable, NamedTuple
+
 from agentseam import contract as _contract
 from agentseam import matrix as _matrix
+from agentseam import matrix_terms as _terms
+
+from chock import evidence
 
 MATRIX_AGENT = {
     "claude": "claude_code",
@@ -54,6 +59,59 @@ def level_rank(level: str) -> int:
         ) from None
 
 
+BASIS_CAP = {
+    _terms.BASIS_LIVE: "enforced",
+    _terms.BASIS_LIVE_PARTIAL: "enforceable",
+    _terms.BASIS_SOURCE: "best-effort",
+    _terms.BASIS_DOCS: "best-effort",
+    _terms.BASIS_THIRD_PARTY: "best-effort",
+    _terms.BASIS_INHERITED: "detect",
+}
+
+
+class Grade(NamedTuple):
+    """One coverage cell: the word, the evidence binding it, and whether chock saw it work."""
+
+    level: str
+    basis: str | None
+    witnessed: bool
+
+
+def cap_for(basis: str) -> str:
+    """The strongest word this KIND of evidence can back."""
+    try:
+        return BASIS_CAP[basis]
+    except KeyError:
+        raise ValueError(
+            f"no cap recorded for basis {basis!r}; a new evidence kind must be given a ceiling "
+            f"before a grade may rest on it, not default to the strongest word"
+        ) from None
+
+
+def weakest_basis(bases: Iterable[str]) -> str | None:
+    """The basis whose cap is lowest -- the one that binds. None when nothing rests on evidence."""
+    ranked = sorted(bases, key=lambda basis: level_rank(cap_for(basis)))
+    return ranked[0] if ranked else None
+
+
+def capped(level: str, bases: Iterable[str]) -> str:
+    """`level`, lowered to what the weakest basis under it can back; unreportable becomes `none`."""
+    binding = weakest_basis(bases)
+    if binding is not None and level in IN_AGENT_LEVELS:
+        level = min(level, cap_for(binding), key=level_rank)
+    return "none" if level in UNREPORTABLE_LEVELS else level
+
+
+def resting_bases(mapped: str) -> tuple[str, ...]:
+    """Every evidence basis an in-agent grade for matrix agent `mapped` rests on.
+
+    Today that is the matrix row alone: the wire claims chock's hooks consume are still
+    hand-written here rather than carried with their own evidence, so there is nothing
+    honest to add. agentseam's per-claim vendor entries join this tuple when they land.
+    """
+    return (_matrix.basis(mapped),)
+
+
 def in_agent_level(agent: str, *, degrades_to: str = CONTROL_DEGRADES_TO) -> str:
     """The honest word for an INSTALLED in-agent pre-execution control on `agent`."""
     if degrades_to not in DEGRADATION_MODES:
@@ -62,6 +120,22 @@ def in_agent_level(agent: str, *, degrades_to: str = CONTROL_DEGRADES_TO) -> str
     if not mapped:
         return "none"
     host = _matrix.enforcement_level(mapped, _contract.PRE_TOOL)
-    if host != "best-effort" or degrades_to == DEGRADES_TO_ALLOW:
-        return host
-    return "fail-to-ask"
+    lifts = host == "best-effort" and degrades_to != DEGRADES_TO_ALLOW and evidence.honours_ask(mapped)
+    return capped("fail-to-ask" if lifts else host, resting_bases(mapped))
+
+
+def in_agent_grade(agent: str, surface: str, *, degrades_to: str = CONTROL_DEGRADES_TO) -> Grade:
+    """`in_agent_level` with the evidence that bounds it and chock's own witness for `surface`."""
+    mapped = MATRIX_AGENT.get(agent)
+    if not mapped:
+        return Grade("none", None, False)
+    return Grade(
+        in_agent_level(agent, degrades_to=degrades_to),
+        weakest_basis(resting_bases(mapped)),
+        evidence.witness(mapped, surface) is not None,
+    )
+
+
+def render_grade(grade: Grade) -> str:
+    """One cell as a report prints it -- `best-effort (vendor-docs)`, evidence never detached."""
+    return f"{grade.level} ({grade.basis})" if grade.basis else grade.level

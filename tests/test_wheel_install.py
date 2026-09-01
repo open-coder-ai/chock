@@ -36,6 +36,18 @@ def test_wheel_contains_the_files_plugin_packages_ship(built_wheel: Path) -> Non
     assert not missing, f"wheel is missing plugin data {missing}; check [tool.setuptools.package-data]"
 
 
+def test_wheel_contains_the_evidence_ledgers(built_wheel: Path) -> None:
+    """Grading and package posture read these at run time; a wheel without them cannot compile."""
+    from chock import evidence
+
+    with zipfile.ZipFile(built_wheel) as whl:
+        names = set(whl.namelist())
+    wanted = sorted(p.name for p in evidence.DATA_DIR.iterdir() if p.is_file())
+    assert wanted, "the evidence data directory is empty; this test no longer pins anything"
+    missing = [n for n in wanted if f"chock/data/{n}" not in names]
+    assert not missing, f"wheel is missing evidence data {missing}; check [tool.setuptools.package-data]"
+
+
 def test_wheel_installs_and_init_passes(tmp_path: Path, built_wheel: Path) -> None:
     """pip install into a fresh venv, then chock init in a new git repo."""
     venv_dir = tmp_path / "venv"

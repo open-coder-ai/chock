@@ -10,6 +10,7 @@ from agentseam import packaging
 
 from chock.compile.emitters.claude_pretooluse import TIMEOUT_SECONDS, _guard_script
 from chock.emit import write_generated
+from chock.plugin import posture
 from chock.plugin.build import (
     _ADVISORY_NOTE_HOOK,
     _ADVISORY_NOTE_RULE,
@@ -45,15 +46,7 @@ MANIFEST_KEYS = (
     "hooks",
 )
 
-POSTURE_ENFORCED_CURSOR = (
-    "Session-enforced in Cursor by a beforeShellExecution hook: a matched command is "
-    "denied before it runs (witnessed blocking on a real install). The hook needs python3 "
-    "and a usable bash resolved from PATH; without them Cursor allows the command "
-    "silently, so this fails OPEN. On Windows, disable the python3 Store alias or install "
-    "Python. If the guard itself crashes or times out, the hook returns "
-    '`permission: "ask"`, which beforeShellExecution honours. Repo-wide enforcement at '
-    "commit time and in CI still needs `chock sync`."
-)
+POSTURE_ENFORCED_CURSOR = posture.enforced_cursor()
 
 _ENFORCED_NOTE_CURSOR = (
     "This policy is enforced in Cursor by the beforeShellExecution hook shipped with this "
