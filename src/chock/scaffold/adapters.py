@@ -8,25 +8,9 @@ from agentseam import instructions as agentseam_instructions
 
 from chock.compile.surfaces import parse_agent_selection as _parse_agent_selection
 from chock.scaffold.templates import _preserve_or_write, packaged_template
+from chock.vendors import CHOCK_AGENT
 
 _AIDER_CONF_REL = ".aider.conf.yml"
-
-CHOCK_AGENT: dict[str, str] = {
-    "claude": "claude_code",
-    "cursor": "cursor",
-    "windsurf": "windsurf",
-    "devin": "devin",
-    "codex": "codex_cli",
-    "grok": "grok",
-    "kimi-code": "kimi_code",
-    "copilot": "vscode_copilot",
-    "gemini": "gemini_cli",
-    "vscode": "vscode_copilot",
-    "aider": "aider",
-    "replit": "replit",
-    "tabnine": "tabnine",
-    "antigravity": "antigravity",
-}
 
 POINTER_TEXT = (
     "# Chock\n\n"

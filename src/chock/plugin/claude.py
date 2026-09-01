@@ -9,8 +9,8 @@ from typing import Any
 from agentseam import packaging
 
 from chock.compile.emitters.claude_pretooluse import MATCHER, TIMEOUT_SECONDS, _guard_script
-from chock.emit import write_generated
 from chock.gate import runtime_bundle
+from chock.plugin import store
 from chock.plugin.build import (
     _ADVISORY_NOTE_HOOK,
     _ADVISORY_NOTE_RULE,
@@ -22,9 +22,9 @@ from chock.plugin.build import (
     license_text,
     plugin_name,
 )
+from chock.plugin.store import SCRIPTS_TEMPLATE as _SCRIPTS_TEMPLATE
 
 _MANIFEST_REL = packaging.layout("claude_code")["manifest"]
-_SCRIPTS_TEMPLATE = packaging.supports("claude_code", packaging.EXECUTABLE)
 
 POSTURE_ENFORCED = (
     "Session-enforced via a PreToolUse hook; needs python3 and a usable bash. Without them, "
@@ -118,51 +118,16 @@ def claude_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
     return files
 
 
-OWNED_SUBTREES = ("hooks", "scripts")
-
-
 def stale_claude_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, out_dir: Path) -> list[Path]:
     """Files under this package that the current manifest would no longer produce."""
-    out_dir = Path(out_dir)
-    if not out_dir.is_dir():
-        return []
-    expected = set(claude_plugin_files(Path(policy_dir), manifest, Path(repo_root)))
-    stale: list[Path] = []
-    for sub in OWNED_SUBTREES:
-        for path in sorted((out_dir / sub).rglob("*")) if (out_dir / sub).is_dir() else []:
-            if path.is_file() and path.relative_to(out_dir) not in expected:
-                stale.append(path)
-    return stale
+    return store.stale_store_files("claude", claude_plugin_files, policy_dir, manifest, repo_root, out_dir)
 
 
 def build_claude_plugin(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, out_dir: Path) -> list[Path]:
     """Write the Claude-format package for one policy into a distribution directory."""
-    written: list[Path] = []
-    for rel, content in claude_plugin_files(Path(policy_dir), manifest, Path(repo_root)).items():
-        dest = Path(out_dir) / rel
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        write_generated(dest, content)
-        written.append(dest)
-
-    for stale in stale_claude_files(policy_dir, manifest, repo_root, out_dir):
-        stale.unlink()
-        parent = stale.parent
-        while parent != Path(out_dir) and parent.is_dir() and not any(parent.iterdir()):
-            parent.rmdir()
-            parent = parent.parent
-    return written
+    return store.build_store_plugin("claude", claude_plugin_files, policy_dir, manifest, repo_root, out_dir)
 
 
 def claude_plugin_differences(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, out_dir: Path) -> list[str]:
     """Report where the on-disk Claude plugin disagrees with what the manifest would produce."""
-    policy_id = manifest.get("id") or Path(policy_dir).name
-    differences: list[str] = []
-    for rel, content in claude_plugin_files(Path(policy_dir), manifest, Path(repo_root)).items():
-        dest = Path(out_dir) / rel
-        if not dest.exists():
-            differences.append(f"missing: {policy_id}/{rel.as_posix()}")
-        elif dest.read_text(encoding="utf-8") != content:
-            differences.append(f"differs: {policy_id}/{rel.as_posix()}")
-    for stale in stale_claude_files(policy_dir, manifest, repo_root, out_dir):
-        differences.append(f"stale: {policy_id}/{Path(stale).relative_to(Path(out_dir)).as_posix()}")
-    return differences
+    return store.store_plugin_differences("claude", claude_plugin_files, policy_dir, manifest, repo_root, out_dir)

@@ -35,6 +35,12 @@ def test_wheel_contains_the_files_plugin_packages_ship(built_wheel: Path) -> Non
     missing = [n for n in wanted if f"chock/plugin/data/{n}" not in names]
     assert not missing, f"wheel is missing plugin data {missing}; check [tool.setuptools.package-data]"
 
+    stores_dir = data_dir / "stores"
+    stores = sorted(p.name for p in stores_dir.iterdir() if p.is_file())
+    assert stores, "the store-data directory is empty; this test no longer pins anything"
+    missing_stores = [n for n in stores if f"chock/plugin/data/stores/{n}" not in names]
+    assert not missing_stores, f"wheel is missing store data {missing_stores}; check [tool.setuptools.package-data]"
+
 
 def test_wheel_installs_and_init_passes(tmp_path: Path, built_wheel: Path) -> None:
     """pip install into a fresh venv, then chock init in a new git repo."""
