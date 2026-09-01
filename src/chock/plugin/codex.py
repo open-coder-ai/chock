@@ -9,7 +9,7 @@ from typing import Any
 from agentseam import packaging
 
 from chock.compile.emitters.claude_pretooluse import MATCHER, TIMEOUT_SECONDS, _guard_script
-from chock.plugin import store
+from chock.plugin import posture, store
 from chock.plugin.build import (
     _ADVISORY_NOTE_HOOK,
     _ADVISORY_NOTE_RULE,
@@ -42,17 +42,7 @@ MANIFEST_KEYS = (
     "hooks",
 )
 
-POSTURE_ENFORCED_CODEX = (
-    "Session-enforced in Codex by a PreToolUse hook: a matched command is denied before "
-    "it runs (witnessed blocking on Codex Desktop, Windows, 2026-08-24; the deny is "
-    "returned as hook JSON, not an exit code, which Codex's Windows shell wrapper "
-    "mangles). Codex requires a one-time trust review per hook -- the plugin is ADVISORY "
-    "until you approve its hook, and a plugin update voids that trust until re-approved. "
-    "The hook needs python3 on PATH; a failure of the HOOK (missing python3, a timeout, an "
-    "unexpected exit) fails OPEN. A failure of the GUARD it runs is a DENY here, because "
-    "Codex rejects the confirmation prompt the other clients get. Repo-wide enforcement "
-    "at commit time and in CI still needs `chock sync`."
-)
+POSTURE_ENFORCED_CODEX = posture.enforced_codex()
 
 _ENFORCED_NOTE_CODEX = (
     "This policy is enforced in Codex by the PreToolUse hook shipped with this plugin, "

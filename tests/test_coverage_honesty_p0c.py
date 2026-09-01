@@ -30,7 +30,7 @@ def test_tool_use_only_gate_is_not_enforced_at_commit(tmp_path: Path) -> None:
     out = tmp_path / ".chock" / "compiled"
     result = compile_policy(policy, targets=[Surface.GIT_HOOK.value], output_root=out, agents=["claude"])
     assert result.artifacts.get("git-hook", []) == []
-    assert result.coverage["protect-main-branch"]["claude"] != "enforced-at-commit"
+    assert result.coverage["protect-main-branch"]["claude"]["level"] != "enforced-at-commit"
 
 
 def test_commit_gate_still_enforced_at_commit(tmp_path: Path) -> None:
@@ -38,7 +38,7 @@ def test_commit_gate_still_enforced_at_commit(tmp_path: Path) -> None:
     out = tmp_path / ".chock" / "compiled"
     result = compile_policy(policy, targets=[Surface.GIT_HOOK.value], output_root=out, agents=["claude"])
     assert result.artifacts["git-hook"]
-    assert result.coverage["protect-main-branch"]["claude"] == "enforced-at-commit"
+    assert result.coverage["protect-main-branch"]["claude"]["level"] == "enforced-at-commit"
 
 
 def test_managed_patterns_are_honest_and_valid(tmp_path: Path) -> None:

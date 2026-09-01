@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- **Coverage cells now carry their evidence, and a witness ledger replaces hand-asserted
+  posture prose.** Each `.chock/coverage.json` cell is `{level, basis, witnessed}` rather than
+  a bare word, and every report prints the pair -- `best-effort (live-run)`. The level is
+  `min(matrix word, cap(weakest basis the grade rests on))`, so a strong word can never sit on
+  weak evidence: `vendor-docs` backs `best-effort` at most, `inherited` backs nothing
+  reportable. **No day-one word changes** -- every basis chock grades on today clears its cap;
+  the cap's bite is the future case. Evidence is a ceiling, never a source: capability is read
+  from `agentseam.matrix` alone, so no evidence record can grant a gate a matrix row denies.
+  chock's own live observations move out of the packagers' prose into
+  `src/chock/data/witnesses.json` (`{agent, surface, client, date, method}`, partial rows
+  refused at load), and the "witnessed blocking on ..." phrase in a package posture is now
+  rendered from that row -- delete the row and the claim disappears with it. Cursor's posture
+  therefore names the client and date it was witnessed on instead of "a real install".
+  `tested` (our suite against our runtime, `src/chock/data/claims.json`) stays distinct from
+  `witnessed`: the `fail-to-ask` lift now requires a TESTED honours-ask claim naming the
+  fixture that proves it, which is also the table the runtime test parametrizes over, so a
+  claim cannot be edited up without that test failing.
+
 - **Runtime: a guard that RAN and could not decide now asks for confirmation instead of
   allowing silently.** `gate.guard_runner` had five "could not determine" paths and answered
   all five the same way -- allow, with a line on stderr the agent sees and the developer

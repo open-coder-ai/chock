@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 from agentseam import contract as _contract
 
+from chock import evidence
 from chock.gate import guard_runner, runtime_bundle
 
 
@@ -87,12 +88,7 @@ def decision(result: subprocess.CompletedProcess) -> dict:
     return {"decision": body.get("permission"), "reason": body.get("user_message")}
 
 
-ASK_ON_THE_WIRE = {
-    "claude_code": "ask",
-    "vscode_copilot": "ask",
-    "cursor": "ask",
-    "codex_cli": "deny",
-}
+ASK_ON_THE_WIRE = {c.agent: c.verdict for c in evidence.claims() if c.claim == evidence.HONOURS_ASK}
 
 
 @pytest.mark.parametrize("agent", sorted(ASK_ON_THE_WIRE))

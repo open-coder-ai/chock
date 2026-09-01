@@ -120,6 +120,25 @@ def test_readme_says_why_the_absent_surfaces_are_absent() -> None:
     assert not supporting, f"mcp-gateway is now supported by {supporting}; the per-client wording is stale"
 
 
+def test_the_page_publishes_the_cap_the_code_applies() -> None:
+    """The cap table is the honesty anchor; a doc that drifts from it advertises a stronger claim."""
+    from chock.compile.levels import BASIS_CAP
+
+    text = DOC.read_text(encoding="utf-8")
+    start = "| Weakest basis under the grade | May back at most |"
+    assert start in text, "the basis-cap table is gone or its header changed"
+
+    published = {}
+    for line in (start + text.split(start)[1].split("\n\n")[0]).splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) != 2 or cells[0].startswith(":-") or cells[0].startswith("Weakest"):
+            continue
+        for basis in re.findall(r"`([^`]+)`", cells[0]):
+            published[basis] = re.findall(r"`([^`]+)`", cells[1])[0]
+
+    assert published == BASIS_CAP, f"the page publishes {published}, the code applies {BASIS_CAP}"
+
+
 def _published_levels() -> list[str]:
     """The level names the doc's `| Level | Meaning |` table publishes, in the order it lists them."""
     text = DOC.read_text(encoding="utf-8")

@@ -283,3 +283,17 @@ the gate exits 2 rather than passing an unscanned range.
 `chock compile <id>` (and `init`) write `.chock/coverage.json`. Treat it as the source
 of truth for "where does this guarantee actually hold?" — it's the foundation for the compliance
 attestation on the [roadmap](../README.md#-roadmap).
+
+Each cell is `{"level", "basis", "witnessed"}`, printed as `best-effort (vendor-docs)`. The level
+is the weaker of the matrix word and the ceiling of the weakest basis it rests on:
+
+| Weakest basis under the grade | May back at most |
+| :--- | :--- |
+| `live-run` | `enforced` |
+| `live-run-partial` | `enforceable` |
+| `vendor-source`, `vendor-docs`, `third-party-install` | `best-effort` |
+| `inherited` | `detect` — unreportable, so the cell reads `none` |
+
+`witnessed` is true only where `src/chock/data/witnesses.json` records chock seeing that surface
+block in that vendor's real client — distinct from **tested** (`src/chock/data/claims.json`, our
+suite against our runtime). Neither ever raises a level: evidence caps a claim, never grants one.

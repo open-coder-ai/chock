@@ -42,7 +42,7 @@ def _compile(tmp_path: Path, manifest: dict) -> str:
     result = compile_policy(
         policy_dir, targets=[s.value for s in Surface], output_root=tmp_path / ".chock" / "compiled"
     )
-    return result.coverage[manifest["id"]]["claude"]
+    return result.coverage[manifest["id"]]["claude"]["level"]
 
 
 def test_advise_only_rule_is_advisory_not_enforced(tmp_path: Path) -> None:
@@ -131,7 +131,8 @@ def test_repo_coverage_matches_actual_enforcement() -> None:
     AGENT_HOOK_LEVELS = {"enforced", "enforceable", "best-effort"}
 
     for policy_id, agents in coverage.items():
-        for agent, level in agents.items():
+        for agent, cell in agents.items():
+            level = cell["level"]
             if level in (None, "disabled", "advisory", "none", "detect"):
                 continue
             if level == "enforced-at-commit":

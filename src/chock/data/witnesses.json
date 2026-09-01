@@ -1,0 +1,23 @@
+[
+  {
+    "agent": "codex_cli",
+    "surface": "plugin-hook",
+    "client": "Codex Desktop, Windows",
+    "date": "2026-08-24",
+    "method": "live probe: a hook-JSON deny blocked a matched command (chock 6b4d400)"
+  },
+  {
+    "agent": "cursor",
+    "surface": "plugin-hook",
+    "client": "Cursor",
+    "date": "2026-08-24",
+    "method": "live probe: a stdout deny blocked a matched command, a benign one still ran (chock 6b4d400)"
+  },
+  {
+    "agent": "vscode_copilot",
+    "surface": "agent-hooks",
+    "client": "Copilot CLI and VS Code agent mode",
+    "date": "2026-08-23",
+    "method": "live probe: an exit-2 deny blocked a matched command on both (chock 5d78831)"
+  }
+]

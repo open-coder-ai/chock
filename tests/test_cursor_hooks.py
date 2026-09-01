@@ -145,7 +145,8 @@ def test_coverage_witness_is_per_agent() -> None:
             capture_output=True,
             env=env,
         )
-        return json.loads((repo / ".chock" / "coverage.json").read_text())["block-destructive-commands"]
+        row = json.loads((repo / ".chock" / "coverage.json").read_text())["block-destructive-commands"]
+        return {agent: cell["level"] for agent, cell in row.items()}
 
     baseline = recompile_and_read()
     assert baseline["claude"] != "enforced" and baseline["cursor"] != "enforced"
