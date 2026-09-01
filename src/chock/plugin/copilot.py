@@ -9,7 +9,7 @@ from typing import Any
 from agentseam import packaging
 
 from chock.compile.emitters.claude_pretooluse import MATCHER, TIMEOUT_SECONDS, _guard_script
-from chock.emit import write_generated
+from chock.plugin import store
 from chock.plugin.build import (
     _ADVISORY_NOTE_HOOK,
     _ADVISORY_NOTE_RULE,
@@ -21,12 +21,11 @@ from chock.plugin.build import (
     plugin_name,
 )
 from chock.plugin.claude import POSTURE_ADVISORY, _adapter_source
+from chock.plugin.store import SCRIPTS_TEMPLATE as _SCRIPTS_TEMPLATE
 
 _LAYOUT = packaging.layout("copilot")
 PLUGIN_ROOT = packaging.plugin_root("copilot")
-COPILOT_NAMESPACE = "com.github.copilot"
 HOOKS_REL = packaging.supports("copilot", packaging.HOOKS)
-_SCRIPTS_TEMPLATE = packaging.supports("copilot", packaging.EXECUTABLE)
 
 POSTURE_ENFORCED_COPILOT = (
     "Session-enforced by the PreToolUse hook under com.github.copilot/ in clients that "
@@ -114,51 +113,16 @@ def copilot_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: 
     return files
 
 
-OWNED_SUBTREES = (COPILOT_NAMESPACE, "scripts")
-
-
 def stale_copilot_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, out_dir: Path) -> list[Path]:
     """Files under this package that the current manifest would no longer produce."""
-    out_dir = Path(out_dir)
-    if not out_dir.is_dir():
-        return []
-    expected = set(copilot_plugin_files(Path(policy_dir), manifest, Path(repo_root)))
-    stale: list[Path] = []
-    for sub in OWNED_SUBTREES:
-        for path in sorted((out_dir / sub).rglob("*")) if (out_dir / sub).is_dir() else []:
-            if path.is_file() and path.relative_to(out_dir) not in expected:
-                stale.append(path)
-    return stale
+    return store.stale_store_files("copilot", copilot_plugin_files, policy_dir, manifest, repo_root, out_dir)
 
 
 def build_copilot_plugin(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, out_dir: Path) -> list[Path]:
     """Write the Copilot-format package for one policy into a distribution directory."""
-    written: list[Path] = []
-    for rel, content in copilot_plugin_files(Path(policy_dir), manifest, Path(repo_root)).items():
-        dest = Path(out_dir) / rel
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        write_generated(dest, content)
-        written.append(dest)
-
-    for stale in stale_copilot_files(policy_dir, manifest, repo_root, out_dir):
-        stale.unlink()
-        parent = stale.parent
-        while parent != Path(out_dir) and parent.is_dir() and not any(parent.iterdir()):
-            parent.rmdir()
-            parent = parent.parent
-    return written
+    return store.build_store_plugin("copilot", copilot_plugin_files, policy_dir, manifest, repo_root, out_dir)
 
 
 def copilot_plugin_differences(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, out_dir: Path) -> list[str]:
     """Report where the on-disk Copilot plugin disagrees with what the manifest would produce."""
-    policy_id = manifest.get("id") or Path(policy_dir).name
-    differences: list[str] = []
-    for rel, content in copilot_plugin_files(Path(policy_dir), manifest, Path(repo_root)).items():
-        dest = Path(out_dir) / rel
-        if not dest.exists():
-            differences.append(f"missing: {policy_id}/{rel.as_posix()}")
-        elif dest.read_text(encoding="utf-8") != content:
-            differences.append(f"differs: {policy_id}/{rel.as_posix()}")
-    for stale in stale_copilot_files(policy_dir, manifest, repo_root, out_dir):
-        differences.append(f"stale: {policy_id}/{Path(stale).relative_to(Path(out_dir)).as_posix()}")
-    return differences
+    return store.store_plugin_differences("copilot", copilot_plugin_files, policy_dir, manifest, repo_root, out_dir)
