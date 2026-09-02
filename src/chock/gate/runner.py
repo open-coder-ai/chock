@@ -208,7 +208,7 @@ def _extract(path: str, text: str) -> set[str]:
         return set()
     try:
         return fn(text)
-    except Exception:
+    except Exception:  # noqa: BLE001 -- untrusted, possibly-malformed manifest content; never crash the gate on it
         return set()
 
 
@@ -278,7 +278,7 @@ def _log_outcome(gate_path: Path, event: str, spec: dict, result: GateResult) ->
         }
         with log_path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(record, ensure_ascii=False) + "\n")
-    except Exception:
+    except Exception:  # noqa: BLE001 -- best effort logging: never raises, never changes the verdict
         return
 
 

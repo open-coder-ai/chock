@@ -144,7 +144,7 @@ def log_outcome(guard: Path, tool: str, blocked: bool) -> None:
         }
         with log_path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(record, ensure_ascii=False) + "\n")
-    except Exception:
+    except Exception:  # noqa: BLE001 -- best effort logging: never raises, never changes the verdict
         return
 
 

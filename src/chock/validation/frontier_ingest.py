@@ -79,7 +79,7 @@ def fetch_url(url: str) -> str:
 
         with urllib.request.urlopen(url, timeout=30) as response:  # noqa: S310 -- https:// enforced above
             return response.read().decode("utf-8")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 -- best-effort fetch, by contract: never raise, always return a string
         print(f"WARN: could not fetch {url}: {exc}", file=sys.stderr)
         return ""
 

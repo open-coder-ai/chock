@@ -76,7 +76,7 @@ def check_frontier_mode(
                         f"Frontier standard for {agent} was last fetched {age_days} days ago; run ingest.py to refresh (FRS-1).",
                     )
                 )
-        except Exception:
+        except (ValueError, TypeError):
             pass
 
     if artifact_type == "skill":
