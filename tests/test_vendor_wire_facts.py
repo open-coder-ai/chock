@@ -38,18 +38,29 @@ def test_every_wired_vendor_has_a_public_vendor_entry() -> None:
         assert vendor in VENDOR_CONFIG, f"{vendor} lost its agentseam vendor-config entry"
 
 
-def test_shell_vocabulary_borrow_is_still_a_gap_upstream() -> None:
-    """codex_cli/vscode_copilot claude-format hooks borrow claude_code's matcher (in_agent.MATCHER).
+def test_shell_vocabulary_is_derived_per_vendor_not_borrowed() -> None:
+    """codex_cli/vscode_copilot claude-format hooks used to borrow claude_code's matcher.
 
-    The borrow is legitimate only while agentseam records no shell vocabulary for them; the
-    day either records one, derive it there instead of borrowing.
+    agentseam now records a shell vocabulary for both, so in_agent.hooks_map_file must read
+    each vendor's own tools.shell (vendors.shell_matcher) instead of falling back to
+    claude_code's MATCHER; if a future release drops the vocabulary again, this fails and
+    says to reinstate the borrow.
     """
     assert adapters.shell_tools("claude_code") == ("Bash",)
     for vendor in ("codex_cli", "vscode_copilot"):
-        assert adapters.shell_tools(vendor) == (), (
-            f"agentseam now records a shell vocabulary for {vendor}; "
-            f"stop borrowing claude_code's matcher and derive it (see in_agent.MATCHER)"
-        )
+        assert adapters.shell_tools(vendor), f"agentseam records no shell vocabulary for {vendor} anymore"
+
+    vscode_matcher = vendors.shell_matcher("vscode_copilot")
+    assert vscode_matcher != in_agent.MATCHER, (
+        "vscode_copilot's own derived matcher happens to equal claude_code's -- "
+        "pick a different vendor to prove derivation, not the borrowed constant"
+    )
+    (rendered_entry,) = in_agent.hooks_map_file("vscode_copilot", "CMD")["hooks"][
+        vendors.pre_tool_event("vscode_copilot")
+    ]
+    assert rendered_entry["matcher"] == vscode_matcher, (
+        "hooks_map_file still borrows claude_code's MATCHER instead of deriving vscode_copilot's own"
+    )
 
 
 def test_agent_hooks_shape_is_a_witnessed_override_until_upstream_ingests_it() -> None:
@@ -75,11 +86,16 @@ def test_agent_hooks_shape_is_a_witnessed_override_until_upstream_ingests_it() -
     )
 
 
-def test_repo_root_token_still_has_no_vendor_config_field() -> None:
-    """The `${CLAUDE_PROJECT_DIR}` wire token lives in chock only while D2's schema lacks it."""
-    assert in_agent.PROJECT_DIR_TOKEN == "${CLAUDE_PROJECT_DIR}"
-    suspects = [key for key in SCHEMA["properties"] if "root" in key or "token" in key]
-    assert not suspects, f"agentseam's vendor-config schema grew {suspects}; derive PROJECT_DIR_TOKEN from it"
+def test_repo_root_token_is_derived_from_vendor_config() -> None:
+    """The `${CLAUDE_PROJECT_DIR}` wire token used to live in chock as a hardcoded copy.
+
+    agentseam's vendor-config schema now carries `repo_root_token`; PROJECT_DIR_TOKEN must
+    read it via vendors.repo_root_token instead. If a future release drops the field again,
+    this fails and says to hardcode the token back.
+    """
+    assert "repo_root_token" in SCHEMA["properties"], "agentseam's vendor-config schema lost repo_root_token"
+    assert VENDOR_CONFIG["claude_code"]["repo_root_token"] == "${CLAUDE_PROJECT_DIR}"
+    assert vendors.repo_root_token("claude_code") == in_agent.PROJECT_DIR_TOKEN == "${CLAUDE_PROJECT_DIR}"
 
 
 def test_cursor_fail_closed_stays_unset_pending_the_owner_decision() -> None:

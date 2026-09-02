@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from chock import vendors
 from chock.gate import runtime_bundle
 from chock.plugin.build import build_skill
 from chock.plugin.claude import POSTURE_ADVISORY
@@ -78,7 +79,7 @@ def test_hook_lives_in_the_copilot_namespace(policy, tmp_path: Path) -> None:
 
     hooks = json.loads((out / "com.github.copilot" / "hooks" / "hooks.json").read_text(encoding="utf-8"))
     entry = hooks["hooks"]["PreToolUse"][0]
-    assert entry["matcher"] == "Bash"
+    assert entry["matcher"] == vendors.shell_matcher("vscode_copilot")
     command = entry["hooks"][0]["command"]
     assert command == (
         'r="${PLUGIN_ROOT:-}"; [ -n "$r" ] && [ -f "$r/scripts/vscode_copilot.py" ] || exit 0; '

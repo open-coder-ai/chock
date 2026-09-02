@@ -8,7 +8,8 @@
             "command": "@CHOCK_PYTHON@ \".chock/bin/codex_cli.py\" --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\"",
             "commandWindows": "& @CHOCK_PYTHON@ \".chock/bin/codex_cli.py\" --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\""
           }
-        ]
+        ],
+        "matcher": "Bash"
       }
     ]
   }

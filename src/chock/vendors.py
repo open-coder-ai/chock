@@ -58,6 +58,12 @@ def config_path(vendor: str) -> str:
     return str(entry(vendor)["config_path"])
 
 
+def repo_root_token(vendor: str) -> str | None:
+    """The vendor's own wire token for the repo root, or None where agentseam records none."""
+    token = entry(vendor).get("repo_root_token")
+    return str(token) if token else None
+
+
 def wire_event(vendor: str, canonical: str) -> str:
     """The vendor's wire spelling of one of agentseam's canonical events."""
     return str(_adapters.get(vendor).REVERSE_EVENT_MAP[canonical])
