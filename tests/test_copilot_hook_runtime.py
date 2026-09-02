@@ -59,7 +59,7 @@ def test_hook_allows_when_the_plugin_root_cannot_be_resolved(policy, tmp_path: P
 
     env = {k: v for k, v in os.environ.items() if k != "PLUGIN_ROOT"}
     for label, extra in (("unset", {}), ("set but wrong", {"PLUGIN_ROOT": str(tmp_path / "nope")})):
-        done = subprocess.run(  # noqa: S602 - `shell=True` IS the client's invocation under test
+        done = subprocess.run(  # `shell=True` IS the client's invocation under test
             command,
             shell=True,
             input='{"tool_name":"Bash","tool_input":{"command":"rm -rf /"}}',

@@ -166,10 +166,30 @@ max-statements = 50
 # tests/ and acceptance/ assert with bare `assert` by design (S101), commonly pass
 # literal fixture values as positional args to helpers (FBT), and repeat short
 # literal strings as test data, not magic values (PLR2004).
-"tests/**" = ["S101", "FBT", "PLR2004"]
-"acceptance/**" = ["S101", "FBT", "PLR2004"]
+#
+# TODO(lint-adoption): the rest of each list below is baseline debt this wave did not
+# touch -- W50 scoped the fix to src/ (plan/spine-a/briefs/w50-chock-lint-adoption.md),
+# and `ruff check .` lints the whole repo, so widening `select` in this file makes these
+# out-of-scope trees newly fail unless deferred the same way. Enumerated by rule family
+# (not per-finding: 400+ findings across ~90 files) in plan/spine-a/reports/w50.md
+# (org-plan). A future wave should shrink these lists toward the tests/acceptance/**
+# baseline above, not grow them.
+"tests/**" = [
+    "S101", "FBT", "PLR2004",
+    "ARG001", "ARG002", "ARG004", "ARG005", "B905", "N806", "N814", "PLC0415",
+    "PLR0402", "PLR0913", "PLW1510", "RUF005", "RUF043", "RUF059", "S105", "S108",
+    "S602", "S603", "S607", "SIM117", "SIM300", "T201", "TRY003",
+]
+"acceptance/**" = ["S101", "FBT", "PLR2004", "PLW1510", "S105", "S108", "S602", "S603"]
+"fuzz/**" = ["S101"]
+# docs/assets/gen_brand_assets.py derives docs/assets/social-preview.svg from repo data
+# (see the ci.yml brand-assets job) -- a dev/build script, not shipped source.
+"docs/assets/**" = ["ERA001", "PLR0913", "PLR2004", "PLW2901", "RUF001", "RUF003", "RUF005", "S101", "S603", "T201"]
 # A standalone CLI dev-tool script: printing its findings to stderr is the feature.
 "tools/check_literal_duplication.py" = ["T201"]
+# The installed copy of the packaged template below (chock install-skills); same
+# print-is-the-feature reason.
+".agents/skills/policy-init/assets/templates/scripts-stub.py" = ["T201"]
 # Every import here is deliberately per-branch, not just at the top: tests/test_lifecycle.py
 # and tests/test_remove.py inject fakes with monkeypatch.setattr("chock.<mod>.<name>", ...)
 # against the *source* module, which only takes effect if the caller re-imports the name on
