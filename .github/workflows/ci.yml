@@ -65,6 +65,44 @@ jobs:
           done < <(git rev-list --no-merges "origin/$BASE_REF..HEAD")
           exit "$missing"
 
+  template-lint:
+    # Emitted-artifact templates (chock W48) are checked-in files in their own language,
+    # not Python string literals -- so they are linted as that language, same as any
+    # other source file. shellcheck ships preinstalled on ubuntu-latest; actionlint does
+    # not, so it is fetched as a pinned, checksum-verified release binary (same discipline
+    # this file already applies to Action refs, just for a binary instead of a SHA).
+    runs-on: ubuntu-latest
+    env:
+      ACTIONLINT_VERSION: "1.7.7"
+      ACTIONLINT_SHA256: "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+
+      - name: Shellcheck the shell/bash emitted-artifact templates
+        run: |
+          shellcheck \
+            src/chock/compile/emitters/data/git_hook_shim.sh \
+            src/chock/hooks/data/dispatcher.sh \
+            src/chock/hooks/data/validate_wrapper_windows.sh \
+            src/chock/hooks/data/policy_wrapper.sh
+          shellcheck --shell=bash src/chock/compile/emitters/data/agent_hook_bash.sh
+
+      - name: Install actionlint (pinned, checksum-verified)
+        run: |
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -sSfL -o "$archive" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${archive}"
+          echo "${ACTIONLINT_SHA256}  ${archive}" | sha256sum -c -
+          tar xzf "$archive" actionlint
+
+      - name: Actionlint the scaffolded CI workflow template
+        # Not the ci-gate step fragment: actionlint needs a complete workflow, and the
+        # step is a fragment spliced into an adopter's own workflow -- it is unit-tested
+        # instead (tests/test_template_tokens.py, tests/test_emitter_stability.py).
+        run: ./actionlint src/chock/scaffold/data/ci_workflow.yml
+
   brand-assets:
     # docs/assets/social-preview.svg is derived from the repository -- agents, surfaces,
     # commands, versions -- so adding any of them silently invalidates the committed card.

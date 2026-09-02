@@ -26,9 +26,8 @@ def test_edited_dispatcher_is_backed_up_before_overwrite(tmp_path: Path, capsys)
     backup = hooks / "pre-commit.chock-backup"
     assert backup.exists(), "the adopter's edited dispatcher vanished with no copy"
     assert "my-custom-step" in backup.read_text(encoding="utf-8")
-    assert dispatcher.read_text(encoding="utf-8") == DISPATCHER_TEMPLATE.format(
-        event="pre-commit", marker=GENERATED_MARKER
-    )
+    rendered = DISPATCHER_TEMPLATE.replace("__EVENT__", "pre-commit").replace("__MARKER__", GENERATED_MARKER)
+    assert dispatcher.read_text(encoding="utf-8") == rendered
     assert "backed up" in capsys.readouterr().err
 
 

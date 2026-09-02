@@ -7,6 +7,7 @@ import inspect
 
 from agentseam import bundler
 
+from chock.resources import package_data_dir
 from chock.vendors import in_agent_vendors
 
 from . import guard_runner, sessionstart
@@ -18,13 +19,8 @@ _SESSION_START_AGENTS = frozenset({"claude_code"})
 
 RUNTIME_AGENTS = in_agent_vendors()
 
-_IMPORTS = """\
-import os as _chock_os
-import shlex as _chock_shlex
-import subprocess as _chock_subprocess
-from datetime import datetime as _chock_datetime, timezone as _chock_timezone
-from pathlib import Path as _chock_Path
-"""
+_DATA_DIR = package_data_dir("chock.gate", "data")
+_IMPORTS = _DATA_DIR.joinpath("imports.py.tmpl").read_text(encoding="utf-8")
 
 _RENAME = {
     "os": "_chock_os",
@@ -58,54 +54,12 @@ def _extract(module) -> str:
     return "\n\n".join(ast.unparse(seg) for seg in segments) + "\n"
 
 
-_DISPATCH = """\
+_DISPATCH = _DATA_DIR.joinpath("dispatch.py.tmpl").read_text(encoding="utf-8")
+_DISPATCH_BRANCH_TOKEN = "# __SESSION_START_BRANCH__\n"
 
+_SESSION_START_BRANCH = _DATA_DIR.joinpath("session_start_branch.py.tmpl").read_text(encoding="utf-8")
 
-def handle(event):
-    if event.event == "pre_tool" and event.command:
-        verdict = evaluate(sys.argv[1:], event.command, event.tool or "")
-        if verdict is not None:
-            outcome, reason = verdict
-            return Decision.escalate(reason) if outcome == ESCALATE else Decision.deny(reason)
-{session_start_branch}    return None
-"""
-
-_SESSION_START_BRANCH = """\
-    if event.event == "session_start":
-        return _chock_handle_session_start(event)
-"""
-
-_SESSION_START_ORCHESTRATION = """\
-
-
-def _chock_handle_session_start(event):
-    repo_root = _repo_root()
-    if not (repo_root / ".chock").is_dir():
-        return None  # not a chock-managed repo
-    if _armed(repo_root):
-        return None
-
-    if _chock_importable():
-        try:
-            proc = _chock_subprocess.run(
-                [sys.executable, "-m", "chock", "sync", "--repo", str(repo_root)],
-                cwd=repo_root,
-                capture_output=True,
-                text=True,
-                timeout=240,
-            )
-        except (OSError, _chock_subprocess.TimeoutExpired):
-            proc = None
-        if proc is not None and proc.returncode == 0 and _armed(repo_root):
-            return Decision.allow(
-                context=(
-                    "Chock: this clone's git hooks were not installed (git never clones hooks); "
-                    "armed them now with `chock sync`."
-                )
-            )
-
-    return Decision.allow(context=_INSTRUCTION)
-"""
+_SESSION_START_ORCHESTRATION = _DATA_DIR.joinpath("session_start_orchestration.py.tmpl").read_text(encoding="utf-8")
 
 
 def _handler_source(agent: str) -> str:
@@ -115,7 +69,8 @@ def _handler_source(agent: str) -> str:
         parts.append("\n")
         parts.append(_extract(sessionstart))
         parts.append(_SESSION_START_ORCHESTRATION)
-    parts.append(_DISPATCH.format(session_start_branch=_SESSION_START_BRANCH if agent in _SESSION_START_AGENTS else ""))
+    branch = _SESSION_START_BRANCH if agent in _SESSION_START_AGENTS else ""
+    parts.append(_DISPATCH.replace(_DISPATCH_BRANCH_TOKEN, branch))
     return "".join(parts)
 
 

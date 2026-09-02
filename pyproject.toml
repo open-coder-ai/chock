@@ -103,6 +103,11 @@ where = ["src"]
 "chock" = ["data/*.json"]
 "chock.validation" = ["schemas/*.json", "frontier_standards/*.json"]
 "chock.hooks" = ["data/*"]
+# Emitter, scaffold and vendored-runtime templates (chock W48): non-Python artifact
+# templates read at emit time via importlib.resources, never Python string literals.
+"chock.compile.emitters" = ["data/*"]
+"chock.scaffold" = ["data/*"]
+"chock.gate" = ["data/*.tmpl"]
 # `**/*` does NOT match dotfiles or dot-directories, so the chock-init
 # template tree (.chock/, .agents/, .claude/, adapter dotfiles) was absent
 # from every built wheel -- 42 files. The explicit dot-prefixed patterns below are

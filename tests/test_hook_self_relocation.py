@@ -25,9 +25,13 @@ def hooks_dir(tmp_path: Path) -> Path:
     return d
 
 
+def _render_dispatcher(event: str) -> str:
+    return DISPATCHER_TEMPLATE.replace("__EVENT__", event).replace("__MARKER__", GENERATED_MARKER)
+
+
 def test_the_marker_reaches_the_rendered_dispatcher() -> None:
     """`_is_ours` is only meaningful if what we write carries what we look for."""
-    assert GENERATED_MARKER in DISPATCHER_TEMPLATE.format(event="pre-commit", marker=GENERATED_MARKER)
+    assert GENERATED_MARKER in _render_dispatcher("pre-commit")
 
 
 def test_installing_twice_leaves_no_00_preexisting(hooks_dir: Path) -> None:
@@ -65,9 +69,7 @@ def test_an_existing_stale_copy_is_cleaned_up(hooks_dir: Path) -> None:
     """Repos already carrying the artefact get repaired, not just spared."""
     impl = hooks_dir / "pre-commit.d"
     impl.mkdir()
-    (impl / "00-preexisting").write_text(
-        DISPATCHER_TEMPLATE.format(event="pre-commit", marker=GENERATED_MARKER), encoding="utf-8"
-    )
+    (impl / "00-preexisting").write_text(_render_dispatcher("pre-commit"), encoding="utf-8")
 
     install_dispatcher(hooks_dir, "pre-commit")
 
