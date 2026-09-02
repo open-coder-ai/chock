@@ -20,7 +20,7 @@ def _dependency_allowlist_template() -> str:
     return packaged_template(".chock/dependency-allowlist.txt")
 
 
-_GITATTRIBUTES_TEMPLATE = template_text("scaffold/gitattributes")
+GITATTRIBUTES_TEMPLATE = template_text("scaffold/gitattributes")
 
 POLICIES_GUARDRAIL = template_text("scaffold/policies-guardrail.md")
 
