@@ -11,9 +11,14 @@ from typing import Any
 
 from chock.compile.compiler import _load_manifest, compile_policy
 from chock.compile.levels import DISABLED, Grade
-from chock.config import load_config, policy_status
+from chock.config import agents_from_config, load_config, policy_status
 from chock.emit import write_generated_json
+from chock.hooks.in_agent_install import WIRED_VENDORS, install_hooks, install_label, installed_policy_ids
+from chock.hooks.installers import get_hooks_dir, install_policy_hooks
+from chock.hooks.sessionstart_install import install_sessionstart_hook
+from chock.index.cli import cmd_refresh
 from chock.policies import discover_policy_dirs
+from chock.registry.core import save_registry, scan
 from chock.vendored import vendored_differences
 
 
@@ -86,9 +91,6 @@ def compiled_differences(repo_root: Path | str, agents: list[str]) -> list[str]:
 
 def _refresh_bookkeeping(repo_root: Path) -> None:
     """Bring the index and the registry back in line with the policies on disk."""
-    from chock.index.cli import cmd_refresh
-    from chock.registry.core import save_registry, scan
-
     try:
         entries, _skips = scan(repo_root)
         save_registry(entries, repo_root)
@@ -101,7 +103,9 @@ def _refresh_bookkeeping(repo_root: Path) -> None:
         print(f"[WARN] index refresh failed: {exc}. Run `chock sync`.", file=sys.stderr)
 
     try:
-        from chock.lock import build_lock, write_lock
+        # Tests patch chock.lock.write_lock/build_lock directly (test_adopter_safety.py),
+        # which only takes effect on a fresh per-call lookup.
+        from chock.lock import build_lock, write_lock  # noqa: PLC0415
 
         write_lock(build_lock(repo_root), repo_root)
     except Exception as exc:
@@ -116,8 +120,6 @@ def _refresh_bookkeeping(repo_root: Path) -> None:
 def refresh_after_install(repo_root: Path) -> None:
     """Recompile so coverage reflects the settings.json an install just wrote."""
     try:
-        from chock.config import agents_from_config
-
         recompile(repo_root, agents_from_config(repo_root), skip_hooks=True)
     except Exception as exc:  # noqa: BLE001 - never fail an install over bookkeeping
         print(f"[WARN] coverage not refreshed: {exc}. Run `chock sync --repo .`", file=sys.stderr)
@@ -149,19 +151,13 @@ def recompile(repo_root: Path | str, agents: list[str], *, skip_hooks: bool = Fa
     write_generated_json(coverage_path, coverage)
 
     if not skip_hooks:
-        from chock.hooks.installers import get_hooks_dir, install_policy_hooks
-
         install_policy_hooks(repo_root, get_hooks_dir(repo_root))
-
-        from chock.hooks.sessionstart_install import install_sessionstart_hook
 
         try:
             if install_sessionstart_hook(repo_root):
                 print("Registered SessionStart arm hook in .claude/settings.json")
         except ValueError as exc:
             print(f"[WARN] {exc}", file=sys.stderr)
-
-        from chock.hooks.in_agent_install import WIRED_VENDORS, install_hooks, install_label, installed_policy_ids
 
         def _witness() -> tuple[set[str], ...]:
             return tuple(installed_policy_ids(repo_root, vendor) for vendor in WIRED_VENDORS)

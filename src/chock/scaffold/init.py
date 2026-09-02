@@ -10,9 +10,12 @@ from pathlib import Path
 import yaml
 
 from chock.compile.surfaces import AGENTS_ARG_REQUIRED_MSG
+from chock.config import agents_from_config, load_config
 from chock.emit import write_generated
 from chock.hooks.install import NOT_A_GIT_REPO, get_hooks_dir, install_validate_hook, is_git_repo
+from chock.index.cli import cmd_refresh
 from chock.lock import build_lock, write_lock
+from chock.registry.core import rescan_and_report
 from chock.scaffold.adapters import (
     CHOCK_AGENT,
     deselected_agents,
@@ -21,7 +24,8 @@ from chock.scaffold.adapters import (
     write_instructions,
 )
 from chock.scaffold.agents_md import update_agents_md
-from chock.scaffold.recompile import BookkeepingError, recompile
+from chock.scaffold.recompile import BookkeepingError, discover_policy_dirs, recompile
+from chock.scaffold.skills import install_skills
 from chock.scaffold.templates import (
     GITATTRIBUTES_TEMPLATE,
     _dependency_allowlist_template,
@@ -29,6 +33,7 @@ from chock.scaffold.templates import (
     packaged_template,
     write_vendored_guardrails,
 )
+from chock.validation import engine as validator_engine
 
 
 def _write_agents_md(repo_root: Path, *, force: bool) -> Path:
@@ -52,8 +57,6 @@ def _fresh_config(agents: list[str], *, agent_agnostic: bool) -> dict[str, objec
 
 def _fresh_policies(repo_root: Path, fresh: dict[str, object]) -> dict[str, object]:
     """The template's `policies` block, minus toggles for policies that are not installed."""
-    from chock.scaffold.recompile import discover_policy_dirs
-
     policies = dict(fresh.get("policies") or {})  # type: ignore[arg-type]
     installed = {d.name for d in discover_policy_dirs(repo_root)}
     policies["disabled"] = [pid for pid in policies.get("disabled") or [] if pid in installed]
@@ -65,8 +68,6 @@ def _write_config(repo_root: Path, agents: list[str], *, agent_agnostic: bool) -
     """Write .chock/config.yaml, preserving existing policies and user defaults."""
     path = repo_root / ".chock" / "config.yaml"
     path.parent.mkdir(parents=True, exist_ok=True)
-
-    from chock.config import load_config
 
     existing = load_config(repo_root) if path.exists() else {}
     fresh = _fresh_config(agents, agent_agnostic=agent_agnostic)
@@ -102,8 +103,6 @@ def _normalize_agents(args_agents: list[str] | None, *, agent_agnostic: bool, re
         return sorted(CHOCK_AGENT)
     if args_agents:
         return list(args_agents)
-    from chock.config import agents_from_config, load_config
-
     if (load_config(repo_root).get("chock") or {}).get("supported_agents"):
         return agents_from_config(repo_root)
     return ["claude", "copilot", "gemini"]
@@ -114,8 +113,6 @@ CATALOG_URL = "https://github.com/open-coder-ai/chock-catalog"
 
 def _report_policy_state(repo_root: Path) -> None:
     """Say plainly whether anything is being enforced, and how to change that."""
-    from chock.scaffold.recompile import discover_policy_dirs
-
     installed = discover_policy_dirs(repo_root)
     if installed:
         print(f"Policies: {len(installed)} installed. Nothing was added or overwritten -- they are yours.")
@@ -173,8 +170,6 @@ def cmd_init(argv: list[str] | None = None) -> int:
     preserved += write_vendored_guardrails(repo_root, force=args.force)
     _write_config(repo_root, agents, agent_agnostic=args.agent_agnostic)
 
-    from chock.scaffold.skills import install_skills
-
     installed_skills = install_skills(repo_root, overwrite=False)
 
     try:
@@ -182,8 +177,6 @@ def cmd_init(argv: list[str] | None = None) -> int:
     except BookkeepingError as exc:
         print(f"[ERROR] {exc}", file=sys.stderr)
         return 1
-
-    from chock.index.cli import cmd_refresh
 
     cmd_refresh(["--repo", str(repo_root)])
 
@@ -200,9 +193,6 @@ def cmd_init(argv: list[str] | None = None) -> int:
             f"[ERROR] chock.lock was not written ({exc}). Re-run `chock init` once the cause is fixed.", file=sys.stderr
         )
         return 1
-
-    from chock.registry.core import rescan_and_report
-    from chock.validation import engine as validator_engine
 
     rescan_and_report(repo_root)
 

@@ -8,6 +8,7 @@ import datetime
 import json
 import re
 import sys
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -75,8 +76,6 @@ def fetch_url(url: str) -> str:
         print(f"WARN: refusing non-https fetch: {url}", file=sys.stderr)
         return ""
     try:
-        import urllib.request
-
         with urllib.request.urlopen(url, timeout=30) as response:  # noqa: S310 -- https:// enforced above
             return response.read().decode("utf-8")
     except Exception as exc:  # noqa: BLE001 -- best-effort fetch, by contract: never raise, always return a string

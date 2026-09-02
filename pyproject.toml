@@ -170,3 +170,9 @@ max-statements = 50
 "acceptance/**" = ["S101", "FBT", "PLR2004"]
 # A standalone CLI dev-tool script: printing its findings to stderr is the feature.
 "tools/check_literal_duplication.py" = ["T201"]
+# Every import here is deliberately per-branch, not just at the top: tests/test_lifecycle.py
+# and tests/test_remove.py inject fakes with monkeypatch.setattr("chock.<mod>.<name>", ...)
+# against the *source* module, which only takes effect if the caller re-imports the name on
+# each call rather than binding it once at module load.
+"src/chock/lifecycle.py" = ["PLC0415"]
+"src/chock/scaffold/remove.py" = ["PLC0415"]

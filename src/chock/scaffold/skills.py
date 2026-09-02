@@ -9,7 +9,9 @@ import sys
 from pathlib import Path
 
 import chock
+from chock.index.cli import cmd_refresh
 from chock.packs import packs_root, to_path
+from chock.registry.core import rescan_and_report
 
 AUTHORING_SKILLS = [
     "policy-init",
@@ -132,15 +134,11 @@ def cmd_install_skills(argv: list[str] | None = None) -> int:
         print("No skills installed", file=sys.stderr)
         return 1
 
-    from chock.registry.core import rescan_and_report
-
     rescan_and_report(repo_root)
 
     print(f"Installed {len(installed)} skill(s) into .agents/skills/:")
     for skill_id in installed:
         print(f"  {skill_id}")
-
-    from chock.index.cli import cmd_refresh
 
     cmd_refresh(["--repo", str(repo_root)])
     return 0

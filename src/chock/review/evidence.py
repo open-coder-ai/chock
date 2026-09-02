@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import io
 import json
 import shutil
 import subprocess
@@ -10,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from chock.cli import main as cli_main
 from chock.config import load_config
 
 SCHEMA_URL = "https://open-coder-ai.github.io/chock/schemas/v0/reviewer-evidence-v1.json"
@@ -80,8 +83,6 @@ def check_registry(root: Path) -> dict[str, list[str]]:
 
 def run_check(root: Path, argv: list[str]) -> tuple[str, str]:
     """Run one registry entry. Returns (pass|fail, first line of output)."""
-    from chock.cli import main as cli_main
-
     resolved = [a.replace("{root}", str(root)) for a in argv]
     if resolved and resolved[0] == "python":
         proc = subprocess.run(  # noqa: S603 -- running a repo-registered review check is this function's job
@@ -89,9 +90,6 @@ def run_check(root: Path, argv: list[str]) -> tuple[str, str]:
         )
         code, out = proc.returncode, (proc.stdout or proc.stderr)
     else:
-        import contextlib
-        import io
-
         buffer = io.StringIO()
         with contextlib.redirect_stdout(buffer), contextlib.redirect_stderr(buffer):
             try:

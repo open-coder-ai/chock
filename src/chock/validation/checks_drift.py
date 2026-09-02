@@ -8,6 +8,10 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from chock.compile.compiler import _load_manifest
+from chock.config import agents_from_config as _agents_from_config
+from chock.plugin.build import PluginNameError, plugin_differences
+from chock.policies import discover_policy_dirs
 from chock.validation.report import Finding, Report
 
 _GIT = shutil.which("git") or "git"
@@ -43,10 +47,8 @@ def _drift_severity(root: Path, event: str | None, policy_dirs: list[Path]) -> t
 
 def check_compiled_drift(root: Path, report: Report, event: str | None = None) -> None:
     """The compiled tree must still be what the manifests produce."""
-    from chock.compile.compiler import _load_manifest
-    from chock.config import agents_from_config as _agents_from_config
-    from chock.policies import discover_policy_dirs
-    from chock.scaffold.recompile import compiled_differences
+    # chock.scaffold.recompile -> chock.registry.core -> ... -> this module (cycle).
+    from chock.scaffold.recompile import compiled_differences  # noqa: PLC0415
 
     compiled_root = root / ".chock" / "compiled"
 
@@ -93,10 +95,6 @@ def check_compiled_drift(root: Path, report: Report, event: str | None = None) -
 
 def check_plugin_drift(root: Path, report: Report, event: str | None = None) -> None:
     """Packaged Agent Plugins output must still be what the manifest produces."""
-    from chock.compile.compiler import _load_manifest
-    from chock.plugin.build import PluginNameError, plugin_differences
-    from chock.policies import discover_policy_dirs
-
     policy_dirs = list(discover_policy_dirs(root))
     packaged = [d for d in policy_dirs if (d / "plugin.json").exists()]
     if not packaged:

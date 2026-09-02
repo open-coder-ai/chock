@@ -7,6 +7,7 @@ from pathlib import Path
 
 from chock.emit import write_generated
 from chock.resources import package_data_dir
+from chock.scaffold.templates import packaged_template
 
 POINTER_START = "<!-- chock:pointer:start -->"
 POINTER_END = "<!-- chock:pointer:end -->"
@@ -23,8 +24,6 @@ _INLINED_POLICY_BLOCK = re.compile(
 
 
 def _fresh_agents_md() -> str:
-    from chock.scaffold.templates import packaged_template
-
     return packaged_template("AGENTS.md").replace("{{repo_name}}", "chock-consumer")
 
 

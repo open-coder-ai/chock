@@ -4,14 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import chock
 from chock.emit import write_generated
 from chock.resources import package_data_dir
 
 
 def packaged_template(rel_path: str) -> str:
     """Read a file from the packaged chock-init template tree."""
-    import chock
-
     base = Path(chock.__file__).parent / "packs" / "_skills" / "chock-init"
     return (base / "assets" / "templates" / rel_path).read_text(encoding="utf-8")
 

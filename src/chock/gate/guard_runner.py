@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import shlex
 import subprocess
@@ -133,8 +134,6 @@ def log_outcome(guard: Path, tool: str, *, blocked: bool) -> None:
         log_path = log_dir / "gate-events.jsonl"
         if log_path.exists() and log_path.stat().st_size > _LOG_MAX_BYTES:
             log_path.replace(log_dir / "gate-events.1.jsonl")
-        import json
-
         record = {
             "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "policy_id": guard.parent.parent.name,

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from chock.config import load_config
+from chock.manifest import load_manifest
 
 
 def _resolve_dotted(config: dict[str, Any], key: str) -> Any:
@@ -22,8 +23,6 @@ def _resolve_dotted(config: dict[str, Any], key: str) -> Any:
 
 def build_gate_json(policy_dir: Path, repo_root: Path) -> dict[str, Any] | None:
     """Load a manifest hook.gate, resolve config references, and return a flat gate.json dict."""
-    from chock.manifest import load_manifest
-
     result = load_manifest(policy_dir)
     if result is None:
         return None

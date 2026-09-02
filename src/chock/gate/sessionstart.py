@@ -54,7 +54,10 @@ def _armed(repo_root: Path) -> bool:
 
 
 def _chock_importable() -> bool:
-    import importlib.util
+    # The vendored runtime bundle's fixed import set (chock/gate/data/imports.py.tmpl)
+    # doesn't carry importlib.util -- composing that dotted attribute access through the
+    # bundle's Name-only renamer isn't worth the complexity for one call site.
+    import importlib.util  # noqa: PLC0415
 
     try:
         return importlib.util.find_spec("chock") is not None

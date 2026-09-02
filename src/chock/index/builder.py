@@ -9,7 +9,9 @@ from typing import Any
 
 import yaml
 
+from chock.compile.emitters.advisory import substitute_policy_vars, template_message
 from chock.config import _disabled_list, load_config
+from chock.gate.build import build_gate_json
 from chock.manifest import ManifestSourceError, load_manifest
 
 _ENFORCEMENT_ORDER = {"block": 0, "verify": 1, "advise": 2}
@@ -54,9 +56,6 @@ def _load_policy(root: Path, artifact_dir: Path, warnings: list[str]) -> tuple[d
 
 def _summarize_hook(manifest: dict[str, Any], artifact_dir: Path, root: Path) -> str:
     """One-line gate summary from a hook manifest, resolved against this repo's config."""
-    from chock.compile.emitters.advisory import template_message
-    from chock.gate.build import build_gate_json
-
     gate = (manifest.get("hook") or {}).get("gate") or {}
     if gate.get("message"):
         spec = build_gate_json(artifact_dir, root)
@@ -79,8 +78,6 @@ def _entry_from_manifest(artifact_dir: Path, manifest: dict[str, Any], rel_path:
     pid = _default_id(artifact_dir, manifest)
     name = manifest.get("name") or pid
     enforcement = manifest.get("enforcement") or "advise"
-    from chock.compile.emitters.advisory import substitute_policy_vars
-
     rule_text = substitute_policy_vars(str((manifest.get("rule") or {}).get("text", "")), artifact_dir)
     description = _one_liner(manifest.get("description", ""))
 
@@ -100,7 +97,8 @@ def _entry_from_manifest(artifact_dir: Path, manifest: dict[str, Any], rel_path:
 
 def build_entries(root: Path) -> tuple[list[IndexEntry], list[str]]:
     """Return a list of active IndexEntry objects plus any manifest warnings."""
-    from chock.validation.loading import discover_artifacts
+    # chock.validation.loading -> chock.validation (package) -> checks_repo -> this module (cycle).
+    from chock.validation.loading import discover_artifacts  # noqa: PLC0415
 
     config = load_config(root)
     disabled = _disabled_list(config)

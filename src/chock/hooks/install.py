@@ -9,6 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from chock.hooks.in_agent_install import WIRED_VENDORS, install_hooks, install_label
 from chock.hooks.installers import (
     DISPATCHER_TEMPLATE,
     GENERATED_MARKER,
@@ -24,6 +25,8 @@ from chock.hooks.installers import (
     is_git_repo,
     relocate_existing_hook,
 )
+from chock.hooks.sessionstart_install import install_sessionstart_hook
+from chock.scaffold.recompile import refresh_after_install
 
 __all__ = [
     "DISPATCHER_TEMPLATE",
@@ -66,8 +69,6 @@ def main(argv=None) -> int:
     install_validate_hook(hooks_dir, repo_root)
     install_policy_hooks(repo_root, hooks_dir)
 
-    from chock.hooks.in_agent_install import WIRED_VENDORS, install_hooks, install_label
-
     wired = False
     for vendor in WIRED_VENDORS:
         try:
@@ -79,11 +80,7 @@ def main(argv=None) -> int:
                 print(f"Registered {len(installed)} {install_label(vendor)}")
                 wired = True
     if wired:
-        from chock.scaffold.recompile import refresh_after_install
-
         refresh_after_install(repo_root)
-
-    from chock.hooks.sessionstart_install import install_sessionstart_hook
 
     try:
         if install_sessionstart_hook(repo_root):

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from chock.manifest import resolve_manifest_path
+from chock.vendored import vendored_differences
 
 LOCKFILE_NAME = "chock.lock"
 LOCKFILE_VERSION = "1"
@@ -92,8 +93,6 @@ def verify_lock(repo_root: Path | None = None) -> tuple[bool, list[str]]:
     repo_root = repo_root or Path.cwd().resolve()
     lock = read_lock(repo_root)
     failures: list[str] = []
-
-    from chock.vendored import vendored_differences
 
     failures += [
         f"vendored runtime modified ({d}) -- this is what executes gates" for d in vendored_differences(repo_root)

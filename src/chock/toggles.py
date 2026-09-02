@@ -14,10 +14,11 @@ from chock.compile.levels import Grade, render_grade
 from chock.compile.surfaces import AGENTS_ARG_REQUIRED_MSG
 from chock.config import agents_from_config as _agents_from_config
 from chock.config import load_config, policy_status, set_disabled
+from chock.index.cli import cmd_refresh
 from chock.manifest import ManifestSourceError, load_manifest
 from chock.policies import discover_policy_dirs
 from chock.scaffold.adapters import parse_agent_selection
-from chock.scaffold.recompile import BookkeepingError, recompile
+from chock.scaffold.recompile import BookkeepingError, compiled_differences, recompile
 
 
 def _cell(value: Any) -> str:
@@ -88,7 +89,6 @@ def disable_main(argv: list[str] | None) -> int:
     except BookkeepingError as exc:
         print(f"[ERROR] {exc}", file=sys.stderr)
         return 1
-    from chock.index.cli import cmd_refresh
 
     cmd_refresh(["--repo", str(repo_root)])
     print(f"Disabled {args.policy_id}")
@@ -117,7 +117,6 @@ def enable_main(argv: list[str] | None) -> int:
     except BookkeepingError as exc:
         print(f"[ERROR] {exc}", file=sys.stderr)
         return 1
-    from chock.index.cli import cmd_refresh
 
     cmd_refresh(["--repo", str(repo_root)])
     print(f"Enabled {args.policy_id}")
@@ -197,8 +196,6 @@ def recompile_main(argv: list[str] | None) -> int:
             _parser_fail(parser, AGENTS_ARG_REQUIRED_MSG)
 
     if args.check:
-        from chock.scaffold.recompile import compiled_differences
-
         drift = compiled_differences(repo_root, agents)
         if drift:
             print(f"Compiled artifacts are out of date ({len(drift)} difference(s)):")

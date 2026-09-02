@@ -10,7 +10,11 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+import yaml
+
+from chock.config import agents_from_config as _agents_from_config
 from chock.lock import compute_pack_hash, read_lock, write_lock
+from chock.scaffold.recompile import BookkeepingError, recompile
 
 
 class IntegrityError(RuntimeError):
@@ -71,8 +75,6 @@ def locate(catalog_root: Path, artifact_id: str) -> tuple[Path, Path]:
 
     registry = catalog_root / "registry.yaml"
     if registry.exists():
-        import yaml
-
         data = yaml.safe_load(registry.read_text(encoding="utf-8")) or {}
         for entry in data.get("policies", []) or []:
             if entry.get("id") == artifact_id and entry.get("path"):
@@ -183,9 +185,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.skip_compile:
         print("Run `chock sync --repo .` to compile it.")
         return 0
-
-    from chock.config import agents_from_config as _agents_from_config
-    from chock.scaffold.recompile import BookkeepingError, recompile
 
     try:
         agents = _agents_from_config(repo_root)

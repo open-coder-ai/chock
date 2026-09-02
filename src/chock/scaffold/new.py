@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import chock
+from chock.index.cli import cmd_refresh
+from chock.registry.core import rescan_and_report
 
 
 class TemplateError(RuntimeError):
@@ -88,11 +90,7 @@ def cmd_new(argv: list[str] | None = None) -> int:
         print(f"[ERROR] {exc}", file=sys.stderr)
         return 2
 
-    from chock.registry.core import rescan_and_report
-
     rescan_and_report(root)
-
-    from chock.index.cli import cmd_refresh
 
     cmd_refresh(["--repo", str(root)])
 
