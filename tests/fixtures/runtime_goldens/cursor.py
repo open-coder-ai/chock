@@ -15,6 +15,7 @@ import sys
 
 import os as _chock_os
 import shlex as _chock_shlex
+import shutil as _chock_shutil
 import subprocess as _chock_subprocess
 from datetime import datetime as _chock_datetime, timezone as _chock_timezone
 from pathlib import Path as _chock_Path
@@ -573,7 +574,7 @@ def find_bash(guard: _chock_Path) -> str | None:
     """First interpreter that can actually see `guard`, or None."""
     for candidate in _BASH_CANDIDATES:
         try:
-            proc = _chock_subprocess.run([candidate, '-c', f'test -f "{guard.as_posix()}"'], capture_output=True, timeout=10)
+            proc = _chock_subprocess.run([candidate, '-c', f'test -f "{guard.as_posix()}"'], capture_output=True, timeout=10, check=False)
         except (OSError, _chock_subprocess.SubprocessError):
             continue
         if proc.returncode == 0:
@@ -595,7 +596,7 @@ def run_guard(guard: _chock_Path, command: str) -> str:
         return GUARD_UNCHECKED
     try:
         env = {**_chock_os.environ, 'CHOCK_RAW_COMMAND': command}
-        proc = _chock_subprocess.run([bash, str(guard), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=_GUARD_TIMEOUT_SECONDS)
+        proc = _chock_subprocess.run([bash, str(guard), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=_GUARD_TIMEOUT_SECONDS, check=False)
     except _chock_subprocess.TimeoutExpired:
         print(f'chock: guard timed out after {_GUARD_TIMEOUT_SECONDS}s, not checked', file=sys.stderr)
         return GUARD_ERRORED

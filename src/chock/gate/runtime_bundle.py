@@ -25,6 +25,7 @@ _IMPORTS = _DATA_DIR.joinpath("imports.py.tmpl").read_text(encoding="utf-8")
 _RENAME = {
     "os": "_chock_os",
     "shlex": "_chock_shlex",
+    "shutil": "_chock_shutil",
     "subprocess": "_chock_subprocess",
     "datetime": "_chock_datetime",
     "timezone": "_chock_timezone",

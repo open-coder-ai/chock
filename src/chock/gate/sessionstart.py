@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
+
+_GIT = shutil.which("git") or "git"
 
 _INSTRUCTION = (
     "Chock: this clone's git hooks are NOT installed -- git never clones hooks, "
@@ -22,12 +25,13 @@ def _repo_root() -> Path:
 def _hooks_pre_commit(repo_root: Path) -> Path | None:
     """The active pre-commit hook path, honouring core.hooksPath. None when git is absent."""
     try:
-        proc = subprocess.run(
-            ["git", "rev-parse", "--git-path", "hooks"],
+        proc = subprocess.run(  # noqa: S603 -- reading the hooks path via git is this function's job
+            [_GIT, "rev-parse", "--git-path", "hooks"],
             cwd=repo_root,
             capture_output=True,
             text=True,
             timeout=15,
+            check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
         return None

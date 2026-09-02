@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -49,9 +50,10 @@ def main(argv=None) -> int:
     if args.repo_root:
         repo_root = Path(args.repo_root).resolve()
     else:
+        git = shutil.which("git") or "git"
         repo_root = Path(
-            subprocess.check_output(
-                ["git", "rev-parse", "--show-toplevel"], text=True, encoding="utf-8", errors="replace"
+            subprocess.check_output(  # noqa: S603 -- finding the repo root via git is this branch's job
+                [git, "rev-parse", "--show-toplevel"], text=True, encoding="utf-8", errors="replace"
             ).strip()
         )
     if not is_git_repo(repo_root):

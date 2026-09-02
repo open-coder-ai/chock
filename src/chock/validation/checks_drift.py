@@ -3,21 +3,25 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
 
 from chock.validation.report import Finding, Report
 
+_GIT = shutil.which("git") or "git"
+
 
 def _staged_paths(root: Path) -> list[str] | None:
     """Repo-relative staged paths, or None when there is no index to read."""
-    proc = subprocess.run(
-        ["git", "diff", "--cached", "--name-only", "-z"],
+    proc = subprocess.run(  # noqa: S603 -- reading the staged diff via git is this function's job
+        [_GIT, "diff", "--cached", "--name-only", "-z"],
         cwd=root,
         capture_output=True,
         encoding="utf-8",
         errors="replace",
+        check=False,
     )
     if proc.returncode != 0:
         return None

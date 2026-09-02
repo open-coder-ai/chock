@@ -22,13 +22,14 @@ _DATA_DIR = package_data_dir("chock.hooks", "data")
 DISPATCHER_TEMPLATE = _DATA_DIR.joinpath("dispatcher.sh").read_text(encoding="utf-8")
 _VALIDATE_WRAPPER_WINDOWS_TEMPLATE = _DATA_DIR.joinpath("validate_wrapper_windows.sh").read_text(encoding="utf-8")
 _POLICY_WRAPPER_TEMPLATE = _DATA_DIR.joinpath("policy_wrapper.sh").read_text(encoding="utf-8")
+_GIT = shutil.which("git") or "git"
 
 
 def _git(repo_root: Path, *args: str) -> str | None:
     """Answer a read-only git query from inside `repo_root`. None when git cannot answer."""
     try:
-        return subprocess.check_output(
-            ["git", *args],
+        return subprocess.check_output(  # noqa: S603 -- reading repo facts via git is this helper's job
+            [_GIT, *args],
             text=True,
             encoding="utf-8",
             errors="replace",

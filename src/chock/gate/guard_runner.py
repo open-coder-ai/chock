@@ -47,10 +47,11 @@ def find_bash(guard: Path) -> str | None:
     """First interpreter that can actually see `guard`, or None."""
     for candidate in _BASH_CANDIDATES:
         try:
-            proc = subprocess.run(
+            proc = subprocess.run(  # noqa: S603 -- probing candidate shells is this function's job
                 [candidate, "-c", f'test -f "{guard.as_posix()}"'],
                 capture_output=True,
                 timeout=10,
+                check=False,
             )
         except (OSError, subprocess.SubprocessError):
             continue
@@ -76,7 +77,7 @@ def run_guard(guard: Path, command: str) -> str:
 
     try:
         env = {**os.environ, "CHOCK_RAW_COMMAND": command}
-        proc = subprocess.run(
+        proc = subprocess.run(  # noqa: S603 -- running the guard script against the command is the feature
             [bash, str(guard), *args],
             capture_output=True,
             text=True,
@@ -84,6 +85,7 @@ def run_guard(guard: Path, command: str) -> str:
             errors="replace",
             env=env,
             timeout=_GUARD_TIMEOUT_SECONDS,
+            check=False,
         )
     except subprocess.TimeoutExpired:
         print(

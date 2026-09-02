@@ -8,12 +8,15 @@ import fnmatch
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tomllib
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+
+_GIT = shutil.which("git") or "git"
 
 
 @dataclass
@@ -44,8 +47,8 @@ class GateContext:
 
     def _git(self, *args: str) -> str:
         try:
-            proc = subprocess.run(
-                ["git", "-c", "core.quotePath=false", *args],
+            proc = subprocess.run(  # noqa: S603 -- reading repo facts via git is this class's whole job
+                [_GIT, "-c", "core.quotePath=false", *args],
                 cwd=str(self.repo_root),
                 capture_output=True,
                 text=True,
@@ -332,8 +335,8 @@ def run(
 
 def _repo_root() -> Path:
     try:
-        out = subprocess.check_output(
-            ["git", "rev-parse", "--show-toplevel"], text=True, encoding="utf-8", errors="replace"
+        out = subprocess.check_output(  # noqa: S603 -- finding the repo root via git is this fallback's job
+            [_GIT, "rev-parse", "--show-toplevel"], text=True, encoding="utf-8", errors="replace"
         )
         return Path(out.strip())
     except (subprocess.CalledProcessError, FileNotFoundError, UnicodeError):

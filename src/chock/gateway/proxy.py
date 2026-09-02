@@ -47,7 +47,7 @@ class Gateway:
 
     def start_downstream(self, *, pipe_output: bool = True) -> None:
         """Spawn the wrapped server. `pipe_output=False` is for tests that read the"""
-        self.process = subprocess.Popen(
+        self.process = subprocess.Popen(  # noqa: S603 -- spawning the configured downstream MCP server is the feature
             self.downstream_argv,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
