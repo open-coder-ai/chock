@@ -82,7 +82,7 @@ def disable_main(argv: list[str] | None) -> int:
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 2
-    set_disabled(repo_root, args.policy_id, True)
+    set_disabled(repo_root, args.policy_id, disabled=True)
     try:
         recompile(repo_root, agents)
     except BookkeepingError as exc:
@@ -111,7 +111,7 @@ def enable_main(argv: list[str] | None) -> int:
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 2
-    set_disabled(repo_root, args.policy_id, False)
+    set_disabled(repo_root, args.policy_id, disabled=False)
     try:
         recompile(repo_root, agents)
     except BookkeepingError as exc:

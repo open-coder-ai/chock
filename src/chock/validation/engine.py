@@ -193,5 +193,5 @@ def main(argv: list[str] | None = None) -> int:
     check_compiled_drift(root, report, event=args.event)
     check_plugin_drift(root, report, event=args.event)
 
-    emit(report, args.json)
+    emit(report, use_json=args.json)
     return 0 if report.is_clean() else 1

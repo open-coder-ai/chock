@@ -26,18 +26,18 @@ POLICIES_GUARDRAIL = _SCAFFOLD_DATA_DIR.joinpath("policies_guardrail.md").read_t
 SKILLS_GUARDRAIL = _SCAFFOLD_DATA_DIR.joinpath("skills_guardrail.md").read_text(encoding="utf-8")
 
 
-def write_vendored_guardrails(repo_root: Path, force: bool) -> list[str]:
+def write_vendored_guardrails(repo_root: Path, *, force: bool) -> list[str]:
     """Write the guardrail pair into .agents/policies/ and .agents/skills/."""
     preserved: list[str] = []
     for rel_dir, content in ((".agents/policies", POLICIES_GUARDRAIL), (".agents/skills", SKILLS_GUARDRAIL)):
         for name in ("AGENTS.md", "CLAUDE.md"):
             rel = f"{rel_dir}/{name}"
-            if _preserve_or_write(repo_root / rel, content, force):
+            if _preserve_or_write(repo_root / rel, content, force=force):
                 preserved.append(rel)
     return preserved
 
 
-def _preserve_or_write(path: Path, content: str, force: bool) -> bool:
+def _preserve_or_write(path: Path, content: str, *, force: bool) -> bool:
     """Write `content` unless the adopter has already edited what is there. True if left alone."""
     if path.exists() and not force and path.read_text(encoding="utf-8") != content:
         return True

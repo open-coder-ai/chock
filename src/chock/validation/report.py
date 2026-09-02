@@ -32,7 +32,7 @@ class Report:
         return not self.errors
 
 
-def emit(report: Report, use_json: bool) -> None:
+def emit(report: Report, *, use_json: bool) -> None:
     if use_json:
         print(
             json.dumps(

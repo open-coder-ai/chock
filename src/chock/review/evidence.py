@@ -102,7 +102,7 @@ def working_tree_is_dirty(root: Path) -> bool:
 
 
 def build(
-    root: Path, base_ref: str, produced_by: dict[str, str], checks: list[str], allow_empty: bool = False
+    root: Path, base_ref: str, produced_by: dict[str, str], checks: list[str], *, allow_empty: bool = False
 ) -> dict[str, Any]:
     """Run every named check and record the result. Attestations are added by a reviewer."""
     if not allow_empty and diff_sha(root, base_ref) == EMPTY_DIFF_SHA:

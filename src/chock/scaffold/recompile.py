@@ -32,7 +32,7 @@ def _compile_all(repo_root: Path, agents: list[str], compiled_root: Path) -> dic
         status = policy_status(config, policy_id, manifest)
 
         if status["state"] == "disabled":
-            coverage[policy_id] = {agent: Grade(DISABLED, None, False)._asdict() for agent in agents}
+            coverage[policy_id] = {agent: Grade(DISABLED, None, witnessed=False)._asdict() for agent in agents}
             continue
 
         result = compile_policy(
@@ -123,7 +123,7 @@ def refresh_after_install(repo_root: Path) -> None:
         print(f"[WARN] coverage not refreshed: {exc}. Run `chock sync --repo .`", file=sys.stderr)
 
 
-def recompile(repo_root: Path | str, agents: list[str], skip_hooks: bool = False) -> dict[str, Any]:
+def recompile(repo_root: Path | str, agents: list[str], *, skip_hooks: bool = False) -> dict[str, Any]:
     """Compile all enabled policies from a clean compiled/ directory and install hooks."""
     repo_root = Path(repo_root)
     chock_dir = repo_root / ".chock"

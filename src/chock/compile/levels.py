@@ -135,7 +135,7 @@ def in_agent_grade(agent: str, surface: str, *, degrades_to: str = CONTROL_DEGRA
     """`in_agent_level` with the evidence that bounds it and chock's own witness for `surface`."""
     mapped = _mapped_vendor(agent)
     if not mapped:
-        return Grade("none", None, False)
+        return Grade("none", None, witnessed=False)
     return Grade(
         in_agent_level(agent, degrades_to=degrades_to),
         weakest_basis(resting_bases(mapped)),

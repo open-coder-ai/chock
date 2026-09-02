@@ -58,7 +58,7 @@ def _hook_command(script: str) -> str:
     return f'r="{root}"; [ -n "$r" ] && [ -f {adapter} ] || exit 0; exec python3 {adapter} --guard {guard}'
 
 
-def build_copilot_manifest(manifest: dict[str, Any], policy_dir: Path, enforced: bool) -> dict[str, Any]:
+def build_copilot_manifest(manifest: dict[str, Any], policy_dir: Path, *, enforced: bool) -> dict[str, Any]:
     """Derive the root `plugin.json` from a policy manifest."""
     data = build_manifest(manifest, policy_dir)
     posture = POSTURE_ENFORCED_COPILOT if enforced else POSTURE_ADVISORY

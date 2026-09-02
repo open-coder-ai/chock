@@ -704,7 +704,7 @@ def run_guard(guard: _chock_Path, command: str) -> str:
         return GUARD_ERRORED
     return GUARD_CLEAN
 
-def log_outcome(guard: _chock_Path, tool: str, blocked: bool) -> None:
+def log_outcome(guard: _chock_Path, tool: str, *, blocked: bool) -> None:
     """Append one outcome record. Best effort: never raises, never changes the verdict."""
     try:
         if _chock_os.environ.get(GATE_LOG_ENV) == '0':
@@ -738,7 +738,7 @@ def evaluate(argv: list[str], command: str, tool: str='') -> tuple[str, str] | N
         return None
     verdict = run_guard(guard, command)
     if verdict in (GUARD_BLOCKED, GUARD_CLEAN):
-        log_outcome(guard, tool, verdict == GUARD_BLOCKED)
+        log_outcome(guard, tool, blocked=verdict == GUARD_BLOCKED)
     if verdict == GUARD_BLOCKED:
         return (VERDICT_DENY, f'Blocked by chock policy: {guard.stem}')
     if verdict == GUARD_ERRORED:

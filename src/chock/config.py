@@ -76,7 +76,7 @@ def policy_status(
     }
 
 
-def set_disabled(repo_root: Path | str, policy_id: str, disabled: bool) -> None:
+def set_disabled(repo_root: Path | str, policy_id: str, *, disabled: bool) -> None:
     """Add or remove a policy from policies.disabled; round-trip the config file."""
     path = Path(repo_root) / CONFIG_DIR / CONFIG_NAME
     config = load_config(repo_root) or {}

@@ -23,7 +23,7 @@ DEFAULT_BASE = "origin/main"
 def _emit(args: argparse.Namespace) -> int:
     root = Path(args.repo).resolve()
     checks = args.checks or sorted(check_registry(root))
-    evidence = build(root, args.base, {"kind": args.kind, "id": args.by}, checks, args.allow_empty)
+    evidence = build(root, args.base, {"kind": args.kind, "id": args.by}, checks, allow_empty=args.allow_empty)
 
     dest = Path(args.out) if args.out else root / EVIDENCE_DIR / f"{evidence['diff_sha'][:12]}.json"
     dest.parent.mkdir(parents=True, exist_ok=True)

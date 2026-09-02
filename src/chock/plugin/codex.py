@@ -59,7 +59,7 @@ def _hook_command(script: str) -> str:
     return f'python3 "{adapter}" --guard "{guard}"'
 
 
-def build_codex_manifest(manifest: dict[str, Any], policy_dir: Path, enforced: bool) -> dict[str, Any]:
+def build_codex_manifest(manifest: dict[str, Any], policy_dir: Path, *, enforced: bool) -> dict[str, Any]:
     """Derive `.codex-plugin/plugin.json` from a policy manifest."""
     policy_id = str(manifest.get("id") or Path(policy_dir).name)
     provenance = manifest.get("provenance") or {}

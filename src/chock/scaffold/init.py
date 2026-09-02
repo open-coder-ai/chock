@@ -31,7 +31,7 @@ from chock.scaffold.templates import (
 )
 
 
-def _write_agents_md(repo_root: Path, force: bool) -> Path:
+def _write_agents_md(repo_root: Path, *, force: bool) -> Path:
     path = repo_root / "AGENTS.md"
     if force or not path.exists():
         repo_name = repo_root.name or "chock-consumer"
@@ -41,7 +41,7 @@ def _write_agents_md(repo_root: Path, force: bool) -> Path:
     return path
 
 
-def _fresh_config(agents: list[str], agent_agnostic: bool) -> dict[str, object]:
+def _fresh_config(agents: list[str], *, agent_agnostic: bool) -> dict[str, object]:
     text = packaged_template(".chock/config.yaml").format(
         agents=yaml.safe_dump(list(agents), default_flow_style=True).strip(),
         agent_agnostic="true" if agent_agnostic else "false",
@@ -61,7 +61,7 @@ def _fresh_policies(repo_root: Path, fresh: dict[str, object]) -> dict[str, obje
     return policies
 
 
-def _write_config(repo_root: Path, agents: list[str], agent_agnostic: bool) -> Path:
+def _write_config(repo_root: Path, agents: list[str], *, agent_agnostic: bool) -> Path:
     """Write .chock/config.yaml, preserving existing policies and user defaults."""
     path = repo_root / ".chock" / "config.yaml"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -69,7 +69,7 @@ def _write_config(repo_root: Path, agents: list[str], agent_agnostic: bool) -> P
     from chock.config import load_config
 
     existing = load_config(repo_root) if path.exists() else {}
-    fresh = _fresh_config(agents, agent_agnostic)
+    fresh = _fresh_config(agents, agent_agnostic=agent_agnostic)
 
     existing_chock = existing.get("chock") or {}
     chock = {**existing_chock, **dict(fresh.get("chock", {}))}
@@ -97,7 +97,7 @@ def _write_config(repo_root: Path, agents: list[str], agent_agnostic: bool) -> P
     return path
 
 
-def _normalize_agents(args_agents: list[str] | None, agent_agnostic: bool, repo_root: Path) -> list[str]:
+def _normalize_agents(args_agents: list[str] | None, *, agent_agnostic: bool, repo_root: Path) -> list[str]:
     if agent_agnostic:
         return sorted(CHOCK_AGENT)
     if args_agents:
@@ -149,7 +149,7 @@ def cmd_init(argv: list[str] | None = None) -> int:
     repo_root.mkdir(parents=True, exist_ok=True)
 
     try:
-        agents = _normalize_agents(selection, args.agent_agnostic, repo_root)
+        agents = _normalize_agents(selection, agent_agnostic=args.agent_agnostic, repo_root=repo_root)
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 2
@@ -165,13 +165,13 @@ def cmd_init(argv: list[str] | None = None) -> int:
     (repo_root / "docs").mkdir(exist_ok=True)
 
     preserved: list[str] = []
-    _write_agents_md(repo_root, args.force)
-    if _preserve_or_write(repo_root / "docs" / "README.md", packaged_template("docs/README.md"), args.force):
+    _write_agents_md(repo_root, force=args.force)
+    if _preserve_or_write(repo_root / "docs" / "README.md", packaged_template("docs/README.md"), force=args.force):
         preserved.append("docs/README.md")
-    if _preserve_or_write(repo_root / ".gitattributes", GITATTRIBUTES_TEMPLATE, args.force):
+    if _preserve_or_write(repo_root / ".gitattributes", GITATTRIBUTES_TEMPLATE, force=args.force):
         preserved.append(".gitattributes")
-    preserved += write_vendored_guardrails(repo_root, args.force)
-    _write_config(repo_root, agents, args.agent_agnostic)
+    preserved += write_vendored_guardrails(repo_root, force=args.force)
+    _write_config(repo_root, agents, agent_agnostic=args.agent_agnostic)
 
     from chock.scaffold.skills import install_skills
 

@@ -101,6 +101,7 @@ def add(
     artifact_id: str,
     source: str,
     ref: str | None,
+    *,
     force: bool,
     verify_sha: str | None = None,
 ) -> Added:
@@ -159,7 +160,7 @@ def main(argv: list[str] | None = None) -> int:
 
     repo_root = Path(args.repo).resolve()
     try:
-        added = add(repo_root, args.artifact_id, args.source, args.ref, args.force, args.verify_sha)
+        added = add(repo_root, args.artifact_id, args.source, args.ref, force=args.force, verify_sha=args.verify_sha)
     except (RuntimeError, FileNotFoundError, FileExistsError) as exc:
         print(f"chock add: {exc}", file=sys.stderr)
         return 1

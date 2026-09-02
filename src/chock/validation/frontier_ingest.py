@@ -187,7 +187,7 @@ def _merge_into_seed(seed: dict[str, Any], fetched: dict[str, Any]) -> dict[str,
     return merged
 
 
-def ingest(agent: str, use_network: bool = True) -> dict[str, Any]:
+def ingest(agent: str, *, use_network: bool = True) -> dict[str, Any]:
     seed = SEEDS.get(agent, {})
     source = seed.get("source", "")
     if use_network and source:

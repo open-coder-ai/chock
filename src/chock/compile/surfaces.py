@@ -59,7 +59,7 @@ def coverage_cell(
     supported = SURFACE_AGENTS.get(agent, set())
     active = emitted & supported if supported else set()
     if not active:
-        return Grade("none", None, False)
+        return Grade("none", None, witnessed=False)
 
     for installed, surface in (
         (pre_tool_use_installed, Surface.PRE_TOOL_USE),
@@ -71,10 +71,10 @@ def coverage_cell(
     if ci_gate_installed:
         commit_time |= active & INSTALLED_SURFACES & {Surface.CI_GATE}
     if commit_time:
-        return Grade("enforced-at-commit", None, False)
+        return Grade("enforced-at-commit", None, witnessed=False)
     if Surface.AMBIENT_RULE in active & INSTALLED_SURFACES:
-        return Grade("advisory", None, False)
-    return Grade("none", None, False)
+        return Grade("advisory", None, witnessed=False)
+    return Grade("none", None, witnessed=False)
 
 
 def coverage_level(
