@@ -8,7 +8,8 @@
             "command": "\"/usr/local/bin/python\" \".chock/bin/codex_cli.py\" --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\"",
             "commandWindows": "& \"/usr/local/bin/python\" \".chock/bin/codex_cli.py\" --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\""
           }
-        ]
+        ],
+        "matcher": "Bash"
       },
       {
         "hooks": [
@@ -17,7 +18,8 @@
             "command": "\"/usr/local/bin/python\" \".chock/bin/codex_cli.py\" --guard \".agents/policies/block-no-verify/implementations/block-no-verify.sh\"",
             "commandWindows": "& \"/usr/local/bin/python\" \".chock/bin/codex_cli.py\" --guard \".agents/policies/block-no-verify/implementations/block-no-verify.sh\""
           }
-        ]
+        ],
+        "matcher": "Bash"
       },
       {
         "hooks": [
@@ -26,7 +28,8 @@
             "command": "\"/usr/local/bin/python\" \".chock/bin/codex_cli.py\" --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\"",
             "commandWindows": "& \"/usr/local/bin/python\" \".chock/bin/codex_cli.py\" --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\""
           }
-        ]
+        ],
+        "matcher": "Bash"
       },
       {
         "hooks": [
@@ -35,7 +38,8 @@
             "command": "\"/usr/local/bin/python\" \".chock/bin/codex_cli.py\" --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\"",
             "commandWindows": "& \"/usr/local/bin/python\" \".chock/bin/codex_cli.py\" --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\""
           }
-        ]
+        ],
+        "matcher": "Bash"
       }
     ]
   }
