@@ -127,10 +127,26 @@ jobs:
       - name: Extract release notes
         run: |
           awk '/^## /{if (p) exit; p=1; print; next} p{print}' CHANGELOG.md > release_notes.md
-      - name: Create GitHub Release
+      - name: Attach release assets
         # The runner's own gh CLI, not a third-party action: one less external party in
         # the job that publishes releases, flagged by zizmor's superfluous-actions audit.
+        #
+        # The tag-triggered release almost always already exists by the time this runs:
+        # the owner creates it via the GitHub UI (which creates the tag and the published
+        # release together), and that push is what triggers this workflow. `gh release
+        # create` errors on an existing release, which previously left the binaries and
+        # checksums unattached even though PyPI publish had already succeeded (chock
+        # v0.8.0's release still shows zero assets). Upload to whatever release already
+        # exists; only fall back to creating one when none does, so a tag pushed without
+        # a pre-existing release (e.g. directly via git) still gets one.
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME"             --title "$GITHUB_REF_NAME"             --notes-file release_notes.md             dist/chock* dist/checksums.txt
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/chock* dist/checksums.txt --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --title "$GITHUB_REF_NAME" \
+              --notes-file release_notes.md \
+              dist/chock* dist/checksums.txt
+          fi
