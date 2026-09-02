@@ -71,7 +71,7 @@ def _render_extended(entries: list[IndexEntry]) -> str:
     ]
     for entry in entries:
         if entry.artifact == "rule":
-            lines.extend(_rule_lines(entry) + [""])
+            lines.extend([*_rule_lines(entry), ""])
         elif entry.artifact == "hook":
             lines.append(_gate_line(entry) + "\n")
         else:

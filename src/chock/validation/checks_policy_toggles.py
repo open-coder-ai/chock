@@ -84,13 +84,16 @@ def check_policy_toggles(repo_root: Path, report: Report) -> None:
                 )
             )
             continue
-        if manifest.get("enforcement") == "block" and policy_id in SECURITY_BLOCK_GUARDS:
-            if override.get("enforcement") == "advise" or override.get("surfaces") == ["ambient-rule"]:
-                report.add(
-                    Finding(
-                        str(repo_root / ".chock" / "config.yaml"),
-                        "policy_toggles",
-                        "warning",
-                        f"Block security guard {policy_id} is downgraded to advisory",
-                    )
+        if (
+            manifest.get("enforcement") == "block"
+            and policy_id in SECURITY_BLOCK_GUARDS
+            and (override.get("enforcement") == "advise" or override.get("surfaces") == ["ambient-rule"])
+        ):
+            report.add(
+                Finding(
+                    str(repo_root / ".chock" / "config.yaml"),
+                    "policy_toggles",
+                    "warning",
+                    f"Block security guard {policy_id} is downgraded to advisory",
                 )
+            )

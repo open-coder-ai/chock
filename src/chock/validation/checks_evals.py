@@ -101,13 +101,17 @@ def check_eval_first(artifact_dir: Path, manifest: dict[str, Any], artifact_type
             )
         )
 
-    if artifact_type == "skill" and manifest.get("security", {}).get("processes_external_content"):
-        if categories.count("adversarial") < 1 and categories.count("security") < 1:
-            report.add(
-                Finding(
-                    str(suite_file),
-                    "eval_first",
-                    "error",
-                    "security.processes_external_content is true but eval suite has no adversarial or security case (SEC-6).",
-                )
+    if (
+        artifact_type == "skill"
+        and manifest.get("security", {}).get("processes_external_content")
+        and categories.count("adversarial") < 1
+        and categories.count("security") < 1
+    ):
+        report.add(
+            Finding(
+                str(suite_file),
+                "eval_first",
+                "error",
+                "security.processes_external_content is true but eval suite has no adversarial or security case (SEC-6).",
             )
+        )

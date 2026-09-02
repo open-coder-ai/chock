@@ -214,14 +214,14 @@ def load_registry(root: Path | None = None) -> dict[str, list[RegistryEntry]]:
 
 
 def resolve(
-    id: str,
+    artifact_id: str,
     version: str | None = None,
     artifact_type: str | None = None,
     root: Path | None = None,
 ) -> RegistryEntry | None:
     """Resolve an ID to the best matching registry entry."""
     entries = load_registry(root)
-    versions = entries.get(id, [])
+    versions = entries.get(artifact_id, [])
     if not versions:
         return None
 

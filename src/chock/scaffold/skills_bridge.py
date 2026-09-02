@@ -55,17 +55,19 @@ def _bridge_one(link: Path, target: Path) -> str:
     rel = Path(os.path.relpath(str(target), str(link.parent)))
     try:
         os.symlink(rel, link, target_is_directory=True)
-        return "symlink"
     except OSError:
         pass
+    else:
+        return "symlink"
 
     try:
         shutil.copytree(str(target), str(link))
-        _mark_bridge(link)
-        return "copy"
     except OSError as exc:
         print(f"[WARN] skills-bridge: could not bridge {target.name}: {exc}", file=sys.stderr)
         return "error"
+    else:
+        _mark_bridge(link)
+        return "copy"
 
 
 def _skill_dirs(skills_root: Path) -> list[Path]:

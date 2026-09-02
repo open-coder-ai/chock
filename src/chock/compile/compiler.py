@@ -25,7 +25,7 @@ from chock.compile.surfaces import SURFACE_AGENTS, Surface, coverage_cell, parse
 from chock.config import agents_from_config
 from chock.hooks.in_agent_install import WIRED_VENDORS, installed_policy_ids
 from chock.manifest import ManifestSourceError, load_manifest
-from chock.policy_id import InvalidPolicyId, validate_policy_id
+from chock.policy_id import InvalidPolicyIdError, validate_policy_id
 from chock.scaffold.install_ci import ci_workflow_installed
 from chock.vendors import CHOCK_AGENT
 
@@ -99,7 +99,7 @@ def compile_policy(
 
     try:
         validate_policy_id(policy_id, policy_dir.name)
-    except InvalidPolicyId as exc:
+    except InvalidPolicyIdError as exc:
         print(f"[ERROR] {policy_dir / 'manifest.yaml'}: manifest_id: {exc}", file=sys.stderr)
         return CompileResult(policy_id=policy_dir.name)
 

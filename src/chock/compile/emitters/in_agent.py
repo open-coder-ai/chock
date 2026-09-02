@@ -42,7 +42,7 @@ assert MATCHER is not None
 
 #: Wire token Claude Code substitutes for the repo root; agentseam 0.2.0's vendor-config
 #: schema carries no repo-root-token field yet, so the fact still lives here.
-PROJECT_DIR_TOKEN = "${CLAUDE_PROJECT_DIR}"
+PROJECT_DIR_TOKEN = "${CLAUDE_PROJECT_DIR}"  # noqa: S105 -- a shell variable reference, not a credential
 
 # Witnessed overrides: chock's agent-hooks file speaks `preToolUse` with bash/powershell/
 # timeoutSec entry keys (live deny, data/witnesses.json: vscode_copilot x agent-hooks);

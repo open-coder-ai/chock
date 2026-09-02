@@ -76,7 +76,7 @@ def install_sessionstart_hook(repo_root: Path) -> bool:
 
     vendor_adapter(repo_root)
 
-    desired = kept + [install_form]
+    desired = [*kept, install_form]
     if isinstance(existing, list) and desired == existing:
         return False
     hooks[ARM_EVENT] = desired

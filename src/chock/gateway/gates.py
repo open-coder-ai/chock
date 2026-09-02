@@ -69,10 +69,7 @@ def _hosts_in(text: str) -> Iterator[str]:
 
     def _emit(authority: str) -> Iterator[str]:
         authority = authority.rsplit("@", 1)[-1]
-        if authority.startswith("["):
-            host = authority[1:].split("]", 1)[0]
-        else:
-            host = authority.split(":", 1)[0]
+        host = authority[1:].split("]", 1)[0] if authority.startswith("[") else authority.split(":", 1)[0]
         host = host.lower().rstrip(".")
         key = host or "\x00no-host"
         if key not in seen:

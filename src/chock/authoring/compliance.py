@@ -94,10 +94,7 @@ def _build_report(
     builtin = _load_builtin_controls(framework)
     claims = _collect_claims(repo_root, framework)
 
-    if framework in BUILTIN_FRAMEWORKS:
-        control_ids = list(builtin.keys())
-    else:
-        control_ids = sorted(claims.keys())
+    control_ids = list(builtin.keys()) if framework in BUILTIN_FRAMEWORKS else sorted(claims.keys())
 
     report: dict[str, Any] = {framework: {}}
     for control_id in control_ids:
@@ -131,10 +128,7 @@ def _format_table(
             detail = ", ".join(policy_strs)
         else:
             detail = "-"
-        if title:
-            first = f"{control_id:<12} {state:<10} {title}"
-        else:
-            first = f"{control_id:<12} {state:<10} {detail}"
+        first = f"{control_id:<12} {state:<10} {title}" if title else f"{control_id:<12} {state:<10} {detail}"
         lines.append(first)
         if title and policies:
             lines.append(f"{'':<12} {'':<10} {detail}")

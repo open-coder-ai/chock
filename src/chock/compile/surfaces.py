@@ -96,8 +96,8 @@ def parse_agent_selection(groups: list[str], valid: dict[str, object] | None = N
     valid = SURFACE_AGENTS if valid is None else valid
     agents: list[str] = []
     for group in groups:
-        for name in group.split(","):
-            name = name.strip()
+        for raw_name in group.split(","):
+            name = raw_name.strip()
             if name and name not in agents:
                 agents.append(name)
     unknown = [a for a in agents if a not in valid]

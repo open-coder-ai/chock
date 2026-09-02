@@ -55,7 +55,7 @@ def _extract(module) -> str:
 
 
 _DISPATCH = _DATA_DIR.joinpath("dispatch.py.tmpl").read_text(encoding="utf-8")
-_DISPATCH_BRANCH_TOKEN = "# __SESSION_START_BRANCH__\n"
+_DISPATCH_BRANCH_TOKEN = "# __SESSION_START_BRANCH__\n"  # noqa: S105 -- a template marker, not a credential
 
 _SESSION_START_BRANCH = _DATA_DIR.joinpath("session_start_branch.py.tmpl").read_text(encoding="utf-8")
 

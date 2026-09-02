@@ -79,13 +79,11 @@ def _project_skill_frontmatter(
     if not isinstance(front_name, str):
         front_name = str(front_name)
 
-    if front_name != artifact_dir.name:
-        if warnings is not None:
-            warnings.append(f"frontmatter name '{front_name}' does not match directory name '{artifact_dir.name}'")
+    if front_name != artifact_dir.name and warnings is not None:
+        warnings.append(f"frontmatter name '{front_name}' does not match directory name '{artifact_dir.name}'")
 
-    if len(front_name) > 128:
-        if warnings is not None:
-            warnings.append(f"name exceeds 128 characters ({len(front_name)})")
+    if len(front_name) > 128 and warnings is not None:
+        warnings.append(f"name exceeds 128 characters ({len(front_name)})")
 
     data["id"] = ac.get("id") or artifact_dir.name
     data["name"] = ac.get("name") or front_name
@@ -181,10 +179,7 @@ def _parse_skill_frontmatter(text: str) -> dict[str, Any]:
     if end == -1:
         return {}
 
-    try:
-        return yaml.safe_load("\n".join(lines[:end])) or {}
-    except yaml.YAMLError:
-        raise
+    return yaml.safe_load("\n".join(lines[:end])) or {}
 
 
 def normalize_manifest(data: dict[str, Any]) -> dict[str, Any]:

@@ -53,9 +53,10 @@ class GateContext:
                 errors="replace",
                 check=True,
             )
-            return proc.stdout or ""
         except (subprocess.CalledProcessError, FileNotFoundError, UnicodeError):
             return ""
+        else:
+            return proc.stdout or ""
 
     def rev_exists(self, ref: str) -> bool:
         """True when `ref` resolves to a commit. Used to fail CI closed on a missing base."""
@@ -140,7 +141,7 @@ def _deps_requirements(text: str) -> set[str]:
     names: set[str] = set()
     for line in text.splitlines():
         s = line.strip()
-        if not s or s.startswith("#") or s.startswith("-"):
+        if not s or s.startswith(("#", "-")):
             continue
         m = _REQ_RE.match(line)
         if m:

@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from chock.compile.compiler import compile_policy
-from chock.policy_id import InvalidPolicyId, validate_policy_id
+from chock.policy_id import InvalidPolicyIdError, validate_policy_id
 from chock.scaffold.add import _reject_unsafe_id, locate
 
 FRAMEWORK_ROOT = Path(__file__).resolve().parents[1]
@@ -40,12 +40,12 @@ def test_validate_policy_id_accepts_the_canonical_shape():
     ],
 )
 def test_validate_policy_id_rejects_unsafe_ids(bad_id):
-    with pytest.raises(InvalidPolicyId):
+    with pytest.raises(InvalidPolicyIdError):
         validate_policy_id(bad_id, bad_id)
 
 
 def test_validate_policy_id_requires_folder_match():
-    with pytest.raises(InvalidPolicyId):
+    with pytest.raises(InvalidPolicyIdError):
         validate_policy_id("branch-guard", "protect-main-branch")
 
 
