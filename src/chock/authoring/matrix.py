@@ -14,6 +14,10 @@ MATRIX_FILE = SPEC_DIR / "enforcement-matrix.md"
 INVARIANT_RE = re.compile(r"\*\*([A-Z]{2,4}-\d+)\*\*")
 MATRIX_ID_RE = re.compile(r"^\|\s*([A-Z]{2,4}-\d+)\s*\|")
 
+#: A `| id | ... | check | ... |` matrix row splits into at least this many
+#: `|`-delimited parts to reach the check column at index 3.
+_MATRIX_ROW_MIN_COLUMNS = 5
+
 
 def collect_spec_invariant_ids() -> set[str]:
     ids: set[str] = set()
@@ -40,7 +44,7 @@ def collect_matrix_ids_and_rows() -> tuple[set[str], list[str]]:
         inv_id = match.group(1)
         ids.add(inv_id)
         parts = [p.strip() for p in line.split("|")]
-        if len(parts) < 5 or not parts[3] or parts[3].lower() == "check":
+        if len(parts) < _MATRIX_ROW_MIN_COLUMNS or not parts[3] or parts[3].lower() == "check":
             rows_without_check.append(line.strip())
     return ids, rows_without_check
 

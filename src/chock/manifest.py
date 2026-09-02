@@ -14,6 +14,9 @@ MANIFEST_NAMES: tuple[str, ...] = (CANONICAL_MANIFEST,)
 SKILL_MD = "SKILL.md"
 INTERFACE_YAML = "interface.yaml"
 
+#: Longest a manifest/frontmatter `name` may be before it's flagged.
+_MAX_NAME_LENGTH = 128
+
 
 class ManifestSourceError(Exception):
     """A manifest directory has an ambiguous or incomplete source of truth."""
@@ -82,7 +85,7 @@ def _project_skill_frontmatter(
     if front_name != artifact_dir.name and warnings is not None:
         warnings.append(f"frontmatter name '{front_name}' does not match directory name '{artifact_dir.name}'")
 
-    if len(front_name) > 128 and warnings is not None:
+    if len(front_name) > _MAX_NAME_LENGTH and warnings is not None:
         warnings.append(f"name exceeds 128 characters ({len(front_name)})")
 
     data["id"] = ac.get("id") or artifact_dir.name

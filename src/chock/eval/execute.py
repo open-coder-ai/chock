@@ -23,6 +23,9 @@ BLOCK = "block"
 ALLOW = "allow"
 ERROR = "error"
 
+#: gate_runner.run()'s process-exit convention: 0 allow, 1 block, 2 spec error.
+_GATE_EXIT_SPEC_ERROR = 2
+
 
 def _git(repo: Path, *args: str, stdin: str | None = None) -> subprocess.CompletedProcess:
     return subprocess.run(
@@ -100,7 +103,7 @@ def _run_gate(repo: Path, gate_spec: dict[str, Any], spec: dict[str, Any]) -> tu
             os.environ[GATE_LOG_ENV] = prior_log
     reason = " ".join(captured.getvalue().split())
 
-    if code == 2:
+    if code == _GATE_EXIT_SPEC_ERROR:
         return ERROR, f"gate reported a spec error: {reason}".strip()
     return (BLOCK if code == 1 else ALLOW), reason or f"gate exit {code}"
 

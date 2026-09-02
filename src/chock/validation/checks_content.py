@@ -20,6 +20,13 @@ from chock.validation.patterns import (
 )
 from chock.validation.report import Finding, Report
 
+#: A SKILL.md prose paragraph longer than this many words should move to references/.
+_MAX_PARAGRAPH_WORDS = 150
+#: Lines shorter than this are too generic (e.g. list bullets) to count as duplicated content.
+_MIN_DUPLICATE_LINE_LEN = 40
+#: `text.split("---", 2)` on well-formed frontmatter yields [before, frontmatter, body].
+_FRONTMATTER_SPLIT_PARTS = 3
+
 
 def check_token_budgets(artifact_dir: Path, manifest: dict[str, Any], artifact_type: str, report: Report) -> None:
     if artifact_type == "rule":
@@ -109,7 +116,7 @@ def check_progressive_disclosure(
     paragraphs = re.split(r"\n\s*\n", body)
     for para in paragraphs:
         word_count = len(para.split())
-        if word_count > 150 and not para.strip().startswith("-") and not para.strip().startswith("|"):
+        if word_count > _MAX_PARAGRAPH_WORDS and not para.strip().startswith("-") and not para.strip().startswith("|"):
             report.add(
                 Finding(
                     str(skill_md),
@@ -154,10 +161,12 @@ def check_yagni(artifact_dir: Path, manifest: dict[str, Any], artifact_type: str
             ref_lines = {
                 line.strip()
                 for line in ref_text.splitlines()
-                if len(line.strip()) > 40 and line.strip() != security_footer
+                if len(line.strip()) > _MIN_DUPLICATE_LINE_LEN and line.strip() != security_footer
             }
             body_lines = {
-                line.strip() for line in body.splitlines() if len(line.strip()) > 40 and line.strip() != security_footer
+                line.strip()
+                for line in body.splitlines()
+                if len(line.strip()) > _MIN_DUPLICATE_LINE_LEN and line.strip() != security_footer
             }
             duplicates = ref_lines & body_lines
             if duplicates:
@@ -211,7 +220,7 @@ def extract_skill_md_description(skill_md: Path) -> str | None:
     if not text.startswith("---"):
         return None
     parts = text.split("---", 2)
-    if len(parts) < 3:
+    if len(parts) < _FRONTMATTER_SPLIT_PARTS:
         return None
     try:
         front = yaml.safe_load(parts[1]) or {}

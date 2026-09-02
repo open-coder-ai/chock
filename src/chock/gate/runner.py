@@ -92,7 +92,7 @@ class GateContext:
         refs: list[str] = []
         for line in self._push_stdin.splitlines():
             parts = line.split()
-            if len(parts) >= 3:
+            if len(parts) >= _PUSH_LINE_MIN_PARTS:
                 refs.append(parts[2])
         return refs
 
@@ -242,6 +242,15 @@ GATE_LOG_ENV = "CHOCK_GATE_LOG"
 _LOG_MAX_BYTES = 1_048_576
 _LOG_MATCH_CAP = 20
 
+#: A pre-push stdin line is `<local ref> <local sha> <remote ref> <remote sha>`;
+#: at least 3 whitespace-separated parts to reach the remote ref at index 2.
+_PUSH_LINE_MIN_PARTS = 3
+
+#: `<repo>/.chock/compiled/<policy>/git-hook/<script>`.resolve().parents needs at
+#: least 4 entries to reach the `compiled` directory at index 2 and its parent
+#: (the `.chock` root) at index 3.
+_MIN_COMPILED_PATH_DEPTH = 4
+
 
 def _log_outcome(gate_path: Path, event: str, spec: dict, result: GateResult) -> None:
     """Append one outcome record. Best effort: never raises, never changes the verdict."""
@@ -249,7 +258,7 @@ def _log_outcome(gate_path: Path, event: str, spec: dict, result: GateResult) ->
         if os.environ.get(GATE_LOG_ENV) == "0":
             return
         parents = gate_path.resolve().parents
-        if len(parents) < 4 or parents[2].name != "compiled":
+        if len(parents) < _MIN_COMPILED_PATH_DEPTH or parents[2].name != "compiled":
             return
         log_dir = parents[3] / "log"
         log_dir.mkdir(parents=True, exist_ok=True)

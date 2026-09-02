@@ -14,6 +14,9 @@ from chock.validation.loading import (
 )
 from chock.validation.report import Finding, Report
 
+#: A frontier standard snapshot older than this many days is flagged stale (FRS-1).
+_MAX_FRONTIER_AGE_DAYS = 90
+
 
 def load_frontier_standard(agent: str) -> dict[str, Any] | None:
     standard_map = {
@@ -64,7 +67,7 @@ def check_frontier_mode(
         try:
             fetched = datetime.datetime.fromisoformat(fetched_at)
             age_days = (datetime.datetime.now(datetime.timezone.utc) - fetched).days
-            if age_days > 90:
+            if age_days > _MAX_FRONTIER_AGE_DAYS:
                 report.add(
                     Finding(
                         str(artifact_dir),
