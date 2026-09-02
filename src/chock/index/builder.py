@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -13,6 +12,7 @@ from chock.compile.emitters.advisory import substitute_policy_vars, template_mes
 from chock.config import _disabled_list, load_config
 from chock.gate.build import build_gate_json
 from chock.manifest import ManifestSourceError, load_manifest
+from chock.output import warn
 
 _ENFORCEMENT_ORDER = {"block": 0, "verify": 1, "advise": 2}
 
@@ -137,4 +137,4 @@ def max_tokens_for(root: Path, default: int = 2000) -> int:
 def emit_warnings(warnings: list[str]) -> None:
     """Print collected manifest warnings to stderr."""
     for message in warnings:
-        print(f"[WARN] {message}", file=sys.stderr)
+        warn(message)

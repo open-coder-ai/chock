@@ -16,6 +16,7 @@ from chock.config import agents_from_config as _agents_from_config
 from chock.config import load_config, policy_status, set_disabled
 from chock.index.cli import cmd_refresh
 from chock.manifest import ManifestSourceError, load_manifest
+from chock.output import error, warn
 from chock.policies import discover_policy_dirs
 from chock.scaffold.adapters import parse_agent_selection
 from chock.scaffold.recompile import BookkeepingError, compiled_differences, recompile
@@ -37,13 +38,13 @@ def _load_manifest(pack_dir: Path) -> dict[str, Any]:
     try:
         result = load_manifest(pack_dir, warnings=warnings)
     except (yaml.YAMLError, OSError, ManifestSourceError) as exc:
-        print(f"[ERROR] {pack_dir / 'manifest.yaml'}: manifest_parse: {exc}", file=sys.stderr)
+        error(f"{pack_dir / 'manifest.yaml'}: manifest_parse: {exc}")
         return {}
     if result is None:
         return {}
     data, _ = result
     for warning in warnings:
-        print(f"[WARN] {pack_dir}: manifest_default: {warning}", file=sys.stderr)
+        warn(f"{pack_dir}: manifest_default: {warning}")
     return data
 
 
@@ -87,7 +88,7 @@ def disable_main(argv: list[str] | None) -> int:
     try:
         recompile(repo_root, agents)
     except BookkeepingError as exc:
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        error(str(exc))
         return 1
 
     cmd_refresh(["--repo", str(repo_root)])
@@ -115,7 +116,7 @@ def enable_main(argv: list[str] | None) -> int:
     try:
         recompile(repo_root, agents)
     except BookkeepingError as exc:
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        error(str(exc))
         return 1
 
     cmd_refresh(["--repo", str(repo_root)])
@@ -209,7 +210,7 @@ def recompile_main(argv: list[str] | None) -> int:
     try:
         coverage = recompile(repo_root, agents, skip_hooks=args.skip_hooks)
     except BookkeepingError as exc:
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        error(str(exc))
         return 1
     print(f"Recompiled {len(coverage)} policies")
     for policy_id, cov in sorted(coverage.items()):

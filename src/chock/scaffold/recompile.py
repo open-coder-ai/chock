@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import shutil
-import sys
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -17,6 +16,7 @@ from chock.hooks.in_agent_install import WIRED_VENDORS, install_hooks, install_l
 from chock.hooks.installers import get_hooks_dir, install_policy_hooks
 from chock.hooks.sessionstart_install import install_sessionstart_hook
 from chock.index.cli import cmd_refresh
+from chock.output import warn
 from chock.policies import discover_policy_dirs
 from chock.registry.core import save_registry, scan
 from chock.vendored import vendored_differences
@@ -95,12 +95,12 @@ def _refresh_bookkeeping(repo_root: Path) -> None:
         entries, _skips = scan(repo_root)
         save_registry(entries, repo_root)
     except Exception as exc:  # noqa: BLE001
-        print(f"[WARN] registry scan failed: {exc}. Run `chock registry scan`.", file=sys.stderr)
+        warn(f"registry scan failed: {exc}. Run `chock registry scan`.")
 
     try:
         cmd_refresh(["--repo", str(repo_root)])
     except Exception as exc:  # noqa: BLE001
-        print(f"[WARN] index refresh failed: {exc}. Run `chock sync`.", file=sys.stderr)
+        warn(f"index refresh failed: {exc}. Run `chock sync`.")
 
     try:
         # Tests patch chock.lock.write_lock/build_lock directly (test_adopter_safety.py),
@@ -122,7 +122,7 @@ def refresh_after_install(repo_root: Path) -> None:
     try:
         recompile(repo_root, agents_from_config(repo_root), skip_hooks=True)
     except Exception as exc:  # noqa: BLE001 - never fail an install over bookkeeping
-        print(f"[WARN] coverage not refreshed: {exc}. Run `chock sync --repo .`", file=sys.stderr)
+        warn(f"coverage not refreshed: {exc}. Run `chock sync --repo .`")
 
 
 def recompile(repo_root: Path | str, agents: list[str], *, skip_hooks: bool = False) -> dict[str, Any]:
@@ -157,7 +157,7 @@ def recompile(repo_root: Path | str, agents: list[str], *, skip_hooks: bool = Fa
             if install_sessionstart_hook(repo_root):
                 print("Registered SessionStart arm hook in .claude/settings.json")
         except ValueError as exc:
-            print(f"[WARN] {exc}", file=sys.stderr)
+            warn(str(exc))
 
         def _witness() -> tuple[set[str], ...]:
             return tuple(installed_policy_ids(repo_root, vendor) for vendor in WIRED_VENDORS)
@@ -167,7 +167,7 @@ def recompile(repo_root: Path | str, agents: list[str], *, skip_hooks: bool = Fa
             try:
                 installed = install_hooks(repo_root, vendor)
             except ValueError as exc:
-                print(f"[WARN] {exc}", file=sys.stderr)
+                warn(str(exc))
             else:
                 if installed:
                     print(f"Registered {len(installed)} {install_label(vendor)}")

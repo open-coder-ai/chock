@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from chock.emit import write_generated
+from chock.output import error
 from chock.review.evidence import (
     EVIDENCE_DIR,
     EvidenceError,
@@ -92,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return int(args.fn(args))
     except EvidenceError as exc:
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        error(str(exc))
         return 2
 
 

@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 from chock.hooks.in_agent_install import WIRED_VENDORS, install_hooks, install_label
@@ -26,6 +25,7 @@ from chock.hooks.installers import (
     relocate_existing_hook,
 )
 from chock.hooks.sessionstart_install import install_sessionstart_hook
+from chock.output import error, warn
 from chock.scaffold.recompile import refresh_after_install
 
 __all__ = [
@@ -60,7 +60,7 @@ def main(argv=None) -> int:
             ).strip()
         )
     if not is_git_repo(repo_root):
-        print(f"[ERROR] {NOT_A_GIT_REPO.format(root=repo_root)}", file=sys.stderr)
+        error(NOT_A_GIT_REPO.format(root=repo_root))
         return 1
 
     hooks_dir = get_hooks_dir(repo_root)
@@ -74,7 +74,7 @@ def main(argv=None) -> int:
         try:
             installed = install_hooks(repo_root, vendor)
         except ValueError as exc:
-            print(f"[WARN] {exc}", file=sys.stderr)
+            warn(str(exc))
         else:
             if installed:
                 print(f"Registered {len(installed)} {install_label(vendor)}")
@@ -86,7 +86,7 @@ def main(argv=None) -> int:
         if install_sessionstart_hook(repo_root):
             print("Registered SessionStart arm hook in .claude/settings.json")
     except ValueError as exc:
-        print(f"[WARN] {exc}", file=sys.stderr)
+        warn(str(exc))
     return 0
 
 

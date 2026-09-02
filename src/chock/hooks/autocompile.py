@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import yaml
 
 from chock.compile.surfaces import Surface
 from chock.config import agents_from_config, load_config, policy_status
+from chock.output import warn
 from chock.policies import discover_policy_dirs
 
 
@@ -62,7 +62,7 @@ def auto_compile(repo_root: Path) -> None:
         agents = agents_from_config(repo_root)
         pack_dirs = discover_policy_dirs(repo_root)
     except Exception as exc:  # noqa: BLE001
-        print(f"[WARN] auto-compile could not enumerate policies: {exc}", file=sys.stderr)
+        warn(f"auto-compile could not enumerate policies: {exc}")
         return
 
     compiled_root = repo_root / ".chock" / "compiled"
@@ -70,7 +70,4 @@ def auto_compile(repo_root: Path) -> None:
         try:
             compile_one_dropin(pack_dir, config, compiled_root, agents=agents, repo_root=repo_root)
         except Exception as exc:  # noqa: BLE001
-            print(
-                f"[WARN] skipped policy '{pack_dir.name}': {exc}. Other policies still compiled.",
-                file=sys.stderr,
-            )
+            warn(f"skipped policy '{pack_dir.name}': {exc}. Other policies still compiled.")

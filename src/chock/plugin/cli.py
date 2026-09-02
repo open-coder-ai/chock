@@ -9,6 +9,7 @@ from pathlib import Path
 
 from chock.compile.compiler import _load_manifest
 from chock.manifest import CANONICAL_MANIFEST
+from chock.output import error
 from chock.plugin.build import (
     NAMESPACE,
     PluginNameError,
@@ -125,7 +126,7 @@ def main(argv: list[str] | None = None) -> int:
             if not args.check:
                 written += 1
         except PluginNameError as exc:
-            print(f"[ERROR] {policy_dir}: {exc}", file=sys.stderr)
+            error(f"{policy_dir}: {exc}")
             return 2
 
     if out_root is not None:

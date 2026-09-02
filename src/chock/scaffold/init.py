@@ -15,6 +15,7 @@ from chock.emit import write_generated
 from chock.hooks.install import NOT_A_GIT_REPO, get_hooks_dir, install_validate_hook, is_git_repo
 from chock.index.cli import cmd_refresh
 from chock.lock import build_lock, write_lock
+from chock.output import error, warn
 from chock.registry.core import rescan_and_report
 from chock.scaffold.adapters import (
     CHOCK_AGENT,
@@ -86,7 +87,7 @@ def _write_config(repo_root: Path, agents: list[str], *, agent_agnostic: bool) -
 
     if not path.exists() or existing != merged:
         if path.exists():
-            print("[WARN] .chock/config.yaml rewritten; YAML comments are not preserved", file=sys.stderr)
+            warn(".chock/config.yaml rewritten; YAML comments are not preserved")
         path.write_text(
             yaml.safe_dump(merged, sort_keys=False, default_flow_style=None, allow_unicode=True),
             encoding="utf-8",
@@ -175,7 +176,7 @@ def cmd_init(argv: list[str] | None = None) -> int:
     try:
         recompile(repo_root, agents, skip_hooks=skip_hooks)
     except BookkeepingError as exc:
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        error(str(exc))
         return 1
 
     cmd_refresh(["--repo", str(repo_root)])
@@ -189,9 +190,7 @@ def cmd_init(argv: list[str] | None = None) -> int:
     try:
         write_lock(build_lock(repo_root), repo_root)
     except OSError as exc:
-        print(
-            f"[ERROR] chock.lock was not written ({exc}). Re-run `chock init` once the cause is fixed.", file=sys.stderr
-        )
+        error(f"chock.lock was not written ({exc}). Re-run `chock init` once the cause is fixed.")
         return 1
 
     rescan_and_report(repo_root)

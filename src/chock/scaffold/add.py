@@ -14,6 +14,7 @@ import yaml
 
 from chock.config import agents_from_config as _agents_from_config
 from chock.lock import compute_pack_hash, read_lock, write_lock
+from chock.output import error
 from chock.scaffold.recompile import BookkeepingError, recompile
 
 
@@ -194,7 +195,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         recompile(repo_root, agents, skip_hooks=True)
     except BookkeepingError as exc:
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        error(str(exc))
         return 1
     record_provenance(repo_root, args.artifact_id, args.source, args.ref, added)
     print("Compiled. Run `chock sync --repo .` to activate commit-time enforcement.")

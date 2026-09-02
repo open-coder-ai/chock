@@ -9,6 +9,7 @@ from pathlib import Path
 
 import chock
 from chock.index.cli import cmd_refresh
+from chock.output import error
 from chock.registry.core import rescan_and_report
 
 
@@ -87,7 +88,7 @@ def cmd_new(argv: list[str] | None = None) -> int:
         elif args.artifact == "subagent":
             _new_subagent(args.id, root)
     except TemplateError as exc:
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        error(str(exc))
         return 2
 
     rescan_and_report(root)

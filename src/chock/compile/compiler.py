@@ -31,6 +31,7 @@ from chock.compile.surfaces import (
 from chock.config import agents_from_config
 from chock.hooks.in_agent_install import WIRED_VENDORS, installed_policy_ids
 from chock.manifest import ManifestSourceError, load_manifest
+from chock.output import error, warn
 from chock.policy_id import InvalidPolicyIdError, validate_policy_id
 from chock.scaffold.install_ci import ci_workflow_installed
 from chock.vendors import CHOCK_AGENT
@@ -66,13 +67,13 @@ def _load_manifest(policy_dir: Path) -> dict[str, Any]:
     try:
         result = load_manifest(policy_dir, warnings=warnings)
     except (yaml.YAMLError, OSError, ManifestSourceError) as exc:
-        print(f"[ERROR] {policy_dir / 'manifest.yaml'}: manifest_parse: {exc}", file=sys.stderr)
+        error(f"{policy_dir / 'manifest.yaml'}: manifest_parse: {exc}")
         return {}
     if result is None:
         return {}
     data, _ = result
     for warning in warnings:
-        print(f"[WARN] {policy_dir}: manifest_default: {warning}", file=sys.stderr)
+        warn(f"{policy_dir}: manifest_default: {warning}")
     return data
 
 
@@ -106,7 +107,7 @@ def compile_policy(
     try:
         validate_policy_id(policy_id, policy_dir.name)
     except InvalidPolicyIdError as exc:
-        print(f"[ERROR] {policy_dir / 'manifest.yaml'}: manifest_id: {exc}", file=sys.stderr)
+        error(f"{policy_dir / 'manifest.yaml'}: manifest_id: {exc}")
         return CompileResult(policy_id=policy_dir.name)
 
     output_root = Path(output_root) if output_root else DEFAULT_OUTPUT_ROOT

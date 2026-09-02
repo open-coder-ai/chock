@@ -16,6 +16,7 @@ from chock.hooks.ownership import (
     relocate_existing_hook,
     remove_self_relocated_hook,
 )
+from chock.output import warn
 from chock.resources import package_data_dir
 
 _DATA_DIR = package_data_dir("chock.hooks", "data")
@@ -150,7 +151,7 @@ def _discover_policy_hooks(repo_root: Path, script_name: str) -> list[Path]:
 def install_policy_hooks(repo_root: Path, hooks_dir: Path) -> None:
     """Discover compiler-generated git-pre-commit.sh and git-pre-push.sh and register them."""
     if not is_git_repo(repo_root):
-        print(f"[WARN] {NOT_A_GIT_REPO.format(root=repo_root)}", file=sys.stderr)
+        warn(NOT_A_GIT_REPO.format(root=repo_root))
         return
 
     auto_compile(repo_root)

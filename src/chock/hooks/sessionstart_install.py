@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 from agentseam import contract as _contract
@@ -17,6 +16,7 @@ from chock.hooks.in_agent_install import (
     _normalize_fragment,
 )
 from chock.hooks.runtime_vendor import runtime_rel, vendor_runtime
+from chock.output import warn
 
 SETTINGS_REL = Path(vendors.config_path("claude_code"))
 ARM_EVENT = vendors.wire_event("claude_code", _contract.SESSION_START)
@@ -91,7 +91,7 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - thin CLI s
     try:
         changed = install_sessionstart_hook(root)
     except ValueError as exc:
-        print(f"[WARN] {exc}", file=sys.stderr)
+        warn(str(exc))
         return 1
     print("SessionStart arm hook " + ("installed" if changed else "already current"))
     return 0
