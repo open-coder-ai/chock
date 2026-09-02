@@ -5,11 +5,13 @@ Usage: chock <command> [args]
 
 from __future__ import annotations
 
+import json
 import sys
 from importlib import import_module
 
 from chock import __version__
 from chock.pipe import guard_stdout, silence_interpreter_flush
+from chock.resources import package_data_dir
 
 
 def _module_main(module_name: str):
@@ -28,68 +30,20 @@ def _module_fn(module_name: str, fn_name: str):
     return _main
 
 
-EVERYDAY = {
-    "init": (_module_main("chock.scaffold.init"), "Scaffold a consumer repo (wiring only -- no policies)"),
-    "add": (_module_main("chock.scaffold.add"), "Install a policy or skill from a catalog and compile it"),
-    "remove": (_module_main("chock.scaffold.remove"), "Remove an installed policy and resync"),
-    "sync": (
-        _module_fn("chock.lifecycle", "sync_main"),
-        "Recompile + rewire so the repo matches its policies (--ci/--skills for extras)",
-    ),
-    "check": (
-        _module_fn("chock.lifecycle", "check_main"),
-        "Run every truth check: validate, verify, evals, matrix (--only to narrow)",
-    ),
-    "status": (
-        _module_fn("chock.lifecycle", "status_main"),
-        "Policy states and coverage (--only registry,log for more)",
-    ),
-    "enable": (_module_fn("chock.toggles", "enable_main"), "Enable a policy by id"),
-    "disable": (_module_fn("chock.toggles", "disable_main"), "Disable a policy by id"),
-}
+def _build_group(group: dict[str, dict[str, str]]) -> dict[str, tuple]:
+    """One command name -> (lazy handler, help text), from a data/commands.json group."""
+    built = {}
+    for name, spec in group.items():
+        handler = _module_fn(spec["module"], spec["fn"]) if "fn" in spec else _module_main(spec["module"])
+        built[name] = (handler, spec["help"])
+    return built
 
-AUTHORING = {
-    "new": (_module_main("chock.scaffold.new"), "Create a deterministic artifact skeleton"),
-    "compile": (_module_main("chock.compile.compiler"), "Low-level single-policy compile"),
-    "install-skills": (
-        _module_main("chock.scaffold.skills"),
-        "Install bundled authoring skills into agent skill dirs (write mode; check via CI)",
-    ),
-    "registry": (_module_main("chock.registry.cli"), "Scan/list/resolve the artifact registry"),
-    "plugin": (
-        _module_main("chock.plugin.cli"),
-        "Package policies as installable plugins (plugin build [--format claude] [--check])",
-    ),
-    "marketplace": (
-        _module_main("chock.plugin.marketplace"),
-        "Emit marketplace index files over a built plugin tree (marketplace build --dist <dir>)",
-    ),
-    "gateway": (
-        _module_main("chock.gateway.__main__"),
-        "Run the MCP gateway proxy (gateway run --repo . -- <server command>)",
-    ),
-    "review": (
-        _module_main("chock.review.cli"),
-        "Produce or check reviewer evidence (review emit | review verify <file>)",
-    ),
-    "compliance": (
-        _module_main("chock.authoring.compliance"),
-        "Generate a compliance coverage report (compliance report --framework owasp_asi)",
-    ),
-}
 
-ALIASES = {
-    "validate": (_module_main("chock.validation.engine"), "alias of: check --only validate"),
-    "verify": (_module_main("chock.lock"), "alias of: check --only verify"),
-    "eval": (_module_main("chock.eval.cli"), "alias of: check --only evals"),
-    "check-matrix": (_module_main("chock.authoring.matrix"), "alias of: check --only matrix"),
-    "recompile": (_module_fn("chock.toggles", "recompile_main"), "alias of: sync"),
-    "refresh": (_module_main("chock.index.cli"), "alias of: sync / check --only index"),
-    "install-hooks": (_module_main("chock.hooks.install"), "alias of: sync (hooks part)"),
-    "install-ci": (_module_main("chock.scaffold.install_ci"), "alias of: sync --ci"),
-    "policies": (_module_fn("chock.toggles", "policies_main"), "alias of: status"),
-    "gate-log": (_module_main("chock.gatelog"), "alias of: status --only log"),
-}
+_COMMANDS_JSON = json.loads(package_data_dir("chock", "data").joinpath("commands.json").read_text(encoding="utf-8"))
+
+EVERYDAY = _build_group(_COMMANDS_JSON["everyday"])
+AUTHORING = _build_group(_COMMANDS_JSON["authoring"])
+ALIASES = _build_group(_COMMANDS_JSON["aliases"])
 
 COMMANDS = {**EVERYDAY, **AUTHORING, **ALIASES}
 

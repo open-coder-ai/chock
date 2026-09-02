@@ -1,0 +1,123 @@
+{
+  "everyday": {
+    "init": {
+      "module": "chock.scaffold.init",
+      "help": "Scaffold a consumer repo (wiring only -- no policies)"
+    },
+    "add": {
+      "module": "chock.scaffold.add",
+      "help": "Install a policy or skill from a catalog and compile it"
+    },
+    "remove": {
+      "module": "chock.scaffold.remove",
+      "help": "Remove an installed policy and resync"
+    },
+    "sync": {
+      "module": "chock.lifecycle",
+      "fn": "sync_main",
+      "help": "Recompile + rewire so the repo matches its policies (--ci/--skills for extras)"
+    },
+    "check": {
+      "module": "chock.lifecycle",
+      "fn": "check_main",
+      "help": "Run every truth check: validate, verify, evals, matrix (--only to narrow)"
+    },
+    "status": {
+      "module": "chock.lifecycle",
+      "fn": "status_main",
+      "help": "Policy states and coverage (--only registry,log for more)"
+    },
+    "enable": {
+      "module": "chock.toggles",
+      "fn": "enable_main",
+      "help": "Enable a policy by id"
+    },
+    "disable": {
+      "module": "chock.toggles",
+      "fn": "disable_main",
+      "help": "Disable a policy by id"
+    }
+  },
+  "authoring": {
+    "new": {
+      "module": "chock.scaffold.new",
+      "help": "Create a deterministic artifact skeleton"
+    },
+    "compile": {
+      "module": "chock.compile.compiler",
+      "help": "Low-level single-policy compile"
+    },
+    "install-skills": {
+      "module": "chock.scaffold.skills",
+      "help": "Install bundled authoring skills into agent skill dirs (write mode; check via CI)"
+    },
+    "registry": {
+      "module": "chock.registry.cli",
+      "help": "Scan/list/resolve the artifact registry"
+    },
+    "plugin": {
+      "module": "chock.plugin.cli",
+      "help": "Package policies as installable plugins (plugin build [--format claude] [--check])"
+    },
+    "marketplace": {
+      "module": "chock.plugin.marketplace",
+      "help": "Emit marketplace index files over a built plugin tree (marketplace build --dist <dir>)"
+    },
+    "gateway": {
+      "module": "chock.gateway.__main__",
+      "help": "Run the MCP gateway proxy (gateway run --repo . -- <server command>)"
+    },
+    "review": {
+      "module": "chock.review.cli",
+      "help": "Produce or check reviewer evidence (review emit | review verify <file>)"
+    },
+    "compliance": {
+      "module": "chock.authoring.compliance",
+      "help": "Generate a compliance coverage report (compliance report --framework owasp_asi)"
+    }
+  },
+  "aliases": {
+    "validate": {
+      "module": "chock.validation.engine",
+      "help": "alias of: check --only validate"
+    },
+    "verify": {
+      "module": "chock.lock",
+      "help": "alias of: check --only verify"
+    },
+    "eval": {
+      "module": "chock.eval.cli",
+      "help": "alias of: check --only evals"
+    },
+    "check-matrix": {
+      "module": "chock.authoring.matrix",
+      "help": "alias of: check --only matrix"
+    },
+    "recompile": {
+      "module": "chock.toggles",
+      "fn": "recompile_main",
+      "help": "alias of: sync"
+    },
+    "refresh": {
+      "module": "chock.index.cli",
+      "help": "alias of: sync / check --only index"
+    },
+    "install-hooks": {
+      "module": "chock.hooks.install",
+      "help": "alias of: sync (hooks part)"
+    },
+    "install-ci": {
+      "module": "chock.scaffold.install_ci",
+      "help": "alias of: sync --ci"
+    },
+    "policies": {
+      "module": "chock.toggles",
+      "fn": "policies_main",
+      "help": "alias of: status"
+    },
+    "gate-log": {
+      "module": "chock.gatelog",
+      "help": "alias of: status --only log"
+    }
+  }
+}
