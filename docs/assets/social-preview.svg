@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640"
-     role="img" aria-label="chock — governance-as-code for AI coding agents: write a rule once and every agent obeys it. A policy compiles to whatever control each agent actually supports. 15 agents (claude, aider, antigravity, codex, copilot, cursor, devin, gemini, grok, junie, kimi-code, replit, tabnine, vscode, windsurf); 8 enforcement surfaces (ambient-rule, git-hook, ci-gate, pre-tool-use, managed-setting, gateway, mcp-gateway, agent-hooks), of which 3 are installed by chock sync (ambient-rule, ci-gate, git-hook); 8 everyday commands (init, add, remove, sync, check, status, enable, disable). Python 3.11–3.13, Apache-2.0, on PyPI as chock, version 0.7.0.">
+     role="img" aria-label="chock — governance-as-code for AI coding agents: write a rule once and every agent obeys it. A policy compiles to whatever control each agent actually supports. 15 agents (claude, aider, antigravity, codex, copilot, cursor, devin, gemini, grok, junie, kimi-code, replit, tabnine, vscode, windsurf); 8 enforcement surfaces (ambient-rule, git-hook, ci-gate, pre-tool-use, managed-setting, gateway, mcp-gateway, agent-hooks), of which 3 are installed by chock sync (ambient-rule, ci-gate, git-hook); 8 everyday commands (init, add, remove, sync, check, status, enable, disable). Python 3.11–3.13, Apache-2.0, on PyPI as chock, version 0.8.0.">
   <rect width="1280" height="640" fill="#0D1626"/>
   <rect x="45.0" y="39.0" width="38" height="38" rx="8.4" fill="#111E33"/>
   <circle cx="64.0" cy="55.7" r="7.6" fill="none" stroke="#D9B45C" stroke-width="2.09" stroke-opacity="0.95"/>
@@ -10,7 +10,7 @@
   <text x="151" y="64" font-family="Geist Mono" font-size="12" fill="#5A6B80">open-coder-ai/chock</text>
   <rect x="1042" y="44" width="190" height="27" rx="13" fill="#111E33" stroke="#D9B45C" stroke-opacity="0.22"/>
   <circle cx="1062" cy="57.5" r="3.2" fill="#D9B45C"/>
-  <text x="1074" y="62" font-family="Geist Mono" font-size="11" letter-spacing="0.2" fill="#D9B45C">v0.7.0 · APACHE-2.0</text>
+  <text x="1074" y="62" font-family="Geist Mono" font-size="11" letter-spacing="0.2" fill="#D9B45C">v0.8.0 · APACHE-2.0</text>
   <line x1="48" y1="92" x2="1232" y2="92" stroke="#D9B45C" stroke-opacity="0.13" stroke-width="1"/>
   <text x="48" y="140" font-family="Geist Mono" font-size="10.5" letter-spacing="3.4" fill="#8A7340">— GOVERNANCE AS CODE</text>
   <text x="48" y="190" font-family="Geist Mono" font-size="33" font-weight="700" letter-spacing="-1.2" fill="#E8EEF6">Write the rule once.</text>

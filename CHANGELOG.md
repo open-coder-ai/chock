@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.8.0 — Derive from agentseam's vendor config; externalize templates; adopt the Sonar/Checkstyle/FindBugs lint bar
+
+- **Adopted the Sonar/Checkstyle/FindBugs-class ruff rule bar** (owner standard,
+  `plan/coding-standards.md` §3) across `src/`: `C90 N PLR PLW PLC ERA T201 ARG RET SIM
+  PIE FBT A B S BLE TRY RUF`, with mccabe max-complexity 10 and pylint max-args 5 /
+  max-branches 12 / max-returns 6 / max-statements 50. Fixed the measured `src/` baseline
+  category by category in bisectable commits -- mechanical/safe, magic values plus a new
+  literal-duplication guard (`tools/check_literal_duplication.py`), exception hygiene,
+  boolean traps (keyword-only, including the vendored gate runtime), unused arguments,
+  asserts, subprocess hardening, 65 of 71 lazy imports hoisted to module top (6 kept lazy
+  for documented reasons), and `print` centralized into a new `chock/output.py`
+  `warn`/`error` surface for the 31 call sites that matched its convention (the ~183
+  genuine CLI/render call sites are per-file-ignored). Complexity splits (37 findings
+  across 21 functions) are deliberately deferred to a follow-up wave via scoped
+  `TODO(lint-adoption)` per-file-ignores, never a blanket one. No behaviour change: full
+  suite, `chock check`, `sync --check`, the acceptance suite, and a full before/after
+  artifact diff all pass unchanged; the standard is recorded in `AGENTS.md`.
 - **Emitted-artifact templates move out of Python source into template files, and the
   CLI command table becomes data** (owner standard `externalize, don't hardcode`,
   `plan/coding-standards.md` §2). Every non-Python template previously held as a Python
