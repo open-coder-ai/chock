@@ -8,6 +8,7 @@ import shutil
 import sys
 from pathlib import Path
 
+from chock.output import warn
 from chock.resources import package_data_dir
 
 AGENT_BRIDGES: dict[str, str] = {
@@ -55,17 +56,19 @@ def _bridge_one(link: Path, target: Path) -> str:
     rel = Path(os.path.relpath(str(target), str(link.parent)))
     try:
         os.symlink(rel, link, target_is_directory=True)
-        return "symlink"
     except OSError:
         pass
+    else:
+        return "symlink"
 
     try:
         shutil.copytree(str(target), str(link))
+    except OSError as exc:
+        warn(f"skills-bridge: could not bridge {target.name}: {exc}")
+        return "error"
+    else:
         _mark_bridge(link)
         return "copy"
-    except OSError as exc:
-        print(f"[WARN] skills-bridge: could not bridge {target.name}: {exc}", file=sys.stderr)
-        return "error"
 
 
 def _skill_dirs(skills_root: Path) -> list[Path]:

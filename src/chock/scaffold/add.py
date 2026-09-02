@@ -10,7 +10,12 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+import yaml
+
+from chock.config import agents_from_config as _agents_from_config
 from chock.lock import compute_pack_hash, read_lock, write_lock
+from chock.output import error
+from chock.scaffold.recompile import BookkeepingError, recompile
 
 
 class IntegrityError(RuntimeError):
@@ -27,8 +32,14 @@ _AREAS = {
 
 
 def _run(args: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        args, cwd=str(cwd) if cwd else None, capture_output=True, text=True, encoding="utf-8", errors="replace"
+    return subprocess.run(  # noqa: S603 -- running git to fetch the requested catalog is this command's job
+        args,
+        cwd=str(cwd) if cwd else None,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
     )
 
 
@@ -44,7 +55,8 @@ def fetch_catalog(source: str, ref: str | None, into: Path) -> tuple[Path, str |
     args += [source, str(into)]
     result = _run(args)
     if result.returncode != 0:
-        raise RuntimeError(f"could not fetch catalog {source}:\n{result.stderr.strip()}")
+        msg = f"could not fetch catalog {source}:\n{result.stderr.strip()}"
+        raise RuntimeError(msg)
 
     resolved = _run(["git", "rev-parse", "HEAD"], cwd=into)
     return into, (resolved.stdout.strip() or None) if resolved.returncode == 0 else None
@@ -53,7 +65,8 @@ def fetch_catalog(source: str, ref: str | None, into: Path) -> tuple[Path, str |
 def _reject_unsafe_id(artifact_id: str) -> None:
     """Refuse an artifact id that is anything but a single path component."""
     if artifact_id in ("", ".", "..") or "/" in artifact_id or "\\" in artifact_id or Path(artifact_id).is_absolute():
-        raise ValueError(f"invalid artifact id {artifact_id!r}: expected a single name, not a path")
+        msg = f"invalid artifact id {artifact_id!r}: expected a single name, not a path"
+        raise ValueError(msg)
 
 
 def locate(catalog_root: Path, artifact_id: str) -> tuple[Path, Path]:
@@ -63,8 +76,6 @@ def locate(catalog_root: Path, artifact_id: str) -> tuple[Path, Path]:
 
     registry = catalog_root / "registry.yaml"
     if registry.exists():
-        import yaml
-
         data = yaml.safe_load(registry.read_text(encoding="utf-8")) or {}
         for entry in data.get("policies", []) or []:
             if entry.get("id") == artifact_id and entry.get("path"):
@@ -81,7 +92,8 @@ def locate(catalog_root: Path, artifact_id: str) -> tuple[Path, Path]:
             return candidate, dest
 
     searched = ", ".join(f"{a}/" for a in _AREAS)
-    raise FileNotFoundError(f"{artifact_id!r} is not in this catalog (checked registry.yaml and {searched})")
+    msg = f"{artifact_id!r} is not in this catalog (checked registry.yaml and {searched})"
+    raise FileNotFoundError(msg)
 
 
 @dataclass
@@ -98,6 +110,7 @@ def add(
     artifact_id: str,
     source: str,
     ref: str | None,
+    *,
     force: bool,
     verify_sha: str | None = None,
 ) -> Added:
@@ -108,11 +121,13 @@ def add(
 
         digest = compute_pack_hash(src)
         if verify_sha and digest != verify_sha:
-            raise IntegrityError(f"{artifact_id}: expected sha256 {verify_sha}, got {digest}. Nothing was installed.")
+            msg = f"{artifact_id}: expected sha256 {verify_sha}, got {digest}. Nothing was installed."
+            raise IntegrityError(msg)
 
         dest = repo_root / area / artifact_id
         if dest.exists() and not force:
-            raise FileExistsError(f"{area.as_posix()}/{artifact_id} already exists; use --force to replace it")
+            msg = f"{area.as_posix()}/{artifact_id} already exists; use --force to replace it"
+            raise FileExistsError(msg)
         if dest.exists():
             shutil.rmtree(dest)
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -154,7 +169,7 @@ def main(argv: list[str] | None = None) -> int:
 
     repo_root = Path(args.repo).resolve()
     try:
-        added = add(repo_root, args.artifact_id, args.source, args.ref, args.force, args.verify_sha)
+        added = add(repo_root, args.artifact_id, args.source, args.ref, force=args.force, verify_sha=args.verify_sha)
     except (RuntimeError, FileNotFoundError, FileExistsError) as exc:
         print(f"chock add: {exc}", file=sys.stderr)
         return 1
@@ -172,9 +187,6 @@ def main(argv: list[str] | None = None) -> int:
         print("Run `chock sync --repo .` to compile it.")
         return 0
 
-    from chock.config import agents_from_config as _agents_from_config
-    from chock.scaffold.recompile import BookkeepingError, recompile
-
     try:
         agents = _agents_from_config(repo_root)
     except ValueError as exc:
@@ -183,7 +195,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         recompile(repo_root, agents, skip_hooks=True)
     except BookkeepingError as exc:
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        error(str(exc))
         return 1
     record_provenance(repo_root, args.artifact_id, args.source, args.ref, added)
     print("Compiled. Run `chock sync --repo .` to activate commit-time enforcement.")

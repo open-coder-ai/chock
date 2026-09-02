@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 
-from chock.manifest import CANONICAL_MANIFEST, resolve_manifest_path
+from chock.manifest import AGENT_SPECIFIC_VOCABULARY_KEY, CANONICAL_MANIFEST, resolve_manifest_path
 from chock.validation.loading import (
     ARTIFACT_TYPES,
     BUDGETS,
@@ -19,6 +19,13 @@ from chock.validation.patterns import (
     DEPTH_MARKERS,
 )
 from chock.validation.report import Finding, Report
+
+#: A SKILL.md prose paragraph longer than this many words should move to references/.
+_MAX_PARAGRAPH_WORDS = 150
+#: Lines shorter than this are too generic (e.g. list bullets) to count as duplicated content.
+_MIN_DUPLICATE_LINE_LEN = 40
+#: `text.split("---", 2)` on well-formed frontmatter yields [before, frontmatter, body].
+_FRONTMATTER_SPLIT_PARTS = 3
 
 
 def check_token_budgets(artifact_dir: Path, manifest: dict[str, Any], artifact_type: str, report: Report) -> None:
@@ -69,23 +76,25 @@ def check_token_budgets(artifact_dir: Path, manifest: dict[str, Any], artifact_t
         for ref in refs_dir.iterdir():
             if ref.is_file():
                 lines = count_lines(ref)
-                if lines > BUDGETS["reference_file_lines"]:
+                max_reference_lines = BUDGETS["reference_file_lines"]
+                if lines > max_reference_lines:
                     report.add(
                         Finding(
                             str(ref),
                             "token_budget",
                             "error",
-                            f"Reference file exceeds {BUDGETS['reference_file_lines']} lines (found {lines}). Split into focused files.",
+                            f"Reference file exceeds {max_reference_lines} lines (found {lines}). Split into focused files.",
                         )
                     )
 
 
 def check_progressive_disclosure(
-    artifact_dir: Path, manifest: dict[str, Any], artifact_type: str, report: Report
+    artifact_dir: Path, _manifest: dict[str, Any], artifact_type: str, report: Report
 ) -> None:
     """Body stays lean; depth lives in references/ loaded on demand."""
     if artifact_type != "skill":
         return
+    category = "progressive_disclosure"
 
     skill_md = artifact_dir / "SKILL.md"
     if not skill_md.exists():
@@ -100,7 +109,7 @@ def check_progressive_disclosure(
             report.add(
                 Finding(
                     str(skill_md),
-                    "progressive_disclosure",
+                    category,
                     "error",
                     f"SKILL.md body contains a depth section ('{marker.strip()}'). Move it to references/.",
                 )
@@ -109,11 +118,11 @@ def check_progressive_disclosure(
     paragraphs = re.split(r"\n\s*\n", body)
     for para in paragraphs:
         word_count = len(para.split())
-        if word_count > 150 and not para.strip().startswith("-") and not para.strip().startswith("|"):
+        if word_count > _MAX_PARAGRAPH_WORDS and not para.strip().startswith("-") and not para.strip().startswith("|"):
             report.add(
                 Finding(
                     str(skill_md),
-                    "progressive_disclosure",
+                    category,
                     "warning",
                     f"SKILL.md body contains a ~{word_count}-word prose block. Consider moving it to references/ and linking it.",
                 )
@@ -127,14 +136,14 @@ def check_progressive_disclosure(
                 report.add(
                     Finding(
                         str(skill_md),
-                        "progressive_disclosure",
+                        category,
                         "warning",
                         f"Reference file '{ref.name}' is not addressed from SKILL.md body.",
                     )
                 )
 
 
-def check_yagni(artifact_dir: Path, manifest: dict[str, Any], artifact_type: str, report: Report) -> None:
+def check_yagni(artifact_dir: Path, _manifest: dict[str, Any], _artifact_type: str, report: Report) -> None:
     """Detect over-bloating: empty folders, unused templates, duplicated content."""
     for sub in artifact_dir.iterdir():
         if sub.is_dir() and not any(sub.iterdir()):
@@ -154,10 +163,12 @@ def check_yagni(artifact_dir: Path, manifest: dict[str, Any], artifact_type: str
             ref_lines = {
                 line.strip()
                 for line in ref_text.splitlines()
-                if len(line.strip()) > 40 and line.strip() != security_footer
+                if len(line.strip()) > _MIN_DUPLICATE_LINE_LEN and line.strip() != security_footer
             }
             body_lines = {
-                line.strip() for line in body.splitlines() if len(line.strip()) > 40 and line.strip() != security_footer
+                line.strip()
+                for line in body.splitlines()
+                if len(line.strip()) > _MIN_DUPLICATE_LINE_LEN and line.strip() != security_footer
             }
             duplicates = ref_lines & body_lines
             if duplicates:
@@ -179,7 +190,7 @@ def check_no_agent_specific_leakage(
     if artifact_type not in ARTIFACT_TYPES:
         return
 
-    if manifest.get("agent_specific_vocabulary"):
+    if manifest.get(AGENT_SPECIFIC_VOCABULARY_KEY):
         return
 
     skill_md = artifact_dir / "SKILL.md"
@@ -211,7 +222,7 @@ def extract_skill_md_description(skill_md: Path) -> str | None:
     if not text.startswith("---"):
         return None
     parts = text.split("---", 2)
-    if len(parts) < 3:
+    if len(parts) < _FRONTMATTER_SPLIT_PARTS:
         return None
     try:
         front = yaml.safe_load(parts[1]) or {}

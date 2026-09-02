@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import subprocess
 import sys
@@ -26,10 +27,8 @@ def _blocked_response(request_id: Any, message: str) -> str:
 
 def _force_utf8(stream: Any) -> None:
     """Best-effort: pin a text stream to UTF-8 with replacement."""
-    try:
+    with contextlib.suppress(AttributeError, ValueError, OSError):
         stream.reconfigure(encoding="utf-8", errors="replace")
-    except (AttributeError, ValueError, OSError):
-        pass
 
 
 class Gateway:
@@ -48,7 +47,7 @@ class Gateway:
 
     def start_downstream(self, *, pipe_output: bool = True) -> None:
         """Spawn the wrapped server. `pipe_output=False` is for tests that read the"""
-        self.process = subprocess.Popen(
+        self.process = subprocess.Popen(  # noqa: S603 -- spawning the configured downstream MCP server is the feature
             self.downstream_argv,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -62,14 +61,12 @@ class Gateway:
             threading.Thread(target=self._pipe_downstream, daemon=True).start()
 
     def _pipe_downstream(self) -> None:
-        assert self.process and self.process.stdout
+        assert self.process and self.process.stdout  # noqa: S101 -- start_downstream() always runs first
         for line in self.process.stdout:
             self._write_out(line, sys.stdout)
         self._downstream_ended.set()
-        try:
+        with contextlib.suppress(OSError, ValueError):
             sys.stdin.close()
-        except (OSError, ValueError):
-            pass
 
     def _block_message(self, item: Any) -> str | None:
         """Block message for a single request object, or None to allow it."""

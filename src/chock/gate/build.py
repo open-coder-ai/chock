@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import contextlib
 import shutil
 from pathlib import Path
 from typing import Any
 
 from chock.config import load_config
+from chock.manifest import load_manifest
 
 
 def _resolve_dotted(config: dict[str, Any], key: str) -> Any:
@@ -21,8 +23,6 @@ def _resolve_dotted(config: dict[str, Any], key: str) -> Any:
 
 def build_gate_json(policy_dir: Path, repo_root: Path) -> dict[str, Any] | None:
     """Load a manifest hook.gate, resolve config references, and return a flat gate.json dict."""
-    from chock.manifest import load_manifest
-
     result = load_manifest(policy_dir)
     if result is None:
         return None
@@ -55,15 +55,14 @@ def vendor_runner(artifact_root: Path) -> Path:
     """Copy the stdlib-only runner into `<artifact_root>/bin/gate.py`."""
     source = Path(__file__).resolve().parent / "runner.py"
     if not source.exists():
-        raise FileNotFoundError(
+        msg = (
             f"Vendored gate runner source not found at {source}. "
             "If this is a packaged binary, ensure gate/runner.py is bundled as a data file."
         )
+        raise FileNotFoundError(msg)
     dest = Path(artifact_root) / "bin" / "gate.py"
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, dest)
-    try:
+    with contextlib.suppress(OSError):
         dest.chmod(0o755)
-    except OSError:
-        pass
     return dest

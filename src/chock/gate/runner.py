@@ -8,12 +8,15 @@ import fnmatch
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tomllib
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+
+_GIT = shutil.which("git") or "git"
 
 
 @dataclass
@@ -44,8 +47,8 @@ class GateContext:
 
     def _git(self, *args: str) -> str:
         try:
-            proc = subprocess.run(
-                ["git", "-c", "core.quotePath=false", *args],
+            proc = subprocess.run(  # noqa: S603 -- reading repo facts via git is this class's whole job
+                [_GIT, "-c", "core.quotePath=false", *args],
                 cwd=str(self.repo_root),
                 capture_output=True,
                 text=True,
@@ -53,9 +56,10 @@ class GateContext:
                 errors="replace",
                 check=True,
             )
-            return proc.stdout or ""
         except (subprocess.CalledProcessError, FileNotFoundError, UnicodeError):
             return ""
+        else:
+            return proc.stdout or ""
 
     def rev_exists(self, ref: str) -> bool:
         """True when `ref` resolves to a commit. Used to fail CI closed on a missing base."""
@@ -91,14 +95,15 @@ class GateContext:
         refs: list[str] = []
         for line in self._push_stdin.splitlines():
             parts = line.split()
-            if len(parts) >= 3:
+            if len(parts) >= _PUSH_LINE_MIN_PARTS:
                 refs.append(parts[2])
         return refs
 
 
-def _kind_content_regex(ctx: GateContext, params: dict, event: str) -> GateResult:
+def _kind_content_regex(ctx: GateContext, params: dict, _event: str) -> GateResult:
     content_re = re.compile(params["content_pattern"])
-    path_re = re.compile(params["forbidden_path_regex"]) if params.get("forbidden_path_regex") else None
+    forbidden_path_regex = params.get("forbidden_path_regex")
+    path_re = re.compile(forbidden_path_regex) if forbidden_path_regex else None
     pragma_re = re.compile(params["allowlist_pragma"]) if params.get("allowlist_pragma") else None
     scan = params.get("scan", "added_lines")
     diff_filter = params.get("diff_filter", "ACMRT")
@@ -140,7 +145,7 @@ def _deps_requirements(text: str) -> set[str]:
     names: set[str] = set()
     for line in text.splitlines():
         s = line.strip()
-        if not s or s.startswith("#") or s.startswith("-"):
+        if not s or s.startswith(("#", "-")):
             continue
         m = _REQ_RE.match(line)
         if m:
@@ -206,11 +211,11 @@ def _extract(path: str, text: str) -> set[str]:
         return set()
     try:
         return fn(text)
-    except Exception:
+    except Exception:  # noqa: BLE001 -- untrusted, possibly-malformed manifest content; never crash the gate on it
         return set()
 
 
-def _kind_dependency_allowlist(ctx: GateContext, params: dict, event: str) -> GateResult:
+def _kind_dependency_allowlist(ctx: GateContext, params: dict, _event: str) -> GateResult:
     watched = set(params.get("manifests", []))
     allow: set[str] = set()
     allow_path = ctx.repo_root / params["allowlist_file"]
@@ -241,6 +246,15 @@ GATE_LOG_ENV = "CHOCK_GATE_LOG"
 _LOG_MAX_BYTES = 1_048_576
 _LOG_MATCH_CAP = 20
 
+#: A pre-push stdin line is `<local ref> <local sha> <remote ref> <remote sha>`;
+#: at least 3 whitespace-separated parts to reach the remote ref at index 2.
+_PUSH_LINE_MIN_PARTS = 3
+
+#: `<repo>/.chock/compiled/<policy>/git-hook/<script>`.resolve().parents needs at
+#: least 4 entries to reach the `compiled` directory at index 2 and its parent
+#: (the `.chock` root) at index 3.
+_MIN_COMPILED_PATH_DEPTH = 4
+
 
 def _log_outcome(gate_path: Path, event: str, spec: dict, result: GateResult) -> None:
     """Append one outcome record. Best effort: never raises, never changes the verdict."""
@@ -248,7 +262,7 @@ def _log_outcome(gate_path: Path, event: str, spec: dict, result: GateResult) ->
         if os.environ.get(GATE_LOG_ENV) == "0":
             return
         parents = gate_path.resolve().parents
-        if len(parents) < 4 or parents[2].name != "compiled":
+        if len(parents) < _MIN_COMPILED_PATH_DEPTH or parents[2].name != "compiled":
             return
         log_dir = parents[3] / "log"
         log_dir.mkdir(parents=True, exist_ok=True)
@@ -267,7 +281,7 @@ def _log_outcome(gate_path: Path, event: str, spec: dict, result: GateResult) ->
         }
         with log_path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(record, ensure_ascii=False) + "\n")
-    except Exception:
+    except Exception:  # noqa: BLE001 -- best effort logging: never raises, never changes the verdict
         return
 
 
@@ -321,8 +335,8 @@ def run(
 
 def _repo_root() -> Path:
     try:
-        out = subprocess.check_output(
-            ["git", "rev-parse", "--show-toplevel"], text=True, encoding="utf-8", errors="replace"
+        out = subprocess.check_output(  # noqa: S603 -- finding the repo root via git is this fallback's job
+            [_GIT, "rev-parse", "--show-toplevel"], text=True, encoding="utf-8", errors="replace"
         )
         return Path(out.strip())
     except (subprocess.CalledProcessError, FileNotFoundError, UnicodeError):

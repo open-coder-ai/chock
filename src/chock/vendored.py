@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from importlib import resources
 from pathlib import Path
 
+from chock.gate import runtime_bundle
 from chock.vendors import in_agent_vendors
 
 VENDORED_RUNTIMES = {
@@ -14,15 +16,11 @@ VENDORED_RUNTIMES = {
 
 def _expected_bytes(kind: str, source) -> bytes | None:
     if kind == "static":
-        import importlib.resources as resources
-
         package, source_name = source
         try:
             return resources.files(package).joinpath(source_name).read_bytes()
         except (FileNotFoundError, ModuleNotFoundError, OSError):  # pragma: no cover - packaging failure
             return None
-    from chock.gate import runtime_bundle
-
     return runtime_bundle.render(source).encode("utf-8")
 
 

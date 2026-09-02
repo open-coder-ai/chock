@@ -71,20 +71,23 @@ class Claim(NamedTuple):
 def _text(row: dict[str, Any], field: str, where: str) -> str:
     value = row.get(field)
     if not isinstance(value, str) or not value.strip():
-        raise EvidenceError(f"{where}: {field!r} is missing or empty in {row!r}")
+        msg = f"{where}: {field!r} is missing or empty in {row!r}"
+        raise EvidenceError(msg)
     return value
 
 
 def _one_of(value: str, allowed: tuple[str, ...], field: str, where: str) -> str:
     if value not in allowed:
-        raise EvidenceError(f"{where}: {field}={value!r} is not one of {allowed}")
+        msg = f"{where}: {field}={value!r} is not one of {allowed}"
+        raise EvidenceError(msg)
     return value
 
 
 def _rows(source: Path | list[dict[str, Any]], where: str) -> list[dict[str, Any]]:
     data = json.loads(Path(source).read_text(encoding="utf-8")) if isinstance(source, Path) else source
     if not isinstance(data, list) or any(not isinstance(row, dict) for row in data):
-        raise EvidenceError(f"{where}: expected a list of rows")
+        msg = f"{where}: expected a list of rows"
+        raise EvidenceError(msg)
     return data
 
 
@@ -92,7 +95,8 @@ def _no_duplicates(keys: list[tuple[str, ...]], where: str) -> None:
     seen: set[tuple[str, ...]] = set()
     for key in keys:
         if key in seen:
-            raise EvidenceError(f"{where}: {key} recorded twice; one row per subject or the loser is invisible")
+            msg = f"{where}: {key} recorded twice; one row per subject or the loser is invisible"
+            raise EvidenceError(msg)
         seen.add(key)
 
 
@@ -106,7 +110,8 @@ def parse_witnesses(source: Path | list[dict[str, Any]] | None = None) -> tuple[
         surface = _one_of(_text(row, "surface", where), WITNESS_SURFACES, "surface", where)
         date = _text(row, "date", where)
         if not _DATE.match(date):
-            raise EvidenceError(f"{where}: date={date!r} is not an ISO date; a witness without a day is a vibe")
+            msg = f"{where}: date={date!r} is not an ISO date; a witness without a day is a vibe"
+            raise EvidenceError(msg)
         witnesses.append(Witness(agent, surface, _text(row, "client", where), date, _text(row, "method", where)))
     _no_duplicates([(w.agent, w.surface) for w in witnesses], where)
     return tuple(witnesses)
@@ -123,11 +128,13 @@ def parse_claims(source: Path | list[dict[str, Any]] | None = None) -> tuple[Cla
         verdict = _one_of(_text(row, "verdict", where), WIRE_VERDICTS, "verdict", where)
         honours = row.get("honours")
         if not isinstance(honours, bool):
-            raise EvidenceError(f"{where}: honours is missing or not a boolean in {row!r}")
+            msg = f"{where}: honours is missing or not a boolean in {row!r}"
+            raise EvidenceError(msg)
         evidence = _one_of(_text(row, "evidence", where), CLAIM_EVIDENCE, "evidence", where)
         test = _text(row, "test", where) if evidence == TESTED else row.get("test")
         if evidence != TESTED and test is not None:
-            raise EvidenceError(f"{where}: {agent} {name} names a test but is only {evidence!r}")
+            msg = f"{where}: {agent} {name} names a test but is only {evidence!r}"
+            raise EvidenceError(msg)
         claims.append(Claim(agent, name, verdict, honours, evidence, test))
     _no_duplicates([(c.agent, c.claim) for c in claims], where)
     return tuple(claims)

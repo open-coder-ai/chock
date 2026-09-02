@@ -6,10 +6,16 @@ from chock.gate.runner import EXTRACTORS
 
 SUPPORTED_MANIFESTS = sorted(EXTRACTORS)
 
+#: Gate kind name -- shared with eval/derive.py, which cannot import this framework-side
+#: module's sibling (the vendored, stdlib-only gate/runner.py duplicates it independently).
+DEPENDENCY_ALLOWLIST_KIND = "dependency_allowlist"
+
+#: Every param schema below is a closed object -- no undeclared keys.
+_CLOSED_OBJECT = {"type": "object", "additionalProperties": False}
+
 KIND_PARAM_SCHEMAS: dict[str, dict] = {
     "content_regex": {
-        "type": "object",
-        "additionalProperties": False,
+        **_CLOSED_OBJECT,
         "required": ["content_pattern"],
         "properties": {
             "scan": {"type": "string", "enum": ["added_lines", "staged_blob"]},
@@ -20,17 +26,15 @@ KIND_PARAM_SCHEMAS: dict[str, dict] = {
         },
     },
     "forbidden_ref": {
-        "type": "object",
-        "additionalProperties": False,
+        **_CLOSED_OBJECT,
         "required": ["refs"],
         "properties": {
             "refs": {"type": "array", "minItems": 1, "items": {"type": "string"}},
             "config_key": {"type": "string"},
         },
     },
-    "dependency_allowlist": {
-        "type": "object",
-        "additionalProperties": False,
+    DEPENDENCY_ALLOWLIST_KIND: {
+        **_CLOSED_OBJECT,
         "required": ["manifests", "allowlist_file"],
         "properties": {
             "manifests": {
@@ -42,8 +46,7 @@ KIND_PARAM_SCHEMAS: dict[str, dict] = {
         },
     },
     "egress_allowlist": {
-        "type": "object",
-        "additionalProperties": False,
+        **_CLOSED_OBJECT,
         "required": ["allowed_hosts"],
         "properties": {
             "allowed_hosts": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},

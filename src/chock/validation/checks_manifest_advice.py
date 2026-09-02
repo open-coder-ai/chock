@@ -52,7 +52,7 @@ def _check_manifest_local_propagation(artifact_dir: Path, manifest: dict[str, An
         )
 
 
-def check_manifest_advice(artifact_dir, manifest: dict[str, Any], artifact_type: str, report: Report) -> None:
+def check_manifest_advice(artifact_dir, manifest: dict[str, Any], _artifact_type: str, report: Report) -> None:
     """Validate structural manifest invariants that are warnings only."""
     artifact_dir = Path(artifact_dir)
     _check_manifest_optimizable_no_evals(artifact_dir, manifest, report)

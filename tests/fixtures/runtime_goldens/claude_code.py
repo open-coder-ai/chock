@@ -15,6 +15,7 @@ import sys
 
 import os as _chock_os
 import shlex as _chock_shlex
+import shutil as _chock_shutil
 import subprocess as _chock_subprocess
 from datetime import datetime as _chock_datetime, timezone as _chock_timezone
 from pathlib import Path as _chock_Path
@@ -663,7 +664,7 @@ def find_bash(guard: _chock_Path) -> str | None:
     """First interpreter that can actually see `guard`, or None."""
     for candidate in _BASH_CANDIDATES:
         try:
-            proc = _chock_subprocess.run([candidate, '-c', f'test -f "{guard.as_posix()}"'], capture_output=True, timeout=10)
+            proc = _chock_subprocess.run([candidate, '-c', f'test -f "{guard.as_posix()}"'], capture_output=True, timeout=10, check=False)
         except (OSError, _chock_subprocess.SubprocessError):
             continue
         if proc.returncode == 0:
@@ -685,7 +686,7 @@ def run_guard(guard: _chock_Path, command: str) -> str:
         return GUARD_UNCHECKED
     try:
         env = {**_chock_os.environ, 'CHOCK_RAW_COMMAND': command}
-        proc = _chock_subprocess.run([bash, str(guard), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=_GUARD_TIMEOUT_SECONDS)
+        proc = _chock_subprocess.run([bash, str(guard), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=_GUARD_TIMEOUT_SECONDS, check=False)
     except _chock_subprocess.TimeoutExpired:
         print(f'chock: guard timed out after {_GUARD_TIMEOUT_SECONDS}s, not checked', file=sys.stderr)
         return GUARD_ERRORED
@@ -704,7 +705,7 @@ def run_guard(guard: _chock_Path, command: str) -> str:
         return GUARD_ERRORED
     return GUARD_CLEAN
 
-def log_outcome(guard: _chock_Path, tool: str, blocked: bool) -> None:
+def log_outcome(guard: _chock_Path, tool: str, *, blocked: bool) -> None:
     """Append one outcome record. Best effort: never raises, never changes the verdict."""
     try:
         if _chock_os.environ.get(GATE_LOG_ENV) == '0':
@@ -724,7 +725,6 @@ def log_outcome(guard: _chock_Path, tool: str, blocked: bool) -> None:
         log_path = log_dir / 'gate-events.jsonl'
         if log_path.exists() and log_path.stat().st_size > _LOG_MAX_BYTES:
             log_path.replace(log_dir / 'gate-events.1.jsonl')
-        import json
         record = {'ts': _chock_datetime.now(_chock_timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), 'policy_id': guard.parent.parent.name, 'surface': 'pre-tool-use', 'event': 'tool_use', 'kind': guard.stem, 'tool': tool, 'verdict': 'block' if blocked else 'allow'}
         with log_path.open('a', encoding='utf-8') as fh:
             fh.write(json.dumps(record, ensure_ascii=False) + '\n')
@@ -738,12 +738,14 @@ def evaluate(argv: list[str], command: str, tool: str='') -> tuple[str, str] | N
         return None
     verdict = run_guard(guard, command)
     if verdict in (GUARD_BLOCKED, GUARD_CLEAN):
-        log_outcome(guard, tool, verdict == GUARD_BLOCKED)
+        log_outcome(guard, tool, blocked=verdict == GUARD_BLOCKED)
     if verdict == GUARD_BLOCKED:
         return (VERDICT_DENY, f'Blocked by chock policy: {guard.stem}')
     if verdict == GUARD_ERRORED:
         return (VERDICT_ESCALATE, f"chock could not check this command: the {guard.stem} guard did not complete (see this hook's stderr). Approving runs it unchecked.")
     return None
+
+_GIT = _chock_shutil.which('git') or 'git'
 
 _INSTRUCTION = "Chock: this clone's git hooks are NOT installed -- git never clones hooks, so commit-time gates will not run locally until someone runs:\n    pip install chock && chock sync --repo .\nRun that before the first commit. (The repo's CI gate, where wired, enforces regardless.)"
 
@@ -754,7 +756,7 @@ def _repo_root() -> _chock_Path:
 def _hooks_pre_commit(repo_root: _chock_Path) -> _chock_Path | None:
     """The active pre-commit hook path, honouring core.hooksPath. None when git is absent."""
     try:
-        proc = _chock_subprocess.run(['git', 'rev-parse', '--git-path', 'hooks'], cwd=repo_root, capture_output=True, text=True, timeout=15)
+        proc = _chock_subprocess.run([_GIT, 'rev-parse', '--git-path', 'hooks'], cwd=repo_root, capture_output=True, text=True, timeout=15, check=False)
     except (OSError, _chock_subprocess.TimeoutExpired):
         return None
     if proc.returncode != 0:

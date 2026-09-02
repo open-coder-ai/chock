@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from chock.manifest import CANONICAL_MANIFEST, resolve_manifest_path
+from chock.manifest import CANONICAL_MANIFEST, DETERMINIZATION_REVIEWED_KEY, resolve_manifest_path
 from chock.validation.checks_security import _is_script_file
 from chock.validation.patterns import (
     _DETERMINISTIC_HEURISTIC_PATTERNS,
@@ -194,7 +194,7 @@ def check_determinization_heuristic(
     skill_type = skill.get("skill_type") or manifest.get("skill_type")
     if skill_type != "nl":
         return
-    if manifest.get("determinization_reviewed"):
+    if manifest.get(DETERMINIZATION_REVIEWED_KEY):
         return
 
     files_to_check = []

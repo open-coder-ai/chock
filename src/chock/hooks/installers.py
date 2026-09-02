@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import shutil
 import subprocess
 import sys
@@ -15,19 +16,21 @@ from chock.hooks.ownership import (
     relocate_existing_hook,
     remove_self_relocated_hook,
 )
+from chock.output import warn
 from chock.resources import package_data_dir
 
 _DATA_DIR = package_data_dir("chock.hooks", "data")
 DISPATCHER_TEMPLATE = _DATA_DIR.joinpath("dispatcher.sh").read_text(encoding="utf-8")
 _VALIDATE_WRAPPER_WINDOWS_TEMPLATE = _DATA_DIR.joinpath("validate_wrapper_windows.sh").read_text(encoding="utf-8")
 _POLICY_WRAPPER_TEMPLATE = _DATA_DIR.joinpath("policy_wrapper.sh").read_text(encoding="utf-8")
+_GIT = shutil.which("git") or "git"
 
 
 def _git(repo_root: Path, *args: str) -> str | None:
     """Answer a read-only git query from inside `repo_root`. None when git cannot answer."""
     try:
-        return subprocess.check_output(
-            ["git", *args],
+        return subprocess.check_output(  # noqa: S603 -- reading repo facts via git is this helper's job
+            [_GIT, *args],
             text=True,
             encoding="utf-8",
             errors="replace",
@@ -114,7 +117,7 @@ def _render_hook(source: Path, dest: Path) -> None:
     write_generated(dest, rendered)
 
 
-def install_validate_hook(hooks_dir: Path, repo_root: Path) -> None:
+def install_validate_hook(hooks_dir: Path, _repo_root: Path) -> None:
     """Install the Chock validate hook into pre-commit.d/."""
     impl_dir = hooks_dir / "pre-commit.d"
     impl_dir.mkdir(parents=True, exist_ok=True)
@@ -132,10 +135,8 @@ def install_validate_hook(hooks_dir: Path, repo_root: Path) -> None:
         impl = impl_dir / "99-chock-validate"
         _render_hook(source_dir / "pre-commit", impl)
 
-    try:
+    with contextlib.suppress(OSError):
         impl.chmod(0o755)
-    except Exception:
-        pass
     print(f"Implementation registered at {impl}")
 
 
@@ -150,7 +151,7 @@ def _discover_policy_hooks(repo_root: Path, script_name: str) -> list[Path]:
 def install_policy_hooks(repo_root: Path, hooks_dir: Path) -> None:
     """Discover compiler-generated git-pre-commit.sh and git-pre-push.sh and register them."""
     if not is_git_repo(repo_root):
-        print(f"[WARN] {NOT_A_GIT_REPO.format(root=repo_root)}", file=sys.stderr)
+        warn(NOT_A_GIT_REPO.format(root=repo_root))
         return
 
     auto_compile(repo_root)
@@ -177,8 +178,6 @@ def install_policy_hooks(repo_root: Path, hooks_dir: Path) -> None:
             rel = _repo_relative(impl_source, repo_root)
             content = _POLICY_WRAPPER_TEMPLATE.replace("__MARKER__", GENERATED_MARKER).replace("__SOURCE_REL__", rel)
             write_generated(wrapper, content)
-            try:
+            with contextlib.suppress(OSError):
                 wrapper.chmod(0o755)
-            except Exception:
-                pass
         print(f"Registered {len(implementations)} {event} policy implementation(s)")

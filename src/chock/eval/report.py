@@ -16,7 +16,7 @@ def _trim(detail: str) -> str:
     return detail if len(detail) <= _DETAIL_WIDTH else detail[: _DETAIL_WIDTH - 1] + "…"
 
 
-def render_text(policies: list[PolicyResult], verbose: bool = False) -> str:
+def render_text(policies: list[PolicyResult], *, verbose: bool = False) -> str:
     lines: list[str] = []
     for policy in policies:
         shown = [r for r in policy.results if verbose or r.outcome != "skipped"]

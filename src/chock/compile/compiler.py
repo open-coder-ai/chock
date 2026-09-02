@@ -21,11 +21,18 @@ from chock.compile.emitters import (
     mcp_gateway,
 )
 from chock.compile.levels import IN_AGENT_TODAY, Grade, render_grade
-from chock.compile.surfaces import SURFACE_AGENTS, Surface, coverage_cell, parse_agent_selection
+from chock.compile.surfaces import (
+    AGENTS_ARG_REQUIRED_MSG,
+    SURFACE_AGENTS,
+    Surface,
+    coverage_cell,
+    parse_agent_selection,
+)
 from chock.config import agents_from_config
 from chock.hooks.in_agent_install import WIRED_VENDORS, installed_policy_ids
 from chock.manifest import ManifestSourceError, load_manifest
-from chock.policy_id import InvalidPolicyId, validate_policy_id
+from chock.output import error, warn
+from chock.policy_id import InvalidPolicyIdError, validate_policy_id
 from chock.scaffold.install_ci import ci_workflow_installed
 from chock.vendors import CHOCK_AGENT
 
@@ -60,13 +67,13 @@ def _load_manifest(policy_dir: Path) -> dict[str, Any]:
     try:
         result = load_manifest(policy_dir, warnings=warnings)
     except (yaml.YAMLError, OSError, ManifestSourceError) as exc:
-        print(f"[ERROR] {policy_dir / 'manifest.yaml'}: manifest_parse: {exc}", file=sys.stderr)
+        error(f"{policy_dir / 'manifest.yaml'}: manifest_parse: {exc}")
         return {}
     if result is None:
         return {}
     data, _ = result
     for warning in warnings:
-        print(f"[WARN] {policy_dir}: manifest_default: {warning}", file=sys.stderr)
+        warn(f"{policy_dir}: manifest_default: {warning}")
     return data
 
 
@@ -99,8 +106,8 @@ def compile_policy(
 
     try:
         validate_policy_id(policy_id, policy_dir.name)
-    except InvalidPolicyId as exc:
-        print(f"[ERROR] {policy_dir / 'manifest.yaml'}: manifest_id: {exc}", file=sys.stderr)
+    except InvalidPolicyIdError as exc:
+        error(f"{policy_dir / 'manifest.yaml'}: manifest_id: {exc}")
         return CompileResult(policy_id=policy_dir.name)
 
     output_root = Path(output_root) if output_root else DEFAULT_OUTPUT_ROOT
@@ -187,7 +194,7 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as exc:
             _parser_fail(parser, str(exc))
         if not agents:
-            _parser_fail(parser, "--agents requires at least one agent name")
+            _parser_fail(parser, AGENTS_ARG_REQUIRED_MSG)
 
     policy_dir = Path(args.policy_dir) if args.policy_dir else repo_root / ".agents/policies" / args.policy_id
     if not policy_dir.exists():

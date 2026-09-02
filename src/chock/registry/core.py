@@ -142,7 +142,7 @@ def compute_script_hashes(artifact_dir: Path, manifest: dict[str, Any]) -> dict[
     return hashes
 
 
-def extract_dependencies(data: dict[str, Any], artifact: str) -> list[str]:
+def extract_dependencies(data: dict[str, Any], _artifact: str) -> list[str]:
     deps: list[str] = []
     deps_data = data.get("dependencies", {})
     for dep in deps_data.get("skills", []):
@@ -157,7 +157,8 @@ def entry_from_manifest(
     artifact_dir = manifest_path.parent
     result = load_manifest(artifact_dir, warnings=warnings)
     if result is None:
-        raise ManifestSourceError(f"no manifest in {artifact_dir}")
+        msg = f"no manifest in {artifact_dir}"
+        raise ManifestSourceError(msg)
     data, resolved_path = result
     rel_path = resolved_path.parent.relative_to(root).as_posix()
     return RegistryEntry(
@@ -204,6 +205,16 @@ def save_registry(entries: dict[str, list[RegistryEntry]], root: Path | None = N
     write_generated_json(registry_path(root), data)
 
 
+def rescan_and_report(root: Path | None = None) -> None:
+    """Rescan the artifact registry, print any manifest-parse skips, then persist it."""
+    entries, skips = scan(root)
+    if skips:
+        print(f"[WARN] {len(skips)} manifest(s) skipped during registry scan:")
+        for skip in skips:
+            print(f"  [ERROR] {skip.path} :: manifest_parse: {skip.reason}")
+    save_registry(entries, root)
+
+
 def load_registry(root: Path | None = None) -> dict[str, list[RegistryEntry]]:
     root = root or repo_root()
     path = registry_path(root)
@@ -214,14 +225,14 @@ def load_registry(root: Path | None = None) -> dict[str, list[RegistryEntry]]:
 
 
 def resolve(
-    id: str,
+    artifact_id: str,
     version: str | None = None,
     artifact_type: str | None = None,
     root: Path | None = None,
 ) -> RegistryEntry | None:
     """Resolve an ID to the best matching registry entry."""
     entries = load_registry(root)
-    versions = entries.get(id, [])
+    versions = entries.get(artifact_id, [])
     if not versions:
         return None
 

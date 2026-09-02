@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 from typing import Any
 
+from chock.compile.emitters import DATA_DIR
 from chock.compile.emitters.advisory import repo_root_from_output, template_message
 from chock.emit import write_generated, write_generated_json
 from chock.gate.build import build_gate_json, vendor_runner
-from chock.resources import package_data_dir
 
-_DATA_DIR = package_data_dir("chock.compile.emitters", "data")
-SHIM_TEMPLATE = _DATA_DIR.joinpath("git_hook_shim.sh").read_text(encoding="utf-8")
+SHIM_TEMPLATE = DATA_DIR.joinpath("git_hook_shim.sh").read_text(encoding="utf-8")
 
 
 def _emit_shims(output_dir: Path, policy_id: str, events: list[str]) -> list[Path]:
@@ -28,10 +28,8 @@ def _emit_shims(output_dir: Path, policy_id: str, events: list[str]) -> list[Pat
         shim = output_dir / script_name
         rendered = SHIM_TEMPLATE.replace("__POLICY_ID__", policy_id).replace("__EVENT__", event_arg)
         write_generated(shim, rendered)
-        try:
+        with contextlib.suppress(OSError):
             shim.chmod(0o755)
-        except OSError:
-            pass
         emitted.append(shim)
     return emitted
 

@@ -11,6 +11,7 @@ import yaml
 from chock.index.builder import max_tokens_for
 from chock.index.cli import is_stale
 from chock.scaffold.agents_md import POINTER_BLOCK, POINTER_END, POINTER_START
+from chock.validation.loading import discover_artifacts
 from chock.validation.report import Finding, Report
 
 _POINTER_RE = re.compile(
@@ -112,8 +113,6 @@ def check_ambient_rule_blocks(root: Path, report: Report) -> None:
 
 def _resolve_id(root: Path, policy_id: str) -> bool:
     """Does an installed artifact answer to this id?"""
-    from chock.validation.loading import discover_artifacts
-
     for _artifact_type, artifact_dir in discover_artifacts(root):
         if artifact_dir.name == policy_id:
             return True

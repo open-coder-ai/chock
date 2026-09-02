@@ -53,6 +53,7 @@ from chock.validation.checks_security import (
 )
 from chock.validation.frontier import check_frontier_mode
 from chock.validation.loading import (
+    MANIFEST_SCHEMA,
     discover_artifacts,
     load_schema,
     validate_yaml_against_schema,
@@ -85,10 +86,10 @@ def validate_artifact(
         report.add(Finding(str(manifest_path or artifact_dir), "manifest_default", "warning", warning))
 
     schema_name = {
-        "rule": "manifest.schema.json",
-        "hook": "manifest.schema.json",
-        "skill": "manifest.schema.json",
-        "workflow": "manifest.schema.json",
+        "rule": MANIFEST_SCHEMA,
+        "hook": MANIFEST_SCHEMA,
+        "skill": MANIFEST_SCHEMA,
+        "workflow": MANIFEST_SCHEMA,
         "eval": "eval.schema.json",
         "subagent": "subagent.schema.json",
     }.get(artifact_type)
@@ -97,7 +98,7 @@ def validate_artifact(
         schema = load_schema(schema_name)
         validate_yaml_against_schema(manifest, schema, str(manifest_path or artifact_dir), report)
     elif manifest and manifest_path and manifest_path.name in MANIFEST_NAMES:
-        base_schema = load_schema("manifest.schema.json")
+        base_schema = load_schema(MANIFEST_SCHEMA)
         validate_yaml_against_schema(manifest, base_schema, str(manifest_path), report)
 
     check_token_budgets(artifact_dir, manifest, artifact_type, report)
@@ -192,5 +193,5 @@ def main(argv: list[str] | None = None) -> int:
     check_compiled_drift(root, report, event=args.event)
     check_plugin_drift(root, report, event=args.event)
 
-    emit(report, args.json)
+    emit(report, use_json=args.json)
     return 0 if report.is_clean() else 1

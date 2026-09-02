@@ -84,7 +84,7 @@ def discover_policies(repo_root: Path, policy_id: str | None = None) -> list[Pol
     for _artifact_type, directory in discover_artifacts(Path(repo_root)):
         try:
             loaded = load_manifest(directory)
-        except Exception:
+        except Exception:  # noqa: BLE001, S112 -- best-effort discovery: skip any dir whose manifest fails to load
             continue
         if loaded is None:
             continue

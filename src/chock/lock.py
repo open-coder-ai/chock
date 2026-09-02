@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from chock.manifest import resolve_manifest_path
+from chock.vendored import vendored_differences
 
 LOCKFILE_NAME = "chock.lock"
 LOCKFILE_VERSION = "1"
@@ -57,7 +58,7 @@ def compute_artifacts_hash(repo_root: Path, policy_id: str) -> str | None:
     return compute_pack_hash(compiled_dir)
 
 
-def build_lock(repo_root: Path, source_root: Path | None = None) -> dict[str, Any]:
+def build_lock(repo_root: Path) -> dict[str, Any]:
     """Build a lockfile from the policies installed in a repo."""
     lock: dict[str, Any] = {
         "lockfile_version": LOCKFILE_VERSION,
@@ -93,8 +94,6 @@ def verify_lock(repo_root: Path | None = None) -> tuple[bool, list[str]]:
     lock = read_lock(repo_root)
     failures: list[str] = []
 
-    from chock.vendored import vendored_differences
-
     failures += [
         f"vendored runtime modified ({d}) -- this is what executes gates" for d in vendored_differences(repo_root)
     ]
@@ -128,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
     argv = list(argv or [])
     valid_commands = {"init", "verify"}
     if not argv or argv[0] not in valid_commands:
-        argv = ["verify"] + argv
+        argv = ["verify", *argv]
 
     root_parser = argparse.ArgumentParser(add_help=False)
     root_parser.add_argument("--root", "--repo", default=".", dest="root", help="Repo root")

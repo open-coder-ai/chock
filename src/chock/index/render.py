@@ -34,7 +34,7 @@ def _skill_line(entry: IndexEntry) -> str:
     return f"- **{entry.id}** — {entry.description or 'no description'}\n  → `{entry.manifest_path}`"
 
 
-def _render_main(entries: list[IndexEntry], has_extended: bool) -> str:
+def _render_main(entries: list[IndexEntry], *, has_extended: bool) -> str:
     lines: list[str] = [_HEADER, "", _TITLE, ""]
     sections: dict[str, list[str]] = {"rule": [], "hook": [], "skill": []}
 
@@ -71,7 +71,7 @@ def _render_extended(entries: list[IndexEntry]) -> str:
     ]
     for entry in entries:
         if entry.artifact == "rule":
-            lines.extend(_rule_lines(entry) + [""])
+            lines.extend([*_rule_lines(entry), ""])
         elif entry.artifact == "hook":
             lines.append(_gate_line(entry) + "\n")
         else:
@@ -99,7 +99,7 @@ def render_index(entries: Iterable[IndexEntry], max_tokens: int) -> IndexOutput:
     while True:
         main = [e for e in sorted_entries if e.id not in demoted]
         has_extended = bool(demoted)
-        text = _render_main(main, has_extended)
+        text = _render_main(main, has_extended=has_extended)
         tokens = _token_estimate(text)
         if tokens <= max_tokens:
             break
@@ -114,7 +114,7 @@ def render_index(entries: Iterable[IndexEntry], max_tokens: int) -> IndexOutput:
             break
 
     main = [e for e in sorted_entries if e.id not in demoted]
-    main_text = _render_main(main, bool(demoted))
+    main_text = _render_main(main, has_extended=bool(demoted))
     main_tokens = _token_estimate(main_text)
 
     extended_text: str | None = None

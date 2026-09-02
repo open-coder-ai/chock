@@ -11,12 +11,15 @@ from typing import Any, NoReturn
 import yaml
 
 from chock.compile.levels import Grade, render_grade
+from chock.compile.surfaces import AGENTS_ARG_REQUIRED_MSG
 from chock.config import agents_from_config as _agents_from_config
 from chock.config import load_config, policy_status, set_disabled
+from chock.index.cli import cmd_refresh
 from chock.manifest import ManifestSourceError, load_manifest
+from chock.output import error, warn
 from chock.policies import discover_policy_dirs
 from chock.scaffold.adapters import parse_agent_selection
-from chock.scaffold.recompile import BookkeepingError, recompile
+from chock.scaffold.recompile import BookkeepingError, compiled_differences, recompile
 
 
 def _cell(value: Any) -> str:
@@ -35,13 +38,13 @@ def _load_manifest(pack_dir: Path) -> dict[str, Any]:
     try:
         result = load_manifest(pack_dir, warnings=warnings)
     except (yaml.YAMLError, OSError, ManifestSourceError) as exc:
-        print(f"[ERROR] {pack_dir / 'manifest.yaml'}: manifest_parse: {exc}", file=sys.stderr)
+        error(f"{pack_dir / 'manifest.yaml'}: manifest_parse: {exc}")
         return {}
     if result is None:
         return {}
     data, _ = result
     for warning in warnings:
-        print(f"[WARN] {pack_dir}: manifest_default: {warning}", file=sys.stderr)
+        warn(f"{pack_dir}: manifest_default: {warning}")
     return data
 
 
@@ -81,13 +84,12 @@ def disable_main(argv: list[str] | None) -> int:
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 2
-    set_disabled(repo_root, args.policy_id, True)
+    set_disabled(repo_root, args.policy_id, disabled=True)
     try:
         recompile(repo_root, agents)
     except BookkeepingError as exc:
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        error(str(exc))
         return 1
-    from chock.index.cli import cmd_refresh
 
     cmd_refresh(["--repo", str(repo_root)])
     print(f"Disabled {args.policy_id}")
@@ -110,13 +112,12 @@ def enable_main(argv: list[str] | None) -> int:
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 2
-    set_disabled(repo_root, args.policy_id, False)
+    set_disabled(repo_root, args.policy_id, disabled=False)
     try:
         recompile(repo_root, agents)
     except BookkeepingError as exc:
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        error(str(exc))
         return 1
-    from chock.index.cli import cmd_refresh
 
     cmd_refresh(["--repo", str(repo_root)])
     print(f"Enabled {args.policy_id}")
@@ -158,9 +159,9 @@ def policies_main(argv: list[str] | None) -> int:
 
     headers = ("id", "state", "coverage", "mandatory")
     widths = [max(len(h), *(len(r[i]) for r in rows)) for i, h in enumerate(headers)]
-    print("  ".join(h.ljust(w) for h, w in zip(headers, widths)).rstrip())
+    print("  ".join(h.ljust(w) for h, w in zip(headers, widths, strict=True)).rstrip())
     for row in rows:
-        print("  ".join(cell.ljust(w) for cell, w in zip(row, widths)).rstrip())
+        print("  ".join(cell.ljust(w) for cell, w in zip(row, widths, strict=True)).rstrip())
     return 0
 
 
@@ -193,11 +194,9 @@ def recompile_main(argv: list[str] | None) -> int:
         except ValueError as exc:
             _parser_fail(parser, str(exc))
         if not agents:
-            _parser_fail(parser, "--agents requires at least one agent name")
+            _parser_fail(parser, AGENTS_ARG_REQUIRED_MSG)
 
     if args.check:
-        from chock.scaffold.recompile import compiled_differences
-
         drift = compiled_differences(repo_root, agents)
         if drift:
             print(f"Compiled artifacts are out of date ({len(drift)} difference(s)):")
@@ -211,7 +210,7 @@ def recompile_main(argv: list[str] | None) -> int:
     try:
         coverage = recompile(repo_root, agents, skip_hooks=args.skip_hooks)
     except BookkeepingError as exc:
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        error(str(exc))
         return 1
     print(f"Recompiled {len(coverage)} policies")
     for policy_id, cov in sorted(coverage.items()):

@@ -15,6 +15,7 @@ from chock.resources import package_data_dir
 from chock.validation.report import Finding, Report
 
 SCHEMA_DIR = package_data_dir("chock.validation", "schemas")
+MANIFEST_SCHEMA = "manifest.schema.json"
 
 BUDGETS = {
     "skill_md_lines": 150,
@@ -47,14 +48,15 @@ SCHEMA_STORE = _build_schema_store()
 def load_schema(name: str) -> dict[str, Any]:
     path = SCHEMA_DIR / name
     if not path.exists():
-        raise FileNotFoundError(f"Schema not found: {path}")
+        msg = f"Schema not found: {path}"
+        raise FileNotFoundError(msg)
     with path.open("r", encoding="utf-8") as f:
         if name.endswith(".json"):
             return json.load(f)
         return yaml.safe_load(f)
 
 
-ARTIFACT_TYPES: frozenset[str] = frozenset(load_schema("manifest.schema.json")["properties"]["artifact"]["enum"])
+ARTIFACT_TYPES: frozenset[str] = frozenset(load_schema(MANIFEST_SCHEMA)["properties"]["artifact"]["enum"])
 
 
 def _registry() -> Registry:

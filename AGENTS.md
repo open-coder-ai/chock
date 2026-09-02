@@ -86,6 +86,15 @@ externalized_text: {
   coverage: [package_data_test, frozen_binary_spec],
   exceptions: {error_messages: beside_condition, behaviour: code}
 }
+static_analysis: {
+  bar: sonar_checkstyle_findbugs_via_ruff,
+  select: [C90, N, PLR, PLW, PLC, ERA, T20, ARG, RET, SIM, PIE, FBT, A, B, S, BLE, TRY, RUF],
+  thresholds: {complexity: 10, max_args: 5, max_branches: 12, max_returns: 6, max_statements: 50},
+  magic_values: {remedy: constant_or_data, duplication_check: tools/check_literal_duplication.py},
+  booleans: keyword_only_not_positional,
+  per_file_ignores: {require: reason, escape_hatch: "TODO(lint-adoption)" + enumerate_in_report},
+  never: blanket_fix
+}
 progressive_disclosure: {SKILL.md: activation_surface, depth: references/, inline: false}
 budgets: {SKILL.md: <=150, description: <=500, references: <=300, ambient_rule: <=2}
 validation: {pre_change: chock check, touched: [validate, eval]}

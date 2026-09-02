@@ -51,14 +51,14 @@ _COPILOT_ENFORCED_NOTE = (
 
 def _hook_command(script: str) -> str:
     """One interpreter invocation, guarded so an unresolved plugin root ALLOWS."""
-    assert PLUGIN_ROOT.startswith("${") and PLUGIN_ROOT.endswith("}"), PLUGIN_ROOT
+    assert PLUGIN_ROOT.startswith("${") and PLUGIN_ROOT.endswith("}"), PLUGIN_ROOT  # noqa: S101 -- build-time constant, not request input
     root = f"{PLUGIN_ROOT[:-1]}:-}}"
     adapter = f'"$r/{_SCRIPTS_TEMPLATE.format(name="vscode_copilot.py")}"'
     guard = f'"$r/{_SCRIPTS_TEMPLATE.format(name=script)}"'
     return f'r="{root}"; [ -n "$r" ] && [ -f {adapter} ] || exit 0; exec python3 {adapter} --guard {guard}'
 
 
-def build_copilot_manifest(manifest: dict[str, Any], policy_dir: Path, enforced: bool) -> dict[str, Any]:
+def build_copilot_manifest(manifest: dict[str, Any], policy_dir: Path, *, enforced: bool) -> dict[str, Any]:
     """Derive the root `plugin.json` from a policy manifest."""
     data = build_manifest(manifest, policy_dir)
     posture = POSTURE_ENFORCED_COPILOT if enforced else POSTURE_ADVISORY

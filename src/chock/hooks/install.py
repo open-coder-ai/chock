@@ -4,11 +4,12 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
-import sys
 from pathlib import Path
 
-from chock.hooks.installers import (  # noqa: F401
+from chock.hooks.in_agent_install import WIRED_VENDORS, install_hooks, install_label
+from chock.hooks.installers import (
     DISPATCHER_TEMPLATE,
     GENERATED_MARKER,
     INTERPRETER_PLACEHOLDER,
@@ -23,6 +24,9 @@ from chock.hooks.installers import (  # noqa: F401
     is_git_repo,
     relocate_existing_hook,
 )
+from chock.hooks.sessionstart_install import install_sessionstart_hook
+from chock.output import error, warn
+from chock.scaffold.recompile import refresh_after_install
 
 __all__ = [
     "DISPATCHER_TEMPLATE",
@@ -49,13 +53,14 @@ def main(argv=None) -> int:
     if args.repo_root:
         repo_root = Path(args.repo_root).resolve()
     else:
+        git = shutil.which("git") or "git"
         repo_root = Path(
-            subprocess.check_output(
-                ["git", "rev-parse", "--show-toplevel"], text=True, encoding="utf-8", errors="replace"
+            subprocess.check_output(  # noqa: S603 -- finding the repo root via git is this branch's job
+                [git, "rev-parse", "--show-toplevel"], text=True, encoding="utf-8", errors="replace"
             ).strip()
         )
     if not is_git_repo(repo_root):
-        print(f"[ERROR] {NOT_A_GIT_REPO.format(root=repo_root)}", file=sys.stderr)
+        error(NOT_A_GIT_REPO.format(root=repo_root))
         return 1
 
     hooks_dir = get_hooks_dir(repo_root)
@@ -64,30 +69,24 @@ def main(argv=None) -> int:
     install_validate_hook(hooks_dir, repo_root)
     install_policy_hooks(repo_root, hooks_dir)
 
-    from chock.hooks.in_agent_install import WIRED_VENDORS, install_hooks, install_label
-
     wired = False
     for vendor in WIRED_VENDORS:
         try:
             installed = install_hooks(repo_root, vendor)
         except ValueError as exc:
-            print(f"[WARN] {exc}", file=sys.stderr)
+            warn(str(exc))
         else:
             if installed:
                 print(f"Registered {len(installed)} {install_label(vendor)}")
                 wired = True
     if wired:
-        from chock.scaffold.recompile import refresh_after_install
-
         refresh_after_install(repo_root)
-
-    from chock.hooks.sessionstart_install import install_sessionstart_hook
 
     try:
         if install_sessionstart_hook(repo_root):
             print("Registered SessionStart arm hook in .claude/settings.json")
     except ValueError as exc:
-        print(f"[WARN] {exc}", file=sys.stderr)
+        warn(str(exc))
     return 0
 
 

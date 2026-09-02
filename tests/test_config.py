@@ -67,7 +67,7 @@ def test_set_disabled_round_trips_without_clobbering_defaults(tmp_path: Path) ->
         encoding="utf-8",
     )
 
-    set_disabled(tmp_path, "block-no-verify", True)
+    set_disabled(tmp_path, "block-no-verify", disabled=True)
 
     after = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     assert after["policies"]["disabled"] == ["block-no-verify"]
@@ -83,7 +83,7 @@ def test_set_disabled_can_enable(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    set_disabled(tmp_path, "block-no-verify", False)
+    set_disabled(tmp_path, "block-no-verify", disabled=False)
 
     after = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     assert after["policies"]["disabled"] == []

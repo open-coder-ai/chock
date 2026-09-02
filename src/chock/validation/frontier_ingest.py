@@ -8,10 +8,14 @@ import datetime
 import json
 import re
 import sys
+import urllib.request
 from pathlib import Path
 from typing import Any
 
 STANDARDS_DIR = Path(__file__).parent / "frontier_standards"
+
+#: Agent Skills feature name for shell-command-in-frontmatter dynamic expansion.
+_DYNAMIC_CONTEXT_INJECTION = "dynamic_context_injection"
 
 SEEDS: dict[str, dict[str, Any]] = {
     "agentskills": {
@@ -55,9 +59,9 @@ SEEDS: dict[str, dict[str, Any]] = {
         "features": [
             "invocation_control",
             "subagent_execution",
-            "dynamic_context_injection",
+            _DYNAMIC_CONTEXT_INJECTION,
         ],
-        "dynamic_context_injection": {
+        _DYNAMIC_CONTEXT_INJECTION: {
             "syntax": "!`command`",
             "allowed": True,
         },
@@ -72,11 +76,9 @@ def fetch_url(url: str) -> str:
         print(f"WARN: refusing non-https fetch: {url}", file=sys.stderr)
         return ""
     try:
-        import urllib.request
-
-        with urllib.request.urlopen(url, timeout=30) as response:  # nosec B310 -- https enforced above
+        with urllib.request.urlopen(url, timeout=30) as response:  # noqa: S310 -- https:// enforced above
             return response.read().decode("utf-8")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 -- best-effort fetch, by contract: never raise, always return a string
         print(f"WARN: could not fetch {url}: {exc}", file=sys.stderr)
         return ""
 
@@ -165,7 +167,7 @@ def parse_claude_code(text: str) -> dict[str, Any]:
         }
 
     if "!`" in text:
-        data["dynamic_context_injection"] = {
+        data[_DYNAMIC_CONTEXT_INJECTION] = {
             "syntax": "!`command`",
             "allowed": True,
         }
@@ -184,7 +186,7 @@ def _merge_into_seed(seed: dict[str, Any], fetched: dict[str, Any]) -> dict[str,
     return merged
 
 
-def ingest(agent: str, use_network: bool = True) -> dict[str, Any]:
+def ingest(agent: str, *, use_network: bool = True) -> dict[str, Any]:
     seed = SEEDS.get(agent, {})
     source = seed.get("source", "")
     if use_network and source:

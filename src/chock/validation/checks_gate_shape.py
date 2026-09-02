@@ -9,16 +9,18 @@ from chock.gate.schema import GATEWAY_ONLY_KINDS, KIND_PARAM_SCHEMAS
 from chock.validation.loading import schema_validator
 from chock.validation.report import Finding, Report
 
+_CATEGORY = "manifest_gate_params"
+
 
 def _validate_gate(gate: dict[str, Any], gate_ref: str, report: Report, *, tool_use_allowed: bool = False) -> None:
     """Validate a gate spec: kind is known and params match the kind schema."""
     kind = gate.get("kind")
     if not kind:
-        report.add(Finding(gate_ref, "manifest_gate_params", "error", "gate is missing 'kind'"))
+        report.add(Finding(gate_ref, _CATEGORY, "error", "gate is missing 'kind'"))
         return
 
     if kind not in KINDS and kind not in GATEWAY_ONLY_KINDS:
-        report.add(Finding(gate_ref, "manifest_gate_params", "error", f"unknown gate kind: {kind!r}"))
+        report.add(Finding(gate_ref, _CATEGORY, "error", f"unknown gate kind: {kind!r}"))
         return
 
     events = gate.get("on") or []
@@ -26,7 +28,7 @@ def _validate_gate(gate: dict[str, Any], gate_ref: str, report: Report, *, tool_
         report.add(
             Finding(
                 gate_ref,
-                "manifest_gate_params",
+                _CATEGORY,
                 "error",
                 f"{kind} has no commit/push runtime; it binds only at tool_use (mcp-gateway)",
             )
@@ -36,7 +38,7 @@ def _validate_gate(gate: dict[str, Any], gate_ref: str, report: Report, *, tool_
         report.add(
             Finding(
                 gate_ref,
-                "manifest_gate_params",
+                _CATEGORY,
                 "error",
                 "tool_use is only allowed in hook.gate, not in gate.yaml",
             )
@@ -51,7 +53,7 @@ def _validate_gate(gate: dict[str, Any], gate_ref: str, report: Report, *, tool_
             report.add(
                 Finding(
                     f"{gate_ref} (params)",
-                    "manifest_gate_params",
+                    _CATEGORY,
                     "error",
                     f"{exc.message} at {path_str}",
                 )

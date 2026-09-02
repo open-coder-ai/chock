@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 
-from chock.manifest import CANONICAL_MANIFEST
+from chock.manifest import CANONICAL_MANIFEST, CONTENT_INSTRUCTIONS_KEY
 from chock.validation.loading import (
     find_manifest,
 )
@@ -53,7 +53,7 @@ def _split_eval_suite(path: Path) -> tuple[str, list[str]] | None:
     return yaml.safe_dump(remainder_doc, sort_keys=False), case_texts
 
 
-def _scan_text_surfaces(artifact_dir: Path, manifest: dict[str, Any], artifact_type: str, report: Report) -> None:
+def _scan_text_surfaces(artifact_dir: Path, _manifest: dict[str, Any], _artifact_type: str, report: Report) -> None:
     """Scan every text surface in the artifact folder for prompt-injection tripwires (SEC-4)."""
     text_suffixes = {".md", ".yaml", ".yml", ".txt"}
     for path in artifact_dir.rglob("*"):
@@ -95,7 +95,7 @@ def check_security_baseline(artifact_dir: Path, manifest: dict[str, Any], artifa
     manifest_ref = str(manifest_path or artifact_dir / CANONICAL_MANIFEST)
 
     security = manifest.get("security", {})
-    if security.get("content_instructions") != "never-obey":
+    if security.get(CONTENT_INSTRUCTIONS_KEY) != "never-obey":
         report.add(
             Finding(manifest_ref, "security", "error", "security.content_instructions must be 'never-obey' (SEC-1).")
         )

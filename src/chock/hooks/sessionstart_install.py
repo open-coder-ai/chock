@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 from agentseam import contract as _contract
@@ -17,6 +16,7 @@ from chock.hooks.in_agent_install import (
     _normalize_fragment,
 )
 from chock.hooks.runtime_vendor import runtime_rel, vendor_runtime
+from chock.output import warn
 
 SETTINGS_REL = Path(vendors.config_path("claude_code"))
 ARM_EVENT = vendors.wire_event("claude_code", _contract.SESSION_START)
@@ -57,7 +57,8 @@ def install_sessionstart_hook(repo_root: Path) -> bool:
             if isinstance(loaded, dict):
                 settings = loaded
         except (json.JSONDecodeError, OSError):
-            raise ValueError(f"{settings_path} is not readable JSON; leaving it untouched") from None
+            msg = f"{settings_path} is not readable JSON; leaving it untouched"
+            raise ValueError(msg) from None
 
     hooks = settings.setdefault("hooks", {}) if isinstance(settings.get("hooks", {}), dict) else {}
     settings["hooks"] = hooks
@@ -76,7 +77,7 @@ def install_sessionstart_hook(repo_root: Path) -> bool:
 
     vendor_adapter(repo_root)
 
-    desired = kept + [install_form]
+    desired = [*kept, install_form]
     if isinstance(existing, list) and desired == existing:
         return False
     hooks[ARM_EVENT] = desired
@@ -90,7 +91,7 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - thin CLI s
     try:
         changed = install_sessionstart_hook(root)
     except ValueError as exc:
-        print(f"[WARN] {exc}", file=sys.stderr)
+        warn(str(exc))
         return 1
     print("SessionStart arm hook " + ("installed" if changed else "already current"))
     return 0

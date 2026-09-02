@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,7 @@ from chock.gate.build import build_gate_json
 
 _VALUE_CHARS = 48
 _PARAMS_CHARS = 120
+_GIT = shutil.which("git") or "git"
 
 _PLACEHOLDER = re.compile(r"\{(\w+)\}")
 
@@ -22,7 +24,10 @@ def repo_root_from_output(output_dir: Path) -> Path:
         if parent.name == ".chock" and parent.is_dir():
             return parent.parent
     try:
-        return Path(subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip())
+        out = subprocess.check_output(  # noqa: S603 -- finding the repo root via git is this fallback's job
+            [_GIT, "rev-parse", "--show-toplevel"], text=True
+        )
+        return Path(out.strip())
     except (subprocess.CalledProcessError, FileNotFoundError):
         return Path.cwd()
 

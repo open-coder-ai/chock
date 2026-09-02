@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
+
+import yaml
+
+from chock.compile.surfaces import Surface
+from chock.config import agents_from_config, load_config, policy_status
+from chock.output import warn
+from chock.policies import discover_policy_dirs
 
 
 def compile_one_dropin(
@@ -14,12 +20,6 @@ def compile_one_dropin(
     repo_root: Path | None = None,
 ) -> bool:
     """Compile a single drop-in policy's git-hook output. Returns True if it compiled."""
-    import yaml
-
-    from chock.compile.compiler import compile_policy
-    from chock.compile.surfaces import Surface
-    from chock.config import policy_status
-
     mf_path = pack_dir / "manifest.yaml"
     if not mf_path.exists():
         return False
@@ -40,6 +40,10 @@ def compile_one_dropin(
     if expected.is_dir() and any(expected.iterdir()):
         return False
 
+    # Tests patch chock.compile.compiler.compile_policy directly (test_engine_scan.py,
+    # test_agent_selection.py), which only takes effect on a fresh per-call lookup.
+    from chock.compile.compiler import compile_policy  # noqa: PLC0415
+
     compile_policy(
         pack_dir,
         targets=[Surface.GIT_HOOK.value],
@@ -54,14 +58,11 @@ def compile_one_dropin(
 def auto_compile(repo_root: Path) -> None:
     """Compile any policy that has a hook gate but no compiled git-hook output yet."""
     try:
-        from chock.config import agents_from_config, load_config
-        from chock.policies import discover_policy_dirs
-
         config = load_config(repo_root)
         agents = agents_from_config(repo_root)
         pack_dirs = discover_policy_dirs(repo_root)
     except Exception as exc:  # noqa: BLE001
-        print(f"[WARN] auto-compile could not enumerate policies: {exc}", file=sys.stderr)
+        warn(f"auto-compile could not enumerate policies: {exc}")
         return
 
     compiled_root = repo_root / ".chock" / "compiled"
@@ -69,7 +70,4 @@ def auto_compile(repo_root: Path) -> None:
         try:
             compile_one_dropin(pack_dir, config, compiled_root, agents=agents, repo_root=repo_root)
         except Exception as exc:  # noqa: BLE001
-            print(
-                f"[WARN] skipped policy '{pack_dir.name}': {exc}. Other policies still compiled.",
-                file=sys.stderr,
-            )
+            warn(f"skipped policy '{pack_dir.name}': {exc}. Other policies still compiled.")

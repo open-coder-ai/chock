@@ -20,7 +20,7 @@ import atheris
 
 with atheris.instrument_imports():
     from chock.compile.surfaces import parse_agent_selection
-    from chock.policy_id import InvalidPolicyId, validate_policy_id
+    from chock.policy_id import InvalidPolicyIdError, validate_policy_id
 
 SAFE = set(string.ascii_lowercase + string.digits + "-")
 VOCAB = {"alpha": 0, "beta": 0, "gamma": 0}
@@ -32,7 +32,7 @@ def one_input(data: bytes) -> None:
 
     try:
         validate_policy_id(candidate, candidate)
-    except InvalidPolicyId:
+    except InvalidPolicyIdError:
         pass
     else:
         # Acceptance implies shell/path safety -- the project's core id invariant.

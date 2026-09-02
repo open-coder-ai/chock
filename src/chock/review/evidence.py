@@ -2,16 +2,21 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import io
 import json
+import shutil
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from chock.cli import main as cli_main
 from chock.config import load_config
 
 SCHEMA_URL = "https://open-coder-ai.github.io/chock/schemas/v0/reviewer-evidence-v1.json"
+_GIT = shutil.which("git") or "git"
 
 EMPTY_DIFF_SHA = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
@@ -32,9 +37,12 @@ class EvidenceError(RuntimeError):
 
 
 def _git(root: Path, *args: str) -> str:
-    proc = subprocess.run(["git", *args], cwd=root, capture_output=True, encoding="utf-8", errors="replace")
+    proc = subprocess.run(  # noqa: S603 -- reading repo facts via git is this helper's job
+        [_GIT, *args], cwd=root, capture_output=True, encoding="utf-8", errors="replace", check=False
+    )
     if proc.returncode != 0:
-        raise EvidenceError(f"git {' '.join(args)} failed: {proc.stderr.strip()}")
+        msg = f"git {' '.join(args)} failed: {proc.stderr.strip()}"
+        raise EvidenceError(msg)
     return proc.stdout
 
 
@@ -75,16 +83,13 @@ def check_registry(root: Path) -> dict[str, list[str]]:
 
 def run_check(root: Path, argv: list[str]) -> tuple[str, str]:
     """Run one registry entry. Returns (pass|fail, first line of output)."""
-    from chock.cli import main as cli_main
-
     resolved = [a.replace("{root}", str(root)) for a in argv]
     if resolved and resolved[0] == "python":
-        proc = subprocess.run(resolved, cwd=root, capture_output=True, encoding="utf-8", errors="replace")
+        proc = subprocess.run(  # noqa: S603 -- running a repo-registered review check is this function's job
+            resolved, cwd=root, capture_output=True, encoding="utf-8", errors="replace", check=False
+        )
         code, out = proc.returncode, (proc.stdout or proc.stderr)
     else:
-        import contextlib
-        import io
-
         buffer = io.StringIO()
         with contextlib.redirect_stdout(buffer), contextlib.redirect_stderr(buffer):
             try:
@@ -101,7 +106,7 @@ def working_tree_is_dirty(root: Path) -> bool:
 
 
 def build(
-    root: Path, base_ref: str, produced_by: dict[str, str], checks: list[str], allow_empty: bool = False
+    root: Path, base_ref: str, produced_by: dict[str, str], checks: list[str], *, allow_empty: bool = False
 ) -> dict[str, Any]:
     """Run every named check and record the result. Attestations are added by a reviewer."""
     if not allow_empty and diff_sha(root, base_ref) == EMPTY_DIFF_SHA:
@@ -110,15 +115,17 @@ def build(
             if working_tree_is_dirty(root)
             else f"HEAD is identical to {base_ref}"
         )
-        raise EvidenceError(
+        msg = (
             f"nothing to attest: the diff against {base_ref} is empty ({hint}). "
             f"Pass --allow-empty to record evidence for an empty change anyway."
         )
+        raise EvidenceError(msg)
 
     registry = check_registry(root)
     unknown = [c for c in checks if c not in registry]
     if unknown:
-        raise EvidenceError(f"unknown check(s): {', '.join(sorted(unknown))}. Known: {', '.join(sorted(registry))}")
+        msg = f"unknown check(s): {', '.join(sorted(unknown))}. Known: {', '.join(sorted(registry))}"
+        raise EvidenceError(msg)
 
     verified = []
     for name in checks:
@@ -183,4 +190,5 @@ def load(path: Path) -> dict[str, Any]:
     try:
         return json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise EvidenceError(f"cannot read evidence at {path}: {exc}") from exc
+        msg = f"cannot read evidence at {path}: {exc}"
+        raise EvidenceError(msg) from exc

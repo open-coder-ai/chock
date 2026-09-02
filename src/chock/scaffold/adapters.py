@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 
 from agentseam import instructions as agentseam_instructions
@@ -56,10 +57,8 @@ def remove_instructions(repo_root: Path, deselected: list[str]) -> dict[str, str
         if path.exists() and not path.read_text(encoding="utf-8").strip():
             path.unlink()
             parent = path.parent
-            try:
+            with contextlib.suppress(OSError):
                 parent.rmdir()
-            except OSError:
-                pass
     if "aider" in deselected:
         conf = Path(repo_root) / _AIDER_CONF_REL
         if conf.exists() and conf.read_text(encoding="utf-8") == packaged_template(_AIDER_CONF_REL):

@@ -7,12 +7,11 @@ from types import SimpleNamespace
 from typing import Any
 
 from chock import vendors
+from chock.compile.emitters import DATA_DIR
 from chock.emit import write_generated_json
-from chock.resources import package_data_dir
 
-_DATA_DIR = package_data_dir("chock.compile.emitters", "data")
-_BASH_TEMPLATE = _DATA_DIR.joinpath("agent_hook_bash.sh").read_text(encoding="utf-8").rstrip("\n")
-_POWERSHELL_TEMPLATE = _DATA_DIR.joinpath("agent_hook_powershell.ps1").read_text(encoding="utf-8").rstrip("\n")
+_BASH_TEMPLATE = DATA_DIR.joinpath("agent_hook_bash.sh").read_text(encoding="utf-8").rstrip("\n")
+_POWERSHELL_TEMPLATE = DATA_DIR.joinpath("agent_hook_powershell.ps1").read_text(encoding="utf-8").rstrip("\n")
 
 GUARD_SCRIPTS = {
     "block-destructive-commands": "block-destructive.sh",
@@ -38,11 +37,11 @@ TIMEOUT_SECONDS = 30
 #: plugin hooks borrow this matcher exactly as the hand-written emitters did
 #: (tests/test_vendor_wire_facts.py trips when upstream closes the gap).
 MATCHER = vendors.shell_matcher("claude_code")
-assert MATCHER is not None
+assert MATCHER is not None  # noqa: S101 -- import-time upstream-data invariant, not request handling
 
 #: Wire token Claude Code substitutes for the repo root; agentseam 0.2.0's vendor-config
 #: schema carries no repo-root-token field yet, so the fact still lives here.
-PROJECT_DIR_TOKEN = "${CLAUDE_PROJECT_DIR}"
+PROJECT_DIR_TOKEN = "${CLAUDE_PROJECT_DIR}"  # noqa: S105 -- a shell variable reference, not a credential
 
 # Witnessed overrides: chock's agent-hooks file speaks `preToolUse` with bash/powershell/
 # timeoutSec entry keys (live deny, data/witnesses.json: vscode_copilot x agent-hooks);

@@ -50,7 +50,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     results = [run_deterministic(policy, repo_root) for policy in policies]
-    print(render_json(results) if args.json else render_text(results, args.verbose))
+    print(render_json(results) if args.json else render_text(results, verbose=args.verbose))
     return 1 if any(r.blocking for r in results) else 0
 
 

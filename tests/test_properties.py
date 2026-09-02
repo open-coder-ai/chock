@@ -9,7 +9,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from chock.compile.surfaces import parse_agent_selection
-from chock.policy_id import POLICY_ID_RE, InvalidPolicyId, validate_policy_id
+from chock.policy_id import POLICY_ID_RE, InvalidPolicyIdError, validate_policy_id
 
 SAFE_CHARS = set(string.ascii_lowercase + string.digits + "-")
 
@@ -31,7 +31,7 @@ def test_validator_agrees_with_the_published_pattern(candidate: str) -> None:
     if POLICY_ID_RE.fullmatch(candidate):
         validate_policy_id(candidate, candidate)
     else:
-        with pytest.raises(InvalidPolicyId):
+        with pytest.raises(InvalidPolicyIdError):
             validate_policy_id(candidate, candidate)
 
 
@@ -39,7 +39,7 @@ def test_validator_agrees_with_the_published_pattern(candidate: str) -> None:
 def test_one_hot_byte_anywhere_is_rejected(policy_id: str, hot: str) -> None:
     for pos in (0, len(policy_id) // 2, len(policy_id)):
         poisoned = policy_id[:pos] + hot + policy_id[pos:]
-        with pytest.raises(InvalidPolicyId):
+        with pytest.raises(InvalidPolicyIdError):
             validate_policy_id(poisoned, poisoned)
 
 
@@ -48,7 +48,7 @@ def test_id_must_equal_folder(policy_id: str, folder: str) -> None:
     if policy_id == folder:
         validate_policy_id(policy_id, folder)
     else:
-        with pytest.raises(InvalidPolicyId):
+        with pytest.raises(InvalidPolicyIdError):
             validate_policy_id(policy_id, folder)
 
 

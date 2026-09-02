@@ -7,6 +7,7 @@ import io
 import json
 import os
 import shlex
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -23,10 +24,14 @@ BLOCK = "block"
 ALLOW = "allow"
 ERROR = "error"
 
+#: gate_runner.run()'s process-exit convention: 0 allow, 1 block, 2 spec error.
+_GATE_EXIT_SPEC_ERROR = 2
+_GIT = shutil.which("git") or "git"
+
 
 def _git(repo: Path, *args: str, stdin: str | None = None) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        ["git", *args],
+    return subprocess.run(  # noqa: S603 -- fixture harness: replays a case's own git commands
+        [_GIT, *args],
         cwd=str(repo),
         capture_output=True,
         text=True,
@@ -100,7 +105,7 @@ def _run_gate(repo: Path, gate_spec: dict[str, Any], spec: dict[str, Any]) -> tu
             os.environ[GATE_LOG_ENV] = prior_log
     reason = " ".join(captured.getvalue().split())
 
-    if code == 2:
+    if code == _GATE_EXIT_SPEC_ERROR:
         return ERROR, f"gate reported a spec error: {reason}".strip()
     return (BLOCK if code == 1 else ALLOW), reason or f"gate exit {code}"
 
@@ -117,7 +122,7 @@ def _run_guard(repo: Path, guard: Path, command: str) -> tuple[str, str]:
 
     try:
         env = {**os.environ, "CHOCK_RAW_COMMAND": command}
-        proc = subprocess.run(
+        proc = subprocess.run(  # noqa: S603 -- running the guard under test is the point of this harness
             [bash, str(guard), *args],
             cwd=str(repo),
             capture_output=True,

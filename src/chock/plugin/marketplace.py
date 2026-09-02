@@ -112,11 +112,16 @@ CATALOG_PAGE = "PLUGINS.md"
 CATALOG_DOCS = "https://github.com/open-coder-ai/chock-catalog/blob/main/docs"
 
 
+#: Summaries longer than this are truncated (at _SUMMARY_TRUNCATE_AT) with an ellipsis.
+_SUMMARY_MAX_LEN = 99
+_SUMMARY_TRUNCATE_AT = 96
+
+
 def _summary(description: str) -> str:
     """First sentence of the description, with the bracketed posture note stripped."""
-    text = description.split("[")[0].strip()
+    text = description.split("[", maxsplit=1)[0].strip()
     first = text.split(". ")[0].strip().rstrip(".")
-    return (first[:96].rstrip() + "...") if len(first) > 99 else first
+    return (first[:_SUMMARY_TRUNCATE_AT].rstrip() + "...") if len(first) > _SUMMARY_MAX_LEN else first
 
 
 def render_catalog_page(dist_root: Path, tree: str = CLAUDE_TREE) -> str:

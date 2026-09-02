@@ -8,6 +8,9 @@ from chock.compile.levels import IN_AGENT_TODAY, Grade, _matrix_can_block, in_ag
 from chock.hooks.in_agent_install import AGENT_HOOKS_VENDORS
 from chock.vendors import CHOCK_AGENT
 
+#: Shared by every CLI subcommand that takes a required, non-empty `--agents` option.
+AGENTS_ARG_REQUIRED_MSG = "--agents requires at least one agent name"
+
 
 class Surface(str, Enum):
     AMBIENT_RULE = "ambient-rule"
@@ -31,10 +34,11 @@ SURFACE_AGENTS["claude"].add(Surface.MANAGED_SETTING)
 
 for _agent in IN_AGENT_TODAY:
     if not _matrix_can_block(_agent):  # pragma: no cover - membership already derives from can_block
-        raise AssertionError(
+        _msg = (
             f"agentseam's matrix no longer confirms {_agent!r} can block a pre-tool call; "
             "in-agent membership must be re-derived, not silently kept"
         )
+        raise AssertionError(_msg)
     _surface = Surface.AGENT_HOOKS if CHOCK_AGENT[_agent] in AGENT_HOOKS_VENDORS else Surface.PRE_TOOL_USE
     SURFACE_AGENTS[_agent].add(_surface)
 del _agent, _surface
@@ -55,7 +59,7 @@ def coverage_cell(
     supported = SURFACE_AGENTS.get(agent, set())
     active = emitted & supported if supported else set()
     if not active:
-        return Grade("none", None, False)
+        return Grade("none", None, witnessed=False)
 
     for installed, surface in (
         (pre_tool_use_installed, Surface.PRE_TOOL_USE),
@@ -67,10 +71,10 @@ def coverage_cell(
     if ci_gate_installed:
         commit_time |= active & INSTALLED_SURFACES & {Surface.CI_GATE}
     if commit_time:
-        return Grade("enforced-at-commit", None, False)
+        return Grade("enforced-at-commit", None, witnessed=False)
     if Surface.AMBIENT_RULE in active & INSTALLED_SURFACES:
-        return Grade("advisory", None, False)
-    return Grade("none", None, False)
+        return Grade("advisory", None, witnessed=False)
+    return Grade("none", None, witnessed=False)
 
 
 def coverage_level(
@@ -96,11 +100,12 @@ def parse_agent_selection(groups: list[str], valid: dict[str, object] | None = N
     valid = SURFACE_AGENTS if valid is None else valid
     agents: list[str] = []
     for group in groups:
-        for name in group.split(","):
-            name = name.strip()
+        for raw_name in group.split(","):
+            name = raw_name.strip()
             if name and name not in agents:
                 agents.append(name)
     unknown = [a for a in agents if a not in valid]
     if unknown:
-        raise ValueError(f"unknown agent(s): {', '.join(unknown)} -- valid: {', '.join(sorted(valid))}")
+        msg = f"unknown agent(s): {', '.join(unknown)} -- valid: {', '.join(sorted(valid))}"
+        raise ValueError(msg)
     return agents

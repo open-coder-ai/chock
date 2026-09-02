@@ -242,7 +242,8 @@ def install_hooks(repo_root: Path, vendor: str) -> list[str]:
         return install_generic(repo_root, vendor)
     if vendor == _OWNED_FILE_VENDOR:
         return _install_agent_hooks(repo_root)
-    raise ValueError(f"no in-agent wiring for vendor {vendor!r}; wired: {WIRED_VENDORS}")
+    msg = f"no in-agent wiring for vendor {vendor!r}; wired: {WIRED_VENDORS}"
+    raise ValueError(msg)
 
 
 def _installed_agent_hooks_entries(repo_root: Path) -> list[dict]:
@@ -265,8 +266,6 @@ def installed_policy_ids(repo_root: Path, vendor: str) -> set[str]:
         return installed_generic_ids(repo_root, vendor)
     if vendor == _OWNED_FILE_VENDOR:
         installed = _installed_agent_hooks_entries(repo_root)
-        if not installed:
-            return set()
         return {pid for pid, entry in _compiled_agent_hooks(repo_root).items() if entry in installed}
 
     wiring = _MERGED[vendor]

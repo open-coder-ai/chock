@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import shlex
 import subprocess
@@ -47,10 +48,11 @@ def find_bash(guard: Path) -> str | None:
     """First interpreter that can actually see `guard`, or None."""
     for candidate in _BASH_CANDIDATES:
         try:
-            proc = subprocess.run(
+            proc = subprocess.run(  # noqa: S603 -- probing candidate shells is this function's job
                 [candidate, "-c", f'test -f "{guard.as_posix()}"'],
                 capture_output=True,
                 timeout=10,
+                check=False,
             )
         except (OSError, subprocess.SubprocessError):
             continue
@@ -76,7 +78,7 @@ def run_guard(guard: Path, command: str) -> str:
 
     try:
         env = {**os.environ, "CHOCK_RAW_COMMAND": command}
-        proc = subprocess.run(
+        proc = subprocess.run(  # noqa: S603 -- running the guard script against the command is the feature
             [bash, str(guard), *args],
             capture_output=True,
             text=True,
@@ -84,6 +86,7 @@ def run_guard(guard: Path, command: str) -> str:
             errors="replace",
             env=env,
             timeout=_GUARD_TIMEOUT_SECONDS,
+            check=False,
         )
     except subprocess.TimeoutExpired:
         print(
@@ -111,7 +114,7 @@ def run_guard(guard: Path, command: str) -> str:
     return GUARD_CLEAN
 
 
-def log_outcome(guard: Path, tool: str, blocked: bool) -> None:
+def log_outcome(guard: Path, tool: str, *, blocked: bool) -> None:
     """Append one outcome record. Best effort: never raises, never changes the verdict."""
     try:
         if os.environ.get(GATE_LOG_ENV) == "0":
@@ -131,8 +134,6 @@ def log_outcome(guard: Path, tool: str, blocked: bool) -> None:
         log_path = log_dir / "gate-events.jsonl"
         if log_path.exists() and log_path.stat().st_size > _LOG_MAX_BYTES:
             log_path.replace(log_dir / "gate-events.1.jsonl")
-        import json
-
         record = {
             "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "policy_id": guard.parent.parent.name,
@@ -144,7 +145,7 @@ def log_outcome(guard: Path, tool: str, blocked: bool) -> None:
         }
         with log_path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(record, ensure_ascii=False) + "\n")
-    except Exception:
+    except Exception:  # noqa: BLE001 -- best effort logging: never raises, never changes the verdict
         return
 
 
@@ -155,7 +156,7 @@ def evaluate(argv: list[str], command: str, tool: str = "") -> tuple[str, str] |
         return None
     verdict = run_guard(guard, command)
     if verdict in (GUARD_BLOCKED, GUARD_CLEAN):
-        log_outcome(guard, tool, verdict == GUARD_BLOCKED)
+        log_outcome(guard, tool, blocked=verdict == GUARD_BLOCKED)
     if verdict == GUARD_BLOCKED:
         return (VERDICT_DENY, f"Blocked by chock policy: {guard.stem}")
     if verdict == GUARD_ERRORED:
