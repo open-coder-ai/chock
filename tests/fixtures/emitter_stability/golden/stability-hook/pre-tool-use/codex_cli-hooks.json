@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "@CHOCK_PYTHON@ \".chock/bin/codex_cli.py\" --guard \"tests/fixtures/emitter_stability/policies/stability-hook/implementations/stability-hook.sh\"",
+            "commandWindows": "& @CHOCK_PYTHON@ \".chock/bin/codex_cli.py\" --guard \"tests/fixtures/emitter_stability/policies/stability-hook/implementations/stability-hook.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}

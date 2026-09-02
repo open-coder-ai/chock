@@ -112,7 +112,14 @@ def test_the_fail_to_ask_lift_needs_a_tested_claim(monkeypatch) -> None:
     fail_open = [a for a in sorted(SURFACE_AGENTS) if in_agent_level(a) == "best-effort"]
     assert fail_open, "no fail-open agent left to test the lift on"
 
-    for agent in fail_open:
+    liftable = [
+        a
+        for a in fail_open
+        if evidence.honours_ask(MATRIX_AGENT[a])
+        and level_rank(cap_for(weakest_basis(resting_bases(MATRIX_AGENT[a])))) >= level_rank("fail-to-ask")
+    ]
+    assert liftable, "no agent with both a tested claim and lift-admitting evidence left"
+    for agent in liftable:
         assert in_agent_level(agent, degrades_to=DEGRADES_TO_ASK) == "fail-to-ask"
 
     monkeypatch.setattr(evidence, "honours_ask", lambda agent, table=None: False)

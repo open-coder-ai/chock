@@ -30,5 +30,53 @@
     "honours": false,
     "evidence": "tested",
     "test": "tests/test_guard_fail_to_ask.py::test_a_crashed_guard_asks_rather_than_allowing"
+  },
+  {
+    "agent": "antigravity",
+    "claim": "honours_ask",
+    "verdict": "ask",
+    "honours": true,
+    "evidence": "tested",
+    "test": "tests/test_guard_fail_to_ask.py::test_a_crashed_guard_asks_rather_than_allowing"
+  },
+  {
+    "agent": "devin",
+    "claim": "honours_ask",
+    "verdict": "block",
+    "honours": false,
+    "evidence": "tested",
+    "test": "tests/test_guard_fail_to_ask.py::test_a_crashed_guard_asks_rather_than_allowing"
+  },
+  {
+    "agent": "gemini_cli",
+    "claim": "honours_ask",
+    "verdict": "ask",
+    "honours": true,
+    "evidence": "tested",
+    "test": "tests/test_guard_fail_to_ask.py::test_a_crashed_guard_asks_rather_than_allowing"
+  },
+  {
+    "agent": "grok",
+    "claim": "honours_ask",
+    "verdict": "deny",
+    "honours": false,
+    "evidence": "tested",
+    "test": "tests/test_guard_fail_to_ask.py::test_a_crashed_guard_asks_rather_than_allowing"
+  },
+  {
+    "agent": "tabnine",
+    "claim": "honours_ask",
+    "verdict": "deny",
+    "honours": false,
+    "evidence": "tested",
+    "test": "tests/test_guard_fail_to_ask.py::test_a_crashed_guard_asks_rather_than_allowing"
+  },
+  {
+    "agent": "windsurf",
+    "claim": "honours_ask",
+    "verdict": "exit-2",
+    "honours": false,
+    "evidence": "tested",
+    "test": "tests/test_guard_fail_to_ask.py::test_a_crashed_guard_asks_rather_than_allowing"
   }
 ]

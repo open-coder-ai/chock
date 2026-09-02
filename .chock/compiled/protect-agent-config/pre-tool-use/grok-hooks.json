@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "@CHOCK_PYTHON@ \".chock/bin/grok.py\" --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}

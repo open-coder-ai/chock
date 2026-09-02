@@ -96,3 +96,34 @@ def test_cursor_fail_closed_stays_unset_pending_the_owner_decision() -> None:
     rendered = adapters.get("cursor").hook_config(("pre_tool",), "CMD", fail_closed=None)
     (entry,) = rendered["hooks"]["preToolUse"]
     assert "failClosed" not in entry
+
+
+def test_home_level_config_vendors_stay_out_only_for_their_recorded_facts() -> None:
+    """junie/kimi_code block per the matrix but are excluded from the in-agent set for one
+
+    reason each chock can read upstream: a home-anchored config path (both), a TOML config
+    (kimi_code). The day upstream records a repo-level JSON config, membership widens by
+    derivation alone -- extend wiring, goldens and docs then, not this exclusion.
+    """
+    from chock.vendors import in_agent_vendors, repo_wirable
+
+    assert str(VENDOR_CONFIG["junie"]["config_path"]).startswith("~")
+    assert str(VENDOR_CONFIG["kimi_code"]["config_path"]).startswith("~")
+    assert VENDOR_CONFIG["kimi_code"]["config_format"] == "toml"
+    for vendor in ("junie", "kimi_code"):
+        assert not repo_wirable(vendor)
+        assert vendor not in in_agent_vendors()
+
+
+def test_the_derived_vendor_set_is_the_predicate_recomputed() -> None:
+    """Design test (a) at the vendor level: membership is can_block x repo-wirable, recomputed."""
+    from agentseam import contract as _contract
+    from agentseam import matrix as _matrix
+
+    from chock.vendors import in_agent_vendors, repo_wirable
+
+    recomputed = {
+        vendor for vendor in VENDOR_CONFIG if _matrix.can_block(vendor, _contract.PRE_TOOL) and repo_wirable(vendor)
+    }
+    assert set(in_agent_vendors()) == recomputed
+    assert "junie" in VENDOR_CONFIG and "kimi_code" in VENDOR_CONFIG

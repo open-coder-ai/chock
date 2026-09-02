@@ -1,0 +1,12 @@
+{
+  "PreToolUse": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "@CHOCK_PYTHON@ \".chock/bin/devin.py\" --guard \".agents/policies/block-no-verify/implementations/block-no-verify.sh\""
+        }
+      ]
+    }
+  ]
+}

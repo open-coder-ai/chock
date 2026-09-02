@@ -186,22 +186,22 @@ guarantee holds. Read the full [architecture overview](docs/architecture.md).
 | **Cursor** | ✅ | ✅ | ✅ | ✅ | — |
 | Copilot | ✅ | ✅ | ✅ | — | ✅ |
 | VS Code | ✅ | ✅ | ✅ | — | ✅ |
-| Codex | ✅ | ✅ | ✅ | — | — |
-| Gemini | ✅ | ✅ | ✅ | — | — |
-| Windsurf | ✅ | ✅ | ✅ | — | — |
-| Devin | ✅ | ✅ | ✅ | — | — |
+| Codex | ✅ | ✅ | ✅ | ✅ | — |
+| Gemini | ✅ | ✅ | ✅ | ✅ | — |
+| Windsurf | ✅ | ✅ | ✅ | ✅ | — |
+| Devin | ✅ | ✅ | ✅ | ✅ | — |
 | Aider | ✅ | ✅ | ✅ | — | — |
-| Grok | ✅ | ✅ | ✅ | — | — |
+| Grok | ✅ | ✅ | ✅ | ✅ | — |
+| Junie | ✅ | ✅ | ✅ | — | — |
 | Kimi Code | ✅ | ✅ | ✅ | — | — |
 | Replit | ✅ | ✅ | ✅ | — | — |
-| Tabnine | ✅ | ✅ | ✅ | — | — |
-| Antigravity CLI | ✅ | ✅ | ✅ | — | — |
+| Tabnine | ✅ | ✅ | ✅ | ✅ | — |
+| Antigravity CLI | ✅ | ✅ | ✅ | ✅ | — |
 
-A checkmark is support, not installation: coverage credits `ci-gate` only once
-`chock sync --ci` has written the workflow. Three of the eight surfaces are absent because
-they credit no agent today — `managed-setting` is compiled but not installed, `gateway` is
-modelled but not yet emitted, and `mcp-gateway` credits nothing until its per-client witness
-ships. [Enforcement surfaces](docs/enforcement-surfaces.md) carries all eight with their
+A checkmark is support, not installation: coverage credits `ci-gate` only once `chock
+sync --ci` has written the workflow. Three of the eight surfaces are absent because they
+credit no agent today — `managed-setting` is compiled but not installed, `gateway` is
+modelled but not yet emitted, and `mcp-gateway` credits nothing until its per-client witness ships. [Enforcement surfaces](docs/enforcement-surfaces.md) carries all eight with their
 caveats and the coverage level each can earn.
 
 ## ✍️ Author your own policy

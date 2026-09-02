@@ -66,6 +66,25 @@ def _adapter_rel(vendor: str) -> str:
     return f".chock/bin/{vendor}.py"
 
 
+#: Vendors wired through hand-shaped fragments that predate the derivation (claude/cursor
+#: entry shapes, the witnessed agent-hooks override). Everyone else the membership
+#: predicate admits renders through agentseam's own hook_config -- no per-vendor emitter.
+BESPOKE_VENDORS = ("claude_code", "cursor", "vscode_copilot")
+
+GENERIC_VENDORS = tuple(v for v in vendors.in_agent_vendors() if v not in BESPOKE_VENDORS)
+
+
+def generic_hooks_file(vendor: str, command: str) -> dict[str, Any]:
+    """`vendor`'s full hook-config document for one guard command, agentseam's rendering.
+
+    Paths inside `command` are repo-relative: no repo-root token is recorded upstream for
+    these vendors (the `${CLAUDE_PROJECT_DIR}` gap), so the entry resolves only where the
+    vendor runs hooks from the repo root -- the same condition under which the relative
+    adapter path resolves at all.
+    """
+    return vendors.pre_tool_hook_config(vendor, command, matcher=vendors.shell_matcher(vendor))
+
+
 def hook_entry(command: str, *, matcher: str | None = None) -> dict[str, Any]:
     """One hooks-map entry (agentseam's `hooks_map` wrapper shape) plus chock's timeout."""
     entry: dict[str, Any] = {}
@@ -113,6 +132,11 @@ def emit_pre_tool_use(policy_dir: Path, output_dir: Path, manifest: dict[str, An
         command = f'@CHOCK_PYTHON@ "{adapter}" --guard "{guard}"'
         dest = output_dir / name
         write_generated_json(dest, build(command))
+        written.append(dest)
+    for vendor in GENERIC_VENDORS:
+        command = f'@CHOCK_PYTHON@ "{_adapter_rel(vendor)}" --guard "{rel}/implementations/{script}"'
+        dest = output_dir / f"{vendor}-hooks.json"
+        write_generated_json(dest, generic_hooks_file(vendor, command))
         written.append(dest)
     return written
 

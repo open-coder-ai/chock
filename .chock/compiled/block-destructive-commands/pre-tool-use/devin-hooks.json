@@ -1,0 +1,12 @@
+{
+  "PreToolUse": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "@CHOCK_PYTHON@ \".chock/bin/devin.py\" --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\""
+        }
+      ]
+    }
+  ]
+}

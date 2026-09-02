@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "BeforeTool": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "@CHOCK_PYTHON@ \".chock/bin/tabnine.py\" --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\"",
+            "name": "agentseam"
+          }
+        ]
+      }
+    ]
+  }
+}

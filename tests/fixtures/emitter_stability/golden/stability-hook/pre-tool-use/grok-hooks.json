@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "@CHOCK_PYTHON@ \".chock/bin/grok.py\" --guard \"tests/fixtures/emitter_stability/policies/stability-hook/implementations/stability-hook.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}

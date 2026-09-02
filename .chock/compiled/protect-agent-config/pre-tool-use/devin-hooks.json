@@ -1,0 +1,12 @@
+{
+  "PreToolUse": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "@CHOCK_PYTHON@ \".chock/bin/devin.py\" --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\""
+        }
+      ]
+    }
+  ]
+}

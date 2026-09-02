@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "pre_run_command": [
+      {
+        "command": "@CHOCK_PYTHON@ \".chock/bin/windsurf.py\" --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\""
+      }
+    ],
+    "pre_mcp_tool_use": [
+      {
+        "command": "@CHOCK_PYTHON@ \".chock/bin/windsurf.py\" --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\""
+      }
+    ]
+  }
+}

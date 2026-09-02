@@ -7,6 +7,8 @@ import inspect
 
 from agentseam import bundler
 
+from chock.vendors import in_agent_vendors
+
 from . import guard_runner, sessionstart
 
 BEGIN = "# >>> agentseam handler >>>"
@@ -14,7 +16,7 @@ END = "# <<< agentseam handler <<<"
 
 _SESSION_START_AGENTS = frozenset({"claude_code"})
 
-RUNTIME_AGENTS = ("claude_code", "codex_cli", "cursor", "vscode_copilot")
+RUNTIME_AGENTS = in_agent_vendors()
 
 _IMPORTS = """\
 import os as _chock_os
