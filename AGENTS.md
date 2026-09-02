@@ -78,6 +78,14 @@ code_comments: {
   keep: [noqa, pragma, "type:", "fmt:", "ruff:", shebang, adopter_template_markers],
   target: prose_to_code <=0.15, enforcement: advisory
 }
+externalized_text: {
+  applies_to: [emitted_artifacts(non_python), vendor_facts],
+  location: data_or_template_files(read_by_code), never: python_string_literals,
+  placeholders: {token: __TOKEN__, swap: str.replace, never: format_or_fstring},
+  lint: own_language(actionlint|shellcheck|ruff),
+  coverage_tested: [package_data, frozen_binary_spec],
+  stays_in_code: [error_messages, behaviour]
+}
 progressive_disclosure: {SKILL.md: activation_surface, depth: references/, inline: false}
 budgets: {SKILL.md: <=150, description: <=500, references: <=300, ambient_rule: <=2}
 validation: {pre_change: chock check, touched: [validate, eval]}

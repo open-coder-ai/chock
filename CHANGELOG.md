@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- **Emitted-artifact templates move out of Python source into package data, and the CLI
+  command table becomes data.** Every template for an emitted artifact written in another
+  language -- the CI gate step (YAML), the git-hook shim and the hook installer's
+  dispatcher/wrappers (shell), the in-agent guard one-liners (shell + PowerShell), the
+  scaffold workflow, `.gitattributes`, guardrail and AGENTS.md pointer blocks, the
+  skills-bridge marker, and the runtime-bundle handler sources (`.py.tmpl`) -- now lives
+  under `src/chock/data/templates/`, loaded via `importlib.resources`
+  (`chock.resources.template_text`/`render_template`). Placeholders are inert `__TOKEN__`
+  markers swapped by `str.replace`, so each file is valid in its own language as-is and CI
+  lints it as such (new `template-lint` job: shellcheck for shell, actionlint for the
+  complete workflow template; the step fragment and the Python/YAML templates are pinned
+  by `tests/test_template_data.py`, which also asserts every template is rendered and
+  every token round-trips). The CLI's command table moves to `src/chock/data/commands.json`
+  (name -> module/fn/help/alias_of), read by `chock.cli`, which keeps its lazy-import
+  dispatch; `chock --help` is frozen byte-for-byte by `tests/fixtures/cli_help.txt`. The
+  template tree is covered by package-data (pinned in `tests/test_wheel_install.py`) and
+  by the PyInstaller spec's `collect_data_files("chock")` (the binary smoke now proves a
+  frozen template read). Emitted bytes are unchanged: emitter goldens, runtime goldens and
+  a full-artifact before/after diff (sync + plugin build + marketplace build, 490 files)
+  are byte-identical.
+
 - **In-agent membership derives from agentseam's capability matrix, and the surface
   extends to seven new vendors** (design C3, `docs/design/derive-from-vendor-config.md`).
   `IN_AGENT_TODAY`, `SURFACE_AGENTS`, `RUNTIME_AGENTS` and `VENDORED_RUNTIMES` stop being
