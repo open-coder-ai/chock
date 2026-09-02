@@ -219,6 +219,10 @@ max-statements = 50
 "src/chock/hooks/ownership.py" = ["T201"]
 "src/chock/hooks/sessionstart_install.py" = ["T201"]
 "src/chock/index/cli.py" = ["T201"]
+# The `# codeql[...]` alert-suppression comments above each print() read as commented-out
+# code to ERA001; CodeQL's own suppression syntax cannot carry a trailing noqa on the same
+# line (breaks its AlertSuppression matcher), so the ignore is file-scoped instead.
+"src/chock/output.py" = ["T201", "ERA001"]
 "src/chock/plugin/cli.py" = ["T201", "C901", "PLR0911", "PLR0912", "PLR0915"]
 "src/chock/plugin/marketplace.py" = ["T201"]
 "src/chock/registry/cli.py" = ["T201"]
