@@ -89,7 +89,7 @@ def check_token_budgets(artifact_dir: Path, manifest: dict[str, Any], artifact_t
 
 
 def check_progressive_disclosure(
-    artifact_dir: Path, manifest: dict[str, Any], artifact_type: str, report: Report
+    artifact_dir: Path, _manifest: dict[str, Any], artifact_type: str, report: Report
 ) -> None:
     """Body stays lean; depth lives in references/ loaded on demand."""
     if artifact_type != "skill":
@@ -143,7 +143,7 @@ def check_progressive_disclosure(
                 )
 
 
-def check_yagni(artifact_dir: Path, manifest: dict[str, Any], artifact_type: str, report: Report) -> None:
+def check_yagni(artifact_dir: Path, _manifest: dict[str, Any], _artifact_type: str, report: Report) -> None:
     """Detect over-bloating: empty folders, unused templates, duplicated content."""
     for sub in artifact_dir.iterdir():
         if sub.is_dir() and not any(sub.iterdir()):

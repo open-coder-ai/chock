@@ -16,7 +16,7 @@ BINDS = {
 }
 
 
-def emit(policy_dir: Path, output_dir: Path, manifest: dict[str, Any]) -> list[Path]:
+def emit(_policy_dir: Path, output_dir: Path, manifest: dict[str, Any]) -> list[Path]:
     """Emit gateway-gate.json when the policy's gate kind has a gateway runtime."""
     gate = (manifest.get("hook") or {}).get("gate") or {}
     kind = gate.get("kind")

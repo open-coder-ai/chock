@@ -142,7 +142,7 @@ def compute_script_hashes(artifact_dir: Path, manifest: dict[str, Any]) -> dict[
     return hashes
 
 
-def extract_dependencies(data: dict[str, Any], artifact: str) -> list[str]:
+def extract_dependencies(data: dict[str, Any], _artifact: str) -> list[str]:
     deps: list[str] = []
     deps_data = data.get("dependencies", {})
     for dep in deps_data.get("skills", []):

@@ -57,7 +57,7 @@ def compute_artifacts_hash(repo_root: Path, policy_id: str) -> str | None:
     return compute_pack_hash(compiled_dir)
 
 
-def build_lock(repo_root: Path, source_root: Path | None = None) -> dict[str, Any]:
+def build_lock(repo_root: Path) -> dict[str, Any]:
     """Build a lockfile from the policies installed in a repo."""
     lock: dict[str, Any] = {
         "lockfile_version": LOCKFILE_VERSION,

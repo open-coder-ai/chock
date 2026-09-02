@@ -167,7 +167,7 @@ def _check_manifest_workflow_uses(artifact_dir: Path, manifest: dict[str, Any], 
             )
 
 
-def check_manifest_schema(artifact_dir, manifest: dict[str, Any], artifact_type: str, report: Report) -> None:
+def check_manifest_schema(artifact_dir, manifest: dict[str, Any], _artifact_type: str, report: Report) -> None:
     """Validate structural manifest invariants that are errors."""
     artifact_dir = Path(artifact_dir)
     _check_manifest_id_folder(artifact_dir, manifest, report)

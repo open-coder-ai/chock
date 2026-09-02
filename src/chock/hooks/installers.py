@@ -115,7 +115,7 @@ def _render_hook(source: Path, dest: Path) -> None:
     write_generated(dest, rendered)
 
 
-def install_validate_hook(hooks_dir: Path, repo_root: Path) -> None:
+def install_validate_hook(hooks_dir: Path, _repo_root: Path) -> None:
     """Install the Chock validate hook into pre-commit.d/."""
     impl_dir = hooks_dir / "pre-commit.d"
     impl_dir.mkdir(parents=True, exist_ok=True)

@@ -118,7 +118,7 @@ _EVALUATORS = {
 RUNTIME_KINDS = tuple(sorted(_EVALUATORS))
 
 
-def evaluate(gates: list[dict[str, Any]], tool_name: str, arguments: Any) -> str | None:
+def evaluate(gates: list[dict[str, Any]], _tool_name: str, arguments: Any) -> str | None:
     """First blocking message across all gates, or None to allow."""
     for spec in gates:
         kind = spec.get("kind")

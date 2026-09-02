@@ -208,7 +208,7 @@ def check_composition_contract(
             )
 
 
-def check_lifecycle_guards(artifact_dir: Path, manifest: dict[str, Any], artifact_type: str, report: Report) -> None:
+def check_lifecycle_guards(artifact_dir: Path, manifest: dict[str, Any], _artifact_type: str, report: Report) -> None:
     """Check spec §8 lifecycle transition guards."""
     lifecycle = manifest.get("lifecycle", {})
     status = lifecycle.get("status", "draft")
@@ -257,7 +257,7 @@ def check_lifecycle_guards(artifact_dir: Path, manifest: dict[str, Any], artifac
             )
 
 
-def check_trust_tier(artifact_dir: Path, manifest: dict[str, Any], artifact_type: str, report: Report) -> None:
+def check_trust_tier(artifact_dir: Path, manifest: dict[str, Any], _artifact_type: str, report: Report) -> None:
     """Check spec §9 trust tier rules."""
     provenance = manifest.get("provenance", {})
     lifecycle = manifest.get("lifecycle", {})

@@ -97,7 +97,7 @@ class GateContext:
         return refs
 
 
-def _kind_content_regex(ctx: GateContext, params: dict, event: str) -> GateResult:
+def _kind_content_regex(ctx: GateContext, params: dict, _event: str) -> GateResult:
     content_re = re.compile(params["content_pattern"])
     forbidden_path_regex = params.get("forbidden_path_regex")
     path_re = re.compile(forbidden_path_regex) if forbidden_path_regex else None
@@ -212,7 +212,7 @@ def _extract(path: str, text: str) -> set[str]:
         return set()
 
 
-def _kind_dependency_allowlist(ctx: GateContext, params: dict, event: str) -> GateResult:
+def _kind_dependency_allowlist(ctx: GateContext, params: dict, _event: str) -> GateResult:
     watched = set(params.get("manifests", []))
     allow: set[str] = set()
     allow_path = ctx.repo_root / params["allowlist_file"]

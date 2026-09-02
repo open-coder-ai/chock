@@ -53,7 +53,7 @@ def _split_eval_suite(path: Path) -> tuple[str, list[str]] | None:
     return yaml.safe_dump(remainder_doc, sort_keys=False), case_texts
 
 
-def _scan_text_surfaces(artifact_dir: Path, manifest: dict[str, Any], artifact_type: str, report: Report) -> None:
+def _scan_text_surfaces(artifact_dir: Path, _manifest: dict[str, Any], _artifact_type: str, report: Report) -> None:
     """Scan every text surface in the artifact folder for prompt-injection tripwires (SEC-4)."""
     text_suffixes = {".md", ".yaml", ".yml", ".txt"}
     for path in artifact_dir.rglob("*"):
