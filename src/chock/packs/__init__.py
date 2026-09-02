@@ -24,4 +24,4 @@ def to_path(traversable: Traversable) -> Path:
     return Path(str(traversable))
 
 
-__all__ = ["packs_root", "to_path", "Traversable"]
+__all__ = ["Traversable", "packs_root", "to_path"]

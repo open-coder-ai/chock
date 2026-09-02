@@ -14,7 +14,7 @@ VENDORED_RUNTIMES = {
 
 def _expected_bytes(kind: str, source) -> bytes | None:
     if kind == "static":
-        import importlib.resources as resources
+        from importlib import resources
 
         package, source_name = source
         try:

@@ -20,7 +20,7 @@ FilesFn = Callable[[Path, dict[str, Any], Path], dict[Path, str]]
 #: this one constant, borrowed from the two agents where agentseam does record it, instead
 #: of repeating the literal.
 SCRIPTS_TEMPLATE = packaging.supports("claude_code", packaging.EXECUTABLE)
-assert SCRIPTS_TEMPLATE == packaging.supports("copilot", packaging.EXECUTABLE)
+assert packaging.supports("copilot", packaging.EXECUTABLE) == SCRIPTS_TEMPLATE
 
 
 def owned_subtrees(store: str) -> tuple[str, ...]:

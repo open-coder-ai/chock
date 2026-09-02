@@ -1,8 +1,8 @@
 """Facade: single import surface for this activity package."""
 
-import yaml  # noqa: F401  (re-exported for callers/tests)
+import yaml
 
-from chock.registry.cli import (  # noqa: F401
+from chock.registry.cli import (
     cmd_get,
     cmd_init,
     cmd_list,
@@ -10,7 +10,7 @@ from chock.registry.cli import (  # noqa: F401
     cmd_scan,
     main,
 )
-from chock.registry.core import (  # noqa: F401
+from chock.registry.core import (
     REGISTRY_DIR,
     REGISTRY_FILE,
     REGISTRY_FORMAT_VERSION,

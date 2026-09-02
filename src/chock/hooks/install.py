@@ -8,7 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from chock.hooks.installers import (  # noqa: F401
+from chock.hooks.installers import (
     DISPATCHER_TEMPLATE,
     GENERATED_MARKER,
     INTERPRETER_PLACEHOLDER,

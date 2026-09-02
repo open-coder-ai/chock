@@ -114,7 +114,7 @@ CATALOG_DOCS = "https://github.com/open-coder-ai/chock-catalog/blob/main/docs"
 
 def _summary(description: str) -> str:
     """First sentence of the description, with the bracketed posture note stripped."""
-    text = description.split("[")[0].strip()
+    text = description.split("[", maxsplit=1)[0].strip()
     first = text.split(". ")[0].strip().rstrip(".")
     return (first[:96].rstrip() + "...") if len(first) > 99 else first
 

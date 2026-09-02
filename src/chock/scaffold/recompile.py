@@ -92,19 +92,19 @@ def _refresh_bookkeeping(repo_root: Path) -> None:
     try:
         entries, _skips = scan(repo_root)
         save_registry(entries, repo_root)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"[WARN] registry scan failed: {exc}. Run `chock registry scan`.", file=sys.stderr)
 
     try:
         cmd_refresh(["--repo", str(repo_root)])
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"[WARN] index refresh failed: {exc}. Run `chock sync`.", file=sys.stderr)
 
     try:
         from chock.lock import build_lock, write_lock
 
         write_lock(build_lock(repo_root), repo_root)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise BookkeepingError(
             f"chock.lock was not updated ({exc}). The compiled artifacts are in place, but the "
             "lockfile still attests the previous ones -- `chock check --only verify` will fail "
@@ -118,7 +118,7 @@ def refresh_after_install(repo_root: Path) -> None:
         from chock.config import agents_from_config
 
         recompile(repo_root, agents_from_config(repo_root), skip_hooks=True)
-    except Exception as exc:  # noqa: BLE001 - never fail an install over bookkeeping
+    except Exception as exc:
         print(f"[WARN] coverage not refreshed: {exc}. Run `chock sync --repo .`", file=sys.stderr)
 
 
