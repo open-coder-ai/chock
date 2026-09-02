@@ -57,7 +57,8 @@ def install_sessionstart_hook(repo_root: Path) -> bool:
             if isinstance(loaded, dict):
                 settings = loaded
         except (json.JSONDecodeError, OSError):
-            raise ValueError(f"{settings_path} is not readable JSON; leaving it untouched") from None
+            msg = f"{settings_path} is not readable JSON; leaving it untouched"
+            raise ValueError(msg) from None
 
     hooks = settings.setdefault("hooks", {}) if isinstance(settings.get("hooks", {}), dict) else {}
     settings["hooks"] = hooks

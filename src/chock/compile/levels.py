@@ -57,10 +57,11 @@ def level_rank(level: str) -> int:
     try:
         return IN_AGENT_LEVELS.index(level)
     except ValueError:
-        raise ValueError(
+        msg = (
             f"{level!r} has no rank on the in-agent ladder {IN_AGENT_LEVELS}; "
             f"{UNRANKED_LEVELS} describe different mechanisms and are deliberately unranked"
-        ) from None
+        )
+        raise ValueError(msg) from None
 
 
 BASIS_CAP = {
@@ -86,10 +87,11 @@ def cap_for(basis: str) -> str:
     try:
         return BASIS_CAP[basis]
     except KeyError:
-        raise ValueError(
+        msg = (
             f"no cap recorded for basis {basis!r}; a new evidence kind must be given a ceiling "
             f"before a grade may rest on it, not default to the strongest word"
-        ) from None
+        )
+        raise ValueError(msg) from None
 
 
 def weakest_basis(bases: Iterable[str]) -> str | None:
@@ -119,7 +121,8 @@ def resting_bases(mapped: str) -> tuple[str, ...]:
 def in_agent_level(agent: str, *, degrades_to: str = CONTROL_DEGRADES_TO) -> str:
     """The honest word for an INSTALLED in-agent pre-execution control on `agent`."""
     if degrades_to not in DEGRADATION_MODES:
-        raise ValueError(f"unknown degradation mode {degrades_to!r}; expected one of {DEGRADATION_MODES}")
+        msg = f"unknown degradation mode {degrades_to!r}; expected one of {DEGRADATION_MODES}"
+        raise ValueError(msg)
     mapped = _mapped_vendor(agent)
     if not mapped:
         return "none"

@@ -14,9 +14,11 @@ class InvalidPolicyIdError(ValueError):
 def validate_policy_id(policy_id: str, folder_name: str) -> None:
     """Raise InvalidPolicyIdError unless `policy_id` is schema-valid and equals its folder name."""
     if not isinstance(policy_id, str) or not POLICY_ID_RE.fullmatch(policy_id):
-        raise InvalidPolicyIdError(
+        msg = (
             f"policy id {policy_id!r} is not a valid identifier (must match {POLICY_ID_RE.pattern}); "
             "refusing to use it as a filesystem path or command token"
         )
+        raise InvalidPolicyIdError(msg)
     if policy_id != folder_name:
-        raise InvalidPolicyIdError(f"policy id {policy_id!r} does not match its folder name {folder_name!r}")
+        msg = f"policy id {policy_id!r} does not match its folder name {folder_name!r}"
+        raise InvalidPolicyIdError(msg)

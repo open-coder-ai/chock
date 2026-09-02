@@ -26,7 +26,8 @@ def load_config(path: Path) -> dict:
             if isinstance(loaded, dict):
                 settings = loaded
         except (json.JSONDecodeError, OSError):
-            raise ValueError(f"{path} is not readable JSON; leaving it untouched") from None
+            msg = f"{path} is not readable JSON; leaving it untouched"
+            raise ValueError(msg) from None
     return settings
 
 

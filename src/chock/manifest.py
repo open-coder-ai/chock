@@ -79,7 +79,8 @@ def _project_skill_frontmatter(
     ac = _chock_metadata(frontmatter)
 
     if "description" not in frontmatter or frontmatter["description"] is None:
-        raise ManifestSourceError("description is a required frontmatter field")
+        msg = "description is a required frontmatter field"
+        raise ManifestSourceError(msg)
 
     data: dict[str, Any] = {}
 
@@ -227,7 +228,8 @@ def load_manifest(
     has_manifest = (artifact_dir / CANONICAL_MANIFEST).exists()
     has_skill = (artifact_dir / SKILL_MD).exists()
     if has_manifest and has_skill:
-        raise ManifestSourceError(f"both {CANONICAL_MANIFEST} and {SKILL_MD} are present; remove one")
+        msg = f"both {CANONICAL_MANIFEST} and {SKILL_MD} are present; remove one"
+        raise ManifestSourceError(msg)
 
     data = load_manifest_file(path, warnings)
     interface = _load_interface(artifact_dir, warnings)

@@ -23,13 +23,16 @@ def _render_template(filename: str, **values: str) -> str:
     try:
         template = path.read_text(encoding="utf-8")
     except OSError as exc:
-        raise TemplateError(f"Unable to read template '{path}': {exc.strerror or exc}") from exc
+        msg = f"Unable to read template '{path}': {exc.strerror or exc}"
+        raise TemplateError(msg) from exc
     if not template.strip():
-        raise TemplateError(f"Template '{path}' is empty")
+        msg = f"Template '{path}' is empty"
+        raise TemplateError(msg)
     try:
         return template.format(**values)
     except (KeyError, ValueError, IndexError) as exc:
-        raise TemplateError(f"Malformed template '{path}': {exc}") from exc
+        msg = f"Malformed template '{path}': {exc}"
+        raise TemplateError(msg) from exc
 
 
 def _new_policy(id_: str, root: Path) -> None:

@@ -29,10 +29,11 @@ def agents_from_config(repo_root: Path) -> list[str]:
         return sorted(SURFACE_AGENTS)
     unknown = [a for a in configured if a not in SURFACE_AGENTS]
     if unknown:
-        raise ValueError(
+        msg = (
             f".chock/config.yaml supported_agents: unknown agent(s): {', '.join(unknown)}"
             f" -- valid: {', '.join(sorted(SURFACE_AGENTS))}"
         )
+        raise ValueError(msg)
     deduped: list[str] = []
     for name in configured:
         if name not in deduped:

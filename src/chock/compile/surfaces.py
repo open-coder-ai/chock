@@ -34,10 +34,11 @@ SURFACE_AGENTS["claude"].add(Surface.MANAGED_SETTING)
 
 for _agent in IN_AGENT_TODAY:
     if not _matrix_can_block(_agent):  # pragma: no cover - membership already derives from can_block
-        raise AssertionError(
+        _msg = (
             f"agentseam's matrix no longer confirms {_agent!r} can block a pre-tool call; "
             "in-agent membership must be re-derived, not silently kept"
         )
+        raise AssertionError(_msg)
     _surface = Surface.AGENT_HOOKS if CHOCK_AGENT[_agent] in AGENT_HOOKS_VENDORS else Surface.PRE_TOOL_USE
     SURFACE_AGENTS[_agent].add(_surface)
 del _agent, _surface
@@ -105,5 +106,6 @@ def parse_agent_selection(groups: list[str], valid: dict[str, object] | None = N
                 agents.append(name)
     unknown = [a for a in agents if a not in valid]
     if unknown:
-        raise ValueError(f"unknown agent(s): {', '.join(unknown)} -- valid: {', '.join(sorted(valid))}")
+        msg = f"unknown agent(s): {', '.join(unknown)} -- valid: {', '.join(sorted(valid))}"
+        raise ValueError(msg)
     return agents

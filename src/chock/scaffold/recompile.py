@@ -105,11 +105,12 @@ def _refresh_bookkeeping(repo_root: Path) -> None:
 
         write_lock(build_lock(repo_root), repo_root)
     except Exception as exc:
-        raise BookkeepingError(
+        msg = (
             f"chock.lock was not updated ({exc}). The compiled artifacts are in place, but the "
             "lockfile still attests the previous ones -- `chock check --only verify` will fail "
             "until a `chock sync --repo .` succeeds."
-        ) from exc
+        )
+        raise BookkeepingError(msg) from exc
 
 
 def refresh_after_install(repo_root: Path) -> None:

@@ -44,7 +44,8 @@ def fetch_catalog(source: str, ref: str | None, into: Path) -> tuple[Path, str |
     args += [source, str(into)]
     result = _run(args)
     if result.returncode != 0:
-        raise RuntimeError(f"could not fetch catalog {source}:\n{result.stderr.strip()}")
+        msg = f"could not fetch catalog {source}:\n{result.stderr.strip()}"
+        raise RuntimeError(msg)
 
     resolved = _run(["git", "rev-parse", "HEAD"], cwd=into)
     return into, (resolved.stdout.strip() or None) if resolved.returncode == 0 else None
@@ -53,7 +54,8 @@ def fetch_catalog(source: str, ref: str | None, into: Path) -> tuple[Path, str |
 def _reject_unsafe_id(artifact_id: str) -> None:
     """Refuse an artifact id that is anything but a single path component."""
     if artifact_id in ("", ".", "..") or "/" in artifact_id or "\\" in artifact_id or Path(artifact_id).is_absolute():
-        raise ValueError(f"invalid artifact id {artifact_id!r}: expected a single name, not a path")
+        msg = f"invalid artifact id {artifact_id!r}: expected a single name, not a path"
+        raise ValueError(msg)
 
 
 def locate(catalog_root: Path, artifact_id: str) -> tuple[Path, Path]:
@@ -81,7 +83,8 @@ def locate(catalog_root: Path, artifact_id: str) -> tuple[Path, Path]:
             return candidate, dest
 
     searched = ", ".join(f"{a}/" for a in _AREAS)
-    raise FileNotFoundError(f"{artifact_id!r} is not in this catalog (checked registry.yaml and {searched})")
+    msg = f"{artifact_id!r} is not in this catalog (checked registry.yaml and {searched})"
+    raise FileNotFoundError(msg)
 
 
 @dataclass
@@ -108,11 +111,13 @@ def add(
 
         digest = compute_pack_hash(src)
         if verify_sha and digest != verify_sha:
-            raise IntegrityError(f"{artifact_id}: expected sha256 {verify_sha}, got {digest}. Nothing was installed.")
+            msg = f"{artifact_id}: expected sha256 {verify_sha}, got {digest}. Nothing was installed."
+            raise IntegrityError(msg)
 
         dest = repo_root / area / artifact_id
         if dest.exists() and not force:
-            raise FileExistsError(f"{area.as_posix()}/{artifact_id} already exists; use --force to replace it")
+            msg = f"{area.as_posix()}/{artifact_id} already exists; use --force to replace it"
+            raise FileExistsError(msg)
         if dest.exists():
             shutil.rmtree(dest)
         dest.parent.mkdir(parents=True, exist_ok=True)

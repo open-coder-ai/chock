@@ -40,11 +40,12 @@ class PluginNameError(ValueError):
 def plugin_name(policy_id: str) -> str:
     """Validate a policy id as an Agent Plugins `name`."""
     if len(policy_id) > _NAME_MAX or not _NAME_PATTERN.match(policy_id):
-        raise PluginNameError(
+        msg = (
             f"policy id {policy_id!r} is not a valid Agent Plugins name: "
             f"lowercase alphanumerics, dots and hyphens, no leading/trailing separator, "
             f"no '--' or '..', max {_NAME_MAX} chars"
         )
+        raise PluginNameError(msg)
     return policy_id
 
 

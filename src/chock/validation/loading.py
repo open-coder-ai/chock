@@ -48,7 +48,8 @@ SCHEMA_STORE = _build_schema_store()
 def load_schema(name: str) -> dict[str, Any]:
     path = SCHEMA_DIR / name
     if not path.exists():
-        raise FileNotFoundError(f"Schema not found: {path}")
+        msg = f"Schema not found: {path}"
+        raise FileNotFoundError(msg)
     with path.open("r", encoding="utf-8") as f:
         if name.endswith(".json"):
             return json.load(f)

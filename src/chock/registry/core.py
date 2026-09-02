@@ -157,7 +157,8 @@ def entry_from_manifest(
     artifact_dir = manifest_path.parent
     result = load_manifest(artifact_dir, warnings=warnings)
     if result is None:
-        raise ManifestSourceError(f"no manifest in {artifact_dir}")
+        msg = f"no manifest in {artifact_dir}"
+        raise ManifestSourceError(msg)
     data, resolved_path = result
     rel_path = resolved_path.parent.relative_to(root).as_posix()
     return RegistryEntry(

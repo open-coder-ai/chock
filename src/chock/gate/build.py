@@ -56,10 +56,11 @@ def vendor_runner(artifact_root: Path) -> Path:
     """Copy the stdlib-only runner into `<artifact_root>/bin/gate.py`."""
     source = Path(__file__).resolve().parent / "runner.py"
     if not source.exists():
-        raise FileNotFoundError(
+        msg = (
             f"Vendored gate runner source not found at {source}. "
             "If this is a packaged binary, ensure gate/runner.py is bundled as a data file."
         )
+        raise FileNotFoundError(msg)
     dest = Path(artifact_root) / "bin" / "gate.py"
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, dest)
