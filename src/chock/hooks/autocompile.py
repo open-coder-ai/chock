@@ -60,7 +60,7 @@ def auto_compile(repo_root: Path) -> None:
         config = load_config(repo_root)
         agents = agents_from_config(repo_root)
         pack_dirs = discover_policy_dirs(repo_root)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         print(f"[WARN] auto-compile could not enumerate policies: {exc}", file=sys.stderr)
         return
 
@@ -68,7 +68,7 @@ def auto_compile(repo_root: Path) -> None:
     for pack_dir in pack_dirs:
         try:
             compile_one_dropin(pack_dir, config, compiled_root, agents=agents, repo_root=repo_root)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             print(
                 f"[WARN] skipped policy '{pack_dir.name}': {exc}. Other policies still compiled.",
                 file=sys.stderr,

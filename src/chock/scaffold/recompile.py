@@ -92,12 +92,12 @@ def _refresh_bookkeeping(repo_root: Path) -> None:
     try:
         entries, _skips = scan(repo_root)
         save_registry(entries, repo_root)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         print(f"[WARN] registry scan failed: {exc}. Run `chock registry scan`.", file=sys.stderr)
 
     try:
         cmd_refresh(["--repo", str(repo_root)])
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         print(f"[WARN] index refresh failed: {exc}. Run `chock sync`.", file=sys.stderr)
 
     try:
@@ -118,7 +118,7 @@ def refresh_after_install(repo_root: Path) -> None:
         from chock.config import agents_from_config
 
         recompile(repo_root, agents_from_config(repo_root), skip_hooks=True)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - never fail an install over bookkeeping
         print(f"[WARN] coverage not refreshed: {exc}. Run `chock sync --repo .`", file=sys.stderr)
 
 
