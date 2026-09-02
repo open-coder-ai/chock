@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from chock import vendors
 from chock.gate import runtime_bundle
 from chock.plugin.claude import claude_plugin_files
 from chock.plugin.copilot import HOOKS_REL, build_copilot_plugin, copilot_plugin_files
@@ -74,14 +75,15 @@ def test_hook_allows_when_the_plugin_root_cannot_be_resolved(policy, tmp_path: P
 
 
 def test_copilot_and_claude_packages_run_the_same_hook(policy, tmp_path: Path) -> None:
-    """Two formats, one enforcement system -- same matcher, same guard bytes, own dialect."""
+    """Two formats, one enforcement system -- each vendor's own matcher, same guard bytes, own dialect."""
     pack = policy(GUARD_MANIFEST, guard=True)
     copilot = copilot_plugin_files(pack, GUARD_MANIFEST, tmp_path)
     claude = claude_plugin_files(pack, GUARD_MANIFEST, tmp_path)
 
     copilot_entry = json.loads(copilot[Path(HOOKS_REL)])["hooks"]["PreToolUse"][0]
     claude_entry = json.loads(claude[Path("hooks/hooks.json")])["hooks"]["PreToolUse"][0]
-    assert copilot_entry["matcher"] == claude_entry["matcher"]
+    assert copilot_entry["matcher"] == vendors.shell_matcher("vscode_copilot")
+    assert claude_entry["matcher"] == vendors.shell_matcher("claude_code")
     assert copilot_entry["hooks"][0]["timeout"] == claude_entry["hooks"][0]["timeout"]
     copilot_command = copilot_entry["hooks"][0]["command"]
     claude_command = claude_entry["hooks"][0]["command"]

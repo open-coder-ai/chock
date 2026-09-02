@@ -32,16 +32,14 @@ def _guard_script(policy_dir: Path, policy_id: str) -> str | None:
 
 TIMEOUT_SECONDS = 30
 
-#: claude_code is the only vendor whose shell vocabulary agentseam 0.2.0 records
-#: (`tools.shell`); codex_cli and vscode_copilot record none, so their claude-format
-#: plugin hooks borrow this matcher exactly as the hand-written emitters did
-#: (tests/test_vendor_wire_facts.py trips when upstream closes the gap).
+#: claude_code's own recorded shell vocabulary, used for its claude-plugin hooks file.
 MATCHER = vendors.shell_matcher("claude_code")
 assert MATCHER is not None  # noqa: S101 -- import-time upstream-data invariant, not request handling
 
-#: Wire token Claude Code substitutes for the repo root; agentseam 0.2.0's vendor-config
-#: schema carries no repo-root-token field yet, so the fact still lives here.
-PROJECT_DIR_TOKEN = "${CLAUDE_PROJECT_DIR}"  # noqa: S105 -- a shell variable reference, not a credential
+#: Wire token Claude Code substitutes for the repo root, read from agentseam's vendor
+#: config (`repo_root_token`) instead of chock's own hardcoded copy.
+PROJECT_DIR_TOKEN = vendors.repo_root_token("claude_code")
+assert PROJECT_DIR_TOKEN is not None  # noqa: S101 -- import-time upstream-data invariant, not request handling
 
 # Witnessed overrides: chock's agent-hooks file speaks `preToolUse` with bash/powershell/
 # timeoutSec entry keys (live deny, data/witnesses.json: vscode_copilot x agent-hooks);
@@ -100,7 +98,8 @@ def hook_entry(command: str, *, matcher: str | None = None) -> dict[str, Any]:
 
 def hooks_map_file(vendor: str, command: str) -> dict[str, Any]:
     """A claude-plugin-format hooks file under `vendor`'s own pre-tool event spelling."""
-    return {"hooks": {vendors.pre_tool_event(vendor): [hook_entry(command, matcher=MATCHER)]}}
+    matcher = vendors.shell_matcher(vendor)
+    return {"hooks": {vendors.pre_tool_event(vendor): [hook_entry(command, matcher=matcher)]}}
 
 
 def cursor_entry(command: str) -> dict[str, Any]:

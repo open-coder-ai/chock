@@ -8,7 +8,8 @@
             "command": "@CHOCK_PYTHON@ \".chock/bin/codex_cli.py\" --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\"",
             "commandWindows": "& @CHOCK_PYTHON@ \".chock/bin/codex_cli.py\" --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\""
           }
-        ]
+        ],
+        "matcher": "Bash"
       }
     ]
   }
