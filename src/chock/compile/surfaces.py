@@ -5,6 +5,8 @@ from __future__ import annotations
 from enum import Enum
 
 from chock.compile.levels import IN_AGENT_TODAY, Grade, _matrix_can_block, in_agent_grade
+from chock.hooks.in_agent_install import AGENT_HOOKS_VENDORS
+from chock.vendors import CHOCK_AGENT
 
 
 class Surface(str, Enum):
@@ -18,40 +20,22 @@ class Surface(str, Enum):
     AGENT_HOOKS = "agent-hooks"
 
 
+#: Derived, never hand-rowed: every aliased agent gets the advisory floor, claude keeps
+#: its managed-setting arm (chock policy), and in-agent membership comes from the matrix
+#: blocking predicate via IN_AGENT_TODAY -- agent-hooks where the vendor is wired through
+#: chock's owned agent-hooks file, pre-tool-use everywhere else.
 SURFACE_AGENTS: dict[str, set[Surface]] = {
-    "claude": {
-        Surface.AMBIENT_RULE,
-        Surface.GIT_HOOK,
-        Surface.CI_GATE,
-        Surface.MANAGED_SETTING,
-    },
-    "cursor": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
-    "copilot": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
-    "windsurf": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
-    "devin": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
-    "codex": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
-    "grok": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
-    "kimi-code": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
-    "aider": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
-    "gemini": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
-    "replit": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
-    "tabnine": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
-    "vscode": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
-    "antigravity": {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE},
+    agent: {Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE} for agent in CHOCK_AGENT
 }
+SURFACE_AGENTS["claude"].add(Surface.MANAGED_SETTING)
 
-
-for _agent, _surface in (
-    ("claude", Surface.PRE_TOOL_USE),
-    ("cursor", Surface.PRE_TOOL_USE),
-    ("copilot", Surface.AGENT_HOOKS),
-    ("vscode", Surface.AGENT_HOOKS),
-):
-    if not _matrix_can_block(_agent):
+for _agent in IN_AGENT_TODAY:
+    if not _matrix_can_block(_agent):  # pragma: no cover - membership already derives from can_block
         raise AssertionError(
             f"agentseam's matrix no longer confirms {_agent!r} can block a pre-tool call; "
-            f"{_surface.value} membership here must be re-reviewed, not silently kept or dropped"
+            "in-agent membership must be re-derived, not silently kept"
         )
+    _surface = Surface.AGENT_HOOKS if CHOCK_AGENT[_agent] in AGENT_HOOKS_VENDORS else Surface.PRE_TOOL_USE
     SURFACE_AGENTS[_agent].add(_surface)
 del _agent, _surface
 

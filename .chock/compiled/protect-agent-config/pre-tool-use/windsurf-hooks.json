@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "pre_run_command": [
+      {
+        "command": "@CHOCK_PYTHON@ \".chock/bin/windsurf.py\" --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\""
+      }
+    ],
+    "pre_mcp_tool_use": [
+      {
+        "command": "@CHOCK_PYTHON@ \".chock/bin/windsurf.py\" --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\""
+      }
+    ]
+  }
+}

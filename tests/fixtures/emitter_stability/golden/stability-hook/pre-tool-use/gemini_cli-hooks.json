@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "BeforeTool": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "@CHOCK_PYTHON@ \".chock/bin/gemini_cli.py\" --guard \"tests/fixtures/emitter_stability/policies/stability-hook/implementations/stability-hook.sh\""
+          }
+        ],
+        "matcher": "run_shell_command"
+      }
+    ]
+  }
+}

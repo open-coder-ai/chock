@@ -10,8 +10,10 @@ from pathlib import Path
 from typing import NamedTuple
 
 from chock import vendors
-from chock.compile.emitters.in_agent import AGENT_HOOKS_ENVELOPE, AGENT_HOOKS_EVENT
+from chock.compile.emitters.in_agent import AGENT_HOOKS_ENVELOPE, AGENT_HOOKS_EVENT, GENERIC_VENDORS
 from chock.emit import write_generated_json
+from chock.hooks.in_agent_generic import install_generic, installed_generic_ids
+from chock.hooks.in_agent_generic import load_config as _load_config
 from chock.hooks.runtime_vendor import runtime_rel, vendor_runtime
 
 INTERPRETER_PLACEHOLDER = "@CHOCK_PYTHON@"
@@ -91,11 +93,18 @@ _OWNED_FILE_VENDOR = "vscode_copilot"
 _OWNED_FILE_LABEL = "agent hook(s) in .github/hooks/chock.json"
 _AGENT_HOOKS_GLOB = "*/agent-hooks/agent-hooks.json"
 
-WIRED_VENDORS = (*_MERGED, _OWNED_FILE_VENDOR)
+#: Vendors wired through chock's owned agent-hooks file rather than the vendor's config.
+AGENT_HOOKS_VENDORS = (_OWNED_FILE_VENDOR,)
+
+WIRED_VENDORS = (*_MERGED, *GENERIC_VENDORS, _OWNED_FILE_VENDOR)
 
 
 def install_label(vendor: str) -> str:
-    return _MERGED[vendor].label if vendor in _MERGED else _OWNED_FILE_LABEL
+    if vendor in _MERGED:
+        return _MERGED[vendor].label
+    if vendor in GENERIC_VENDORS:
+        return f"hook entr(y/ies) in {vendors.config_path(vendor)}"
+    return _OWNED_FILE_LABEL
 
 
 def agent_hooks_rel(vendor: str = _OWNED_FILE_VENDOR) -> Path:
@@ -109,18 +118,6 @@ def _owned_marker(vendor: str) -> str:
 
 def _wrap(entry: dict) -> dict:
     return {"hooks": [copy.deepcopy(entry)]}
-
-
-def _load_config(path: Path) -> dict:
-    settings: dict = {}
-    if path.exists():
-        try:
-            loaded = json.loads(path.read_text(encoding="utf-8"))
-            if isinstance(loaded, dict):
-                settings = loaded
-        except (json.JSONDecodeError, OSError):
-            raise ValueError(f"{path} is not readable JSON; leaving it untouched") from None
-    return settings
 
 
 def _compiled_merged(repo_root: Path, vendor: str, event: str) -> list[dict]:
@@ -241,6 +238,8 @@ def install_hooks(repo_root: Path, vendor: str) -> list[str]:
     """Install `vendor`'s compiled in-agent hooks. Returns one item per entry installed."""
     if vendor in _MERGED:
         return _install_merged(repo_root, vendor)
+    if vendor in GENERIC_VENDORS:
+        return install_generic(repo_root, vendor)
     if vendor == _OWNED_FILE_VENDOR:
         return _install_agent_hooks(repo_root)
     raise ValueError(f"no in-agent wiring for vendor {vendor!r}; wired: {WIRED_VENDORS}")
@@ -262,6 +261,8 @@ def _installed_agent_hooks_entries(repo_root: Path) -> list[dict]:
 def installed_policy_ids(repo_root: Path, vendor: str) -> set[str]:
     """Policy ids whose compiled entries are actually present in `vendor`'s config file."""
     repo_root = Path(repo_root)
+    if vendor in GENERIC_VENDORS:
+        return installed_generic_ids(repo_root, vendor)
     if vendor == _OWNED_FILE_VENDOR:
         installed = _installed_agent_hooks_entries(repo_root)
         if not installed:

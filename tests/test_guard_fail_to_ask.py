@@ -66,6 +66,57 @@ PAYLOADS = {
         "tool_name": "Bash",
         "tool_input": {"command": c},
     },
+    "antigravity": lambda c: {
+        "toolCall": {"name": "run_command", "args": {"CommandLine": c, "Cwd": "/x"}},
+        "conversationId": "c1",
+        "stepIdx": 1,
+        "workspacePaths": ["/x"],
+    },
+    "devin": lambda c: {
+        "hook_event_name": "PreToolUse",
+        "prompt_id": "p1",
+        "tool_name": "Bash",
+        "tool_input": {"command": c},
+        "session_id": "s",
+    },
+    "gemini_cli": lambda c: {
+        "hook_event_name": "BeforeTool",
+        "tool_name": "run_shell_command",
+        "tool_input": {"command": c},
+        "session_id": "s",
+    },
+    "grok": lambda c: {
+        "hookEventName": "PreToolUse",
+        "toolName": "Bash",
+        "toolInput": {"command": c},
+        "sessionId": "s",
+    },
+    "tabnine": lambda c: {
+        "hook_event_name": "BeforeTool",
+        "timestamp": "2026-08-31T00:00:00Z",
+        "tool_name": "shell",
+        "tool_input": {"command": c},
+    },
+    "windsurf": lambda c: {
+        "trajectory_id": "t1",
+        "tool_info": {"command_line": c},
+        "cwd": "/x",
+    },
+}
+
+#: The deny each vendor's wire actually carries, witnessed by the deny-guard fixture below:
+#: `block` is the devin-family spelling, `exit-2` windsurf's wordless exit-code grammar (G5).
+DENY_ON_THE_WIRE = {
+    "claude_code": "deny",
+    "codex_cli": "deny",
+    "cursor": "deny",
+    "vscode_copilot": "deny",
+    "antigravity": "deny",
+    "devin": "block",
+    "gemini_cli": "deny",
+    "grok": "deny",
+    "tabnine": "deny",
+    "windsurf": "exit-2",
 }
 
 
@@ -80,18 +131,28 @@ def run(runtimes: dict[str, Path], agent: str, guard: Path, command: str) -> sub
 
 
 def decision(result: subprocess.CompletedProcess) -> dict:
-    """The verdict a client would read, flattened across the two response shapes."""
+    """The verdict a client would read, flattened across the response grammars."""
     out = result.stdout.decode("utf-8").strip()
+    if result.returncode == 2:
+        return {"decision": "exit-2", "reason": out}
     if not out:
         return {}
     body = json.loads(out)
     nested = body.get("hookSpecificOutput")
     if isinstance(nested, dict):
         return {"decision": nested.get("permissionDecision"), "reason": nested.get("permissionDecisionReason")}
+    if "decision" in body:
+        return {"decision": body.get("decision"), "reason": body.get("reason")}
     return {"decision": body.get("permission"), "reason": body.get("user_message")}
 
 
 ASK_ON_THE_WIRE = {c.agent: c.verdict for c in evidence.claims() if c.claim == evidence.HONOURS_ASK}
+
+#: What an allow looks like per wire: silence (or an explicit allow) everywhere but devin,
+#: whose bare-allow grammar requires the word `approve`.
+ALLOWED_WORDS = {
+    agent: {None, "allow", "approve"} if agent == "devin" else {None, "allow"} for agent in ASK_ON_THE_WIRE
+}
 
 
 @pytest.mark.parametrize("agent", sorted(ASK_ON_THE_WIRE))
@@ -101,7 +162,7 @@ def test_a_crashed_guard_asks_rather_than_allowing(agent: str, tmp_path: Path, r
 
     result = run(runtimes, agent, guard, "ls -la")
 
-    assert result.returncode == 0
+    assert result.returncode == (2 if ASK_ON_THE_WIRE[agent] == "exit-2" else 0)
     verdict = decision(result)
     assert verdict.get("decision") == ASK_ON_THE_WIRE[agent], f"{agent} must not silently allow an unchecked command"
     assert verdict.get("reason"), "a confirmation request the user cannot interpret is a click-through"
@@ -123,10 +184,10 @@ def test_the_ask_does_not_fire_on_a_clean_or_a_violating_guard(agent: str, tmp_p
     denying = make_guard(tmp_path, "deny.sh", "echo NOPE >&2; exit 1")
 
     allowed = decision(run(runtimes, agent, clean, "ls -la"))
-    assert allowed.get("decision") in (None, "allow"), "a clean guard must not prompt"
+    assert allowed.get("decision") in ALLOWED_WORDS[agent], "a clean guard must not prompt"
 
     denied = decision(run(runtimes, agent, denying, "some destructive thing"))
-    assert denied.get("decision") == "deny", "a real violation is still a deny, not a prompt"
+    assert denied.get("decision") == DENY_ON_THE_WIRE[agent], "a real violation is still a deny, not a prompt"
 
 
 @pytest.mark.parametrize("agent", sorted(ASK_ON_THE_WIRE))
@@ -136,7 +197,7 @@ def test_an_unparseable_command_still_allows(agent: str, tmp_path: Path, runtime
 
     verdict = decision(run(runtimes, agent, guard, "echo 'unbalanced"))
 
-    assert verdict.get("decision") in (None, "allow"), "an unparseable command must not prompt"
+    assert verdict.get("decision") in ALLOWED_WORDS[agent], "an unparseable command must not prompt"
 
 
 def test_a_missing_bash_still_allows(tmp_path: Path, monkeypatch) -> None:
@@ -188,5 +249,7 @@ def test_the_wire_vocabulary_is_the_words_the_fixtures_witness(tmp_path: Path, r
 
 
 def test_every_gated_runtime_is_covered_here() -> None:
-    """The table above is checked against the code, so a fifth runtime cannot join silently."""
+    """The tables above are checked against the code, so an eleventh runtime cannot join silently."""
     assert set(ASK_ON_THE_WIRE) == set(runtime_bundle.RUNTIME_AGENTS)
+    assert set(DENY_ON_THE_WIRE) == set(runtime_bundle.RUNTIME_AGENTS)
+    assert set(PAYLOADS) == set(runtime_bundle.RUNTIME_AGENTS)

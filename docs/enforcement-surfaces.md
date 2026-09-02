@@ -11,7 +11,7 @@ each guarantee holds.
 | `git-hook` | Hard, at commit/push | Yes (`--no-verify`) | Pre-commit / pre-merge-commit / pre-push guard |
 | `ci-gate` | Hard, un-bypassable | No | The backstop for a skipped git hook |
 | `ambient-rule` | Advisory | Yes | Compiled `AGENTS.md` block the agent is asked to follow |
-| `pre-tool-use` | Hard, pre-execution | No | Blocks a command **before** the agent runs it, in each client's own deny dialect — Claude Code + Cursor (see the Cursor caveat) |
+| `pre-tool-use` | Hard, pre-execution | No | Blocks a command **before** the agent runs it, in each client's own deny dialect — every matrix-blocking vendor with a repo-level config (see the Cursor caveat) |
 | `agent-hooks` | Hard, pre-execution | No | The same exit-2 deny for Copilot CLI + VS Code agent mode, from `.github/hooks/chock.json` (witnessed blocking on both, 2026-08-23) |
 | `managed-setting` | Hard, org-level | No | Admin-deployed allow/ask/deny rules |
 | `gateway` | Hard, un-circumventable | No | Budget/egress backstop — *modeled now, emitted later* |
@@ -24,13 +24,13 @@ each guarantee holds.
 > bash-syntax commands but not PowerShell-native destructive syntax. 0.0.6 closes that gap
 > with a PowerShell/cmd guard matched against the raw command (`CHOCK_RAW_COMMAND`); other
 > guards remain pattern filters, so the "non-standard shell" bypass class they document
-> still applies to them. The hook's
-> interpreter is resolved at run time (skipping the Windows Store `python3` alias stub) and
-> the repo root via `git rev-parse`, so the committed file is portable with no baked path.
+> still applies to them. The hook's interpreter is resolved at run time (skipping the
+> Windows Store `python3` alias stub) and the repo root via `git rev-parse`, so the
+> committed file is portable with no baked path.
 
 **`git-hook` + `ci-gate` are the universal hard floor** every agent shares. `pre-tool-use` and
-`agent-hooks` are the premium tier available on agents that expose native controls — Claude
-Code and Cursor via `pre-tool-use`, Copilot CLI and VS Code via `agent-hooks`.
+`agent-hooks` are the premium tier on agents that expose native controls; membership
+derives from agentseam's matrix (see the coverage matrix below).
 `gateway` is reserved for cost/egress controls on the roadmap. `mcp-gateway`
 ([#32](https://github.com/open-coder-ai/chock/issues/32)) governs exactly the MCP slice:
 tool calls routed through the proxy. An agent's native shell and file tools never cross
@@ -95,30 +95,32 @@ Which surfaces each agent supports today (from `src/chock/compile/surfaces.py`):
 | **Claude Code** | ✅ | ✅ | ✅ | ✅ | ✅ | — |
 | **Cursor** | ✅ | ✅ | ✅ | ✅ | — | — |
 | Copilot | ✅ | ✅ | ✅ | — | — | ✅ |
-| Codex | ✅ | ✅ | ✅ | — | — | — |
-| Gemini | ✅ | ✅ | ✅ | — | — | — |
-| Windsurf | ✅ | ✅ | ✅ | — | — | — |
-| Devin | ✅ | ✅ | ✅ | — | — | — |
+| Codex | ✅ | ✅ | ✅ | ✅ | — | — |
+| Gemini | ✅ | ✅ | ✅ | ✅ | — | — |
+| Windsurf | ✅ | ✅ | ✅ | ✅ | — | — |
+| Devin | ✅ | ✅ | ✅ | ✅ | — | — |
 | Aider | ✅ | ✅ | ✅ | — | — | — |
-| Grok | ✅ | ✅ | ✅ | — | — | — |
+| Grok | ✅ | ✅ | ✅ | ✅ | — | — |
+| Junie | ✅ | ✅ | ✅ | — | — | — |
 | Kimi Code | ✅ | ✅ | ✅ | — | — | — |
 | Replit | ✅ | ✅ | ✅ | — | — | — |
-| Tabnine | ✅ | ✅ | ✅ | — | — | — |
+| Tabnine | ✅ | ✅ | ✅ | ✅ | — | — |
 | VS Code | ✅ | ✅ | ✅ | — | — | ✅ |
-| Antigravity CLI | ✅ | ✅ | ✅ | — | — | — |
+| Antigravity CLI | ✅ | ✅ | ✅ | ✅ | — | — |
 
-Claude Code and Cursor get `pre-tool-use`, Copilot CLI and VS Code get `agent-hooks`;
-the rest get the shared hard floor plus advisory rules until their own native controls
-are wired in.
+In-agent membership derives from agentseam's matrix: every adapted vendor whose row can block
+a pre-tool call from a repo-level JSON hook config gets `pre-tool-use` (Copilot CLI and VS Code:
+`agent-hooks`, chock's owned file). Junie and Kimi Code block only via home-level configs (Kimi
+Code's in TOML), outside what `chock sync --repo` may write; Aider and Replit cannot block. A
+checkmark is a wiring claim: new-vendor cells stay `witnessed: false` until a real client run is recorded.
 
 ## Coverage levels
 
 For each policy × agent, the compiler records one of eight levels in `.chock/coverage.json`.
-The first four come from the **in-agent ladder** — agentseam's own honest, per-agent
-vocabulary (`agentseam.matrix.enforcement_level`, owner decision #9) for an installed,
-in-agent pre-execution control, plus one level of chock's own — because they are not the
-same claim: a hook that fails OPEN on a crash is a materially weaker promise than one that
-fails closed, and an adopter deciding whether to trust a control needs to see the difference.
+The first four come from the **in-agent ladder** — agentseam's own honest, per-agent vocabulary
+(`agentseam.matrix.enforcement_level`, owner decision #9) for an installed, in-agent pre-execution
+control, plus one level of chock's own — because a hook that fails OPEN on a crash is a materially
+weaker promise than one that fails closed, and an adopter deciding on trust needs to see the difference.
 
 | Level | Meaning |
 | :--- | :--- |
@@ -262,7 +264,6 @@ recheck it rather than take this table's word:
   unsupported permissionDecision:ask"*; `:144` computes a block reason only when nothing was
   rejected, and `codex-rs/hooks/src/events/pre_tool_use.rs:234-244` sets `should_block` in the
   non-rejected arm alone — so a literal `ask` there would let the call through.
-
 
 **This raises no coverage grade.** A control is only as strong as its worst degradation, and
 three of the five causes above still allow — so chock's in-agent controls stay at the level

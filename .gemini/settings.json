@@ -1,0 +1,42 @@
+{
+  "hooks": {
+    "BeforeTool": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/usr/local/bin/python\" \".chock/bin/gemini_cli.py\" --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\""
+          }
+        ],
+        "matcher": "run_shell_command"
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/usr/local/bin/python\" \".chock/bin/gemini_cli.py\" --guard \".agents/policies/block-no-verify/implementations/block-no-verify.sh\""
+          }
+        ],
+        "matcher": "run_shell_command"
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/usr/local/bin/python\" \".chock/bin/gemini_cli.py\" --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\""
+          }
+        ],
+        "matcher": "run_shell_command"
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/usr/local/bin/python\" \".chock/bin/gemini_cli.py\" --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\""
+          }
+        ],
+        "matcher": "run_shell_command"
+      }
+    ]
+  }
+}

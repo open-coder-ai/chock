@@ -9,12 +9,12 @@ from agentseam import matrix as _matrix
 from agentseam import matrix_terms as _terms
 
 from chock import evidence
-from chock.vendors import CHOCK_AGENT
+from chock.vendors import CHOCK_AGENT, in_agent_vendors
 
-#: Chock agents with an in-agent pre-tool surface today. A narrower concept than
-#: `CHOCK_AGENT` (adapter-instruction coverage) -- both read the same alias table,
-#: so this is a membership set, not a second copy of the vendor-id mapping.
-IN_AGENT_TODAY = ("claude", "cursor", "copilot", "vscode")
+#: Chock agents with an in-agent pre-tool surface. A narrower concept than `CHOCK_AGENT`
+#: (adapter-instruction coverage): derived by scoping the alias table to the vendors the
+#: matrix blocking predicate admits (chock.vendors.in_agent_vendors), never hand-listed.
+IN_AGENT_TODAY = tuple(sorted(a for a, v in CHOCK_AGENT.items() if v in in_agent_vendors()))
 
 
 def _mapped_vendor(chock_agent: str) -> str | None:

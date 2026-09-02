@@ -70,6 +70,16 @@ def test_golden_tree_covers_every_surface_worth_freezing() -> None:
     """The guarantee is only as wide as the fixtures. If a golden tree exists but no"""
     if not GOLDEN.exists():
         pytest.skip("goldens not generated yet")
+    from chock.compile.emitters.in_agent import GENERIC_VENDORS
+
     names = {p.name for p in GOLDEN.rglob("*") if p.is_file()}
-    for required in ("gate.json", "ambient.md", "pretooluse.json", "cursor-hooks.json", "agent-hooks.json"):
+    per_vendor = tuple(f"{vendor}-hooks.json" for vendor in GENERIC_VENDORS)
+    for required in (
+        "gate.json",
+        "ambient.md",
+        "pretooluse.json",
+        "cursor-hooks.json",
+        "agent-hooks.json",
+        *per_vendor,
+    ):
         assert any(required in n for n in names), f"golden tree lost its {required} coverage"

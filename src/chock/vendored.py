@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from chock.vendors import in_agent_vendors
+
 VENDORED_RUNTIMES = {
     "gate.py": ("static", ("chock.gate", "runner.py")),
-    "claude_code.py": ("bundle", "claude_code"),
-    "cursor.py": ("bundle", "cursor"),
-    "vscode_copilot.py": ("bundle", "vscode_copilot"),
+    **{f"{agent}.py": ("bundle", agent) for agent in in_agent_vendors()},
 }
 
 

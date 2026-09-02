@@ -132,7 +132,7 @@ target-version = "py311"
 # composed source-level into one file. Composition can duplicate a module-level import
 # two of those sources both happen to make (e.g. `import json as _json`) -- harmless at
 # runtime, but not something either source module did wrong, so not a lint finding here.
-extend-exclude = ["*.md", ".chock/bin/"]
+extend-exclude = ["*.md", ".chock/bin/", "tests/fixtures/runtime_goldens/"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]

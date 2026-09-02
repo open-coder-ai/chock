@@ -12,13 +12,11 @@ EXEMPT = {
     "requirements/semgrep.txt",
     "requirements/brand-assets.txt",
     "src/chock/gate/runner.py",
-    ".chock/bin/gate.py",
-    ".chock/bin/claude_code.py",
-    ".chock/bin/cursor.py",
-    ".chock/bin/vscode_copilot.py",
 }
 
-EXEMPT_PREFIXES = (".chock/log/", "src/chock/authoring/data/")
+# .chock/bin/ is bundler output (generated, review lives at its sources); runtime_goldens
+# freeze that same generated output per vendor.
+EXEMPT_PREFIXES = (".chock/log/", "src/chock/authoring/data/", ".chock/bin/", "tests/fixtures/runtime_goldens/")
 
 SKIP_DIRS = {
     ".git",

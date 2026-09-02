@@ -51,15 +51,27 @@ def test_unranked_levels_refuse_a_rank_rather_than_inventing_one() -> None:
 
 
 def test_degrading_to_a_prompt_grades_strictly_stronger_than_degrading_to_allowing() -> None:
-    """The case that motivated the whole change, and the one it must not get wrong."""
+    """The case that motivated the whole change, recomputed per agent: the lift needs a
+
+    tested honours_ask claim AND evidence whose cap admits `fail-to-ask`; everyone else
+    stays at the word the basis cap allows, never silently above it.
+    """
+    from chock import evidence
+    from chock.compile.levels import capped, resting_bases
+    from chock.vendors import CHOCK_AGENT
+
     assert FAIL_OPEN_AGENTS, "no fail-open agent left to test the distinction on"
+    lifted = []
     for agent in FAIL_OPEN_AGENTS:
         allowing = in_agent_level(agent, degrades_to=DEGRADES_TO_ALLOW)
         asking = in_agent_level(agent, degrades_to=DEGRADES_TO_ASK)
-        assert level_rank(asking) > level_rank(allowing), (
-            f"{agent}: a control that asks ({asking}) does not outrank one that allows ({allowing})"
-        )
-        assert asking == "fail-to-ask"
+        mapped = CHOCK_AGENT[agent]
+        expected = "fail-to-ask" if evidence.honours_ask(mapped) else "best-effort"
+        assert asking == capped(expected, resting_bases(mapped)), f"{agent}: {asking}"
+        if asking == "fail-to-ask":
+            assert level_rank(asking) > level_rank(allowing)
+            lifted.append(agent)
+    assert "claude" in lifted, "the motivating case (a live-run host that honours ask) went missing"
 
 
 def test_a_deny_on_failure_is_graded_no_lower_than_an_ask() -> None:
@@ -87,7 +99,7 @@ def test_an_unknown_degradation_mode_is_refused() -> None:
 
 def test_an_unmapped_agent_has_no_in_agent_level() -> None:
     assert in_agent_level("no-such-agent") == "none"
-    assert in_agent_level("codex") == "none", "codex has no in-agent surface in SURFACE_AGENTS"
+    assert in_agent_level("kimi-code") == "none", "kimi-code has no in-agent surface in SURFACE_AGENTS"
 
 
 def _guard(tmp_path: Path, body: str) -> list[str]:

@@ -78,8 +78,8 @@
       "witnessed": false
     },
     "codex": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "live-run-partial",
       "witnessed": false
     },
     "copilot": {
@@ -93,18 +93,18 @@
       "witnessed": false
     },
     "devin": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "gemini": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-source",
       "witnessed": false
     },
     "grok": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "kimi-code": {
@@ -118,8 +118,8 @@
       "witnessed": false
     },
     "tabnine": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "vscode": {
@@ -128,8 +128,8 @@
       "witnessed": true
     },
     "windsurf": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "third-party-install",
       "witnessed": false
     }
   },
@@ -212,8 +212,8 @@
       "witnessed": false
     },
     "codex": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "live-run-partial",
       "witnessed": false
     },
     "copilot": {
@@ -227,18 +227,18 @@
       "witnessed": false
     },
     "devin": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "gemini": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-source",
       "witnessed": false
     },
     "grok": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "kimi-code": {
@@ -252,8 +252,8 @@
       "witnessed": false
     },
     "tabnine": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "vscode": {
@@ -262,8 +262,8 @@
       "witnessed": true
     },
     "windsurf": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "third-party-install",
       "witnessed": false
     }
   },
@@ -815,8 +815,8 @@
       "witnessed": false
     },
     "codex": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "live-run-partial",
       "witnessed": false
     },
     "copilot": {
@@ -830,18 +830,18 @@
       "witnessed": false
     },
     "devin": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "gemini": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-source",
       "witnessed": false
     },
     "grok": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "kimi-code": {
@@ -855,8 +855,8 @@
       "witnessed": false
     },
     "tabnine": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "vscode": {
@@ -865,8 +865,8 @@
       "witnessed": true
     },
     "windsurf": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "third-party-install",
       "witnessed": false
     }
   },
@@ -882,8 +882,8 @@
       "witnessed": false
     },
     "codex": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "live-run-partial",
       "witnessed": false
     },
     "copilot": {
@@ -897,18 +897,18 @@
       "witnessed": false
     },
     "devin": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "gemini": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-source",
       "witnessed": false
     },
     "grok": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "kimi-code": {
@@ -922,8 +922,8 @@
       "witnessed": false
     },
     "tabnine": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "vscode": {
@@ -932,8 +932,8 @@
       "witnessed": true
     },
     "windsurf": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "third-party-install",
       "witnessed": false
     }
   },

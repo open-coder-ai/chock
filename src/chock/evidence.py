@@ -33,9 +33,12 @@ CLAIM_EVIDENCE = (TESTED, DOCUMENTED)
 
 # A claim's `verdict` is the word witnessed on the vendor's wire, never agentseam's
 # canonical outcome vocabulary; tests/test_guard_fail_to_ask.py ties it to live fixtures.
+# `block` is devin/junie-family wire spelling; `exit-2` is windsurf's wordless exit-code grammar.
 WIRE_ASK = "ask"
 WIRE_DENY = "deny"
-WIRE_VERDICTS = (WIRE_ASK, WIRE_DENY)
+WIRE_BLOCK = "block"
+WIRE_EXIT_2 = "exit-2"
+WIRE_VERDICTS = (WIRE_ASK, WIRE_DENY, WIRE_BLOCK, WIRE_EXIT_2)
 
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 

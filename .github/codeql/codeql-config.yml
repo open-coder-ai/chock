@@ -15,3 +15,6 @@ name: "Chock CodeQL config"
 # is tracked upstream, not fixed here: https://github.com/open-coder-ai/agentseam/issues/85
 paths-ignore:
   - ".chock/bin/**"
+  # The same bundler output, frozen per vendor as golden fixtures (tests/test_runtime_goldens.py);
+  # ruff excludes it for the identical reason.
+  - "tests/fixtures/runtime_goldens/**"

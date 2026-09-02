@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+- **In-agent membership derives from agentseam's capability matrix, and the surface
+  extends to seven new vendors** (design C3, `docs/design/derive-from-vendor-config.md`).
+  `IN_AGENT_TODAY`, `SURFACE_AGENTS`, `RUNTIME_AGENTS` and `VENDORED_RUNTIMES` stop being
+  hand lists: membership is `matrix.can_block(V, PRE_TOOL)` capped by what the repo-scoped
+  installer may touch (a repo-relative JSON config), computed in `chock.vendors`.
+  antigravity, codex_cli (repo-level, beside its existing plugin store), devin, gemini_cli,
+  grok, tabnine and windsurf now get per-policy pre-tool fragments rendered by agentseam's
+  own `hook_config` (`compile/emitters/in_agent.py`), one shape-agnostic config-merge
+  installer (`hooks/in_agent_generic.py`: strip-ours/deep-merge keyed on the vendored
+  runtime path, interpreter baking as before), and vendored runtimes from `bundle()`.
+  junie and kimi_code can block per the matrix but their recorded hook configs are
+  home-anchored (`~/.junie/...`, `~/.kimi-code/config.toml` -- TOML at that), outside what
+  `chock sync --repo` may write, so they stay advisory-only; a pinned test fails the day
+  upstream records repo-level JSON configs for them. junie (absent from chock entirely
+  before) joins the alias table, advisory surfaces and both published matrices. Day-one
+  coverage for every new vendor is the matrix word under its per-claim basis cap --
+  `best-effort (vendor-docs|vendor-source|third-party-install|live-run-partial)`,
+  `witnessed: false` everywhere (no live run exists) -- and the four previously enforced
+  vendors' artifacts are byte-identical (before/after tree diff; only new-vendor
+  coverage cells moved). New evidence: six `honours_ask` claim rows tested against the
+  bundled runtimes (`block` and `exit-2` join the wire-verdict vocabulary for
+  devin's spelling and windsurf's G5 exit-code grammar). New goldens: per-vendor fragment
+  fixtures in the emitter-stability tree and frozen per-vendor runtime bytes
+  (`tests/fixtures/runtime_goldens/`, regenerated only via `CHOCK_REGEN_GOLDENS=1`).
+  Fragment commands for the new vendors use repo-relative paths -- no repo-root token is
+  recorded upstream for them (the `${CLAUDE_PROJECT_DIR}` gap, filed) -- so the hooks
+  resolve where the vendor runs them from the repo root, and installs stay unwitnessed
+  best-effort claims until a real client run lands in the witness ledger.
+
 - **Per-vendor wire facts are now reads of agentseam 0.2.0's vendor config, and the vendor
   emitters/installers collapse into one of each.** Config paths (`.claude/settings.json`,
   `.cursor/hooks.json`, the `.github/hooks/` directory), pre-tool event spellings
