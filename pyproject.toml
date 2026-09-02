@@ -140,6 +140,31 @@ target-version = "py311"
 extend-exclude = ["*.md", ".chock/bin/", "tests/fixtures/runtime_goldens/"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I"]
+# The Sonar/Checkstyle/FindBugs bar, in Python (plan/coding-standards.md §3, W50):
+# C90 complexity, N naming, PLR/PLW/PLC pylint refactor/warning/convention, ERA
+# commented-out code, T20 print-as-System.out, ARG unused args, RET/SIM/PIE
+# FindBugs-class correctness, FBT boolean traps, A builtin shadowing, B bugbear,
+# S bandit security, BLE blind except, TRY exception hygiene, RUF ruff-native.
+select = [
+    "E", "F", "W", "I",
+    "C90", "N", "PLR", "PLW", "PLC", "ERA", "T20", "ARG", "RET", "SIM", "PIE",
+    "FBT", "A", "B", "S", "BLE", "TRY", "RUF",
+]
 # Layout is governed by `ruff format`; long diagnostic strings are allowed.
 ignore = ["E501"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 5
+max-branches = 12
+max-returns = 6
+max-statements = 50
+
+[tool.ruff.lint.per-file-ignores]
+# tests/ and acceptance/ assert with bare `assert` by design (S101), commonly pass
+# literal fixture values as positional args to helpers (FBT), and repeat short
+# literal strings as test data, not magic values (PLR2004).
+"tests/**" = ["S101", "FBT", "PLR2004"]
+"acceptance/**" = ["S101", "FBT", "PLR2004"]
