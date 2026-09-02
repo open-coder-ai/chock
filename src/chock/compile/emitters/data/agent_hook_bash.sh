@@ -1,0 +1,1 @@
+repo="$(git rev-parse --show-toplevel)"; PY="$(command -v python3 || command -v python || command -v py)"; [ -n "$PY" ] || { echo "chock: no python interpreter found" >&2; exit 1; }; exec "$PY" "$repo/__ADAPTER__" --guard "$repo/__GUARD__"

@@ -1,0 +1,13 @@
+#!/bin/sh
+__MARKER__
+# Runs every executable script in __EVENT__.d/.
+set -e
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+STDIN_FILE=$(mktemp)
+trap 'rm -f "$STDIN_FILE"' EXIT
+cat > "$STDIN_FILE"
+for hook in "$HOOK_DIR/__EVENT__.d/"*; do
+    [ -e "$hook" ] || continue
+    [ -x "$hook" ] || continue
+    "$hook" "$@" < "$STDIN_FILE"
+done

@@ -54,6 +54,39 @@ def test_wheel_contains_the_evidence_ledgers(built_wheel: Path) -> None:
     assert not missing, f"wheel is missing evidence data {missing}; check [tool.setuptools.package-data]"
 
 
+def test_wheel_contains_emitted_artifact_templates(built_wheel: Path) -> None:
+    """Emitter/scaffold/vendored-runtime templates (chock W48) must ship in the wheel."""
+    packages = {
+        "chock.compile.emitters": "chock/compile/emitters/data",
+        "chock.scaffold": "chock/scaffold/data",
+        "chock.gate": "chock/gate/data",
+    }
+    with zipfile.ZipFile(built_wheel) as whl:
+        names = set(whl.namelist())
+    for module_name, wheel_prefix in packages.items():
+        module = __import__(module_name, fromlist=["_"])
+        data_dir = Path(module.__file__).resolve().parent / "data"
+        wanted = sorted(p.name for p in data_dir.iterdir() if p.is_file())
+        assert wanted, f"{data_dir} is empty; this test no longer pins anything"
+        missing = [n for n in wanted if f"{wheel_prefix}/{n}" not in names]
+        assert not missing, f"wheel is missing {module_name} data {missing}; check [tool.setuptools.package-data]"
+
+
+def test_pyinstaller_collects_the_emitted_artifact_templates() -> None:
+    """The frozen-binary spec's collect_data_files("chock") must reach every new data dir."""
+    pytest.importorskip("PyInstaller")
+    from PyInstaller.utils.hooks import collect_data_files
+
+    collected = {src for src, _dest in collect_data_files("chock")}
+    for module_name in ("chock.compile.emitters", "chock.scaffold", "chock.gate"):
+        module = __import__(module_name, fromlist=["_"])
+        data_dir = Path(module.__file__).resolve().parent / "data"
+        wanted = sorted(p for p in data_dir.iterdir() if p.is_file())
+        assert wanted, f"{data_dir} is empty; this test no longer pins anything"
+        missing = [str(p) for p in wanted if str(p) not in collected]
+        assert not missing, f"PyInstaller spec would miss {module_name} data {missing}"
+
+
 def test_wheel_installs_and_init_passes(tmp_path: Path, built_wheel: Path) -> None:
     """pip install into a fresh venv, then chock init in a new git repo."""
     venv_dir = tmp_path / "venv"

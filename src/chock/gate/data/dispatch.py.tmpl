@@ -1,0 +1,10 @@
+
+
+def handle(event):
+    if event.event == "pre_tool" and event.command:
+        verdict = evaluate(sys.argv[1:], event.command, event.tool or "")
+        if verdict is not None:
+            outcome, reason = verdict
+            return Decision.escalate(reason) if outcome == ESCALATE else Decision.deny(reason)
+# __SESSION_START_BRANCH__
+    return None

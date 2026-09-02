@@ -17,20 +17,10 @@ from chock.hooks.ownership import (
 )
 from chock.resources import package_data_dir
 
-DISPATCHER_TEMPLATE = """#!/bin/sh
-{marker}
-# Runs every executable script in {event}.d/.
-set -e
-HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
-STDIN_FILE=$(mktemp)
-trap 'rm -f "$STDIN_FILE"' EXIT
-cat > "$STDIN_FILE"
-for hook in "$HOOK_DIR/{event}.d/"*; do
-    [ -e "$hook" ] || continue
-    [ -x "$hook" ] || continue
-    "$hook" "$@" < "$STDIN_FILE"
-done
-"""
+_DATA_DIR = package_data_dir("chock.hooks", "data")
+DISPATCHER_TEMPLATE = _DATA_DIR.joinpath("dispatcher.sh").read_text(encoding="utf-8")
+_VALIDATE_WRAPPER_WINDOWS_TEMPLATE = _DATA_DIR.joinpath("validate_wrapper_windows.sh").read_text(encoding="utf-8")
+_POLICY_WRAPPER_TEMPLATE = _DATA_DIR.joinpath("policy_wrapper.sh").read_text(encoding="utf-8")
 
 
 def _git(repo_root: Path, *args: str) -> str | None:
@@ -99,7 +89,7 @@ def install_dispatcher(hooks_dir: Path, event: str) -> Path:
     impl_dir.mkdir(parents=True, exist_ok=True)
     relocate_existing_hook(dispatcher, impl_dir)
     remove_self_relocated_hook(impl_dir)
-    content = DISPATCHER_TEMPLATE.format(event=event, marker=GENERATED_MARKER)
+    content = DISPATCHER_TEMPLATE.replace("__EVENT__", event).replace("__MARKER__", GENERATED_MARKER)
     _backup_edited_dispatcher(dispatcher, content)
     write_generated(dispatcher, content)
     dispatcher.chmod(0o755)
@@ -134,15 +124,10 @@ def install_validate_hook(hooks_dir: Path, repo_root: Path) -> None:
         impl = impl_dir / "99-chock-validate"
         impl_ps1 = impl_dir / "99-chock-validate.ps1"
         _render_hook(source_dir / "pre-commit.ps1", impl_ps1)
-        write_generated(
-            impl,
-            "#!/usr/bin/env bash\n"
-            f"{GENERATED_MARKER}\n"
-            'hook_dir="$(cd "$(dirname "$0")" && pwd)"\n'
-            f'script="$hook_dir/{impl_ps1.name}"\n'
-            'if command -v cygpath >/dev/null 2>&1; then script="$(cygpath -w "$script")"; fi\n'
-            'powershell.exe -ExecutionPolicy Bypass -File "$script" "$@"\n',
+        content = _VALIDATE_WRAPPER_WINDOWS_TEMPLATE.replace("__MARKER__", GENERATED_MARKER).replace(
+            "__SCRIPT_NAME__", impl_ps1.name
         )
+        write_generated(impl, content)
     else:
         impl = impl_dir / "99-chock-validate"
         _render_hook(source_dir / "pre-commit", impl)
@@ -190,15 +175,8 @@ def install_policy_hooks(repo_root: Path, hooks_dir: Path) -> None:
         for idx, impl_source in enumerate(implementations, start=1):
             wrapper = impl_dir / f"50-chock-policy-{idx:03d}"
             rel = _repo_relative(impl_source, repo_root)
-            write_generated(
-                wrapper,
-                "#!/bin/sh\n"
-                f"{GENERATED_MARKER}\n"
-                f"# Source: {rel}\n"
-                "set -e\n"
-                'repo_root="$(git rev-parse --show-toplevel)"\n'
-                f'bash "$repo_root/{rel}" "$@"\n',
-            )
+            content = _POLICY_WRAPPER_TEMPLATE.replace("__MARKER__", GENERATED_MARKER).replace("__SOURCE_REL__", rel)
+            write_generated(wrapper, content)
             try:
                 wrapper.chmod(0o755)
             except Exception:

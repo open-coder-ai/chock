@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- **Emitted-artifact templates move out of Python source into template files, and the
+  CLI command table becomes data** (owner standard `externalize, don't hardcode`,
+  `plan/coding-standards.md` §2). Every non-Python template previously held as a Python
+  string literal -- the CI-gate step and git-hook shim (`compile/emitters/ci.py`,
+  `git_hook.py`), the in-agent bash/PowerShell one-liners (`in_agent.py`), the git-hook
+  dispatcher and wrapper scripts (`hooks/installers.py`), the scaffolded CI workflow and
+  config-file scaffolds (`scaffold/install_ci.py`, `templates.py`, `agents_md.py`), and
+  the vendored-runtime Python-source fragments (`gate/runtime_bundle.py`, as `.py.tmpl`)
+  -- now lives under each package's own `data/` directory, loaded via
+  `chock.resources.package_data_dir` and rendered with `__TOKEN__` + `str.replace` (never
+  `.format()`), so every template file is valid in its own language as committed and CI
+  lints it that way (`shellcheck`, `actionlint`). Emitted bytes are unchanged: proven by
+  the existing emitter-stability goldens, new token round-trip tests
+  (`tests/test_template_tokens.py`), and this repo's own `chock sync --check` staying
+  clean. `cli.py`'s `COMMANDS` table (name -> module/help/alias) moves to
+  `data/commands.json`, read at import time; `chock --help` output is unchanged
+  (`tests/test_commands_data.py` goldens it). New package-data and PyInstaller
+  (`collect_data_files`) coverage tests guard every new `data/` directory. AGENTS.md
+  gains a compact `externalized_text` hard rule recording the standard.
+
 - **In-agent membership derives from agentseam's capability matrix, and the surface
   extends to seven new vendors** (design C3, `docs/design/derive-from-vendor-config.md`).
   `IN_AGENT_TODAY`, `SURFACE_AGENTS`, `RUNTIME_AGENTS` and `VENDORED_RUNTIMES` stop being
