@@ -21,7 +21,7 @@ def _dependency_allowlist_template() -> str:
 
 
 _SCAFFOLD_DATA_DIR = package_data_dir("chock.scaffold", "data")
-_GITATTRIBUTES_TEMPLATE = _SCAFFOLD_DATA_DIR.joinpath("gitattributes.txt").read_text(encoding="utf-8")
+GITATTRIBUTES_TEMPLATE = _SCAFFOLD_DATA_DIR.joinpath("gitattributes.txt").read_text(encoding="utf-8")
 POLICIES_GUARDRAIL = _SCAFFOLD_DATA_DIR.joinpath("policies_guardrail.md").read_text(encoding="utf-8")
 SKILLS_GUARDRAIL = _SCAFFOLD_DATA_DIR.joinpath("skills_guardrail.md").read_text(encoding="utf-8")
 

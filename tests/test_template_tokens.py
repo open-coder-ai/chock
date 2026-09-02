@@ -88,14 +88,15 @@ def test_runtime_bundle_dispatch_template_token() -> None:
 
 def test_static_templates_carry_no_orphan_tokens() -> None:
     """Templates with no placeholders at all must stay that way."""
-    from chock.scaffold import agents_md, install_ci, templates
+    from chock.scaffold import agents_md, install_ci, skills_bridge, templates
 
     for text in (
         install_ci.WORKFLOW_TEMPLATE,
-        templates._GITATTRIBUTES_TEMPLATE,
+        templates.GITATTRIBUTES_TEMPLATE,
         templates.POLICIES_GUARDRAIL,
         templates.SKILLS_GUARDRAIL,
         agents_md.POINTER_BLOCK,
+        skills_bridge._BRIDGE_MARKER_BODY,
         runtime_bundle._IMPORTS,
         runtime_bundle._SESSION_START_BRANCH,
         runtime_bundle._SESSION_START_ORCHESTRATION,
