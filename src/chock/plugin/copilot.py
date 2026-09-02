@@ -51,7 +51,7 @@ _COPILOT_ENFORCED_NOTE = (
 
 def _hook_command(script: str) -> str:
     """One interpreter invocation, guarded so an unresolved plugin root ALLOWS."""
-    assert PLUGIN_ROOT.startswith("${") and PLUGIN_ROOT.endswith("}"), PLUGIN_ROOT
+    assert PLUGIN_ROOT.startswith("${") and PLUGIN_ROOT.endswith("}"), PLUGIN_ROOT  # noqa: S101 -- build-time constant, not request input
     root = f"{PLUGIN_ROOT[:-1]}:-}}"
     adapter = f'"$r/{_SCRIPTS_TEMPLATE.format(name="vscode_copilot.py")}"'
     guard = f'"$r/{_SCRIPTS_TEMPLATE.format(name=script)}"'

@@ -61,7 +61,7 @@ class Gateway:
             threading.Thread(target=self._pipe_downstream, daemon=True).start()
 
     def _pipe_downstream(self) -> None:
-        assert self.process and self.process.stdout
+        assert self.process and self.process.stdout  # noqa: S101 -- start_downstream() always runs first
         for line in self.process.stdout:
             self._write_out(line, sys.stdout)
         self._downstream_ended.set()

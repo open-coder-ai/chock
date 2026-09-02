@@ -37,7 +37,7 @@ TIMEOUT_SECONDS = 30
 #: plugin hooks borrow this matcher exactly as the hand-written emitters did
 #: (tests/test_vendor_wire_facts.py trips when upstream closes the gap).
 MATCHER = vendors.shell_matcher("claude_code")
-assert MATCHER is not None
+assert MATCHER is not None  # noqa: S101 -- import-time upstream-data invariant, not request handling
 
 #: Wire token Claude Code substitutes for the repo root; agentseam 0.2.0's vendor-config
 #: schema carries no repo-root-token field yet, so the fact still lives here.
