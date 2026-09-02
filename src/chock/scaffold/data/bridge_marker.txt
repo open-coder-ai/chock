@@ -1,0 +1,3 @@
+This directory is a Chock bridge copy of the same-named skill in .agents/skills/.
+Do not edit it here -- edit the canonical copy; this one is regenerated on every
+`chock sync`. Safe to delete for the same reason: sync recreates it.

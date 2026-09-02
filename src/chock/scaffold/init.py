@@ -22,7 +22,7 @@ from chock.scaffold.adapters import (
 from chock.scaffold.agents_md import update_agents_md
 from chock.scaffold.recompile import BookkeepingError, recompile
 from chock.scaffold.templates import (
-    _GITATTRIBUTES_TEMPLATE,
+    GITATTRIBUTES_TEMPLATE,
     _dependency_allowlist_template,
     _preserve_or_write,
     packaged_template,
@@ -167,7 +167,7 @@ def cmd_init(argv: list[str] | None = None) -> int:
     _write_agents_md(repo_root, args.force)
     if _preserve_or_write(repo_root / "docs" / "README.md", packaged_template("docs/README.md"), args.force):
         preserved.append("docs/README.md")
-    if _preserve_or_write(repo_root / ".gitattributes", _GITATTRIBUTES_TEMPLATE, args.force):
+    if _preserve_or_write(repo_root / ".gitattributes", GITATTRIBUTES_TEMPLATE, args.force):
         preserved.append(".gitattributes")
     preserved += write_vendored_guardrails(repo_root, args.force)
     _write_config(repo_root, agents, args.agent_agnostic)
