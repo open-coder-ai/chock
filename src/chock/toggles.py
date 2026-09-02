@@ -158,9 +158,9 @@ def policies_main(argv: list[str] | None) -> int:
 
     headers = ("id", "state", "coverage", "mandatory")
     widths = [max(len(h), *(len(r[i]) for r in rows)) for i, h in enumerate(headers)]
-    print("  ".join(h.ljust(w) for h, w in zip(headers, widths)).rstrip())
+    print("  ".join(h.ljust(w) for h, w in zip(headers, widths, strict=True)).rstrip())
     for row in rows:
-        print("  ".join(cell.ljust(w) for cell, w in zip(row, widths)).rstrip())
+        print("  ".join(cell.ljust(w) for cell, w in zip(row, widths, strict=True)).rstrip())
     return 0
 
 

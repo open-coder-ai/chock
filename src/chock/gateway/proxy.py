@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import subprocess
 import sys
@@ -26,10 +27,8 @@ def _blocked_response(request_id: Any, message: str) -> str:
 
 def _force_utf8(stream: Any) -> None:
     """Best-effort: pin a text stream to UTF-8 with replacement."""
-    try:
+    with contextlib.suppress(AttributeError, ValueError, OSError):
         stream.reconfigure(encoding="utf-8", errors="replace")
-    except (AttributeError, ValueError, OSError):
-        pass
 
 
 class Gateway:
@@ -66,10 +65,8 @@ class Gateway:
         for line in self.process.stdout:
             self._write_out(line, sys.stdout)
         self._downstream_ended.set()
-        try:
+        with contextlib.suppress(OSError, ValueError):
             sys.stdin.close()
-        except (OSError, ValueError):
-            pass
 
     def _block_message(self, item: Any) -> str | None:
         """Block message for a single request object, or None to allow it."""

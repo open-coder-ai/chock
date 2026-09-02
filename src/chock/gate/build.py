@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import shutil
 from pathlib import Path
 from typing import Any
@@ -62,8 +63,6 @@ def vendor_runner(artifact_root: Path) -> Path:
     dest = Path(artifact_root) / "bin" / "gate.py"
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, dest)
-    try:
+    with contextlib.suppress(OSError):
         dest.chmod(0o755)
-    except OSError:
-        pass
     return dest

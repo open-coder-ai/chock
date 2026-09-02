@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 
 from chock.gate import runtime_bundle
@@ -16,8 +17,6 @@ def vendor_runtime(repo_root: Path, agent: str) -> Path:
     dest = Path(repo_root) / runtime_rel(agent)
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(runtime_bundle.render(agent), encoding="utf-8")
-    try:
+    with contextlib.suppress(OSError):
         dest.chmod(0o755)
-    except OSError:
-        pass
     return dest

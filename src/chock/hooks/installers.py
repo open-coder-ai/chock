@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import shutil
 import subprocess
 import sys
@@ -132,10 +133,8 @@ def install_validate_hook(hooks_dir: Path, repo_root: Path) -> None:
         impl = impl_dir / "99-chock-validate"
         _render_hook(source_dir / "pre-commit", impl)
 
-    try:
+    with contextlib.suppress(OSError):
         impl.chmod(0o755)
-    except Exception:
-        pass
     print(f"Implementation registered at {impl}")
 
 
@@ -177,8 +176,6 @@ def install_policy_hooks(repo_root: Path, hooks_dir: Path) -> None:
             rel = _repo_relative(impl_source, repo_root)
             content = _POLICY_WRAPPER_TEMPLATE.replace("__MARKER__", GENERATED_MARKER).replace("__SOURCE_REL__", rel)
             write_generated(wrapper, content)
-            try:
+            with contextlib.suppress(OSError):
                 wrapper.chmod(0o755)
-            except Exception:
-                pass
         print(f"Registered {len(implementations)} {event} policy implementation(s)")

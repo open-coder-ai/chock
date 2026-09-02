@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 from typing import Any
 
@@ -28,10 +29,8 @@ def _emit_shims(output_dir: Path, policy_id: str, events: list[str]) -> list[Pat
         shim = output_dir / script_name
         rendered = SHIM_TEMPLATE.replace("__POLICY_ID__", policy_id).replace("__EVENT__", event_arg)
         write_generated(shim, rendered)
-        try:
+        with contextlib.suppress(OSError):
             shim.chmod(0o755)
-        except OSError:
-            pass
         emitted.append(shim)
     return emitted
 
