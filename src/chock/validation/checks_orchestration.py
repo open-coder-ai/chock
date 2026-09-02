@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from chock.manifest import CANONICAL_MANIFEST, resolve_manifest_path
+from chock.manifest import CANONICAL_MANIFEST, CONTENT_INSTRUCTIONS_KEY, resolve_manifest_path
 from chock.validation.report import Finding, Report
 
 
@@ -216,7 +216,7 @@ def check_lifecycle_guards(artifact_dir: Path, manifest: dict[str, Any], artifac
 
     if status == "review":
         security = manifest.get("security", {})
-        if security.get("content_instructions") != "never-obey":
+        if security.get(CONTENT_INSTRUCTIONS_KEY) != "never-obey":
             report.add(
                 Finding(
                     _manifest_ref(artifact_dir),

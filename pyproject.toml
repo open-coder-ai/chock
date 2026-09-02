@@ -123,7 +123,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "tools"]
 
 [tool.ruff]
 line-length = 120
@@ -168,3 +168,5 @@ max-statements = 50
 # literal strings as test data, not magic values (PLR2004).
 "tests/**" = ["S101", "FBT", "PLR2004"]
 "acceptance/**" = ["S101", "FBT", "PLR2004"]
+# A standalone CLI dev-tool script: printing its findings to stderr is the feature.
+"tools/check_literal_duplication.py" = ["T201"]

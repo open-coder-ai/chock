@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from chock.eval.model import Case
+from chock.gate.schema import DEPENDENCY_ALLOWLIST_KIND
 
 UNLISTED = "chock-derived-eval-absent-package"
 
@@ -17,7 +18,7 @@ _MANIFEST_BODIES = {
 
 _GO_PREFIX = "github.com/absent/"
 
-DERIVABLE_KINDS = ("forbidden_ref", "dependency_allowlist")
+DERIVABLE_KINDS = ("forbidden_ref", DEPENDENCY_ALLOWLIST_KIND)
 
 
 def _case(policy_id: str, suffix: str, category: str, prompt: str, expect: str, execute: dict[str, Any]) -> Case:
@@ -126,7 +127,7 @@ def _dependency_allowlist(policy_id: str, gate: dict[str, Any]) -> list[Case]:
 
 _DERIVERS = {
     "forbidden_ref": _forbidden_ref,
-    "dependency_allowlist": _dependency_allowlist,
+    DEPENDENCY_ALLOWLIST_KIND: _dependency_allowlist,
 }
 
 

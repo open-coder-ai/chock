@@ -9,6 +9,7 @@ from pathlib import Path
 
 import yaml
 
+from chock.compile.surfaces import AGENTS_ARG_REQUIRED_MSG
 from chock.emit import write_generated
 from chock.hooks.install import NOT_A_GIT_REPO, get_hooks_dir, install_validate_hook, is_git_repo
 from chock.lock import build_lock, write_lock
@@ -142,7 +143,7 @@ def cmd_init(argv: list[str] | None = None) -> int:
         except ValueError as exc:
             parser.error(str(exc))
         if not selection:
-            parser.error("--agents requires at least one agent name")
+            parser.error(AGENTS_ARG_REQUIRED_MSG)
 
     repo_root = Path(args.repo).resolve()
     repo_root.mkdir(parents=True, exist_ok=True)
@@ -200,15 +201,10 @@ def cmd_init(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    from chock.registry.core import save_registry, scan
+    from chock.registry.core import rescan_and_report
     from chock.validation import engine as validator_engine
 
-    entries, skips = scan(repo_root)
-    if skips:
-        print(f"[WARN] {len(skips)} manifest(s) skipped during registry scan:")
-        for skip in skips:
-            print(f"  [ERROR] {skip.path} :: manifest_parse: {skip.reason}")
-    save_registry(entries, repo_root)
+    rescan_and_report(repo_root)
 
     if validator_engine.main([str(repo_root)]) != 0:
         return 1

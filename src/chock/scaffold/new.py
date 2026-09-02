@@ -85,14 +85,9 @@ def cmd_new(argv: list[str] | None = None) -> int:
         print(f"[ERROR] {exc}", file=sys.stderr)
         return 2
 
-    from chock.registry.core import save_registry, scan
+    from chock.registry.core import rescan_and_report
 
-    entries, skips = scan(root)
-    if skips:
-        print(f"[WARN] {len(skips)} manifest(s) skipped during registry scan:")
-        for skip in skips:
-            print(f"  [ERROR] {skip.path} :: manifest_parse: {skip.reason}")
-    save_registry(entries, root)
+    rescan_and_report(root)
 
     from chock.index.cli import cmd_refresh
 

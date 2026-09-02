@@ -15,6 +15,7 @@ from chock.resources import package_data_dir
 from chock.validation.report import Finding, Report
 
 SCHEMA_DIR = package_data_dir("chock.validation", "schemas")
+MANIFEST_SCHEMA = "manifest.schema.json"
 
 BUDGETS = {
     "skill_md_lines": 150,
@@ -54,7 +55,7 @@ def load_schema(name: str) -> dict[str, Any]:
         return yaml.safe_load(f)
 
 
-ARTIFACT_TYPES: frozenset[str] = frozenset(load_schema("manifest.schema.json")["properties"]["artifact"]["enum"])
+ARTIFACT_TYPES: frozenset[str] = frozenset(load_schema(MANIFEST_SCHEMA)["properties"]["artifact"]["enum"])
 
 
 def _registry() -> Registry:

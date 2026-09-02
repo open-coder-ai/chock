@@ -132,14 +132,9 @@ def cmd_install_skills(argv: list[str] | None = None) -> int:
         print("No skills installed", file=sys.stderr)
         return 1
 
-    from chock.registry.core import save_registry, scan
+    from chock.registry.core import rescan_and_report
 
-    entries, skips = scan(repo_root)
-    if skips:
-        print(f"[WARN] {len(skips)} manifest(s) skipped during registry scan:")
-        for skip in skips:
-            print(f"  [ERROR] {skip.path} :: manifest_parse: {skip.reason}")
-    save_registry(entries, repo_root)
+    rescan_and_report(repo_root)
 
     print(f"Installed {len(installed)} skill(s) into .agents/skills/:")
     for skill_id in installed:

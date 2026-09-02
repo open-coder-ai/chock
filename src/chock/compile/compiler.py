@@ -21,7 +21,7 @@ from chock.compile.emitters import (
     mcp_gateway,
 )
 from chock.compile.levels import IN_AGENT_TODAY, Grade, render_grade
-from chock.compile.surfaces import SURFACE_AGENTS, Surface, coverage_cell, parse_agent_selection
+from chock.compile.surfaces import AGENTS_ARG_REQUIRED_MSG, SURFACE_AGENTS, Surface, coverage_cell, parse_agent_selection
 from chock.config import agents_from_config
 from chock.hooks.in_agent_install import WIRED_VENDORS, installed_policy_ids
 from chock.manifest import ManifestSourceError, load_manifest
@@ -187,7 +187,7 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as exc:
             _parser_fail(parser, str(exc))
         if not agents:
-            _parser_fail(parser, "--agents requires at least one agent name")
+            _parser_fail(parser, AGENTS_ARG_REQUIRED_MSG)
 
     policy_dir = Path(args.policy_dir) if args.policy_dir else repo_root / ".agents/policies" / args.policy_id
     if not policy_dir.exists():

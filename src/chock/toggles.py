@@ -11,6 +11,7 @@ from typing import Any, NoReturn
 import yaml
 
 from chock.compile.levels import Grade, render_grade
+from chock.compile.surfaces import AGENTS_ARG_REQUIRED_MSG
 from chock.config import agents_from_config as _agents_from_config
 from chock.config import load_config, policy_status, set_disabled
 from chock.manifest import ManifestSourceError, load_manifest
@@ -193,7 +194,7 @@ def recompile_main(argv: list[str] | None) -> int:
         except ValueError as exc:
             _parser_fail(parser, str(exc))
         if not agents:
-            _parser_fail(parser, "--agents requires at least one agent name")
+            _parser_fail(parser, AGENTS_ARG_REQUIRED_MSG)
 
     if args.check:
         from chock.scaffold.recompile import compiled_differences

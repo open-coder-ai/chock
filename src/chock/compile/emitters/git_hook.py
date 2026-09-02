@@ -6,13 +6,12 @@ import contextlib
 from pathlib import Path
 from typing import Any
 
+from chock.compile.emitters import DATA_DIR
 from chock.compile.emitters.advisory import repo_root_from_output, template_message
 from chock.emit import write_generated, write_generated_json
 from chock.gate.build import build_gate_json, vendor_runner
-from chock.resources import package_data_dir
 
-_DATA_DIR = package_data_dir("chock.compile.emitters", "data")
-SHIM_TEMPLATE = _DATA_DIR.joinpath("git_hook_shim.sh").read_text(encoding="utf-8")
+SHIM_TEMPLATE = DATA_DIR.joinpath("git_hook_shim.sh").read_text(encoding="utf-8")
 
 
 def _emit_shims(output_dir: Path, policy_id: str, events: list[str]) -> list[Path]:

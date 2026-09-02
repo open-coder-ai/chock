@@ -13,6 +13,9 @@ from typing import Any
 
 STANDARDS_DIR = Path(__file__).parent / "frontier_standards"
 
+#: Agent Skills feature name for shell-command-in-frontmatter dynamic expansion.
+_DYNAMIC_CONTEXT_INJECTION = "dynamic_context_injection"
+
 SEEDS: dict[str, dict[str, Any]] = {
     "agentskills": {
         "source": "https://agentskills.io/specification.md",
@@ -55,9 +58,9 @@ SEEDS: dict[str, dict[str, Any]] = {
         "features": [
             "invocation_control",
             "subagent_execution",
-            "dynamic_context_injection",
+            _DYNAMIC_CONTEXT_INJECTION,
         ],
-        "dynamic_context_injection": {
+        _DYNAMIC_CONTEXT_INJECTION: {
             "syntax": "!`command`",
             "allowed": True,
         },
@@ -165,7 +168,7 @@ def parse_claude_code(text: str) -> dict[str, Any]:
         }
 
     if "!`" in text:
-        data["dynamic_context_injection"] = {
+        data[_DYNAMIC_CONTEXT_INJECTION] = {
             "syntax": "!`command`",
             "allowed": True,
         }

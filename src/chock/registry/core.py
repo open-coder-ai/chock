@@ -204,6 +204,16 @@ def save_registry(entries: dict[str, list[RegistryEntry]], root: Path | None = N
     write_generated_json(registry_path(root), data)
 
 
+def rescan_and_report(root: Path | None = None) -> None:
+    """Rescan the artifact registry, print any manifest-parse skips, then persist it."""
+    entries, skips = scan(root)
+    if skips:
+        print(f"[WARN] {len(skips)} manifest(s) skipped during registry scan:")
+        for skip in skips:
+            print(f"  [ERROR] {skip.path} :: manifest_parse: {skip.reason}")
+    save_registry(entries, root)
+
+
 def load_registry(root: Path | None = None) -> dict[str, list[RegistryEntry]]:
     root = root or repo_root()
     path = registry_path(root)

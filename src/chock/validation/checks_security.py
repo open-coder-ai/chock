@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 
-from chock.manifest import CANONICAL_MANIFEST
+from chock.manifest import CANONICAL_MANIFEST, CONTENT_INSTRUCTIONS_KEY
 from chock.validation.loading import (
     find_manifest,
 )
@@ -95,7 +95,7 @@ def check_security_baseline(artifact_dir: Path, manifest: dict[str, Any], artifa
     manifest_ref = str(manifest_path or artifact_dir / CANONICAL_MANIFEST)
 
     security = manifest.get("security", {})
-    if security.get("content_instructions") != "never-obey":
+    if security.get(CONTENT_INSTRUCTIONS_KEY) != "never-obey":
         report.add(
             Finding(manifest_ref, "security", "error", "security.content_instructions must be 'never-obey' (SEC-1).")
         )

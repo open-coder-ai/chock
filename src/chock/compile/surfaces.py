@@ -8,6 +8,9 @@ from chock.compile.levels import IN_AGENT_TODAY, Grade, _matrix_can_block, in_ag
 from chock.hooks.in_agent_install import AGENT_HOOKS_VENDORS
 from chock.vendors import CHOCK_AGENT
 
+#: Shared by every CLI subcommand that takes a required, non-empty `--agents` option.
+AGENTS_ARG_REQUIRED_MSG = "--agents requires at least one agent name"
+
 
 class Surface(str, Enum):
     AMBIENT_RULE = "ambient-rule"

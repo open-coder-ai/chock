@@ -5,13 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from chock.compile.emitters import DATA_DIR
 from chock.compile.emitters.advisory import repo_root_from_output, template_message
 from chock.emit import write_generated, write_generated_json
 from chock.gate.build import build_gate_json, vendor_runner
-from chock.resources import package_data_dir
 
-_DATA_DIR = package_data_dir("chock.compile.emitters", "data")
-STEP_TEMPLATE = _DATA_DIR.joinpath("ci_gate_step.yaml").read_text(encoding="utf-8")
+STEP_TEMPLATE = DATA_DIR.joinpath("ci_gate_step.yaml").read_text(encoding="utf-8")
 
 
 def emit(policy_dir: Path, output_dir: Path, manifest: dict[str, Any]) -> list[Path]:

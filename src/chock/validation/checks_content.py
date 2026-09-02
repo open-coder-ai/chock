@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 
-from chock.manifest import CANONICAL_MANIFEST, resolve_manifest_path
+from chock.manifest import AGENT_SPECIFIC_VOCABULARY_KEY, CANONICAL_MANIFEST, resolve_manifest_path
 from chock.validation.loading import (
     ARTIFACT_TYPES,
     BUDGETS,
@@ -76,13 +76,14 @@ def check_token_budgets(artifact_dir: Path, manifest: dict[str, Any], artifact_t
         for ref in refs_dir.iterdir():
             if ref.is_file():
                 lines = count_lines(ref)
-                if lines > BUDGETS["reference_file_lines"]:
+                max_reference_lines = BUDGETS["reference_file_lines"]
+                if lines > max_reference_lines:
                     report.add(
                         Finding(
                             str(ref),
                             "token_budget",
                             "error",
-                            f"Reference file exceeds {BUDGETS['reference_file_lines']} lines (found {lines}). Split into focused files.",
+                            f"Reference file exceeds {max_reference_lines} lines (found {lines}). Split into focused files.",
                         )
                     )
 
@@ -93,6 +94,7 @@ def check_progressive_disclosure(
     """Body stays lean; depth lives in references/ loaded on demand."""
     if artifact_type != "skill":
         return
+    category = "progressive_disclosure"
 
     skill_md = artifact_dir / "SKILL.md"
     if not skill_md.exists():
@@ -107,7 +109,7 @@ def check_progressive_disclosure(
             report.add(
                 Finding(
                     str(skill_md),
-                    "progressive_disclosure",
+                    category,
                     "error",
                     f"SKILL.md body contains a depth section ('{marker.strip()}'). Move it to references/.",
                 )
@@ -120,7 +122,7 @@ def check_progressive_disclosure(
             report.add(
                 Finding(
                     str(skill_md),
-                    "progressive_disclosure",
+                    category,
                     "warning",
                     f"SKILL.md body contains a ~{word_count}-word prose block. Consider moving it to references/ and linking it.",
                 )
@@ -134,7 +136,7 @@ def check_progressive_disclosure(
                 report.add(
                     Finding(
                         str(skill_md),
-                        "progressive_disclosure",
+                        category,
                         "warning",
                         f"Reference file '{ref.name}' is not addressed from SKILL.md body.",
                     )
@@ -188,7 +190,7 @@ def check_no_agent_specific_leakage(
     if artifact_type not in ARTIFACT_TYPES:
         return
 
-    if manifest.get("agent_specific_vocabulary"):
+    if manifest.get(AGENT_SPECIFIC_VOCABULARY_KEY):
         return
 
     skill_md = artifact_dir / "SKILL.md"

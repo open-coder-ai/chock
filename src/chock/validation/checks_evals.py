@@ -67,37 +67,37 @@ def check_eval_first(artifact_dir: Path, manifest: dict[str, Any], artifact_type
         return
     cases = [c for c in cases if isinstance(c, dict)]
     categories = [str(c.get("category", c.get("type", ""))).lower() for c in cases]
-    if len(cases) < BUDGETS["eval_suite_min_cases"]:
+    min_suite_cases = BUDGETS["eval_suite_min_cases"]
+    if len(cases) < min_suite_cases:
         report.add(
             Finding(
                 str(suite_file),
                 "eval_first",
                 "error",
-                f"Eval suite has {len(cases)} case(s); need >= {BUDGETS['eval_suite_min_cases']}.",
+                f"Eval suite has {len(cases)} case(s); need >= {min_suite_cases}.",
             )
         )
-    if categories.count("trigger") < BUDGETS["eval_trigger_cases_min"]:
-        report.add(
-            Finding(
-                str(suite_file), "eval_first", "error", f"Need >= {BUDGETS['eval_trigger_cases_min']} trigger case(s)."
-            )
-        )
-    if categories.count("negative_trigger") < BUDGETS["eval_negative_trigger_cases_min"]:
-        report.add(
-            Finding(
-                str(suite_file),
-                "eval_first",
-                "error",
-                f"Need >= {BUDGETS['eval_negative_trigger_cases_min']} negative_trigger case(s).",
-            )
-        )
-    if categories.count("behavior") < BUDGETS["eval_behavior_cases_min"]:
+    min_trigger_cases = BUDGETS["eval_trigger_cases_min"]
+    if categories.count("trigger") < min_trigger_cases:
+        report.add(Finding(str(suite_file), "eval_first", "error", f"Need >= {min_trigger_cases} trigger case(s)."))
+    min_negative_trigger_cases = BUDGETS["eval_negative_trigger_cases_min"]
+    if categories.count("negative_trigger") < min_negative_trigger_cases:
         report.add(
             Finding(
                 str(suite_file),
                 "eval_first",
                 "error",
-                f"Need >= {BUDGETS['eval_behavior_cases_min']} behavior case(s).",
+                f"Need >= {min_negative_trigger_cases} negative_trigger case(s).",
+            )
+        )
+    min_behavior_cases = BUDGETS["eval_behavior_cases_min"]
+    if categories.count("behavior") < min_behavior_cases:
+        report.add(
+            Finding(
+                str(suite_file),
+                "eval_first",
+                "error",
+                f"Need >= {min_behavior_cases} behavior case(s).",
             )
         )
 

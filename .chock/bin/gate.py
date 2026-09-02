@@ -99,7 +99,8 @@ class GateContext:
 
 def _kind_content_regex(ctx: GateContext, params: dict, event: str) -> GateResult:
     content_re = re.compile(params["content_pattern"])
-    path_re = re.compile(params["forbidden_path_regex"]) if params.get("forbidden_path_regex") else None
+    forbidden_path_regex = params.get("forbidden_path_regex")
+    path_re = re.compile(forbidden_path_regex) if forbidden_path_regex else None
     pragma_re = re.compile(params["allowlist_pragma"]) if params.get("allowlist_pragma") else None
     scan = params.get("scan", "added_lines")
     diff_filter = params.get("diff_filter", "ACMRT")

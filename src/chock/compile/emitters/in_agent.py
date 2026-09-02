@@ -7,12 +7,11 @@ from types import SimpleNamespace
 from typing import Any
 
 from chock import vendors
+from chock.compile.emitters import DATA_DIR
 from chock.emit import write_generated_json
-from chock.resources import package_data_dir
 
-_DATA_DIR = package_data_dir("chock.compile.emitters", "data")
-_BASH_TEMPLATE = _DATA_DIR.joinpath("agent_hook_bash.sh").read_text(encoding="utf-8").rstrip("\n")
-_POWERSHELL_TEMPLATE = _DATA_DIR.joinpath("agent_hook_powershell.ps1").read_text(encoding="utf-8").rstrip("\n")
+_BASH_TEMPLATE = DATA_DIR.joinpath("agent_hook_bash.sh").read_text(encoding="utf-8").rstrip("\n")
+_POWERSHELL_TEMPLATE = DATA_DIR.joinpath("agent_hook_powershell.ps1").read_text(encoding="utf-8").rstrip("\n")
 
 GUARD_SCRIPTS = {
     "block-destructive-commands": "block-destructive.sh",

@@ -13,6 +13,11 @@ CANONICAL_MANIFEST = "manifest.yaml"
 MANIFEST_NAMES: tuple[str, ...] = (CANONICAL_MANIFEST,)
 SKILL_MD = "SKILL.md"
 INTERFACE_YAML = "interface.yaml"
+#: manifest.security's field name gating whether in-content instructions may be obeyed (SEC-1).
+CONTENT_INSTRUCTIONS_KEY = "content_instructions"
+#: Boolean top-level manifest fields, coerced via _as_bool rather than passed through.
+DETERMINIZATION_REVIEWED_KEY = "determinization_reviewed"
+AGENT_SPECIFIC_VOCABULARY_KEY = "agent_specific_vocabulary"
 
 #: Longest a manifest/frontmatter `name` may be before it's flagged.
 _MAX_NAME_LENGTH = 128
@@ -106,7 +111,9 @@ def _project_skill_frontmatter(
     _set_or_default(data, "lifecycle.status", lifecycle.get("status"), "draft", warnings)
 
     security = ac.get("security") or {}
-    _set_or_default(data, "security.content_instructions", security.get("content_instructions"), "never-obey", warnings)
+    _set_or_default(
+        data, "security.content_instructions", security.get(CONTENT_INSTRUCTIONS_KEY), "never-obey", warnings
+    )
 
     skill_type = ac.get("skill_type")
     _set_or_default(data, "skill.skill_type", skill_type, "nl", warnings)
@@ -116,6 +123,7 @@ def _project_skill_frontmatter(
     if "approval" in ac:
         data["skill"]["approval"] = ac["approval"]
 
+    bool_keys = (DETERMINIZATION_REVIEWED_KEY, AGENT_SPECIFIC_VOCABULARY_KEY)
     for key in [
         "applies_to",
         "optimization",
@@ -124,13 +132,13 @@ def _project_skill_frontmatter(
         "conflicts_with",
         "bundle",
         "categories",
-        "determinization_reviewed",
+        DETERMINIZATION_REVIEWED_KEY,
         "scripts",
         "compliance",
-        "agent_specific_vocabulary",
+        AGENT_SPECIFIC_VOCABULARY_KEY,
     ]:
         if key in ac:
-            if key in ("determinization_reviewed", "agent_specific_vocabulary"):
+            if key in bool_keys:
                 data[key] = _as_bool(ac[key])
             else:
                 data[key] = ac[key]
