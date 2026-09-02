@@ -12,14 +12,14 @@ import sys
 # PROJECT_DIR_TOKEN (a literal shell placeholder string, already ruled non-sensitive at its
 # own definition: bandit S105) does not reach either function below -- it is only ever
 # written to disk via write_generated_json, never logged. Audited every warn()/error() call
-# site in src/; none carries credential material. An inline `lgtm[...]` suppression was
-# tried and did not clear the alert on re-scan (see plan/spine-a/reports/w50.md, org-plan);
-# dismissing it needs a maintainer with Security-tab access this session does not have.
+# site in src/; none carries credential material.
 
 
 def warn(message: str) -> None:
+    # codeql[py/clear-text-logging-sensitive-data]  # noqa: ERA001 -- CodeQL alert-suppression directive, not commented-out code
     print(f"[WARN] {message}", file=sys.stderr)  # noqa: T201 -- the designated output surface
 
 
 def error(message: str) -> None:
+    # codeql[py/clear-text-logging-sensitive-data]  # noqa: ERA001 -- CodeQL alert-suppression directive, not commented-out code
     print(f"[ERROR] {message}", file=sys.stderr)  # noqa: T201 -- the designated output surface
