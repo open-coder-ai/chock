@@ -8,16 +8,14 @@ import shutil
 import sys
 from pathlib import Path
 
+from chock.resources import template_text
+
 AGENT_BRIDGES: dict[str, str] = {
     "claude": ".claude/skills",
 }
 
 _BRIDGE_MARKER = ".chock-bridge"
-_BRIDGE_MARKER_BODY = (
-    "This directory is a Chock bridge copy of the same-named skill in .agents/skills/.\n"
-    "Do not edit it here -- edit the canonical copy; this one is regenerated on every\n"
-    "`chock sync`. Safe to delete for the same reason: sync recreates it.\n"
-)
+_BRIDGE_MARKER_BODY = template_text("scaffold/bridge-marker.txt")
 
 
 def _is_correct_symlink(link: Path, target: Path) -> bool:

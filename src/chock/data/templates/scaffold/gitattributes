@@ -1,0 +1,7 @@
+# Written by `chock init`; yours to extend. Chock's pack hashes and compiled artifacts
+# are raw bytes, so they must check out identically on every platform -- with
+# core.autocrlf=true (common on Windows) an unpinned clone flips them to CRLF and
+# `chock check --only verify` fails on every pack nobody touched.
+chock.lock text eol=lf
+.chock/** text eol=lf
+.agents/** text eol=lf

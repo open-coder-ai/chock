@@ -1,0 +1,29 @@
+
+
+def _chock_handle_session_start(event):
+    repo_root = _repo_root()
+    if not (repo_root / ".chock").is_dir():
+        return None  # not a chock-managed repo
+    if _armed(repo_root):
+        return None
+
+    if _chock_importable():
+        try:
+            proc = _chock_subprocess.run(
+                [sys.executable, "-m", "chock", "sync", "--repo", str(repo_root)],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                timeout=240,
+            )
+        except (OSError, _chock_subprocess.TimeoutExpired):
+            proc = None
+        if proc is not None and proc.returncode == 0 and _armed(repo_root):
+            return Decision.allow(
+                context=(
+                    "Chock: this clone's git hooks were not installed (git never clones hooks); "
+                    "armed them now with `chock sync`."
+                )
+            )
+
+    return Decision.allow(context=_INSTRUCTION)

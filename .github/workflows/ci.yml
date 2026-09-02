@@ -93,6 +93,31 @@ jobs:
         run: |
           cd docs/assets && python gen_brand_assets.py --check
 
+  # The packaged emitted-artifact templates (src/chock/data/templates/) hold real
+  # shell and workflow YAML with inert __TOKEN__ placeholders, so each file is linted
+  # as its own language. The ci/step.yaml fragment is not a complete workflow, so
+  # actionlint cannot check it; tests/test_template_data.py pins it instead.
+  template-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Install template linters
+        run: |
+          python -m pip install --require-hashes --upgrade -r requirements/pip.txt
+          python -m pip install --require-hashes -r requirements/template-lint.txt
+      - name: Shell templates lint as shell
+        run: |
+          shellcheck src/chock/data/templates/git-hook/shim.sh src/chock/data/templates/hooks/*.sh
+          # The in-agent guard command is a shebang-less one-liner embedded in hook JSON.
+          shellcheck -s sh src/chock/data/templates/in-agent/guard-command.sh
+      - name: Workflow template lints as a complete workflow
+        run: actionlint src/chock/data/templates/scaffold/ci-workflow.yml
+
   validate:
     strategy:
       fail-fast: false
@@ -212,6 +237,9 @@ jobs:
           "$CHOCK" init . --skip-hooks
           # init ships no policies, so the scaffolding is what proves the binary works.
           [ -f AGENTS.md ] && [ -f .chock/config.yaml ] && [ -f .agents/policies/INDEX.md ]
+          # The pointer block is rendered from packaged template data, so this line
+          # proves the frozen binary can read src/chock/data/templates/.
+          grep -q 'chock:pointer:start' AGENTS.md
 
   acceptance:
     name: acceptance (tier 1)

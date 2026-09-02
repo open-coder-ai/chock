@@ -9,13 +9,13 @@ import sys
 from pathlib import Path
 
 from chock.hooks.installers import (  # noqa: F401
-    DISPATCHER_TEMPLATE,
     GENERATED_MARKER,
     INTERPRETER_PLACEHOLDER,
     NOT_A_GIT_REPO,
     _discover_policy_hooks,
     _render_hook,
     _repo_relative,
+    dispatcher_script,
     get_hooks_dir,
     install_dispatcher,
     install_policy_hooks,
@@ -25,13 +25,13 @@ from chock.hooks.installers import (  # noqa: F401
 )
 
 __all__ = [
-    "DISPATCHER_TEMPLATE",
     "GENERATED_MARKER",
     "INTERPRETER_PLACEHOLDER",
     "NOT_A_GIT_REPO",
     "_discover_policy_hooks",
     "_render_hook",
     "_repo_relative",
+    "dispatcher_script",
     "get_hooks_dir",
     "install_dispatcher",
     "install_policy_hooks",

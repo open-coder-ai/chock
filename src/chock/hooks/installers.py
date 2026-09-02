@@ -10,27 +10,17 @@ from pathlib import Path
 from chock.emit import write_generated
 from chock.hooks.autocompile import auto_compile
 from chock.hooks.ownership import (
-    GENERATED_MARKER,
+    GENERATED_MARKER,  # noqa: F401  (re-exported via chock.hooks.install)
     is_ours,
     relocate_existing_hook,
     remove_self_relocated_hook,
 )
-from chock.resources import package_data_dir
+from chock.resources import package_data_dir, render_template
 
-DISPATCHER_TEMPLATE = """#!/bin/sh
-{marker}
-# Runs every executable script in {event}.d/.
-set -e
-HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
-STDIN_FILE=$(mktemp)
-trap 'rm -f "$STDIN_FILE"' EXIT
-cat > "$STDIN_FILE"
-for hook in "$HOOK_DIR/{event}.d/"*; do
-    [ -e "$hook" ] || continue
-    [ -x "$hook" ] || continue
-    "$hook" "$@" < "$STDIN_FILE"
-done
-"""
+
+def dispatcher_script(event: str) -> str:
+    """The rendered dispatcher for one git hook event."""
+    return render_template("hooks/dispatcher.sh", {"__EVENT__": event})
 
 
 def _git(repo_root: Path, *args: str) -> str | None:
@@ -99,7 +89,7 @@ def install_dispatcher(hooks_dir: Path, event: str) -> Path:
     impl_dir.mkdir(parents=True, exist_ok=True)
     relocate_existing_hook(dispatcher, impl_dir)
     remove_self_relocated_hook(impl_dir)
-    content = DISPATCHER_TEMPLATE.format(event=event, marker=GENERATED_MARKER)
+    content = dispatcher_script(event)
     _backup_edited_dispatcher(dispatcher, content)
     write_generated(dispatcher, content)
     dispatcher.chmod(0o755)
@@ -134,15 +124,7 @@ def install_validate_hook(hooks_dir: Path, repo_root: Path) -> None:
         impl = impl_dir / "99-chock-validate"
         impl_ps1 = impl_dir / "99-chock-validate.ps1"
         _render_hook(source_dir / "pre-commit.ps1", impl_ps1)
-        write_generated(
-            impl,
-            "#!/usr/bin/env bash\n"
-            f"{GENERATED_MARKER}\n"
-            'hook_dir="$(cd "$(dirname "$0")" && pwd)"\n'
-            f'script="$hook_dir/{impl_ps1.name}"\n'
-            'if command -v cygpath >/dev/null 2>&1; then script="$(cygpath -w "$script")"; fi\n'
-            'powershell.exe -ExecutionPolicy Bypass -File "$script" "$@"\n',
-        )
+        write_generated(impl, render_template("hooks/validate-wrapper-windows.sh", {"__PS1_NAME__": impl_ps1.name}))
     else:
         impl = impl_dir / "99-chock-validate"
         _render_hook(source_dir / "pre-commit", impl)
@@ -190,15 +172,7 @@ def install_policy_hooks(repo_root: Path, hooks_dir: Path) -> None:
         for idx, impl_source in enumerate(implementations, start=1):
             wrapper = impl_dir / f"50-chock-policy-{idx:03d}"
             rel = _repo_relative(impl_source, repo_root)
-            write_generated(
-                wrapper,
-                "#!/bin/sh\n"
-                f"{GENERATED_MARKER}\n"
-                f"# Source: {rel}\n"
-                "set -e\n"
-                'repo_root="$(git rev-parse --show-toplevel)"\n'
-                f'bash "$repo_root/{rel}" "$@"\n',
-            )
+            write_generated(wrapper, render_template("hooks/policy-wrapper.sh", {"__SOURCE__": rel}))
             try:
                 wrapper.chmod(0o755)
             except Exception:

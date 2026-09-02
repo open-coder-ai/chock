@@ -100,7 +100,9 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"chock" = ["data/*.json"]
+# templates/**/* : the emitted-artifact templates (shell, YAML, PowerShell, .py.tmpl)
+# every emitter renders at run time; pinned by tests/test_wheel_install.py.
+"chock" = ["data/*.json", "data/templates/**/*"]
 "chock.validation" = ["schemas/*.json", "frontier_standards/*.json"]
 "chock.hooks" = ["data/*"]
 # `**/*` does NOT match dotfiles or dot-directories, so the chock-init

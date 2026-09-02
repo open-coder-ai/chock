@@ -9,8 +9,8 @@ from pathlib import Path
 import pytest
 
 from chock.hooks.install import (
-    DISPATCHER_TEMPLATE,
     GENERATED_MARKER,
+    dispatcher_script,
     install_dispatcher,
     relocate_existing_hook,
 )
@@ -27,7 +27,7 @@ def hooks_dir(tmp_path: Path) -> Path:
 
 def test_the_marker_reaches_the_rendered_dispatcher() -> None:
     """`_is_ours` is only meaningful if what we write carries what we look for."""
-    assert GENERATED_MARKER in DISPATCHER_TEMPLATE.format(event="pre-commit", marker=GENERATED_MARKER)
+    assert GENERATED_MARKER in dispatcher_script("pre-commit")
 
 
 def test_installing_twice_leaves_no_00_preexisting(hooks_dir: Path) -> None:
@@ -65,9 +65,7 @@ def test_an_existing_stale_copy_is_cleaned_up(hooks_dir: Path) -> None:
     """Repos already carrying the artefact get repaired, not just spared."""
     impl = hooks_dir / "pre-commit.d"
     impl.mkdir()
-    (impl / "00-preexisting").write_text(
-        DISPATCHER_TEMPLATE.format(event="pre-commit", marker=GENERATED_MARKER), encoding="utf-8"
-    )
+    (impl / "00-preexisting").write_text(dispatcher_script("pre-commit"), encoding="utf-8")
 
     install_dispatcher(hooks_dir, "pre-commit")
 

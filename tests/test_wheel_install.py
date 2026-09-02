@@ -54,6 +54,19 @@ def test_wheel_contains_the_evidence_ledgers(built_wheel: Path) -> None:
     assert not missing, f"wheel is missing evidence data {missing}; check [tool.setuptools.package-data]"
 
 
+def test_wheel_contains_every_emitted_artifact_template(built_wheel: Path) -> None:
+    """Emitters render these at run time; a wheel missing one fails mid-sync on an adopter."""
+    from chock.resources import package_data_dir
+
+    root = package_data_dir("chock", "data", "templates")
+    with zipfile.ZipFile(built_wheel) as whl:
+        names = set(whl.namelist())
+    wanted = sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file())
+    assert wanted, "the template directory is empty; this test no longer pins anything"
+    missing = [n for n in wanted if f"chock/data/templates/{n}" not in names]
+    assert not missing, f"wheel is missing templates {missing}; check [tool.setuptools.package-data]"
+
+
 def test_wheel_installs_and_init_passes(tmp_path: Path, built_wheel: Path) -> None:
     """pip install into a fresh venv, then chock init in a new git repo."""
     venv_dir = tmp_path / "venv"

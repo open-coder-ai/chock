@@ -8,6 +8,7 @@ from typing import Any
 
 from chock import vendors
 from chock.emit import write_generated_json
+from chock.resources import render_template_line
 
 GUARD_SCRIPTS = {
     "block-destructive-commands": "block-destructive.sh",
@@ -142,23 +143,11 @@ def emit_pre_tool_use(policy_dir: Path, output_dir: Path, manifest: dict[str, An
 
 
 def _bash_command(adapter: str, guard: str) -> str:
-    return (
-        'repo="$(git rev-parse --show-toplevel)"; '
-        'PY="$(command -v python3 || command -v python || command -v py)"; '
-        '[ -n "$PY" ] || { echo "chock: no python interpreter found" >&2; exit 1; }; '
-        f'exec "$PY" "$repo/{adapter}" --guard "$repo/{guard}"'
-    )
+    return render_template_line("in-agent/guard-command.sh", {"__ADAPTER__": adapter, "__GUARD__": guard})
 
 
 def _powershell_command(adapter: str, guard: str) -> str:
-    return (
-        "$repo = (git rev-parse --show-toplevel); "
-        "$py = (Get-Command python3, python, py -ErrorAction SilentlyContinue | "
-        "Where-Object { $_.Source -and $_.Source -notlike '*WindowsApps*' } | "
-        "Select-Object -First 1).Source; "
-        "if (-not $py) { [Console]::Error.WriteLine('chock: no python interpreter found'); exit 1 }; "
-        f'$input | & $py "$repo/{adapter}" --guard "$repo/{guard}"; exit $LASTEXITCODE'
-    )
+    return render_template_line("in-agent/guard-command.ps1", {"__ADAPTER__": adapter, "__GUARD__": guard})
 
 
 def build_entry(policy_dir: Path, manifest: dict[str, Any]) -> dict[str, Any] | None:
