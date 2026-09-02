@@ -77,7 +77,7 @@ def check_frontier_mode(
                     )
                 )
         except (ValueError, TypeError):
-            pass
+            pass  # malformed/missing fetched_at: skip staleness reporting, not a validation failure
 
     if artifact_type == "skill":
         desc_std = standard.get("skill_description", {})
