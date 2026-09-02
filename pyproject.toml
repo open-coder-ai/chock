@@ -177,14 +177,14 @@ max-statements = 50
 "tests/**" = [
     "S101", "FBT", "PLR2004",
     "ARG001", "ARG002", "ARG004", "ARG005", "B905", "N806", "N814", "PLC0415",
-    "PLR0402", "PLR0913", "PLW1510", "RUF005", "RUF043", "RUF059", "S105", "S108",
-    "S602", "S603", "S607", "SIM117", "SIM300", "T201", "TRY003",
+    "PLR0402", "PLR0913", "PLR0917", "PLW1510", "RUF005", "RUF043", "RUF059", "S105",
+    "S108", "S602", "S603", "S607", "SIM117", "SIM300", "T201", "TRY003",
 ]
 "acceptance/**" = ["S101", "FBT", "PLR2004", "PLW1510", "S105", "S108", "S602", "S603"]
 "fuzz/**" = ["S101"]
 # docs/assets/gen_brand_assets.py derives docs/assets/social-preview.svg from repo data
 # (see the ci.yml brand-assets job) -- a dev/build script, not shipped source.
-"docs/assets/**" = ["ERA001", "PLR0913", "PLR2004", "PLW2901", "RUF001", "RUF003", "RUF005", "S101", "S603", "T201"]
+"docs/assets/**" = ["ERA001", "PLR0913", "PLR0917", "PLR2004", "PLW2901", "RUF001", "RUF003", "RUF005", "S101", "S603", "T201"]
 # A standalone CLI dev-tool script: printing its findings to stderr is the feature.
 "tools/check_literal_duplication.py" = ["T201"]
 # The installed copy of the packaged template below (chock install-skills); same
@@ -211,7 +211,7 @@ max-statements = 50
 "src/chock/compile/compiler.py" = ["T201"]
 "src/chock/eval/cli.py" = ["T201"]
 "src/chock/gate/guard_runner.py" = ["T201", "PLR0911"]
-"src/chock/gate/runner.py" = ["T201", "PLR0913", "PLR0911"]
+"src/chock/gate/runner.py" = ["T201", "PLR0913", "PLR0917", "PLR0911"]
 "src/chock/gateway/__main__.py" = ["T201"]
 "src/chock/hooks/autocompile.py" = ["T201"]
 "src/chock/hooks/install.py" = ["T201"]
@@ -243,11 +243,11 @@ max-statements = 50
 # careful, behaviour-preservation-checked step -- deferred here rather than attempted
 # under this same pass, and enumerated in plan/spine-a/reports/w50.md (org-plan) with the
 # specific function per finding. Every entry above this block was fixed, not deferred.
-"src/chock/eval/derive.py" = ["PLR0913"]  # build_case (6 args)
+"src/chock/eval/derive.py" = ["PLR0913", "PLR0917"]  # _case (6 args)
 "src/chock/eval/execute.py" = ["PLR0911"]  # _run_guard (8 returns)
 "src/chock/hooks/in_agent_install.py" = ["C901"]  # _install_merged, installed_policy_ids
 "src/chock/manifest.py" = ["C901", "PLR0912", "PLR0915"]  # _project_skill_frontmatter
-"src/chock/plugin/store.py" = ["PLR0913"]  # 3 owned_subtrees-family builders (6 args each)
+"src/chock/plugin/store.py" = ["PLR0913", "PLR0917"]  # 3 owned_subtrees-family builders (6 args each)
 "src/chock/validation/checks_content.py" = ["C901"]  # check_token_budgets
 "src/chock/validation/checks_determinism.py" = ["C901"]  # check_script_integrity
 "src/chock/validation/checks_evals.py" = ["C901"]  # check_eval_first
