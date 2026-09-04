@@ -68,6 +68,15 @@ Always-on guidance, surfaced through `.agents/policies/INDEX.md`:
 | **`minimal-content`** | Compress: prefer schemas and short structured forms over prose and speculative depth. |
 | **`pre-generated-scripts`** | Prefer deterministic pre-written scripts over generating code at run time. |
 
+### CI-native checks (opt-in)
+
+Not a compiled `hook.gate` — a CLI subcommand run as its own required status check, because it
+depends on `chock.review` and the vendored, stdlib-only gate runner must never import it.
+
+| Policy | What it requires |
+| :--- | :--- |
+| **`require-review-evidence`** | `chock review require --base <ref>` re-derives a PR's claimed checks instead of trusting them: evidence must be present, valid (`chock review verify` holds), sufficient (`command_set_hash` matches this repository's `required_checks` as currently defined — catches a shrunk set or a redefined check, not just an omission), passing (no required check recorded `fail`), and attested where `attestation_floor` demands it. Needs curated `chock.review.required_checks` config and a required-status-check wired in branch protection (see [Adopting Chock](adopting.md#the-branch-protection-gap)); see [Reviewer Evidence](reviewer-evidence.md#chock-review-require----is-this-pr-merge-ready) for wiring it via `action.yml`. |
+
 ### Repo-local policies
 
 A policy does not have to come from a catalog: anything under `.agents/policies/` is

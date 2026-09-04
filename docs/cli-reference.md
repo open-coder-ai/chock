@@ -233,16 +233,15 @@ hand-listed; an empty tree exits 2; `--check` reports drift without writing.
 ### `review` — record and check what a review rests on
 
 ```bash
-chock review emit   [--repo .] [--base origin/main] [--checks ...] [--kind agent|human] [--by NAME]
-chock review verify [--repo .] [--base origin/main] <evidence.json>
+chock review emit    [--repo .] [--base origin/main] [--checks ...] [--kind agent|human] [--by NAME]
+chock review verify  [--repo .] [--base origin/main] <evidence.json>
+chock review require [--repo .] [--base origin/main]
 ```
 
-`emit` runs every check in the repository's registry and writes evidence to
-`.chock/evidence/<diff>.json`. `verify` re-derives each `verified` claim and exits
-non-zero if any disagrees. Attested (human-judged) claims are printed under **NOT
-verified** with their stated basis. The recorded `command` is never executed — the
-verifier resolves checks through the registry, because evidence is contributor-authored.
-Full format: [Reviewer Evidence](reviewer-evidence.md).
+`emit` writes evidence to `.chock/evidence/<diff>.json`, plus a `command_set_hash` over any
+declared `required_checks`. `verify` re-derives each `verified` claim; attested (human-judged)
+claims print under **NOT verified**. `require` is the CI-side gate: present, valid, sufficient
+(hash matches), passing, and attested, in order. Full format: [Reviewer Evidence](reviewer-evidence.md).
 
 ### `compliance report` — compliance coverage
 

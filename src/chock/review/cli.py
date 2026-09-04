@@ -15,6 +15,7 @@ from chock.review.evidence import (
     build,
     check_registry,
     load,
+    require,
     required_checks,
     verify,
 )
@@ -89,6 +90,18 @@ def _verify(args: argparse.Namespace) -> int:
     return 0
 
 
+def _require(args: argparse.Namespace) -> int:
+    root = Path(args.repo).resolve()
+    failures = require(root, args.base)
+    if failures:
+        print(f"PR is not merge-ready ({len(failures)} problem(s)):", file=sys.stderr)
+        for failure in failures:
+            print(f"  - {failure}", file=sys.stderr)
+        return 1
+    print(f"PR is merge-ready: evidence present, valid, sufficient, passing, and attested against {args.base}.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="chock review", description="Produce and check reviewer evidence")
     sub = parser.add_subparsers(dest="action", required=True)
@@ -110,6 +123,9 @@ def main(argv: list[str] | None = None) -> int:
     check = sub.add_parser("verify", parents=[common], help="Re-derive every verified claim")
     check.add_argument("file", help="Evidence JSON to check")
     check.set_defaults(fn=_verify)
+
+    req = sub.add_parser("require", parents=[common], help="CI gate: is this PR merge-ready?")
+    req.set_defaults(fn=_require)
 
     args = parser.parse_args(argv)
     try:

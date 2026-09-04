@@ -78,6 +78,26 @@ def required_checks(root: Path) -> list[str]:
     return sorted(names) if isinstance(names, list) and names else []
 
 
+def attestation_floor(root: Path) -> int:
+    """Minimum attestations needed once the diff touches an unattestable path. 0 = no floor."""
+    floor = ((load_config(root).get("chock") or {}).get("review") or {}).get("attestation_floor")
+    return floor if isinstance(floor, int) and floor > 0 else 0
+
+
+def applies_to(root: Path) -> str:
+    """Who `review require` gates: all | forks | first_time. Informational -- for the adopter's own CI wiring."""
+    value = ((load_config(root).get("chock") or {}).get("review") or {}).get("applies_to")
+    return value if value in {"all", "forks", "first_time"} else "all"
+
+
+def command_set_hash(root: Path) -> str:
+    """Digest over the required set's names AND resolved commands -- a redefinition changes it, not just an omission."""
+    registry = check_registry(root)
+    resolved = {name: registry.get(name, []) for name in required_checks(root)}
+    canonical = json.dumps(resolved, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def check_registry(root: Path) -> dict[str, list[str]]:
     """Built-in checks plus any the repository declares."""
     registry = dict(BUILTIN_CHECKS)
@@ -156,6 +176,7 @@ def build(
         "verified": verified,
         "attested": [],
         "unattestable": unattestable_paths(root),
+        "command_set_hash": command_set_hash(root),
     }
 
 
@@ -200,6 +221,75 @@ def verify(root: Path, evidence: dict[str, Any], base_ref: str) -> list[str]:
             failures.append(f"{name}: evidence claims {entry.get('result')}, re-running gives {actual}. {detail}")
 
     return failures
+
+
+def _find_evidence(root: Path, base_ref: str) -> Path | None:
+    """The committed evidence file matching HEAD's `diff_sha`, or None."""
+    target = diff_sha(root, base_ref)
+    evidence_dir = root / EVIDENCE_DIR
+    for candidate in sorted(evidence_dir.glob("*.json")) if evidence_dir.is_dir() else []:
+        with contextlib.suppress(EvidenceError):
+            if load(candidate).get("diff_sha") == target:
+                return candidate
+    return None
+
+
+def _touched_unattestable_paths(root: Path, base_ref: str) -> list[str]:
+    """Which of the repo's unattestable prefixes the diff actually touches."""
+    diff_range = f"{merge_base(root, base_ref)}...HEAD"
+    changed = [p for p in _git(root, "diff", "--no-color", "--name-only", diff_range).splitlines() if p.strip()]
+    prefixes = unattestable_paths(root)
+    return sorted({prefix for prefix in prefixes for path in changed if path.startswith(prefix)})
+
+
+def require(root: Path, base_ref: str) -> list[str]:
+    """Present -> Valid -> Sufficient -> Passing -> Attested, in order; empty means the PR may merge."""
+    evidence_path = _find_evidence(root, base_ref)
+    if evidence_path is None:
+        return [
+            f"no evidence matches this diff against {base_ref}. Run "
+            f"`chock review emit --base {base_ref} --kind agent --by <your-name>` "
+            "(or --kind human if a person is producing it), then commit and push the file it writes."
+        ]
+
+    evidence = load(evidence_path)
+    invalid = verify(root, evidence, base_ref)
+    if invalid:
+        return invalid
+
+    required = required_checks(root)
+    if required:
+        expected_hash = command_set_hash(root)
+        if evidence.get("command_set_hash") != expected_hash:
+            return [
+                f"evidence's command_set_hash does not match this repository's required checks "
+                f"({', '.join(required)}) as currently defined -- the set, or one of its commands, "
+                f"changed since the evidence was produced. Re-run "
+                f"`chock review emit --base {base_ref}` and push the regenerated evidence."
+            ]
+        failing = sorted(
+            entry["check"]
+            for entry in evidence.get("verified") or []
+            if entry.get("check") in required and entry.get("result") == "fail"
+        )
+        if failing:
+            return [
+                f"required check(s) recorded failing: {', '.join(failing)}. Fix the underlying "
+                f"issue, then re-run `chock review emit --base {base_ref}` and push the evidence."
+            ]
+    floor = attestation_floor(root)
+    if floor:
+        touched = _touched_unattestable_paths(root, base_ref)
+        attested = evidence.get("attested") or []
+        if touched and len(attested) < floor:
+            return [
+                f"this change touches {', '.join(touched)}, which needs at least {floor} "
+                f"attestation(s) but the evidence carries {len(attested)}. Add an entry to "
+                f"`attested` in {evidence_path.name} recording a reviewer's judgement "
+                "(see docs/reviewer-evidence.md), then commit and push it."
+            ]
+
+    return []
 
 
 def load(path: Path) -> dict[str, Any]:

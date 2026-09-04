@@ -94,10 +94,84 @@ Config is safe as a source here for the reason evidence is not: it is committed,
 routes it for review. An unknown `check` fails verification rather than being skipped — a claim
 nobody can re-derive must not pass quietly.
 
+## `chock review require` -- is this PR merge-ready?
+
+`emit` and `verify` are available to anyone; `require` is the CI-side gate a maintainer wires as a
+required status check. It re-derives the mechanism *Proof-or-Stop: Don't Trust the Agent, Trust the
+Evidence* ([arXiv:2607.14890](https://arxiv.org/abs/2607.14890)) already publishes, for chock's own
+threat model: an anonymous fork, with no signing keys, no producer authorization, and no
+cooperation to rely on.
+
+```bash
+chock review require --base origin/main
+```
+
+Five judgements, in order, stopping at the first that fails:
+
+| # | Judgement | Fails when |
+| :--- | :--- | :--- |
+| 1 | Present | no evidence file matches the head's `diff_sha` |
+| 2 | Valid | `chock review verify` returns failures |
+| 3 | Sufficient | the evidence's `command_set_hash` does not match this repository's `required_checks`, hashed from repo config right now |
+| 4 | Passing | any required check is recorded `fail` |
+| 5 | Attested | the diff touches an `unattestable` path with fewer than `attestation_floor` attestations |
+
+Every failure names the exact `chock review emit` command to run next, or which line of the
+evidence file to add an attestation to -- written for a contributor who has never heard of chock.
+
+### `command_set_hash` -- the fix for self-certified checks
+
+Nothing before this stopped a contributor from naming one trivial check and having it verify
+cleanly: `verify` only re-derives what the file names. `emit` now records a `command_set_hash`
+over the repository's `required_checks`, resolved to their actual registry commands; `require`
+recomputes that hash from repo config -- never from the evidence -- and rejects any mismatch. A
+lookup would only catch an omission; the hash also catches a shrunk set, a renamed check, or a
+registry entry redefined after the evidence was produced, because any of those changes the hash
+even when every named check is still present and passing.
+
+### Config
+
+```yaml
+chock:
+  review:
+    required_checks: [validate, eval]   # the source; require hashes it and compares
+    attestation_floor: 1                # attestations needed once the diff touches unattestable_paths
+    applies_to: forks                   # all | forks | first_time -- for your own CI wiring
+```
+
+`required_checks` and `attestation_floor` both default to "off" (empty set, no floor) -- the same
+judgement that is silent when nothing is declared stays silent, exactly like `unattestable_paths`.
+`applies_to` is not enforced by `require` itself; it is there for your own workflow's `if:` condition
+(§docs/adopting.md), because requiring evidence from everyone is friction that lands on volunteers.
+
+### Wiring it as a required status check
+
+`require` depends on `chock.review`, so it runs as a CLI subcommand in your own CI step -- **not**
+a compiled git-hook or ci-gate. (`gate/runner.py` is vendored stdlib-only and must never import
+`chock.review`; re-implementing `verify` there would fork the logic that exists specifically to be
+un-forkable.) Add a step using this repository's `action.yml`:
+
+```yaml
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0
+- uses: open-coder-ai/chock@v0.1.0
+  with:
+    command: review require --base origin/main
+```
+
+Then mark that job a **required status check** in branch protection -- see
+[Adopting Chock](adopting.md#the-branch-protection-gap) for why the workflow file alone is not
+enough.
+
 ## What this does not do
 
 - **It does not decide whether a change is good.** It records which claims were machine-checked
   and which were judgement, and makes the second kind legible.
 - **It does not score reviewers.** Calibration — trust earned by how often attestations survive
   contact — needs real volume before it means anything.
-- **It is not required.** Nothing rejects a PR for lacking evidence today.
+- **It does not make review find more bugs.** Against the finding that 61% of organisations
+  shipped a production incident from AI code that had already passed review and tests, this is
+  silent by construction: it makes what review *rested on* checkable, not deeper.
+- **It is not required**, unless you install `require-review-evidence` and wire `require` as a
+  required status check (above). Nothing rejects a PR for lacking evidence by default.

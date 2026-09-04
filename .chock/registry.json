@@ -286,6 +286,21 @@
         "script_hashes": {}
       }
     ],
+    "require-review-evidence": [
+      {
+        "id": "require-review-evidence",
+        "artifact": "rule",
+        "version": "0.0.1",
+        "name": "Require Review Evidence",
+        "description": "Reject a PR that lacks machine-checkable proof of what it was put through, so a reviewer's attention is never spent on a change with no basis to re-derive. `chock review require --base <ref>` judges, in order: evidence is present for the head diff, `chock review verify` holds, the evidence's `command_set_hash` matches this repository's `required_checks` as currently defined (a shrunk set or a redefined check fails, not just an omission), no required check is recorded failing, and any diff touching an `unattestable` path carries at least `attestation_floor` attestations. Wired as a required GitHub status check via `action.yml`, not a compiled git-hook or ci-gate -- `gate/runner.py` is vendored and stdlib-only, and this command depends on `chock.review`, so it runs as its own CI step instead of a new gate kind. Opt-in because it needs curated `chock.review.required_checks` config; makes what a PR was checked against inspectable, and does not itself deepen review. See docs/reviewer-evidence.md.",
+        "path": ".agents/policies/require-review-evidence",
+        "manifest": "manifest.yaml",
+        "trust_tier": "community",
+        "lifecycle_status": "draft",
+        "dependencies": [],
+        "script_hashes": {}
+      }
+    ],
     "scan-secrets": [
       {
         "id": "scan-secrets",

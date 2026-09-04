@@ -1004,6 +1004,73 @@
       "witnessed": false
     }
   },
+  "require-review-evidence": {
+    "aider": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "codex": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "cursor": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "devin": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    },
+    "windsurf": {
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
+    }
+  },
   "scan-secrets": {
     "aider": {
       "level": "enforced-at-commit",

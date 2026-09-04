@@ -96,6 +96,29 @@ None of these is the guarantee. The guarantee is the **CI gate** (`chock sync --
 which runs on the maintainer's side for every pull request and does not depend on the
 contributor arming anything.
 
+## The branch-protection gap
+
+The CI gate is only a guarantee once GitHub is told to treat it as one. `.github/workflows/`
+is a tracked file: a PR can delete the workflow along with the rest of its guardrails, and
+without a **required status check** in branch protection, nothing reports on that PR and the
+merge goes through clean -- the CI gate never ran, and nothing said so.
+
+A required status check is a **server-side branch-protection setting**, not a repository file --
+no contributor can edit it from a PR, which is exactly why it is the backstop the CI gate itself
+cannot be. Mark it once, per repository:
+
+1. **Settings → Branches → Branch protection rules** → your default branch.
+2. Enable **Require status checks to pass before merging**.
+3. Select the job chock's workflow reports (`chock-gate` from `chock sync --ci`'s scaffold, or
+   the job name you gave a step using [`action.yml`](../action.yml), e.g. for
+   `chock review require` -- see [Reviewer Evidence](reviewer-evidence.md#wiring-it-as-a-required-status-check)).
+4. Do the same for every other CI-gate-backed policy you rely on -- each is its own job/check
+   unless you combine them.
+
+Until this is set, every row in [Enforcement Surfaces](enforcement-surfaces.md) that credits
+`ci-gate` toward `enforced-at-commit` is describing what the workflow *would* do if it ran, not
+a guarantee your repository currently has.
+
 ## How to verify a fresh clone enforces
 
 After `git clone` in a fresh directory, the committed artifacts are present but the git hooks

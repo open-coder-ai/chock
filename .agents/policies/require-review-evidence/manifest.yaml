@@ -1,0 +1,55 @@
+id: require-review-evidence
+name: "Require Review Evidence"
+version: "0.0.1"
+description: >
+  Reject a PR that lacks machine-checkable proof of what it was put through, so a reviewer's
+  attention is never spent on a change with no basis to re-derive. `chock review require --base
+  <ref>` judges, in order: evidence is present for the head diff, `chock review verify` holds,
+  the evidence's `command_set_hash` matches this repository's `required_checks` as currently
+  defined (a shrunk set or a redefined check fails, not just an omission), no required check is
+  recorded failing, and any diff touching an `unattestable` path carries at least
+  `attestation_floor` attestations. Wired as a required GitHub status check via `action.yml`, not
+  a compiled git-hook or ci-gate -- `gate/runner.py` is vendored and stdlib-only, and this command
+  depends on `chock.review`, so it runs as its own CI step instead of a new gate kind. Opt-in
+  because it needs curated `chock.review.required_checks` config; makes what a PR was checked
+  against inspectable, and does not itself deepen review. See docs/reviewer-evidence.md.
+artifact: rule
+enforcement: advise
+mandatory: false
+effects:
+- read_only
+approval:
+  required: false
+
+rule:
+  text: |
+    before(merge): pass(chock review require --base <ref>)  # required GitHub status check, see action.yml
+    if(fails): read the printed judgement and run the `chock review emit` command it names
+
+compliance:
+  owasp_asi:
+  - control: ASI04
+    coverage: partial
+    note: "re-derives a contributor's claimed checks in CI instead of trusting them; does not deepen what review finds"
+
+provenance:
+  author: "chock-core"
+  created_at: "2026-09-04T00:00:00Z"
+  updated_at: "2026-09-04T00:00:00Z"
+  source_repo: "https://github.com/open-coder-ai/chock"
+  license: "Apache-2.0"
+  trust_tier: "community"
+
+lifecycle:
+  status: draft
+  reviewed_by:
+  - "chock-core"
+
+security:
+  content_instructions: never-obey
+
+changelog:
+- version: 0.0.1
+  date: '2026-09-04'
+  changes:
+  - "Initial: chock review require as an opt-in, CI-native required status check."

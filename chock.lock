@@ -123,6 +123,14 @@
       "artifacts_sha256": "18bb4772936ece0e374fb48e1a09fdbf946fb82381ed30687c0bcc8a10d4643c"
     },
     {
+      "id": "require-review-evidence",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "6746768db59903cf017c66799b68ca4290870655ab6ede665ef2fde035c87875",
+      "source": "local",
+      "artifacts_sha256": "6bab271e1984302fd4c659739aac6d0029f5f2215af90182d3d7cbb59984f9c8"
+    },
+    {
       "id": "scan-secrets",
       "version": "0.0.1",
       "managed": false,

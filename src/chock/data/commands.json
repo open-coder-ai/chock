@@ -69,7 +69,7 @@
     },
     "review": {
       "module": "chock.review.cli",
-      "help": "Produce or check reviewer evidence (review emit | review verify <file>)"
+      "help": "Produce or check reviewer evidence (review emit | review verify <file> | review require)"
     },
     "compliance": {
       "module": "chock.authoring.compliance",

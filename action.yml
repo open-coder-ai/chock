@@ -7,6 +7,9 @@ branding:
 
 inputs:
   command:
+    # e.g. "review require --base origin/main" -- see docs/reviewer-evidence.md. Needs a
+    # checkout step with fetch-depth: 0 and the base ref fetched (actions/checkout defaults
+    # cover pull_request's base automatically).
     description: Chock command to run
     required: false
     default: check

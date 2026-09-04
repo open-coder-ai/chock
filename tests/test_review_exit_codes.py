@@ -88,3 +88,26 @@ def test_run_check_survives_systemexit_and_keeps_output(tmp_path):
     status, first = run_check(tmp_path, ["check", "--definitely-not-a-flag"])
     assert status == "fail"
     assert first, "the buffered argparse explanation must be preserved, not discarded"
+
+
+def _run(repo, *args):
+    return subprocess.run(
+        [sys.executable, "-m", "chock", "review", *args, "--repo", str(repo), "--base", "basepoint"],
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_require_exits_nonzero_with_no_evidence(tmp_path):
+    repo = _repo_with_commit(tmp_path)
+    proc = _run(repo, "require")
+    assert proc.returncode == 1, proc.stdout + proc.stderr
+    assert "chock review emit" in proc.stdout + proc.stderr
+
+
+def test_require_exits_zero_once_evidence_is_emitted(tmp_path):
+    repo = _repo_with_commit(tmp_path)
+    emitted = _run(repo, "emit", "--by", "tester", "--checks", "validate")
+    assert emitted.returncode in (0, 1)  # emit's own exit reflects check results, not require's judgement
+    proc = _run(repo, "require")
+    assert proc.returncode == 0, proc.stdout + proc.stderr
