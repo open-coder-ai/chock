@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+- **Added AMB-2, deterministic conflict detection over the compiled ambient rule surface**
+  (`chock-g1`). `chock sync` compiles every enabled policy's rule into one attention surface
+  (`.agents/policies/INDEX.md`, the file `AGENTS.md` points agents to read -- see the AMB-1
+  correction below); nobody reviews those independently authored policies together, so a
+  contradiction there is worse than a missing rule, because the agent silently picks one and
+  neither is enforced. Arbiter ([arXiv:2603.08993](https://arxiv.org/abs/2603.08993)) finds
+  that the agent that resolves instruction conflicts cannot be the agent that detects them --
+  detection needs a different vantage point -- so this is not a model-based check: it is a new
+  parser (`chock.validation.ambient_parser`) over the compiled key/value DSL, retaining which
+  policy emitted each line, and a new check (`chock.validation.checks_conflicts`) doing set
+  arithmetic over a closed, catalog-derived verb vocabulary (`never`/`block` vs.
+  `prefer`/`require_approval`). Flags, as errors naming both policies and both lines: direct
+  contradictions, modality conflicts, and scope overlaps (an `outer(paths): verb(target)` call
+  flattened into per-path synthetic clauses, so a path claimed by two policies with opposing
+  verdicts falls out of the same mechanism). Redundant or shadowed rules are a warning naming
+  their token cost against the AMB-1 budget. A declared, reviewed override
+  (`# chock: conflict-reviewed <key>` in a policy's `rule.text`) suppresses exactly that
+  finding. New invariant AMB-2 in `spec/enforcement-matrix.md` and `spec/policy-spec.md` §16,
+  and `chock check --only conflicts` for the authoring loop.
+  **Also fixes an AMB-1 discrepancy**: the matrix and `spec/policy-spec.md` described AMB-1 as
+  measuring `chock:rules` blocks inlined in `AGENTS.md`. That architecture no longer exists --
+  `test_ambient_wiring.py::test_this_repo_carries_no_inlined_blocks` asserts `AGENTS.md` never
+  carries per-policy blocks at all, only a pointer to `.agents/policies/INDEX.md`. The
+  implementation (`check_ambient_token_budget()`, which reads `INDEX.md`) was already correct;
+  the docs were stale. Corrected, not rearchitected.
 - **Added `chock review require --base <ref>` and the `require-review-evidence` catalog policy**
   (`chock-g1`), closing the two holes left in `chock review`: a contributor could name a trivial
   subset of checks and have it verify cleanly (H1), and "evidence holds" was never the same claim

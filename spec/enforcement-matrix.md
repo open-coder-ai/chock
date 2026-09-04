@@ -80,7 +80,8 @@ Every spec invariant must appear in this matrix with the check(s) that enforce i
 | FRS-1 | `spec/policy-spec.md` §15 | `the validator`: `check_adapter_integrity()` requires a `fetched_at` or `updated_at` freshness marker and warns if it is older than 30 days | warning | Marker format: `YYYY-MM-DD` in a comment or frontmatter |
 | SCH-1 | `spec/policy-spec.md` §15 | `chock install-skills` copies canonical `manifest*.json` schemas from `src/chock/validation/schemas/` into `.agents/skills/validate/assets/`; the validator uses the installed package's own schemas | error | Re-install skills to refresh schemas |
 | REL-1 | `spec/policy-spec.md` §15 | `the validator`: `check_release_consistency()` compares `VERSION`, `pyproject.toml`, and the top `CHANGELOG.md` entry | error | Bump all three together in every release |
-| AMB-1 | `spec/policy-spec.md` §15 | `the validator`: `check_ambient_token_budget()` estimates tokens across `chock:rules` blocks in `AGENTS.md` | warning | Soft budget from §4 (`ambient_total_tokens_soft`) |
+| AMB-1 | `spec/policy-spec.md` §15 | `the validator`: `check_ambient_token_budget()` estimates tokens across the attention surface in `.agents/policies/INDEX.md` | warning | Soft budget from §4 (`ambient_total_tokens_soft`) |
+| AMB-2 | `spec/policy-spec.md` §15 | `the validator`: `check_ambient_conflicts()` parses `.agents/policies/INDEX.md` with provenance and flags direct contradictions, modality conflicts, and scope overlaps between independently authored policies as errors, redundancy as a warning | error | No model call (deterministic set arithmetic); `chock check --only conflicts`; `# chock: conflict-reviewed <key>` suppresses one finding |
 
 ## CI traceability checks
 

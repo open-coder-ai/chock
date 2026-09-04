@@ -2,6 +2,17 @@
 
 import yaml  # noqa: F401  (re-exported for callers/tests)
 
+from chock.validation.ambient_parser import (  # noqa: F401
+    Clause,
+    RuleLine,
+    expand_scope_clauses,
+    find_overrides,
+    iter_rule_lines,
+    parse_clauses,
+)
+from chock.validation.checks_conflicts import (  # noqa: F401
+    check_ambient_conflicts,
+)
 from chock.validation.checks_content import (  # noqa: F401
     check_description_parity,
     check_no_agent_specific_leakage,
