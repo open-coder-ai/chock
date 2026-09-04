@@ -2,7 +2,15 @@
 
 ## Unreleased
 
-Nothing yet.
+- **Fixed a dead `import shutil` in every vendored runtime bundle except `claude_code`'s.**
+  `chock.gate.runtime_bundle.render()` spliced its fixed `_chock_`-renamed stdlib import
+  block into every agent's bundle regardless of which of those names the assembled handler
+  actually used -- `shutil` is only referenced by `sessionstart`, extracted for
+  `claude_code` alone, so every other vendor's `.chock/bin/<agent>.py` carried an unused
+  import (flagged by CodeQL in every adopter that compiles the full vendor set, e.g.
+  chock-catalog#56). `render()` now filters the import block per agent against what its
+  handler source actually references. Runtime goldens regenerated; only the dead import
+  line moved, confirmed by diff.
 
 ## 0.8.0 — Derive from agentseam's vendor config; externalize templates; adopt the Sonar/Checkstyle/FindBugs lint bar
 
