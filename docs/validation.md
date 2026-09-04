@@ -70,7 +70,14 @@ Validation is one of five places every requirement must land, or it drifts:
 spec invariant → schema field → validator/runtime check → generation template → CI
 ```
 
-`chock check --only matrix` verifies the spec ↔ enforcement-matrix half of that chain. When you add a
+`chock check --only matrix` verifies the spec ↔ enforcement-matrix half of that chain: every spec
+invariant ID is listed, and every row has a non-empty `Check` column. `chock check --only mechanisms`
+verifies the other half, enforcement-matrix ↔ code: a row naming a `` `function()` `` mechanism must
+name one that actually exists in `src/`, is invoked on the `engine` or `lifecycle` dispatch path (both
+are searched — checking only one produced this project's own false positives, see
+`spec/enforcement-matrix.md`'s "How to read this matrix"), and can emit the severity the row claims. A
+row that cannot be made true this way is not weakened to pass — it is marked `unautomated` (or `eval`,
+when the eval suite enforces it instead) and the check skips it knowingly, not silently. When you add a
 new check, add its spec invariant, schema field, generation-template support, and a CI step in the
 same PR — plus one test that attacks the check and one that feeds it ordinary data.
 
@@ -81,6 +88,7 @@ The reference `.github/workflows/ci.yml` runs, on Ubuntu **and** Windows across 
 ```bash
 ruff check . && ruff format --check .
 chock check --only matrix
+chock check --only mechanisms
 chock check
 chock check --only validate --mode frontier-claude
 chock check --only validate --mode frontier-devin
