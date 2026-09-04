@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **CI now runs `mechanisms` and `conflicts`, and a test keeps that list honest** (`chock-g1`).
+  `.github/workflows/ci.yml` runs each sub-check as its own `chock check --only <x>` step rather
+  than the umbrella `chock check`, so the two most recently added checks -- `mechanisms` and
+  `conflicts` (AMB-2) -- were in `lifecycle.py`'s `CHECKS` but had no CI step, and therefore
+  gated nothing on a pull request. Added both steps, and
+  `test_every_lifecycle_check_has_its_own_ci_step` so the next check added to `CHECKS` fails the
+  suite until it is listed. The gap is the same shape as the one `mechanisms` itself was built to
+  catch: a control that runs somewhere is not a control that runs where the ledger says it does.
+
 - **Added `chock check --only mechanisms`, a matrix-vs-code check** (`chock-g1`). Three rows in
   `spec/enforcement-matrix.md` were found, in one day, whose claim outran its implementation --
   every one by accident, none by a standing check
