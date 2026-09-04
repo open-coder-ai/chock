@@ -131,6 +131,14 @@
       "artifacts_sha256": "cd7df13ded59738cd76aa24c19ec0600ca6847be5614536ec4c39f886f4f6e58"
     },
     {
+      "id": "test-integrity",
+      "version": "0.0.1",
+      "managed": false,
+      "sha256": "c140c5ca23c3e9dde10712b889840ee9a4a1976f7cb328d088f8f781e03c274e",
+      "source": "local",
+      "artifacts_sha256": "c5e8de5994b7c5a044203babbca3db334500cab99e66ac409ba07daa5baf51a6"
+    },
+    {
       "id": "token-efficiency",
       "version": "0.0.1",
       "managed": false,

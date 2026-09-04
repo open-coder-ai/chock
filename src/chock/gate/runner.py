@@ -80,8 +80,7 @@ class GateContext:
     def removed_lines(self, path: str) -> list[str]:
         """The deleted side of the diff -- what a test-weakening change takes away."""
         out = self._git("diff", *self._range(), "-U0", "--", path)
-        return [line[1:] for line in out.splitlines()
-                if line.startswith("-") and not line.startswith("---")]
+        return [line[1:] for line in out.splitlines() if line.startswith("-") and not line.startswith("---")]
 
     def staged_blob(self, path: str) -> str:
         """The proposed content: staged in index mode, committed at HEAD in range mode."""

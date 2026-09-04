@@ -25,7 +25,8 @@
           "enum": [
             "content_regex",
             "forbidden_ref",
-            "dependency_allowlist"
+            "dependency_allowlist",
+            "test_integrity"
           ]
         },
         "on": {
