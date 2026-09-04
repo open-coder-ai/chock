@@ -41,3 +41,16 @@ def test_no_workflow_checks_out_an_untrusted_ref(path: Path) -> None:
             f"{path.name} checks out {marker}. Combined with a privileged trigger this runs a "
             f"contributor's code with this repository's token."
         )
+
+
+def test_every_lifecycle_check_has_its_own_ci_step() -> None:
+    """CI runs each sub-check as its own step, so a new one in CHECKS is invisible until listed."""
+    from chock.lifecycle import CHECKS
+
+    ci = (Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    missing = [name for name in CHECKS if f"chock check --only {name}" not in ci]
+    assert not missing, (
+        f".github/workflows/ci.yml has no step for {missing}. Bare `chock check` runs every entry "
+        f"in CHECKS, but CI runs them one --only at a time, so a check added to CHECKS without a "
+        f"step here never gates a pull request. Add one beside the others in the `validate` job."
+    )

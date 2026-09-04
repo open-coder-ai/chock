@@ -164,6 +164,13 @@ jobs:
       - name: Check enforcement matrix traceability
         run: chock check --only matrix
 
+      # Traceability only proves a row *exists*. This proves the mechanism it names is real:
+      # defined, invoked on the engine or lifecycle dispatch path, and able to emit the
+      # severity the row claims. Three rows were found in one day whose claim outran its
+      # implementation, none of them by a standing check.
+      - name: Check matrix rows name real, invoked mechanisms
+        run: chock check --only mechanisms
+
       - name: Install bundled skills (injects canonical schemas)
         run: chock install-skills .
 
@@ -180,6 +187,11 @@ jobs:
 
       - name: Index freshness check
         run: chock check --only index
+
+      # Runs after the index check because it parses the compiled INDEX.md: two ambient rules
+      # that contradict each other leave the agent free to satisfy either one.
+      - name: Ambient rule conflicts
+        run: chock check --only conflicts
 
       # Tier 2. Deterministic mode replays each policy's own gate or guard, so it needs no
       # model, no budget, and no sandbox -- which is why it can gate every build rather
