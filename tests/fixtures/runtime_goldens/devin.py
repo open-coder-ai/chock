@@ -15,7 +15,6 @@ import sys
 
 import os as _chock_os
 import shlex as _chock_shlex
-import shutil as _chock_shutil
 import subprocess as _chock_subprocess
 from datetime import datetime as _chock_datetime, timezone as _chock_timezone
 from pathlib import Path as _chock_Path

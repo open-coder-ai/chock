@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import inspect
+import re
 
 from agentseam import bundler
 
@@ -78,16 +79,31 @@ def _handler_source(agent: str) -> str:
 _TOP_IMPORTS_ANCHOR = "from __future__ import annotations\n\nimport json\n_json = json\nimport sys\n"
 
 
+def _needed_imports(handler_source: str) -> str:
+    """`_IMPORTS`, minus any line whose renamed name(s) `handler_source` never references.
+
+    `_IMPORTS` is one fixed block spliced into every vendor's bundle, but `guard_runner`
+    (extracted for every vendor) uses only five of its six names -- `shutil` is used solely by
+    `sessionstart`, extracted for claude_code alone, so every other vendor's bundle carried a
+    dead import. Filtering per line against what the assembled handler actually uses keeps
+    this in sync as the handler modules change, rather than hand-tuning the template.
+    """
+    used = set(re.findall(r"_chock_\w+", handler_source))
+    lines = [line for line in _IMPORTS.splitlines() if used & set(re.findall(r"_chock_\w+", line))]
+    return "\n".join(lines) + ("\n" if lines else "")
+
+
 def render(agent: str) -> str:
     """Render `agent`'s self-contained vendored runtime: agentseam's bundle, chock's"""
     source = bundler.bundle(agent)
     if _TOP_IMPORTS_ANCHOR not in source:
         raise ValueError("%s: bundle() output has no top-imports anchor to hoist onto" % agent)
-    source = source.replace(_TOP_IMPORTS_ANCHOR, _TOP_IMPORTS_ANCHOR + "\n" + _IMPORTS, 1)
+    handler = _handler_source(agent)
+    source = source.replace(_TOP_IMPORTS_ANCHOR, _TOP_IMPORTS_ANCHOR + "\n" + _needed_imports(handler), 1)
     head, sep, rest = source.partition(BEGIN)
     if not sep:
         raise ValueError("%s: bundle() output has no %r marker" % (agent, BEGIN))
     _, sep2, tail = rest.partition(END)
     if not sep2:
         raise ValueError("%s: bundle() output has no %r marker" % (agent, END))
-    return "%s%s\n%s%s%s" % (head, BEGIN, _handler_source(agent), END, tail)
+    return "%s%s\n%s%s%s" % (head, BEGIN, handler, END, tail)
