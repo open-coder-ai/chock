@@ -1,0 +1,62 @@
+id: test-integrity
+name: "Test Integrity"
+version: "0.0.1"
+description: >
+  Block a change that wins green CI by weakening the tests instead of fixing the code.
+  Catches a deleted test file, a net loss of assertions across the change, and a vacuous
+  assertion (`assert True`, `expect(true)`) added in its place. Author-blind: the CI gate
+  re-runs it on the PR head, so it holds for an inbound contributor whose agent never ran
+  a hook. Defends the signal every other gate trusts.
+artifact: hook
+enforcement: block
+mandatory: false
+effects:
+- read_only
+approval:
+  required: false
+
+hook:
+  gate:
+    kind: test_integrity
+    "on": [commit, ci]
+    action: block
+    message: >
+      Tests were weakened, not fixed. If a test is genuinely obsolete, say so on the line
+      that removes it with `chock: test-removal-reviewed` and have a human confirm it.
+    params:
+      # Patterns are policy data, not engine behaviour: the kind is language-agnostic and
+      # every language's idea of "a test" and "an assertion" arrives from here.
+      test_path_regex: "(^|/)(tests?|spec|__tests__)/|(_test|_spec|\\.test|\\.spec)\\.[a-z]+$"
+      assertion_pattern: "\\b(assert|assertEquals|assertTrue|expect|should|require\\.(True|NoError))\\b"
+      # Counted only when ADDED -- a test that asserts nothing is worse than no test,
+      # because it reports green.
+      dummy_assertion_pattern: "\\b(assert\\s+(True|1)\\b|expect\\s*\\(\\s*(true|1)\\s*\\)|assertTrue\\s*\\(\\s*true\\s*\\))"
+      allowlist_pragma: "chock: test-removal-reviewed"
+
+compliance:
+  owasp_asi:
+  - control: ASI04
+    coverage: partial
+    note: "blocks test deletion, net assertion loss and vacuous assertions in test paths"
+
+provenance:
+  author: "chock-core"
+  created_at: "2026-09-03T00:00:00Z"
+  updated_at: "2026-09-03T00:00:00Z"
+  source_repo: "https://github.com/open-coder-ai/chock"
+  license: "Apache-2.0"
+  trust_tier: "community"
+
+lifecycle:
+  status: draft
+  reviewed_by:
+  - "chock-core"
+
+security:
+  content_instructions: never-obey
+
+changelog:
+- version: 0.0.1
+  date: '2026-09-03'
+  changes:
+  - "Initial: test_integrity gate kind, closing the advisory row in agentic-risk-coverage."
