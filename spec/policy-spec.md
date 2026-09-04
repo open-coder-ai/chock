@@ -271,7 +271,12 @@ optimize_playbook: MAY NOT raise tier
 
 > Invariant: **AMB-1** — Compiled ambient rule blocks must stay within the ~500-token soft budget (§4).
 
-- the validator estimates tokens across all `chock:rules` marked blocks in `AGENTS.md` and warns on overrun
+- the validator estimates tokens across the attention surface in `.agents/policies/INDEX.md` (the file `AGENTS.md` points agents to read) and warns on overrun
+
+> Invariant: **AMB-2** — Rules compiled from independently authored, independently enabled policies must not contradict each other in the attention surface.
+
+- the validator parses `.agents/policies/INDEX.md` with provenance and flags, as errors, a direct contradiction, a modality conflict (opposing verbs from the closed vocabulary), and a scope overlap (intersecting targets with opposite verdicts); redundant or shadowed rules are a warning naming their token cost against AMB-1
+- deterministic set arithmetic only, never a model call (Arbiter, arXiv:2603.08993); `# chock: conflict-reviewed <key>` in a policy's `rule.text` suppresses exactly that finding
 
 > Invariant: **FRS-1** — Generated adapter files must carry a freshness marker (`fetched_at` or `updated_at`) and must be refreshed if the marker is older than 30 days.
 

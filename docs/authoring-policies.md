@@ -47,7 +47,9 @@ compile and `add`, so path-like ids are rejected.
 
 ### `rule` — always-on guidance
 
-Compiles into the `AGENTS.md` ambient block. Keep `rule.text` to ≤ 2 lines.
+Compiles into `.agents/policies/INDEX.md`, the attention surface `AGENTS.md` points agents
+to read (AMB-1 measures its token budget; AMB-2 checks it for contradictions between
+policies -- see [Conflict detection](#conflict-detection-amb-2)). Keep `rule.text` to ≤ 2 lines.
 
 ```yaml
 artifact: rule
@@ -123,6 +125,36 @@ hook:
 
 > A guard that *inspects and blocks* is `read_only` and never needs approval. Approval and the
 > `irreversible` / `writes_external` effects describe the **action being governed**, not the guard.
+
+## Conflict detection (AMB-2)
+
+Every enabled `rule` policy's `rule.text` compiles into `.agents/policies/INDEX.md`. That surface
+is composed from independently authored, independently versioned policies that nobody reviews
+together -- a contradiction there is worse than a missing rule, because the agent silently picks
+one and neither is enforced. `chock check --only conflicts` parses the compiled INDEX.md (not
+`rule.text` -- what an agent actually reads) and flags, naming both policy ids and both lines:
+
+- **Direct contradiction / modality conflict** (error) -- two policies use opposing verbs from the
+  closed vocabulary (`never`/`block` vs. `prefer`/`require_approval`) for the same subject, e.g.
+  `never(assertion_deletion)` from one policy against `prefer(assertion_deletion)` from another.
+- **Scope overlap** (error) -- an `outer(paths): verb(target)` clause (e.g.
+  `agent_config(AGENTS.md|.claude/settings): never(hand_edit)`) against another policy's opposing
+  verdict for one of those same paths.
+- **Redundancy** (warning) -- the same verb, subject, and target set declared twice, or one
+  subsumed by another; the message names the duplicate's token cost against the AMB-1 budget.
+
+This is deterministic set arithmetic over the compiled text, never a model call -- Arbiter
+([arXiv:2603.08993](https://arxiv.org/abs/2603.08993)) finds that the agent resolving instruction
+conflicts cannot be the agent detecting them. `never(commit): secrets` and `never(commit):
+--no-verify` from two different policies are **not** flagged: `never(subject): targets` is
+additive (each policy extends the same forbidden-target list), not a single-valued assignment, so
+same-verb pairs never conflict here regardless of their targets.
+
+A reviewed, intentional case is not a bug: add `# chock: conflict-reviewed <key>` to the end of
+the `rule.text` line in either policy's manifest (`<key>` is the shared subject, e.g. `commit` or
+`.claude/settings`, printed in the finding). It suppresses exactly that finding, matching every
+other chock escape hatch (`allowlist_pragma`, `#pragma: allowlist secret`), and survives
+`chock sync` because it lives in the source `rule.text`, not the generated file.
 
 ## Validate as you go
 
