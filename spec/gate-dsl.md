@@ -7,7 +7,7 @@ For `artifact: hook` policies, the gate is declared under `hook.gate` in `manife
 
 | field | required | type | notes |
 |-------|----------|------|-------|
-| `kind` | yes | string | `content_regex`, `forbidden_ref`, `dependency_allowlist`, or `egress_allowlist` (gateway-only) |
+| `kind` | yes | string | `content_regex`, `forbidden_ref`, `dependency_allowlist`, `test_integrity`, or `egress_allowlist` (gateway-only) |
 | `on` | yes | list | events: `commit`, `push`, `tool_use`. The key must be quoted `"on"` in YAML. |
 | `action` | yes | string | `block`, `verify`, or `warn` |
 | `message` | yes | string | printed to stderr when the gate blocks |
@@ -83,6 +83,22 @@ a format the runtime would silently ignore. A file that fails to parse yields no
 a parse error is never converted into a block.
 
 Extracted names are lowercased and compared against a lowercased allowlist.
+
+### `kind: test_integrity`
+
+| param | required | type | notes |
+|-------|----------|------|-------|
+| `test_path_regex` | yes | string | regex matched against staged paths to identify test files |
+| `assertion_pattern` | yes | string | regex matched against a line to count it as an assertion |
+| `dummy_assertion_pattern` | no | string | regex for a vacuous assertion (`assert True`, `expect(true)`); matched only on added lines |
+| `allowlist_pragma` | no | string | regex matched on a line; a match on an added line skips that file's counting entirely |
+
+Blocks three shapes of a change that wins green CI by weakening the tests rather than
+fixing the code: a deleted test file, a **net** loss of assertions across the whole
+change (removed lines matching `assertion_pattern` outnumber added ones, counted only in
+files matching `test_path_regex`), and a vacuous assertion added in place of a real one.
+Only the staged diff is read (`removed_lines`/`added_lines`), so a file that already
+contained fewer assertions before this commit does not block it.
 
 ## Runtime note
 

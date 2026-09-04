@@ -301,6 +301,21 @@
         "script_hashes": {}
       }
     ],
+    "test-integrity": [
+      {
+        "id": "test-integrity",
+        "artifact": "hook",
+        "version": "0.0.1",
+        "name": "Test Integrity",
+        "description": "Block a change that wins green CI by weakening the tests instead of fixing the code. Catches a deleted test file, a net loss of assertions across the change, and a vacuous assertion (`assert True`, `expect(true)`) added in its place. Author-blind: the CI gate re-runs it on the PR head, so it holds for an inbound contributor whose agent never ran a hook. Defends the signal every other gate trusts.",
+        "path": ".agents/policies/test-integrity",
+        "manifest": "manifest.yaml",
+        "trust_tier": "community",
+        "lifecycle_status": "draft",
+        "dependencies": [],
+        "script_hashes": {}
+      }
+    ],
     "token-efficiency": [
       {
         "id": "token-efficiency",

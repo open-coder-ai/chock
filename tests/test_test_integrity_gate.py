@@ -68,9 +68,15 @@ def test_non_test_paths_are_not_policed(tmp_path: Path) -> None:
     assert _verdict(repo, gate) == 0
 
 
+def test_a_spec_directory_of_prose_is_not_policed(tmp_path: Path) -> None:
+    """A `spec/` directory of design docs (this repo's own layout) is not RSpec test code."""
+    repo, gate = _repo(tmp_path)
+    stage(repo, "spec/gate-dsl.md", "docs describing `assert True` as an example of a vacuous check\n")
+    assert _verdict(repo, gate) == 0
+
+
 def test_a_reviewed_removal_is_allowed_through(tmp_path: Path) -> None:
     """The escape hatch is deliberate, in the diff, and named — not a config toggle."""
     repo, gate = _repo(tmp_path)
-    stage(repo, "tests/test_math.py",
-          "def test_adds():  # chock: test-removal-reviewed\n    assert add(1, 2) == 3\n")
+    stage(repo, "tests/test_math.py", "def test_adds():  # chock: test-removal-reviewed\n    assert add(1, 2) == 3\n")
     assert _verdict(repo, gate) == 0

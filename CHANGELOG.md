@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Added the `test_integrity` gate kind, closing the `agentic-risk-coverage.md` row on an
+  agent deleting tests or assertions to get green** (catalog policy `test-integrity`,
+  `chock-g1`). Blocks a deleted test file, a net loss of assertions across the whole
+  change, and a vacuous assertion (`assert True`, `expect(true)`) added in its place;
+  `chock: test-removal-reviewed` on the removing line is the reviewed escape hatch.
+  Declarative (`hook.gate` in `manifest.yaml`), `enforced-at-commit` with the `ci-gate`
+  backstop so it holds for an inbound contributor whose agent never ran a local hook. The
+  coverage row moves from `advisory` to `enforced-at-commit`.
 - **Fixed a dead `import shutil` in every vendored runtime bundle except `claude_code`'s.**
   `chock.gate.runtime_bundle.render()` spliced its fixed `_chock_`-renamed stdlib import
   block into every agent's bundle regardless of which of those names the assembled handler
