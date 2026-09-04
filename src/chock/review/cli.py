@@ -15,6 +15,7 @@ from chock.review.evidence import (
     build,
     check_registry,
     load,
+    required_checks,
     verify,
 )
 
@@ -23,7 +24,8 @@ DEFAULT_BASE = "origin/main"
 
 def _emit(args: argparse.Namespace) -> int:
     root = Path(args.repo).resolve()
-    checks = args.checks or sorted(check_registry(root))
+    registry = sorted(check_registry(root))
+    checks = args.checks or registry
     evidence = build(root, args.base, {"kind": args.kind, "id": args.by}, checks, allow_empty=args.allow_empty)
 
     dest = Path(args.out) if args.out else root / EVIDENCE_DIR / f"{evidence['diff_sha'][:12]}.json"
@@ -38,6 +40,12 @@ def _emit(args: argparse.Namespace) -> int:
         + (f", {len(failed)} failing: {', '.join(failed)}" if failed else "")
     )
     print("  attested: 0 -- a machine cannot attest. Add judgement claims before requesting review.")
+    narrowed = sorted(set(registry) - set(checks))
+    if narrowed:
+        print(
+            f"  WARNING: {len(narrowed)} registered check(s) not run: {', '.join(narrowed)}. "
+            "`review verify` rejects evidence that does not cover the registry."
+        )
     return 1 if failed else 0
 
 
@@ -54,7 +62,21 @@ def _verify(args: argparse.Namespace) -> int:
         return 1
 
     who = evidence.get("produced_by", {})
+    registry = sorted(check_registry(root))
+    named = {e.get("check") for e in evidence.get("verified") or []}
     print(f"Evidence holds: {len(evidence.get('verified') or [])} check(s) re-derived and matching.")
+    uncovered = sorted(set(registry) - named)
+    required = required_checks(root)
+    scope = "required set" if required else "registry"
+    print(
+        f"  coverage: {len(named & set(registry))} of {len(registry)} registered check(s)"
+        + (f" -- NOT covered: {', '.join(uncovered)}" if uncovered else "")
+    )
+    if uncovered and not required:
+        print(
+            f"  this repository declares no `required_checks`, so the {scope} is not enforced; "
+            "an author chose which checks to run."
+        )
     print(f"  produced by {who.get('kind', '?')} {who.get('id', '?')}")
     if attested:
         print(f"  {len(attested)} attestation(s), NOT verified -- a human decides whether to believe them:")
