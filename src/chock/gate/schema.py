@@ -45,6 +45,16 @@ KIND_PARAM_SCHEMAS: dict[str, dict] = {
             "allowlist_file": {"type": "string"},
         },
     },
+    "test_integrity": {
+        **_CLOSED_OBJECT,
+        "required": ["test_path_regex", "assertion_pattern"],
+        "properties": {
+            "test_path_regex": {"type": "string", "minLength": 1},
+            "assertion_pattern": {"type": "string", "minLength": 1},
+            "dummy_assertion_pattern": {"type": "string"},
+            "allowlist_pragma": {"type": "string"},
+        },
+    },
     "egress_allowlist": {
         **_CLOSED_OBJECT,
         "required": ["allowed_hosts"],

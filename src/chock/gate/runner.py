@@ -77,6 +77,12 @@ class GateContext:
                 lines.append(line[1:])
         return lines
 
+    def removed_lines(self, path: str) -> list[str]:
+        """The deleted side of the diff -- what a test-weakening change takes away."""
+        out = self._git("diff", *self._range(), "-U0", "--", path)
+        return [line[1:] for line in out.splitlines()
+                if line.startswith("-") and not line.startswith("---")]
+
     def staged_blob(self, path: str) -> str:
         """The proposed content: staged in index mode, committed at HEAD in range mode."""
         return self._git("show", f"HEAD:{path}" if self.base else f":{path}")
@@ -235,10 +241,44 @@ def _kind_dependency_allowlist(ctx: GateContext, params: dict, _event: str) -> G
     return GateResult(allowed=not matches, matches=matches)
 
 
+def _count(pattern: "re.Pattern[str]", lines: list[str], pragma: "re.Pattern[str] | None") -> int:
+    return sum(1 for line in lines if pattern.search(line) and not (pragma and pragma.search(line)))
+
+
+def _kind_test_integrity(ctx: GateContext, params: dict, _event: str) -> GateResult:
+    """Block a change that wins green CI by weakening the tests rather than fixing the code."""
+    path_re = re.compile(params["test_path_regex"])
+    assertion_re = re.compile(params["assertion_pattern"])
+    dummy_pattern = params.get("dummy_assertion_pattern")
+    dummy_re = re.compile(dummy_pattern) if dummy_pattern else None
+    pragma = params.get("allowlist_pragma")
+    pragma_re = re.compile(pragma) if pragma else None
+
+    matches: list[str] = []
+    added = removed = 0
+    for path in ctx.staged_paths("D"):
+        if path_re.search(path):
+            matches.append(f"{path}: test file deleted")
+    for path in ctx.staged_paths("ACMRT"):
+        if not path_re.search(path):
+            continue
+        added_lines = ctx.added_lines(path)
+        if pragma_re and any(pragma_re.search(line) for line in added_lines):
+            continue
+        added += _count(assertion_re, added_lines, pragma_re)
+        removed += _count(assertion_re, ctx.removed_lines(path), pragma_re)
+        if dummy_re and any(dummy_re.search(line) for line in added_lines):
+            matches.append(f"{path}: vacuous assertion added")
+    if removed > added:
+        matches.append(f"assertions removed across tests: {removed} removed, {added} added")
+    return GateResult(allowed=not matches, matches=matches)
+
+
 KINDS = {
     "content_regex": _kind_content_regex,
     "forbidden_ref": _kind_forbidden_ref,
     "dependency_allowlist": _kind_dependency_allowlist,
+    "test_integrity": _kind_test_integrity,
 }
 
 
