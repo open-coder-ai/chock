@@ -9,7 +9,7 @@ each guarantee holds.
 | Surface | Determinism | Bypassable? | What it is |
 | :--- | :--- | :--- | :--- |
 | `git-hook` | Hard, at commit/push | Yes (`--no-verify`) | Pre-commit / pre-merge-commit / pre-push guard |
-| `ci-gate` | Hard, un-bypassable | No | The backstop for a skipped git hook |
+| `ci-gate` | Hard, un-bypassable | No, **once marked a required status check** -- see [the branch-protection gap](adopting.md#the-branch-protection-gap): the workflow file itself is tracked content a PR can delete, so `ci-gate`'s un-bypassable claim rests on a server-side branch-protection setting nothing in this repository can edit | The backstop for a skipped git hook |
 | `ambient-rule` | Advisory | Yes | Compiled `AGENTS.md` block the agent is asked to follow |
 | `pre-tool-use` | Hard, pre-execution | No | Blocks a command **before** the agent runs it, in each client's own deny dialect — every matrix-blocking vendor with a repo-level config (see the Cursor caveat) |
 | `agent-hooks` | Hard, pre-execution | No | The same exit-2 deny for Copilot CLI + VS Code agent mode, from `.github/hooks/chock.json` (witnessed blocking on both, 2026-08-23) |

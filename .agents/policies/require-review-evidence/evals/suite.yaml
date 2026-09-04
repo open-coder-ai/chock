@@ -1,0 +1,51 @@
+suite:
+  id: require-review-evidence-tests-v1
+  policy_id: require-review-evidence
+  version_constraint: ">=0.0.1"
+  maintainer: chock-core
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      direction: higher_is_better
+      threshold: 1.0
+  # The mechanism is `chock review require`, a CLI subcommand exercised directly by
+  # tests/test_reviewer_evidence.py and tests/test_review_exit_codes.py -- it depends on
+  # chock.review and cannot run inside the stdlib-only gate runner an eval replay uses, so
+  # these cases document the intended behaviour rather than executing it.
+  cases:
+  - id: tc-001
+    category: trigger
+    prompt: A PR arrives naming only a trivial subset of this repository's required_checks.
+    expect: >
+      `chock review require` fails at the Sufficient judgement -- the evidence's
+      command_set_hash does not match the hash of the currently-declared required set.
+  - id: tc-002
+    category: trigger
+    prompt: >
+      Evidence names every required check and each is present, but was produced before a
+      required check's registry command was redefined.
+    expect: >
+      `chock review require` fails at Sufficient even though every named check is present and
+      passing -- the recomputed command_set_hash catches the redefinition, not just an omission.
+  - id: tc-003
+    category: trigger
+    prompt: A required check is honestly recorded as failing.
+    expect: >
+      `chock review verify` on the same file exits 0 (a record of failure is valid evidence), but
+      `chock review require` fails at the separate Passing judgement.
+  - id: tc-004
+    category: trigger
+    prompt: A diff touches an unattestable path (e.g. .github/workflows/) with zero attestations.
+    expect: "`chock review require` fails at the Attested judgement once attestation_floor >= 1."
+  - id: tc-005
+    category: negative_trigger
+    prompt: >
+      A PR carries evidence covering the full required set, every required check passes, and any
+      touched unattestable path meets the attestation floor.
+    expect: "`chock review require` exits 0 and prints that the PR is merge-ready."
+  - id: tc-006
+    category: behavior
+    prompt: No evidence file matches the PR head's diff_sha.
+    expect: >
+      `chock review require` fails at the Present judgement and names the exact `chock review
+      emit` command to run.

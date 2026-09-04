@@ -84,6 +84,11 @@
       "type": "array",
       "description": "Paths a contributor may not self-certify -- the machinery that checks contributions. Fixed by the repository's config, never by the submitter: verification recomputes the list and rejects evidence that disagrees. Mirrors `verify` judging the vendored runner rather than the source pack.",
       "items": { "type": "string" }
+    },
+    "command_set_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 over the repository's required check set -- names and resolved registry commands -- as `emit` saw it. `chock review require` recomputes this from repo config and rejects a mismatch: a shrunk set, a renamed check, or a redefined registry entry all fail, not just an omission."
     }
   }
 }

@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- **Added `chock review require --base <ref>` and the `require-review-evidence` catalog policy**
+  (`chock-g1`), closing the two holes left in `chock review`: a contributor could name a trivial
+  subset of checks and have it verify cleanly (H1), and "evidence holds" was never the same claim
+  as "the checks passed" (H2). `emit` now records a `command_set_hash` over the repository's
+  `required_checks`, resolved to their actual registry commands; `require` recomputes that hash
+  from repo config -- never from the evidence -- and rejects any mismatch, catching a shrunk set
+  or a redefined check, not just an omission. New `chock.review.attestation_floor` and
+  `applies_to` config. `require` runs as its own CI step via `action.yml`, not a compiled
+  git-hook or ci-gate, because it depends on `chock.review` and the vendored gate runner must stay
+  stdlib-only. Documents the branch-protection gap: `ci-gate`'s "un-bypassable" claim rests on a
+  server-side required-status-check setting nothing in the repository can edit
+  (`docs/adopting.md#the-branch-protection-gap`). Re-derives the mechanism *Proof-or-Stop: Don't
+  Trust the Agent, Trust the Evidence* ([arXiv:2607.14890](https://arxiv.org/abs/2607.14890))
+  already publishes, for chock's anonymous-fork threat model. Coverage row:
+  `enforced-in-ci` -- re-derives claimed checks, does not deepen review.
 - **Added the `test_integrity` gate kind, closing the `agentic-risk-coverage.md` row on an
   agent deleting tests or assertions to get green** (catalog policy `test-integrity`,
   `chock-g1`). Blocks a deleted test file, a net loss of assertions across the whole
