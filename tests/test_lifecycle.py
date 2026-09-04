@@ -106,6 +106,28 @@ def test_check_matrix_explicit_only_runs_even_without_file(tmp_path, monkeypatch
     assert matrix.calls == [[]]
 
 
+def test_check_mechanisms_skipped_in_adopter_repo(tmp_path, monkeypatch, capsys):
+    mechanisms = Recorder()
+    monkeypatch.setattr("chock.validation.checks_matrix_mechanisms.main", mechanisms)
+    for mod, name in [
+        ("chock.validation.engine", "main"),
+        ("chock.lock", "main"),
+        ("chock.eval.cli", "main"),
+        ("chock.index.cli", "cmd_refresh"),
+    ]:
+        monkeypatch.setattr(f"{mod}.{name}", Recorder())
+    assert lifecycle.check_main(["--repo", str(tmp_path)]) == 0
+    assert mechanisms.calls == []
+    assert "skipped: no spec/enforcement-matrix.md" in capsys.readouterr().out
+
+
+def test_check_mechanisms_explicit_only_runs_even_without_file(tmp_path, monkeypatch):
+    mechanisms = Recorder()
+    monkeypatch.setattr("chock.validation.checks_matrix_mechanisms.main", mechanisms)
+    assert lifecycle.check_main(["--repo", str(tmp_path), "--only", "mechanisms"]) == 0
+    assert mechanisms.calls == [["--repo", str(tmp_path)]]
+
+
 def test_check_rc_is_max_of_members(monkeypatch):
     monkeypatch.setattr("chock.lock.main", Recorder(rc=1))
     monkeypatch.setattr("chock.eval.cli.main", Recorder(rc=0))

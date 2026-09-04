@@ -101,7 +101,7 @@ lockfile-write failure fails the command. An adopter-edited dispatcher is backed
 ### `check` — is this repo sound?
 
 ```bash
-chock check [--repo .] [--only validate,verify,evals,matrix,index] [--mode MODE] [--event EVENT]
+chock check [--repo .] [--only validate,verify,evals,matrix,mechanisms,index] [--mode MODE] [--event EVENT]
 ```
 
 Runs every truth check, read-only — `check` never regenerates what it measures (that is
@@ -113,6 +113,7 @@ Runs every truth check, read-only — `check` never regenerates what it measures
 | `verify` | Installed packs match `chock.lock` — both source and compiled-artifact hashes. |
 | `evals` | Every policy's eval suite passes under deterministic replay. |
 | `matrix` | Spec invariants are traceable in the enforcement matrix. Framework-repo homework: auto-skipped (with a note) in repos that have no `spec/enforcement-matrix.md`. |
+| `mechanisms` | Every enforcement-matrix row naming a `` `function()` `` names a real, invoked, severity-capable one — presence in `matrix` is not the same as being real. Same auto-skip as `matrix`. |
 | `index` | `INDEX.md` and the `AGENTS.md` pointer are fresh. |
 
 - `--only` — comma-separated subset, e.g. `--only validate,verify`.

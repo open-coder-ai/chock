@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+- **Added `chock check --only mechanisms`, a matrix-vs-code check** (`chock-g1`). Three rows in
+  `spec/enforcement-matrix.md` were found, in one day, whose claim outran its implementation --
+  every one by accident, none by a standing check
+  (`discovery/2026-09-04-enforcement-matrix-audit.md` in org-plan). The existing `matrix`
+  sub-check only asserted that every invariant ID *appears*; presence is not the same as being
+  real. `mechanisms` (`chock.validation.checks_matrix_mechanisms`) parses every row naming a
+  `` `function()` `` mechanism and, via AST over `src/`, verifies: the function is defined; it is
+  invoked on the `engine` (`chock validate`) or `lifecycle` (`chock check`-only sub-check) dispatch
+  path -- both, since checking one only is how the audit produced its own false positives, e.g.
+  `check_ambient_conflicts` is lifecycle-only and invisible from `engine.py` alone; and it can
+  emit the severity the row claims, by walking the (transitive) call graph for literal
+  `"error"`/`"warning"`/`"info"` findings, or treating a bare CLI entrypoint's nonzero exit as
+  `error`-equivalent (it has no other vocabulary). A row that cannot be made true this way is not
+  weakened to pass: it is marked `unautomated` (no code path) or `eval` (enforced by the eval
+  suite instead), and the check skips it knowingly -- reported as an `info` finding, not silently.
+  Wired into `chock check` beside `matrix` in `lifecycle.py`'s `CHECKS`.
+  **Also repoints SEC-7** (a repointing, not a redesign -- the record's invariant, "the compiled
+  ambient surface is what policies produce, nobody hand-edits it," was already enforced,
+  blocking, by `chock check --only index` when `AGENTS.md` became a pointer; the row just named the
+  wrong mechanism): SEC-7 now names `chock check --only index` (`cmd_refresh()`, on the `lifecycle`
+  path) instead of `check_ambient_rule_blocks()`, which is a secondary, warning-level helper and
+  was never a byte-match -- every one of its findings is `"warning"`, so it structurally could
+  not fail a build. **Also fixes SEC-4, SEC-1, SEC-2, SEC-6, INT-1, INT-2** to name the real
+  functions that enforce them (`_scan_text_surfaces`, `check_security_baseline`,
+  `check_eval_first`, `validate_yaml_against_schema`) instead of prose with no `function()`
+  the check could verify, and marks **TPL-1 and SCH-1 `unautomated`**: no code compares the
+  template mirror or re-derives the installed schema copy, so their previous `warning`/`error`
+  severities were claims nothing could ever produce. Every row now carries a `Dispatch` column
+  (`engine`/`lifecycle`/`n/a`) recording which path enforces it, removing the ambiguity that
+  produced the audit's own false positives. Also fixes an unescaped `|` in DET-1's Check column
+  (`code|hybrid`, a pre-existing markdown-table bug this check's row parser exposed -- it split
+  the row into a bogus extra column) and teaches the row parser to respect `\|`-escaped pipes
+  already in use elsewhere in the file (e.g. EFF-1's `verify\|block`).
 - **Added AMB-2, deterministic conflict detection over the compiled ambient rule surface**
   (`chock-g1`). `chock sync` compiles every enabled policy's rule into one attention surface
   (`.agents/policies/INDEX.md`, the file `AGENTS.md` points agents to read -- see the AMB-1

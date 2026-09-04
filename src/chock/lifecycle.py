@@ -47,7 +47,7 @@ def sync_main(argv: list[str] | None) -> int:
     return rc
 
 
-CHECKS = ("validate", "verify", "evals", "matrix", "index", "conflicts")
+CHECKS = ("validate", "verify", "evals", "matrix", "mechanisms", "index", "conflicts")
 
 
 def _run_validate(args: argparse.Namespace) -> int:
@@ -62,13 +62,27 @@ def _run_validate(args: argparse.Namespace) -> int:
 
 
 def _run_matrix(args: argparse.Namespace) -> int:
-    matrix_file = Path(args.repo) / "spec" / "enforcement-matrix.md"
+    from chock.validation.checks_matrix_mechanisms import MATRIX_RELATIVE_PATH
+
+    matrix_file = Path(args.repo) / MATRIX_RELATIVE_PATH
     if not matrix_file.exists() and not args.only:
-        print("== enforcement matrix (skipped: no spec/enforcement-matrix.md in this repo)")
+        print(f"== enforcement matrix (skipped: no {MATRIX_RELATIVE_PATH} in this repo)")
         return 0
     from chock.authoring.matrix import main as matrix_main
 
     return _run("enforcement matrix", matrix_main, [])
+
+
+def _run_mechanisms(args: argparse.Namespace) -> int:
+    from chock.validation.checks_matrix_mechanisms import MATRIX_RELATIVE_PATH
+    from chock.validation.checks_matrix_mechanisms import main as mechanisms_main
+
+    matrix_file = Path(args.repo) / MATRIX_RELATIVE_PATH
+    if not matrix_file.exists() and not args.only:
+        print(f"== matrix mechanisms (skipped: no {MATRIX_RELATIVE_PATH} in this repo)")
+        return 0
+
+    return _run("matrix mechanisms", mechanisms_main, ["--repo", args.repo])
 
 
 def check_main(argv: list[str] | None) -> int:
@@ -99,6 +113,8 @@ def check_main(argv: list[str] | None) -> int:
         rc = max(rc, _run("policy evals", eval_main, ["--repo", args.repo]))
     if "matrix" in selected:
         rc = max(rc, _run_matrix(args))
+    if "mechanisms" in selected:
+        rc = max(rc, _run_mechanisms(args))
     if "index" in selected:
         from chock.index.cli import cmd_refresh
 
