@@ -212,3 +212,46 @@ def test_allow_empty_is_available_for_the_deliberate_case(repo: Path) -> None:
     evidence = build(repo, "main", {"kind": "agent", "id": "test"}, ["validate"], allow_empty=True)
 
     assert evidence["diff_sha"] == EMPTY_DIFF_SHA
+
+
+def test_verify_states_coverage_so_evidence_holds_never_implies_more(
+    repo: Path, evidence: dict, tmp_path: Path
+) -> None:
+    """H1's harm is the false assurance, not the narrowing.
+
+    `emit --checks` takes any subset and `verify` re-derives only what the file names, so a
+    one-check file printed a bare "Evidence holds". Narrowing stays supported; what it may no
+    longer do is look like full coverage.
+    """
+    path = tmp_path / "evidence.json"
+    path.write_text(json.dumps(evidence), encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, "-m", "chock", "review", "verify", str(path), "--repo", str(repo), "--base", "main"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "coverage:" in proc.stdout, proc.stdout
+    assert "NOT covered" in proc.stdout, proc.stdout
+    assert "declares no `required_checks`" in proc.stdout, proc.stdout
+
+
+def test_a_declared_required_set_is_enforced_and_comes_from_the_repo(repo: Path, evidence: dict) -> None:
+    """The rule `unattestable` already follows, applied to checks: the checked does not choose."""
+    assert verify(repo, evidence, "main") == []
+
+    config = repo / ".chock" / "config.yaml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text("chock:\n  review:\n    required_checks: [validate, eval]\n", encoding="utf-8")
+    failures = verify(repo, evidence, "main")
+    assert any("does not cover the checks this repository requires" in f for f in failures), failures
+    assert any("eval" in f for f in failures), failures
+
+
+def test_a_required_set_cannot_be_shrunk_from_inside_the_evidence(repo: Path, evidence: dict) -> None:
+    config = repo / ".chock" / "config.yaml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text("chock:\n  review:\n    required_checks: [validate, eval]\n", encoding="utf-8")
+    forged = dict(evidence, required_checks=["validate"])
+    assert verify(repo, forged, "main"), "evidence shrank the required set (H1)"

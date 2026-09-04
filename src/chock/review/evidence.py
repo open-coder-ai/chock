@@ -71,6 +71,13 @@ def unattestable_paths(root: Path) -> list[str]:
     return sorted(paths) if isinstance(paths, list) and paths else sorted(DEFAULT_UNATTESTABLE)
 
 
+def required_checks(root: Path) -> list[str]:
+    """The repository's own required set, or empty when it declares none. Never from evidence."""
+    review = (load_config(root).get("chock") or {}).get("review") or {}
+    names = review.get("required_checks")
+    return sorted(names) if isinstance(names, list) and names else []
+
+
 def check_registry(root: Path) -> dict[str, list[str]]:
     """Built-in checks plus any the repository declares."""
     registry = dict(BUILTIN_CHECKS)
@@ -171,6 +178,15 @@ def verify(root: Path, evidence: dict[str, Any], base_ref: str) -> list[str]:
         )
 
     registry = check_registry(root)
+    named = {entry.get("check") for entry in evidence.get("verified") or []}
+    missing = sorted(set(required_checks(root)) - named)
+    if missing:
+        failures.append(
+            f"evidence does not cover the checks this repository requires; missing: "
+            f"{', '.join(missing)}. The repository decides what a contribution is judged on, "
+            f"not the evidence."
+        )
+
     for entry in evidence.get("verified") or []:
         name = entry.get("check")
         if name not in registry:
