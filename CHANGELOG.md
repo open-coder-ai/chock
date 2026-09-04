@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **SEC-3 named a field/value pair the schema cannot express; corrected, and the class closed**
+  (`chock-g1`). `spec/policy-spec.md` §10 required `gate.message` "for every hook with
+  `action: block` or `action: verify`". `manifest.hook.json`'s `gate.action` is a `const: block` --
+  it has never accepted `verify`. The `advise`/`verify`/`block` distinction belongs to
+  `enforcement`, a different field (EFF-1), and no hook has ever used `verify` there either. The
+  spec's conditional was also *weaker* than what is enforced: `message` sits in `gate.required`
+  under `additionalProperties: false`, so it is required whenever a `gate` is declared, full stop.
+  SEC-3 now says that. Adds `tests/test_spec_field_values.py`, which extracts every
+  `` `field: value` `` the spec asserts and checks it against the schema that owns the field, so
+  prose cannot again claim a value no artifact could carry. Found by
+  `chock check --only mechanisms` (#112) while verifying SEC-3's mechanism, and recorded rather
+  than fixed there because it changes what a check enforces.
+
 - **CI now runs `mechanisms` and `conflicts`, and a test keeps that list honest** (`chock-g1`).
   `.github/workflows/ci.yml` runs each sub-check as its own `chock check --only <x>` step rather
   than the umbrella `chock check`, so the two most recently added checks -- `mechanisms` and

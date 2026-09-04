@@ -167,7 +167,7 @@ optimize_playbook: MAY NOT raise tier
 - warning-level for justified network calls with a `network` effect declared under `verify`/`block` enforcement and approval wiring
 
 > Invariant: **SEC-3** — Gate failures present an actionable message naming the compliant alternative.
-- required in `gate.message` for every hook with `action: block` or `action: verify`
+- required in `gate.message` for every hook that declares a `gate` -- unconditional, not per action: the schema lists `message` in `gate.required` under `additionalProperties: false`. `gate.action` is a `const: block`; the `advise`/`verify`/`block` distinction belongs to `enforcement`, a different field (EFF-1)
 
 > Invariant: **SEC-4** — All artifact text surfaces are scanned for prompt-injection tripwires.
 - scan covers: `SKILL.md`, `references/`, `examples/`, `evals/`, templates, manifest string fields (`name`, `description`, `rule.text`, `hook.gate.message`), and eval prompts/expectations
