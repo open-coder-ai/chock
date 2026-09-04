@@ -42,7 +42,7 @@ Chock's guard degrades to allow, so no row here earns it.
 | …an agent poisoning its own long-term memory? | `memory-discipline` | `advisory` — and deliberately so here: write-path memory enforcement is a different system than a repo-scoped framework, and this page does not claim it |
 | …direct pushes to `main`, `--no-verify`, force-pushes? | `protect-main-branch` gate, `block-no-verify`, `git-safety` | `enforced-at-commit` (gate); the never-bypass-hooks discipline itself: `advisory` backed by the CI gate, which re-runs `chock check` on the PR head regardless of what was skipped locally |
 | …wildcard permission grants in agent config? | `block-wildcard-agent-permissions` gate | `enforced-at-commit` |
-| …an agent deleting tests or assertions to get green? | `agent-discipline` (`assertion_deletion: block`) | `advisory` today — a deterministic test-integrity gate is a named catalog candidate, not yet a roadmap issue, so this row stays `advisory` until it is |
+| …an agent deleting tests or assertions to get green? | `test-integrity` gate, `agent-discipline` (`assertion_deletion: block`) | `enforced-at-commit` (gate) — blocks a deleted test file, a net loss of assertions across the change, or a vacuous assertion (`assert True`, `expect(true)`) added in their place; re-checked in CI on the PR head via the `ci-gate` backstop, so it holds for an inbound contributor whose agent never ran a hook. The pragma `chock: test-removal-reviewed` on the removing line is the reviewed escape hatch. No `pre-tool-use` binding exists, so this is not claimed at the in-agent tier. The ambient rule text remains `advisory` |
 
 ## Against the OWASP Top 10 for Agentic Applications
 

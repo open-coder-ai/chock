@@ -46,6 +46,7 @@ These block risky actions at commit/push time and compile into agent-native cont
 | **`block-invisible-unicode`** | Bidi override/isolate controls and Unicode tag-block characters in staged changes — Trojan Source (CVE-2021-42574) and instructions hidden from reviewers but legible to agents. ZWJ and RTL marks pass by design (emoji, internationalised text). |
 | **`protect-agent-config`** | Shell writes to the agent's own instruction, permission and vendored-enforcement files (`AGENTS.md`, `.claude/settings.json`, `.mcp.json`, `.chock/bin/` …) — self-modification refused before it runs; regenerate through `chock sync` instead. |
 | **`block-wildcard-agent-permissions`** | Committed everything-grants in agent settings and MCP configs — bare-wildcard shell grants and allow-everything tool lists. Scoped grants pass; the twin of the catalog's `block-wildcard-iam`. |
+| **`test-integrity`** | A change that wins green CI by weakening the tests instead of fixing the code: a deleted test file, a net loss of assertions across the change, or a vacuous assertion (`assert True`, `expect(true)`) added in their place. The pragma `chock: test-removal-reviewed` on the removing line is the reviewed escape hatch. |
 
 > These are **best-effort friction, not a security boundary.** Known bypasses (aliases, quoting,
 > non-standard clients) are documented on each policy. Pair them with the CI-gate backstop.
@@ -79,7 +80,7 @@ own the same way: a folder, a manifest, and (optionally) an
 
 ## Cross-platform & tested
 
-`scan-secrets`, `protect-main-branch` and `verify-dependency-exists` are **declarative**
+`scan-secrets`, `protect-main-branch`, `verify-dependency-exists` and `test-integrity` are **declarative**
 (`hook.gate` in `manifest.yaml`); `chock compile` emits the cross-platform git-hook shims and
 a self-contained, stdlib-only Python runner. The remaining guards ship bash implementations invoked
 through the PreToolUse adapter. `.gitattributes` pins scripts to LF so their hashes — and therefore
