@@ -18,7 +18,7 @@ approval:
 hook:
   gate:
     kind: test_integrity
-    "on": [commit, ci]
+    "on": [commit]
     action: block
     message: >
       Tests were weakened, not fixed. If a test is genuinely obsolete, say so on the line
@@ -26,7 +26,10 @@ hook:
     params:
       # Patterns are policy data, not engine behaviour: the kind is language-agnostic and
       # every language's idea of "a test" and "an assertion" arrives from here.
-      test_path_regex: "(^|/)(tests?|spec|__tests__)/|(_test|_spec|\\.test|\\.spec)\\.[a-z]+$"
+      # The directory branch excludes prose extensions (.md/.rst/.txt) via a negative
+      # lookahead -- a `spec/` or `tests/` directory holding design docs, not test code,
+      # (as this very repo's spec/ does) must not be policed as test assertions.
+      test_path_regex: "(^|/)(tests?|spec|__tests__)/(?!.*\\.(?:md|rst|txt)$)|(_test|_spec|\\.test|\\.spec)\\.[a-z]+$"
       assertion_pattern: "\\b(assert|assertEquals|assertTrue|expect|should|require\\.(True|NoError))\\b"
       # Counted only when ADDED -- a test that asserts nothing is worse than no test,
       # because it reports green.

@@ -1071,6 +1071,73 @@
       "witnessed": false
     }
   },
+  "test-integrity": {
+    "aider": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "claude": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "codex": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "copilot": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "cursor": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "devin": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "gemini": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "grok": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "kimi-code": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "replit": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "tabnine": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "vscode": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    },
+    "windsurf": {
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
+    }
+  },
   "token-efficiency": {
     "aider": {
       "level": "advisory",

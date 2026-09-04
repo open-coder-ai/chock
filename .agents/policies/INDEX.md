@@ -56,6 +56,7 @@
 - **block-wildcard-agent-permissions**: Wildcard agent permission grant detected. Scope the grant to specific tools or commands (e.g. Bash(git status:*), a named tool list), or add 'pragma: allowlist broad-agency' on the same line for a reviewed exception.
 - **protect-main-branch**: Direct commits/pushes to a protected branch (main|master) are blocked. Create a feature branch and open a pull request.
 - **scan-secrets**: Potential secret detected in staged changes. Remove credentials and rotate any exposed keys. Add '# pragma: allowlist secret' on the same line only for documented test fixtures.
+- **test-integrity**: Tests were weakened, not fixed. If a test is genuinely obsolete, say so on the line that removes it with `chock: test-removal-reviewed` and have a human confirm it.
 
 ## Skills — invoke when the task matches
 

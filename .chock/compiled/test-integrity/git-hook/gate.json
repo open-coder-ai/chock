@@ -1,0 +1,14 @@
+{
+  "kind": "test_integrity",
+  "on": [
+    "commit"
+  ],
+  "action": "block",
+  "message": "Tests were weakened, not fixed. If a test is genuinely obsolete, say so on the line that removes it with `chock: test-removal-reviewed` and have a human confirm it.",
+  "params": {
+    "test_path_regex": "(^|/)(tests?|spec|__tests__)/(?!.*\\.(?:md|rst|txt)$)|(_test|_spec|\\.test|\\.spec)\\.[a-z]+$",
+    "assertion_pattern": "\\b(assert|assertEquals|assertTrue|expect|should|require\\.(True|NoError))\\b",
+    "dummy_assertion_pattern": "\\b(assert\\s+(True|1)\\b|expect\\s*\\(\\s*(true|1)\\s*\\)|assertTrue\\s*\\(\\s*true\\s*\\))",
+    "allowlist_pragma": "chock: test-removal-reviewed"
+  }
+}

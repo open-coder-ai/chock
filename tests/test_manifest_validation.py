@@ -119,6 +119,59 @@ def test_manifest_gate_params_missing_required(tmp_path: Path) -> None:
     assert "manifest_gate_params" in _codes(report)
 
 
+def test_manifest_gate_params_test_integrity_valid(tmp_path: Path) -> None:
+    """A test_integrity gate with its required params validates cleanly."""
+    data = {
+        **MINIMAL_RULE,
+        "id": "test-hook",
+        "name": "Test Hook",
+        "artifact": "hook",
+        "enforcement": "block",
+        "hook": {
+            "gate": {
+                "kind": "test_integrity",
+                "on": ["commit"],
+                "action": "block",
+                "message": "blocked",
+                "params": {
+                    "test_path_regex": r"(^|/)tests?/",
+                    "assertion_pattern": r"\bassert\b",
+                },
+            }
+        },
+    }
+    policy_dir = _manifest_dir(tmp_path, "test-hook", data)
+    report = Report()
+    manifest, _ = load_manifest(policy_dir)
+    check_manifest_schema(policy_dir, manifest, "hook", report)
+    assert "manifest_gate_params" not in _codes(report)
+
+
+def test_manifest_gate_params_test_integrity_missing_required(tmp_path: Path) -> None:
+    """Rule 4: a test_integrity gate without assertion_pattern is rejected."""
+    data = {
+        **MINIMAL_RULE,
+        "id": "test-hook",
+        "name": "Test Hook",
+        "artifact": "hook",
+        "enforcement": "block",
+        "hook": {
+            "gate": {
+                "kind": "test_integrity",
+                "on": ["commit"],
+                "action": "block",
+                "message": "blocked",
+                "params": {"test_path_regex": r"(^|/)tests?/"},
+            }
+        },
+    }
+    policy_dir = _manifest_dir(tmp_path, "test-hook", data)
+    report = Report()
+    manifest, _ = load_manifest(policy_dir)
+    check_manifest_schema(policy_dir, manifest, "hook", report)
+    assert "manifest_gate_params" in _codes(report)
+
+
 def test_manifest_self_dependency(tmp_path: Path) -> None:
     """Rule 5: a policy must not list itself in dependencies.policies."""
     data = {
