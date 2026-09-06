@@ -92,9 +92,8 @@ lockfile-write failure fails the command. An adopter-edited dispatcher is backed
 
 - `--check` — write nothing; exit non-zero listing every compiled artifact that no longer
   matches its manifest. This is the CI drift gate.
-- `--ci` — additionally write the GitHub Actions workflow that runs every compiled
-  `ci-gate` on pull requests. Idempotent; refuses to overwrite a workflow it did not write.
-  Until this runs, `ci-gate` output is compiled but not enforced.
+- `--ci` — additionally write the GitHub Actions workflow that runs every compiled `ci-gate` on pull requests. Idempotent;
+  refuses to overwrite a workflow it did not write. Until this runs, `ci-gate` output is compiled but not enforced.
 - `--skills` — additionally refresh the bundled authoring skills in `.agents/skills/`.
 - `--skip-hooks` — compile and refresh bookkeeping without touching `.git/hooks`.
 
@@ -120,6 +119,8 @@ Runs every truth check, read-only — `check` never regenerates what it measures
 - `--mode` — frontier validation profile (e.g. `frontier-claude`), passed to `validate`.
 - `--event` — hook event context (e.g. `commit`), passed to `validate`; softens
   pre-existing-drift findings at commit time.
+- `eval export --format context-report --out DIR [POLICY_ID ...]` — exports a policy's tier-3
+  cases (no `execute` block) as a context-report run/v0.1 directory; see [Evals](evals.md#exporting-tier-3-cases-to-context-report).
 
 ### `status` — what is installed, and what happened
 
@@ -267,8 +268,7 @@ control list.
 
 ## Pre-launch aliases
 
-The pre-consolidation names (`validate`, `recompile`, `install-hooks`, `install-ci`, `refresh`,
-`verify`, `eval`, `check-matrix`, `policies`, `gate-log`) still dispatch, hidden from `--help`; use the verbs above.
+The pre-consolidation names (`validate`, `recompile`, `install-hooks`, `install-ci`, `refresh`, `verify`, `eval`, `check-matrix`, `policies`, `gate-log`) still dispatch, hidden from `--help`; use the verbs above.
 
 ## Typical workflows
 
