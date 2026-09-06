@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **Added `chock eval export --format context-report`**, moving chock's knowledge of its own
+  policy format (which eval cases have no `execute` block, and how a policy's rule text renders
+  for an agent) into chock as an exporter, so `open-coder-ai/context-report` can measure whether
+  a policy's ambient rule changes agent behaviour without chock depending on it. Writes one
+  `subjects/<id>.md` per policy via `chock.compile.emitters.advisory.advisory_lines` (the same
+  function the ambient/plugin emitters use, never re-derived), one `claude plugin eval` case
+  directory per tier-3 case tagged `rule:<id>`, and a `run.json` run manifest (`models`/`judge`
+  left for the caller to fill in). A policy with no tier-3 cases is skipped with a one-line
+  notice; the pre-`suite:` `eval_suite:`/`test_cases:` shape is a distinct, named error. See
+  [`docs/cli-reference.md`](docs/cli-reference.md#eval-export--hand-tier-3-cases-to-context-report).
+
 - **SEC-3 named a field/value pair the schema cannot express; corrected, and the class closed**
   (`chock-g1`). `spec/policy-spec.md` §10 required `gate.message` "for every hook with
   `action: block` or `action: verify`". `manifest.hook.json`'s `gate.action` is a `const: block` --

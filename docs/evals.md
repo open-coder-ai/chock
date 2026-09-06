@@ -90,6 +90,36 @@ Two exceptions, both deliberate:
 Drift between a manifest and its compiled artifact is caught independently by `chock
 validate`, `chock check --only verify`, and `chock sync --repo . --check`.
 
+## Exporting tier-3 cases to context-report
+
+A case with no `execute` block (**tier 3**) has no executable form: replaying it deterministically
+means nothing runs. The only thing left to measure is whether the policy's ambient rule actually
+changes an agent's behaviour, and that needs a live agent, not `chock check --only evals`.
+
+```bash
+chock eval export --format context-report --out DIR [POLICY_ID ...]
+```
+
+writes each selected policy's tier-3 cases (default: every policy that has at least one) as an
+[`open-coder-ai/context-report`](https://github.com/open-coder-ai/context-report) run/v0.1
+directory:
+
+- `subjects/<id>.md` — the rule text exactly as `chock.compile.emitters.advisory.advisory_lines`
+  renders it for an agent (the same function the ambient/plugin emitters use).
+- `evals/<id>--<case>/` — one `claude plugin eval` case per tier-3 case, `prompt.md` tagged
+  `rule:<id>` and `graders/expect.md` carrying the case's own `expect` as the grading criteria.
+  `<id>` is the rule id context-report's own extractor would derive from that same subject text
+  (see context-report's `spec/run/v0.1/README.md`, "Rule ids") — chock reimplements that small,
+  spec-defined algorithm rather than depending on context-report to compute it.
+- `run.json` — the run manifest. `models` and `judge` are left empty: chock does not depend on
+  context-report and does not pick a model on your behalf; fill them in before `context-report
+  run run.json`.
+
+A policy with no tier-3 cases is skipped with a one-line notice, never a silent zero. A policy
+whose suite predates the `suite:` shape (the older `eval_suite:`/`test_cases:` shape has no
+`execute` concept at all) is a distinct, named error instead — reading it as "zero tier-3 cases"
+would be false, not merely unhelpful.
+
 ## Why evals come first
 
 House rule: **draft evals before finalizing the description**. Writing the cases forces you to define
