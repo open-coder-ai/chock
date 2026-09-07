@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **Added `chock plugin build --policy` and `--out`** (#12). `--policy <id>` (repeatable) builds
+  only the named policies, matched by manifest `id` or directory name -- the same rule
+  `toggles._find_policy_manifest` uses, not a third one -- instead of always rebuilding every
+  policy under `--policies-dir`; an id that matches nothing exits non-zero naming it, rather than
+  printing `Packaged 0 policies` and exiting 0. `--out <path>` writes that one policy's plugin
+  directly to `<path>` instead of `<out-dir>/<format>/<id>/`; it is an argparse error with any
+  count of `--policy` other than exactly one. Both flags are respected by `--check`. A
+  `--policy`-narrowed build also no longer treats every other policy's package under `--out-dir`
+  as stale and deletes it -- staleness can only be judged against the full policy set, so that
+  cleanup pass now runs only on an unfiltered build.
+
 - **Added `chock eval export --format context-report`**, moving chock's knowledge of its own
   policy format (which eval cases have no `execute` block, and how a policy's rule text renders
   for an agent) into chock as an exporter, so `open-coder-ai/context-report` can measure whether
