@@ -170,3 +170,76 @@ def test_a_policy_id_that_cannot_be_a_plugin_name_is_refused() -> None:
 def test_namespace_is_a_domain_we_control() -> None:
     """Spec section 8 says a client SHOULD base its namespace on a domain it controls."""
     assert NAMESPACE == "io.github.open-coder-ai"
+
+
+def test_cli_policy_flag_builds_only_the_named_policy(policy, tmp_path: Path) -> None:
+    policy(GATE_MANIFEST)
+    policy(RULE_MANIFEST)
+
+    assert plugin_main(["build", "--repo", str(tmp_path), "--policy", GATE_MANIFEST["id"]]) == 0
+
+    assert (tmp_path / ".agents" / "policies" / GATE_MANIFEST["id"] / "plugin.json").exists()
+    assert not (tmp_path / ".agents" / "policies" / RULE_MANIFEST["id"] / "plugin.json").exists()
+
+
+def test_cli_policy_flag_matches_by_directory_name_too(policy, tmp_path: Path) -> None:
+    pack = policy(GATE_MANIFEST, name="renamed-dir")
+
+    assert plugin_main(["build", "--repo", str(tmp_path), "--policy", "renamed-dir"]) == 0
+    assert (pack / "plugin.json").exists()
+
+
+def test_cli_out_writes_the_one_policy_directly_to_the_given_path(policy, tmp_path: Path) -> None:
+    policy(GATE_MANIFEST)
+    out = tmp_path / "dist" / "my-plugin"
+
+    rc = plugin_main(
+        [
+            "build",
+            "--repo",
+            str(tmp_path),
+            "--format",
+            "claude",
+            "--policy",
+            GATE_MANIFEST["id"],
+            "--out",
+            str(out),
+        ]
+    )
+
+    assert rc == 0
+    assert (out / ".claude-plugin" / "plugin.json").exists()
+    assert not (out / "claude").exists(), "--out replaces <out-dir>/<format>/<id>/, not a subpath of it"
+
+
+def test_cli_unknown_policy_id_is_a_named_non_zero_error(policy, tmp_path: Path, capsys) -> None:
+    policy(GATE_MANIFEST)
+
+    assert plugin_main(["build", "--repo", str(tmp_path), "--policy", "does-not-exist"]) == 2
+    assert "does-not-exist" in capsys.readouterr().err
+
+
+def test_cli_out_without_exactly_one_policy_is_an_argparse_error(policy, tmp_path: Path, capsys) -> None:
+    policy(GATE_MANIFEST)
+    policy(RULE_MANIFEST)
+
+    with pytest.raises(SystemExit) as excinfo:
+        plugin_main(["build", "--repo", str(tmp_path), "--out", str(tmp_path / "dist")])
+    assert excinfo.value.code == 2
+    assert "--out" in capsys.readouterr().err
+
+    with pytest.raises(SystemExit) as excinfo:
+        plugin_main(
+            [
+                "build",
+                "--repo",
+                str(tmp_path),
+                "--policy",
+                GATE_MANIFEST["id"],
+                "--policy",
+                RULE_MANIFEST["id"],
+                "--out",
+                str(tmp_path / "dist"),
+            ]
+        )
+    assert excinfo.value.code == 2
