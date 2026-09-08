@@ -1,154 +1,94 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/logo.svg" alt="Governance-as-code for AI coding agents: write a rule once, enforce it on git hooks, CI, and every agent." width="110">
+<img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/logo.svg" alt="Chock logo: a wheel held by a chock wedge" width="110">
 
 # Chock
 
-### Governance-as-code for AI coding agents: write a rule once, enforce it on git hooks, CI, and every agent.
-
-Your repo's rules become **deterministic guardrails** — for a team's private codebase or
-a public open-source project — compiled to git hooks, CI gates,
-native pre-execution hooks in **Claude Code, Cursor, Copilot CLI and VS Code**, and
-`AGENTS.md` — read by Codex, Gemini, Aider and seven more. Not prose an agent can
-ignore. Exit codes.
+**Author a policy once. Every coding agent obeys it — as a git hook, a CI gate, or the agent's own pre-tool hook, never just prose.**
 
 [![CI](https://github.com/open-coder-ai/chock/actions/workflows/ci.yml/badge.svg)](https://github.com/open-coder-ai/chock/actions/workflows/ci.yml)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![PyPI](https://img.shields.io/pypi/v/chock)](https://pypi.org/project/chock/)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/open-coder-ai/chock/badge)](https://scorecard.dev/viewer/?uri=github.com/open-coder-ai/chock)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14155/badge)](https://www.bestpractices.dev/projects/14155)
-
-[Quick start](#-quick-start) · [How it works](#-how-it-works) · [Policy catalog](https://github.com/open-coder-ai/chock-catalog) · [Docs](docs/README.md) · [Roadmap](#-roadmap)
-
-*Featured in [awesome-ai-agent-governance](https://github.com/systempromptio/awesome-ai-agent-governance) -- accepted after the maintainer source-verified the enforcement claims.*
-
-<img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/demo.gif" alt="Terminal demo: chock init, chock add protect-main-branch, chock sync — then a commit straight to main is blocked, and a feature-branch commit passes" width="760">
-
-*A real session, replayed. Install, adopt one policy, and the next commit straight
-to `main` exits non-zero — no matter which agent, or which human, typed it.*
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 </div>
 
-## Why
+<p align="center">
+  <img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/demo.gif" width="760"
+       alt="Terminal: chock init, chock add scan-secrets, chock sync --repo . A commit containing an AWS key is rejected: Potential secret detected in this change. Remove credentials and rotate any exposed keys. The same file, rewritten to read the key from the environment, commits cleanly.">
+</p>
 
-Your team runs five AI coding agents — and if your repo is open source, contributors
-bring agents you never chose. Each has its own config file and its own idea of "the
-rules." You write *"don't force-push to main"* into a `CLAUDE.md`, a
-`.cursorrules` and a `copilot-instructions.md` — and an agent does it anyway, because
-**prose is a suggestion, not a control**. Chock is the control: author a policy once, and
-a compiler emits the strongest enforcement each agent actually supports, plus a coverage
-report that tells you — honestly — where a guarantee holds and where it is only advice.
+Your agent is fast, tireless, and occasionally commits an AWS key. Telling it not to works
+until the context window fills up, a new session starts, or a different agent joins the repo
+with no memory of the last conversation. Chock compiles a rule into the strongest control each
+agent actually supports — a git hook that exits non-zero, a CI gate, a native pre-tool hook in
+Claude Code, Cursor, Copilot CLI and VS Code — and labels honestly when all it can do is advise.
+The rules live in your repo as ordinary files, so they travel with every clone, fork and
+contributor's agent, instead of living in one person's head or one tool's settings pane.
 
-*Chock (rhymes with "block"): the wedge set against a wheel so it cannot roll until
-someone deliberately removes it.*
+## Quick start
 
-## For open-source maintainers
-
-AI broke the oldest balance in open source: contribution volume now scales with compute,
-while review capacity still scales with maintainer hours. A contributor with an agent can
-open ten large PRs in a weekend; you are still one human reading diffs. And you get no say
-in which agent they bring — Claude Code today, Cursor tomorrow, something new next month.
-
-What you do control is the repo itself, and Chock policies are **committed content**, so
-your rules travel with every clone and fork — the maintainer governs the contributor's
-*agent*, not just the contributor:
-
-- **Every contributor's agent reads your rules with zero setup.** The compiled `AGENTS.md`
-  and per-agent adapter files are in the tree; agents pick them up ambiently the moment
-  the repo is cloned.
-- **The repo re-arms itself.** Git never clones hooks, so Chock has the agent close the
-  gap: an ambient rule tells every agent to run `chock sync --repo .` before its first
-  commit, and for Claude Code a committed SessionStart hook arms the git hooks
-  automatically when a session opens — consented through the workspace-trust prompt.
-  The blocked commit happens on the contributor's machine, before the pull request,
-  instead of in your review queue. [How arming works](docs/adopting.md#arming-a-fresh-clone).
-- **The CI gate is yours and depends on nothing the contributor does.** `chock sync --ci`
-  wires a commit-range gate into your pipeline, so a policy skipped or bypassed locally is
-  still enforced on the PR.
-
-Today the alternative is reviewing agent-written contributions with another agent, or by
-hand — triage after the code already exists. With Chock the rules reach the contributor's
-agent *before the code is written*, and what still arrives has already passed your gates:
-**review the policy once, instead of every PR.**
-
-## Highlights
-
-- **✍️ Author once, enforce everywhere** — one policy → git hook + CI gate + native
-  pre-execution hooks (Claude Code, Cursor, Copilot CLI, VS Code) + `AGENTS.md`, across 14
-  agents. One `chock sync` wires all of it; the CI gate is opt-in (`chock sync --ci`) and
-  [coverage only credits any surface once it is wired up](docs/enforcement-surfaces.md).
-- **🛡️ Real guardrails, one command away** — `chock add protect-main-branch` pulls from
-  the [catalog](https://github.com/open-coder-ai/chock-catalog): `scan-secrets`,
-  `block-destructive-commands`, `block-no-verify`, an OWASP agentic-security pack, and
-  more. Installed content is **yours to edit** — nothing upstream overwrites it.
-- **🧱 New rules are content, not code** — a policy is a manifest under
-  `.agents/policies/<id>/`, added with `chock add <id>` or scaffolded with `chock new policy`.
-  Extending the guardrails ships a manifest, never a change to chock's engine.
-  [Authoring policies](docs/authoring-policies.md).
-- **⚙️ Deterministic, not vibes** — gates are declarative and run through a stdlib-only
-  vendored runner; guard scripts are plain bash. No LLM calls, no network.
-- **✅ Trust, but verify** — a validation engine, a hash-pinned `chock.lock`, and an eval
-  suite (with adversarial cases) replayed against every policy's own mechanism on each build.
-- **📊 Coverage you can prove** — every policy × agent graded on an ordered, mechanism-derived ladder (*enforced* › *enforceable* › *fail-to-ask* › *best-effort*),
-  plus *enforced-at-commit* and *advisory* — a grade that is free to say we are behind, and does: our own in-agent guard fails open, so it earns *best-effort*.
-- **📦 Speaks the open packaging standard — and four vendor dialects** — `chock plugin
-  build` emits [Agent Plugins 1.0.0](https://agent-plugins.org) packages any conformant
-  client can read, plus hook-carrying plugin formats for
-  [Claude Code](https://github.com/open-coder-ai/chock-claude-plugins),
-  [Copilot](https://github.com/open-coder-ai/chock-copilot-plugins),
-  [Cursor](https://github.com/open-coder-ai/chock-cursor-plugins) and
-  [Codex](https://github.com/open-coder-ai/chock-codex-plugins) — each witnessed
-  denying a destructive command on a real install.
-  [What the badge does and does not mean](docs/agent-plugins.md).
-- **🧩 One CLI, eight verbs** — `init` · `add` · `remove` · `sync` · `check` · `status` ·
-  `enable` · `disable`. If you've used `uv` or `poetry`, you already know them.
-
-## 🚀 Quick start
-
-> **Requires:** Python 3.11+ and git; installed git hooks need bash at runtime.
-> **Pre-1.0:** the CLI surface, manifest schema and compiled output can change between
-> MINOR releases; PATCH releases never change compiled output (see [compatibility](docs/compatibility.md)).
+Python 3.11+ and git.
 
 ```bash
 pip install chock
 
-cd /path/to/your/project
-chock init .                     # wiring + authoring skills — no policies, no opinions
-
-chock add protect-main-branch    # adopt a guardrail from the catalog
-chock sync --repo .              # compile + install it
+git init -q demo && cd demo
+chock init .                       # wiring only — no policies, no opinions
+chock add scan-secrets             # pull a policy from the catalog
+chock sync --repo .                # compile + install it
 ```
 
-Now watch it enforce:
+The next commit containing a credential exits non-zero:
 
 ```bash
-git checkout main
-echo "oops" > hotfix.txt && git add hotfix.txt
-git commit -m "quick fix straight to main"
-# ❌ Direct commits/pushes to a protected branch (main|master) are blocked.
-#    Create a feature branch and open a pull request.
-#      - main
+echo 'AWS_KEY=AKIAIOSFODNN7EXAMPLE' > config.py && git add config.py  # pragma: allowlist secret
+git commit -m "add config"
+# Potential secret detected in this change. Remove credentials and rotate any exposed keys.
+#   - config.py: content pattern
 
-git checkout -b feature/x
-git commit -m "on a feature branch"   # ✅ allowed
+echo 'AWS_KEY = os.environ["AWS_KEY"]' > config.py && git add config.py
+git commit -m "read key from env"    # passes
 ```
 
-That branch list is resolved from the gate, not hard-coded: point
-`chock.defaults.protected_branches` at `[main, master, release/*]` and the message says so.
+`init` deliberately installs no policies of its own — the framework ships mechanism, and which
+guardrails you turn on is a choice you make, not one chock makes for you. More policies:
+`chock add protect-main-branch`, `chock add block-destructive-commands`, or browse the
+[catalog](https://github.com/open-coder-ai/chock-catalog) — 39 policies, each labelled with what
+it actually reaches, from a strict block to a merely-advisory ambient rule. Once installed, a
+policy is yours: edit the manifest, adjust the message, tighten the pattern, and `chock sync`
+recompiles every surface from your edited copy, not the upstream original.
 
-`init` deliberately installs **no policies** — the framework ships mechanism; policies are
-content you choose, and once installed they are yours to edit. That is what makes
-customisation possible at all. New here? Follow the
-[Getting Started guide](docs/getting-started.md).
+## What you get
 
-> **`chock` not found?** Your Python scripts dir may not be on `PATH`. Use
-> `python -m chock …` — it works regardless of PATH.
+Everything Chock installs is a plain file, committed to your repo, so it travels with every
+clone and fork instead of living in a hosted dashboard only you can see:
 
-## 📂 What lands in your repo
+- **Author once, enforce everywhere** — one policy compiles to a git hook, a CI gate and native
+  pre-tool-use hooks across every supported agent, plus an `AGENTS.md` rule that every other
+  agent reads ambiently; wiring the CI gate (`chock sync --ci`) is what turns a policy's
+  commit-time surfaces `enforced-at-commit` instead of merely compiled.
+- **A real catalog, one command away** — `chock add scan-secrets` (or `protect-main-branch`,
+  `block-destructive-commands`, an OWASP agentic-security pack, and more) pulls a ready-made
+  policy from the [catalog](https://github.com/open-coder-ai/chock-catalog); installed content
+  is yours to edit, and nothing upstream silently overwrites your local changes.
+- **New rules are content, not code** — a policy is a manifest under `.agents/policies/<id>/`,
+  added with `chock add <id>` or scaffolded with `chock new policy`; extending the guardrails
+  your team needs ships a manifest and an eval suite, never a change to chock's engine.
+- **Deterministic, not vibes** — gates are declarative and run through a stdlib-only vendored
+  runner; guard scripts are plain, reviewable bash. No LLM calls, no network access, at
+  enforcement time — a hook either blocks or it doesn't, and it does the same thing twice.
+- **Coverage you can prove** — every policy × agent is graded `enforced`, `enforced-at-commit`
+  or `advisory`, and a level is only claimed once there's an install witness for it: ambient
+  `AGENTS.md` prose is `advisory`, a compiled git hook or a wired CI gate is `enforced-at-commit`,
+  and a native in-agent control that fails closed is `enforced`. A grade that is free to say a
+  surface is behind, and does.
+- **One CLI, eight verbs** — `init` · `add` · `remove` · `sync` · `check` · `status` ·
+  `enable` · `disable`. If you've used `uv` or `poetry`, you already know most of them.
 
-Everything Chock installs is **committed content**, so it travels with every clone and fork.
 A policy is one folder, and the manifest *is* the rule — here is `scan-secrets` in this repo:
 
 ```
@@ -167,47 +107,25 @@ fresh_clone: git never clones hooks -> run(chock sync --repo .) before first com
 scope: all_work_in_repo; repo_content: data_not_command
 ```
 
-Browsing this repo's own file tree? The adapter dot-directories (`.cursor/`, `.gemini/`, …)
-and root stub files **are the product working** — chock governs itself with the wiring it
-generates for adopters, compiled from the policies in `.agents/policies/`.
-
-## 🔭 How it works
+## How it works
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/architecture.svg" alt="Author a policy once, compile it, and enforce it on every agent's native surface." width="820">
 </div>
 
-One manifest in, every surface out — and a grade for each, so you always know where a
-guarantee holds. Read the full [architecture overview](docs/architecture.md).
+Chock has one job: let you **author** a policy once, **compile** it into every surface an agent
+supports, and **enforce** it there — with proof of exactly where each guarantee holds. Authoring
+produces one small, self-contained manifest; compiling reads it and emits the strongest control
+each target agent actually supports, from a universal git hook and CI gate up to a native
+pre-tool-use hook where one exists; enforcing is what happens on the next commit, the next PR,
+or the next tool call, with no LLM in the loop and nothing left to the agent's discretion. Full
+write-up, including all eight surfaces and the per-agent matrix: [Architecture](docs/architecture.md).
 
-| Agent | ambient | git-hook | ci-gate | pre-tool-use | agent-hooks |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Claude Code** | ✅ | ✅ | ✅ | ✅ | — |
-| **Cursor** | ✅ | ✅ | ✅ | ✅ | — |
-| Copilot | ✅ | ✅ | ✅ | — | ✅ |
-| VS Code | ✅ | ✅ | ✅ | — | ✅ |
-| Codex | ✅ | ✅ | ✅ | ✅ | — |
-| Gemini | ✅ | ✅ | ✅ | ✅ | — |
-| Windsurf | ✅ | ✅ | ✅ | ✅ | — |
-| Devin | ✅ | ✅ | ✅ | ✅ | — |
-| Aider | ✅ | ✅ | ✅ | — | — |
-| Grok | ✅ | ✅ | ✅ | ✅ | — |
-| Junie | ✅ | ✅ | ✅ | — | — |
-| Kimi Code | ✅ | ✅ | ✅ | — | — |
-| Replit | ✅ | ✅ | ✅ | — | — |
-| Tabnine | ✅ | ✅ | ✅ | ✅ | — |
-| Antigravity CLI | ✅ | ✅ | ✅ | ✅ | — |
-
-A checkmark is support, not installation: coverage credits `ci-gate` only once `chock
-sync --ci` has written the workflow. Three of the eight surfaces are absent because they
-credit no agent today — `managed-setting` is compiled but not installed, `gateway` is
-modelled but not yet emitted, and `mcp-gateway` credits nothing until its per-client witness ships. [Enforcement surfaces](docs/enforcement-surfaces.md) carries all eight with their
-caveats and the coverage level each can earn.
-
-## ✍️ Author your own policy
+## Author your own policy
 
 A policy is a small, reviewable manifest — the `hook.gate` block is what enforces, and a
-blocking hook with no gate fails validation:
+blocking hook with no gate fails validation. There is no separate plugin API to learn: writing
+a policy means writing this file, plus the eval cases that prove it actually fires.
 
 ```yaml
 # .agents/policies/block-console-log/manifest.yaml
@@ -234,67 +152,105 @@ chock check                          # validate every artifact against the spec
 chock compile block-console-log      # emit every surface + the coverage report
 ```
 
-Chock is a **craft and enforcement framework first, and a security framework second** —
-the framework ships mechanism, and `chock compliance report` scores whatever *your repo*
-actually installs against four builtin control sets — `owasp_asi`, `mitre_atlas` (every
-technique, from MITRE's machine-readable dataset), `nist_ai_rmf` (all 72 subcategories),
-and `eu_ai_act` (the technical-obligation articles) — printing every `uncovered` row.
-The [catalog](https://github.com/open-coder-ai/chock-catalog) carries the policies —
-including a pack covering every control in the OWASP Top 10 for Agentic Applications —
-and its README carries the coverage table with its exact `partial`/`full` honesty.
+## Supported agents
 
-## 📚 Documentation
+Every agent in this table gets the same floor: a git hook, a CI gate and an ambient `AGENTS.md`
+rule, which is why those three columns aren't repeated below. What varies is whether the agent
+also exposes a native hook chock can wire directly into its own tool-call loop, and where the
+file that wiring lives. A row here is support, not installation — coverage is only credited on
+a given repo once `chock sync` has actually written the file, which is why the CLI's own
+`chock status` always beats this table for what's true *here*. Three of the eight surfaces are
+absent from this page entirely because they credit no agent today — `managed-setting` is
+compiled but not installed, `gateway` is modelled but not yet emitted, and `mcp-gateway` credits
+nothing until its per-client witness ships. Full eight-surface matrix and per-agent caveats:
+[Enforcement Surfaces](docs/enforcement-surfaces.md).
 
-Full developer documentation lives in [`docs/`](docs/README.md) — start with
-[Getting Started](docs/getting-started.md), then:
-[Architecture](docs/architecture.md) ·
-[Core Concepts](docs/concepts.md) ·
-[CLI Reference](docs/cli-reference.md) ·
-[Authoring Policies](docs/authoring-policies.md) ·
-[Enforcement Surfaces](docs/enforcement-surfaces.md) ·
-[Agentic-Risk Coverage](docs/agentic-risk-coverage.md) ·
-[Validation](docs/validation.md) ·
-[Registry & Lockfile](docs/registry-and-lockfile.md) ·
-[Evals](docs/evals.md) ·
-[Policies](docs/baseline-policies.md) ·
-[Adapters](docs/adapters/README.md)
+| Agent | What it enforces | Config file |
+| :--- | :--- | :--- |
+| **Claude Code** | native pre-tool-use hook | `.claude/settings.json` |
+| **Cursor** | native pre-tool-use hook | `.cursor/hooks.json` |
+| **Copilot** | native agent hook | `.github/hooks/agentseam.json` |
+| **VS Code** | native agent hook | `.github/hooks/agentseam.json` |
+| **Codex** | native pre-tool-use hook | `.codex/hooks.json` |
+| **Gemini** | native pre-tool-use hook | `.gemini/settings.json` |
 
-## 🗺️ Roadmap
+<details>
+<summary>9 more agents</summary>
 
-We're building in the open. Next up:
+| Agent | What it enforces | Config file |
+| :--- | :--- | :--- |
+| **Windsurf** | native pre-tool-use hook | `.windsurf/hooks.json` |
+| **Devin** | native pre-tool-use hook | `.devin/hooks.v1.json` |
+| **Grok** | native pre-tool-use hook | `.grok/hooks/agentseam.json` |
+| **Tabnine** | native pre-tool-use hook | `.tabnine/agent/settings.json` |
+| **Antigravity CLI** | native pre-tool-use hook | `.agents/hooks.json` |
+| **Aider** | git hook + CI gate only — no native hook API yet | — |
+| **Junie** | git hook + CI gate only — home-anchored config, outside chock's repo-scoped install | `~/.junie/config.json` |
+| **Kimi Code** | git hook + CI gate only — home-anchored config, outside chock's repo-scoped install | `~/.kimi-code/config.toml` |
+| **Replit** | git hook + CI gate only — no native hook API yet | — |
 
-- [x] **`chock add <id>`** — install a policy or skill from any catalog, public or private.
-- [x] **CI backstop** — `chock sync --ci` plus a commit-range gate mode, so a hook skipped with `--no-verify` is still caught on a pull request.
-- [x] **Publish** — [PyPI package](https://pypi.org/project/chock/), attested releases.
-- [ ] **Publish** — signed standalone binaries.
-- [ ] **Upgrades** — `chock upgrade`, three-way merge against a pinned `chock.lock`.
-- [ ] **Supply-chain & MCP packs** — block hallucinated ("slopsquatted") dependencies and un-approved MCP tools.
-- [ ] **Cost & autonomy governance** — token/spend circuit-breakers and human-in-the-loop approval tiers.
-- [ ] **Compliance attestation** — `chock attest` mapping controls to NIST AI RMF, ISO 42001 & the EU AI Act.
+</details>
 
-## 🤝 Contributing
+## For open-source maintainers
 
-**A policy manifest is the contribution we want most.** Write one for the guardrail your
-stack needs and send it to the catalog — [open a Policy Proposal
-issue](https://github.com/open-coder-ai/chock/issues/new?template=policy_proposal.md) or
-read [Anatomy of a good policy PR](CONTRIBUTING.md#-anatomy-of-a-good-policy-pr). No code
-needed: an [evidence report](https://github.com/open-coder-ai/agentseam/blob/main/CONTRIBUTING.md#contributing-evidence-you-do-not-need-to-write-code)
-on what your agent actually does, a "this policy is wrong" [issue](https://github.com/open-coder-ai/chock-catalog/issues/new/choose) on the catalog, or a `policy wanted` entry from the [threat ledger](https://github.com/open-coder-ai/chock-threat-intel/blob/main/reference/agentic-threat-ledger.md).
-Docs fixes, bug reports, diagrams and clearer CLI output are equally first-class — see the
-[Contributing Guide](CONTRIBUTING.md), [`good first issue`](https://github.com/open-coder-ai/chock/labels/good%20first%20issue) and [Discussions](https://github.com/open-coder-ai/chock/discussions). The sibling projects: [docs/ecosystem.md](docs/ecosystem.md).
+AI broke the oldest balance in open source: contribution volume now scales with compute, while
+review capacity still scales with maintainer hours. A contributor with an agent can open ten
+large PRs in a weekend; you are still one human reading diffs, and you get no say in which agent
+they bring — Claude Code today, Cursor tomorrow, something new next month. What you do control is
+the repo itself, and Chock policies are committed content, so your rules travel with every clone
+and fork: every contributor's agent reads your rules with zero setup the moment the repo is
+cloned, a committed SessionStart hook re-arms Chock's git hooks on a fresh clone (since git
+itself never clones hooks), and the CI gate you wire with `chock sync --ci` is yours and depends
+on nothing the contributor does — a policy skipped or bypassed locally is still enforced on the
+pull request. The rules reach the contributor's agent before the code is written, so what still
+arrives has already passed your gates: review the policy once, instead of every PR it would have
+touched. [The full case, including how the re-arming actually works.](docs/why.md)
 
-## ⭐ Star history
+## Contributing
 
-If Chock saves you from one bad `--force` push,
-**[drop a star](https://github.com/open-coder-ai/chock)** — it's the single biggest signal
-that helps other teams find the project.
+A policy manifest for the guardrail your stack needs is the contribution we want most — send it
+to the [catalog](https://github.com/open-coder-ai/chock-catalog). No code needed either: an
+evidence report on what your agent actually does, a wrong-policy issue on the catalog, or a
+`policy wanted` entry in the [threat ledger](https://github.com/open-coder-ai/chock-threat-intel/blob/main/reference/agentic-threat-ledger.md)
+all count — see [docs/ecosystem.md](docs/ecosystem.md) for where each kind of contribution goes,
+and [Discussions](https://github.com/open-coder-ai/chock/discussions) for questions and ideas.
+Run `pytest -q && ruff check . && ruff format --check . && chock check` before opening a pull
+request; [`good first issue`](https://github.com/open-coder-ai/chock/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+is where to start.
+
+## Part of open-coder-ai
+
+| | |
+|---|---|
+| [agentseam](https://github.com/open-coder-ai/agentseam) | the primitives — one handler API and a verified capability matrix across 16 agents |
+| [chock](https://github.com/open-coder-ai/chock) | the compiler — one policy into git hooks, CI gates and native pre-tool hooks |
+| [chock-catalog](https://github.com/open-coder-ai/chock-catalog) | the policies — 39, each labelled enforced or advisory, with replayed evals |
+| [context-report](https://github.com/open-coder-ai/context-report) | the evidence — a signed report of whether an agent artifact actually works |
+| [chock-threat-intel](https://github.com/open-coder-ai/chock-threat-intel) | the threat ledger the catalog's policies answer to |
+| chock-{claude,cursor,copilot,codex}-plugins | the catalog, packaged for each agent's plugin format (generated) |
+| chock-quickstart · chock-example | template repos: what `chock init` leaves behind, and a full adoption |
+
+## Security
+
+Installing a policy means a git hook, a CI step, or an agent's native hook will execute content
+that lives in your repo — so Chock treats an installed policy the same way it treats any other
+code a contributor could send you: reviewed before it merges, never trusted because an upstream
+catalog vouched for it. Manifests are hash-pinned in `chock.lock`, and `chock check --only
+verify` reports the moment a locally-edited policy drifts from what it claims to be. See
+[SECURITY.md](SECURITY.md) to report a vulnerability, and
+[Agentic-Risk Coverage](docs/agentic-risk-coverage.md) for what Chock stops today, at which
+honest tier, and what it doesn't.
 
 <div align="center">
+
+### Star history
+
 <a href="https://star-history.com/#open-coder-ai/chock&Date">
   <img src="https://api.star-history.com/svg?repos=open-coder-ai/chock&type=Date" alt="Star History Chart" width="600">
 </a>
+
 </div>
 
-## 📄 License
+## License
 
 Apache-2.0 — see [LICENSE](LICENSE). Built by and for teams shipping with AI agents.

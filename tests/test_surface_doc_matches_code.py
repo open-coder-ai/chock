@@ -21,7 +21,6 @@ COLUMNS = [
     Surface.MANAGED_SETTING,
     Surface.AGENT_HOOKS,
 ]
-README_COLUMNS = [c for c in COLUMNS if c is not Surface.MANAGED_SETTING]
 HEADING = {Surface.AMBIENT_RULE: "ambient"}
 ALIAS = {
     "claude code": "claude",
@@ -54,18 +53,18 @@ def _rows(path: Path, columns: list[Surface]) -> dict[str, list[bool]]:
     return rows
 
 
-TABLES = [(DOC, COLUMNS), (README, README_COLUMNS)]
+TABLES = [(DOC, COLUMNS)]
 
 
 @pytest.mark.parametrize(("path", "columns"), TABLES, ids=lambda v: getattr(v, "name", ""))
 def test_table_names_exactly_the_agents_the_code_supports(path: Path, columns: list[Surface]) -> None:
-    """Both publications list every supported agent and no others."""
+    """The full matrix lists every supported agent and no others."""
     assert set(_rows(path, columns)) == set(SURFACE_AGENTS)
 
 
 @pytest.mark.parametrize(("path", "columns"), TABLES, ids=lambda v: getattr(v, "name", ""))
 def test_every_cell_matches_the_code(path: Path, columns: list[Surface]) -> None:
-    """Every checkmark, in either publication, is a claim `surfaces.py` still makes."""
+    """Every checkmark in the full matrix is a claim `surfaces.py` still makes."""
     wrong = [
         f"{agent}/{surface.value}: table={marked}, code={surface in SURFACE_AGENTS[agent]}"
         for agent, marks in _rows(path, columns).items()
@@ -74,6 +73,42 @@ def test_every_cell_matches_the_code(path: Path, columns: list[Surface]) -> None
         if marked != (surface in SURFACE_AGENTS[agent])
     ]
     assert not wrong, f"{path.name} disagrees with surfaces.py:\n  " + "\n  ".join(wrong)
+
+
+def _readme_rows() -> dict[str, str]:
+    """{agent: "what it enforces" cell} for every row across README's visible and <details> tables."""
+    text = README.read_text(encoding="utf-8")
+    rows: dict[str, str] = {}
+    for line in text.splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) != 3 or cells[0].startswith(":-") or cells[0] == "Agent" or not cells[0].startswith("**"):
+            continue
+        name = re.sub(r"\*+", "", cells[0]).lower()
+        rows[ALIAS.get(name, name)] = cells[1]
+    assert rows, "README.md Supported agents table not parsed -- its shape changed"
+    return rows
+
+
+def test_readme_table_names_exactly_the_agents_the_code_supports() -> None:
+    """README's condensed table (visible six + <details>) lists every supported agent, no others."""
+    assert set(_readme_rows()) == set(SURFACE_AGENTS)
+
+
+def test_readme_enforces_column_matches_the_code() -> None:
+    """README's "What it enforces" cell says native-hook exactly when surfaces.py agrees."""
+    wrong = []
+    for agent, cell in _readme_rows().items():
+        supported = SURFACE_AGENTS[agent]
+        has_pre_tool = Surface.PRE_TOOL_USE in supported
+        has_agent_hooks = Surface.AGENT_HOOKS in supported
+        claims_pre_tool = "pre-tool-use hook" in cell
+        claims_agent_hooks = "agent hook" in cell and "pre-tool-use" not in cell
+        claims_floor_only = "git hook + CI gate only" in cell
+        if claims_pre_tool != has_pre_tool or claims_agent_hooks != has_agent_hooks:
+            wrong.append(f"{agent}: cell={cell!r}, pre_tool={has_pre_tool}, agent_hooks={has_agent_hooks}")
+        elif not (has_pre_tool or has_agent_hooks) and not claims_floor_only:
+            wrong.append(f"{agent}: cell={cell!r} does not say 'git hook + CI gate only'")
+    assert not wrong, "README Supported agents table disagrees with surfaces.py:\n  " + "\n  ".join(wrong)
 
 
 def _omission_caveat() -> str:
