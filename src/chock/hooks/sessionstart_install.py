@@ -15,13 +15,13 @@ from chock.hooks.in_agent_install import (
     _interpreter_runs_here,
     _normalize_fragment,
 )
-from chock.hooks.runtime_vendor import runtime_rel, vendor_runtime
+from chock.hooks.runtime_vendor import owned_markers, runtime_rel, vendor_runtime
 from chock.output import warn
 
 SETTINGS_REL = Path(vendors.config_path("claude_code"))
 ARM_EVENT = vendors.wire_event("claude_code", _contract.SESSION_START)
 ADAPTER_REL = runtime_rel("claude_code")
-_OWNED_MARKER = f"/{ADAPTER_REL.as_posix()}"
+_OWNED_MARKERS = owned_markers("claude_code")
 
 ARM_FRAGMENT = {
     "hooks": [
@@ -43,7 +43,8 @@ def _is_ours(entry: dict) -> bool:
     hooks = entry.get("hooks") if isinstance(entry, dict) else None
     if not isinstance(hooks, list):
         return False
-    return any(_OWNED_MARKER in str(h.get("command", "")) for h in hooks if isinstance(h, dict))
+    commands = [str(h.get("command", "")) for h in hooks if isinstance(h, dict)]
+    return any(marker in command for marker in _OWNED_MARKERS for command in commands)
 
 
 def install_sessionstart_hook(repo_root: Path) -> bool:
