@@ -276,12 +276,12 @@ We're building in the open. Next up:
 
 **A policy manifest is the contribution we want most.** Write one for the guardrail your
 stack needs and send it to the catalog — [open a Policy Proposal
-issue](https://github.com/open-coder-ai/chock/issues/new?template=policy_proposal.md) to
-start, or read [Anatomy of a good policy PR](CONTRIBUTING.md#-anatomy-of-a-good-policy-pr).
-
+issue](https://github.com/open-coder-ai/chock/issues/new?template=policy_proposal.md) or
+read [Anatomy of a good policy PR](CONTRIBUTING.md#-anatomy-of-a-good-policy-pr). No code
+needed: an [evidence report](https://github.com/open-coder-ai/agentseam/blob/main/CONTRIBUTING.md#contributing-evidence-you-do-not-need-to-write-code)
+on what your agent actually does, a "this policy is wrong" [issue](https://github.com/open-coder-ai/chock-catalog/issues/new/choose) on the catalog, or a `policy wanted` entry from the [threat ledger](https://github.com/open-coder-ai/chock-threat-intel/blob/main/reference/agentic-threat-ledger.md).
 Docs fixes, bug reports, diagrams and clearer CLI output are equally first-class — see the
-[Contributing Guide](CONTRIBUTING.md) and the
-[`good first issue`](https://github.com/open-coder-ai/chock/labels/good%20first%20issue) label.
+[Contributing Guide](CONTRIBUTING.md), [`good first issue`](https://github.com/open-coder-ai/chock/labels/good%20first%20issue) and [Discussions](https://github.com/open-coder-ai/chock/discussions). The sibling projects: [docs/ecosystem.md](docs/ecosystem.md).
 
 ## ⭐ Star history
 
