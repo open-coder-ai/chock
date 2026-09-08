@@ -5,6 +5,19 @@ Direction is tracked publicly as issues labeled
 carries its rationale and acceptance criteria. This page is the narrative index;
 the issues are the source of truth.
 
+## Milestones
+
+We're building in the open. Next up:
+
+- [x] **`chock add <id>`** — install a policy or skill from any catalog, public or private.
+- [x] **CI backstop** — `chock sync --ci` plus a commit-range gate mode, so a hook skipped with `--no-verify` is still caught on a pull request.
+- [x] **Publish** — [PyPI package](https://pypi.org/project/chock/), attested releases.
+- [ ] **Publish** — signed standalone binaries.
+- [ ] **Upgrades** — `chock upgrade`, three-way merge against a pinned `chock.lock`.
+- [ ] **Supply-chain & MCP packs** — block hallucinated ("slopsquatted") dependencies and un-approved MCP tools.
+- [ ] **Cost & autonomy governance** — token/spend circuit-breakers and human-in-the-loop approval tiers.
+- [ ] **Compliance attestation** — `chock attest` mapping controls to NIST AI RMF, ISO 42001 & the EU AI Act.
+
 ## Enforcement surfaces
 
 - **MCP-gateway surface** ([#32](https://github.com/open-coder-ai/chock/issues/32)) —
