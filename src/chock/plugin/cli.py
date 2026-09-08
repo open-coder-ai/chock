@@ -45,6 +45,26 @@ def resolve_policy_dirs(repo_root: Path, policies_dir: str | None) -> list[Path]
     return sorted(p.parent for p in root.glob(f"*/{CANONICAL_MANIFEST}"))
 
 
+def _select_policy_dirs(policy_dirs: list[Path], wanted: list[str]) -> tuple[list[Path], list[str]]:
+    """`policy_dirs` narrowed to those matching a wanted manifest id or directory name.
+
+    Same match rule as `toggles._find_policy_manifest`: id first, directory name second.
+    Returns the narrowed list plus any wanted id that matched nothing.
+    """
+    remaining = list(wanted)
+    selected: list[Path] = []
+    for policy_dir in policy_dirs:
+        manifest = _load_manifest(policy_dir)
+        policy_id = str(manifest.get("id") or policy_dir.name) if manifest else policy_dir.name
+        if policy_id not in remaining and policy_dir.name not in remaining:
+            continue
+        selected.append(policy_dir)
+        for match in (policy_id, policy_dir.name):
+            if match in remaining:
+                remaining.remove(match)
+    return selected, remaining
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="chock plugin",
@@ -69,24 +89,48 @@ def main(argv: list[str] | None = None) -> int:
         help="Distribution root: plugins are written to <out-dir>/<format>/<id>/ (required for every hook-carrying format)",
     )
     parser.add_argument(
+        "--policy",
+        dest="policies",
+        action="append",
+        default=None,
+        metavar="ID",
+        help="Package only this policy (manifest id or directory name); repeat for more than one",
+    )
+    parser.add_argument(
+        "--out",
+        default=None,
+        help="Write the selected policy's plugin directly to this path, instead of <out-dir>/<format>/<id>/. "
+        "Requires exactly one --policy.",
+    )
+    parser.add_argument(
         "--check",
         action="store_true",
         help="Report policies whose packaged output is missing or stale, and exit non-zero. Writes nothing.",
     )
     args = parser.parse_args(argv)
 
+    if args.out is not None and len(args.policies or []) != 1:
+        parser.error("--out requires exactly one --policy")
+
     formats = list(FORMATS) if args.format == "all" else [args.format]
     hook_formats = sorted(HOOK_FORMATS.intersection(formats))
-    if hook_formats and args.out_dir is None:
+    if hook_formats and args.out_dir is None and args.out is None:
         print(
-            f"--format {hook_formats[0]} requires --out-dir; see `chock plugin --help` for why in-place is refused.",
+            f"--format {hook_formats[0]} requires --out-dir (or --out); see `chock plugin --help` for why "
+            "in-place is refused.",
             file=sys.stderr,
         )
         return 2
 
     repo_root = Path(args.repo).resolve()
     out_root = Path(args.out_dir).resolve() if args.out_dir else None
+    explicit_out = Path(args.out).resolve() if args.out else None
     policy_dirs = resolve_policy_dirs(repo_root, args.policies_dir)
+    if args.policies:
+        policy_dirs, missing = _select_policy_dirs(policy_dirs, args.policies)
+        if missing:
+            print(f"Unknown --policy id(s): {', '.join(missing)}", file=sys.stderr)
+            return 2
     if not policy_dirs:
         print("No policies found to package.")
         return 0
@@ -110,14 +154,19 @@ def main(argv: list[str] | None = None) -> int:
                 return 2
             seen[name] = policy_dir
             for fmt in formats:
-                target = out_root / fmt / name if out_root else None
+                if explicit_out is not None:
+                    target = explicit_out
+                elif out_root is not None:
+                    target = out_root / fmt / name
+                else:
+                    target = None
                 if fmt == "agent-plugins":
                     if args.check:
                         differences.extend(plugin_differences(policy_dir, manifest, repo_root, target))
                     else:
                         build_plugin(policy_dir, manifest, repo_root, out_dir=target)
                 else:
-                    assert target is not None  # noqa: S101 -- hook_formats requiring --out-dir was checked above
+                    assert target is not None  # noqa: S101 -- hook_formats requiring --out-dir/--out was checked above
                     differ, build = HOOK_EMITTERS[fmt]
                     if args.check:
                         differences.extend(differ(policy_dir, manifest, repo_root, target))
@@ -129,7 +178,10 @@ def main(argv: list[str] | None = None) -> int:
             error(f"{policy_dir}: {exc}")
             return 2
 
-    if out_root is not None:
+    if out_root is not None and not args.policies:
+        # Staleness can only be judged against the full policy set; a --policy-narrowed
+        # run has not seen every policy that should still exist under out_root, so it
+        # must not treat the ones it skipped as removed.
         for fmt in formats:
             tree = out_root / fmt
             if not tree.is_dir():

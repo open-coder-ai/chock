@@ -14,7 +14,7 @@ from chock.compile.emitters.in_agent import AGENT_HOOKS_ENVELOPE, AGENT_HOOKS_EV
 from chock.emit import write_generated_json
 from chock.hooks.in_agent_generic import install_generic, installed_generic_ids
 from chock.hooks.in_agent_generic import load_config as _load_config
-from chock.hooks.runtime_vendor import runtime_rel, vendor_runtime
+from chock.hooks.runtime_vendor import owned_markers, runtime_rel, vendor_runtime
 
 INTERPRETER_PLACEHOLDER = "@CHOCK_PYTHON@"
 
@@ -112,10 +112,6 @@ def agent_hooks_rel(vendor: str = _OWNED_FILE_VENDOR) -> Path:
     return Path(vendors.config_path(vendor)).parent / "chock.json"
 
 
-def _owned_marker(vendor: str) -> str:
-    return f"/{runtime_rel(vendor).as_posix()}"
-
-
 def _wrap(entry: dict) -> dict:
     return {"hooks": [copy.deepcopy(entry)]}
 
@@ -147,7 +143,7 @@ def _install_merged(repo_root: Path, vendor: str) -> list[str]:
     repo_root = Path(repo_root)
     event = vendors.shell_gate_event(vendor)
     wanted = _compiled_merged(repo_root, vendor, event)
-    marker = _owned_marker(vendor)
+    markers = owned_markers(vendor)
 
     config_path = repo_root / vendors.config_path(vendor)
     settings = _load_config(config_path)
@@ -158,11 +154,13 @@ def _install_merged(repo_root: Path, vendor: str) -> list[str]:
 
     def _is_ours(entry: dict) -> bool:
         if wiring.flat:
-            return isinstance(entry, dict) and marker in str(entry.get("command", ""))
+            command = str(entry.get("command", "")) if isinstance(entry, dict) else ""
+            return any(marker in command for marker in markers)
         inner = entry.get("hooks") if isinstance(entry, dict) else None
         if not isinstance(inner, list):
             return False
-        return any(marker in str(h.get("command", "")) for h in inner if isinstance(h, dict))
+        commands = [str(h.get("command", "")) for h in inner if isinstance(h, dict)]
+        return any(marker in command for marker in markers for command in commands)
 
     existing = hooks.get(event)
     ours_before = [e for e in existing if _is_ours(e)] if isinstance(existing, list) else []

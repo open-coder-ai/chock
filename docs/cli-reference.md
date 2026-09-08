@@ -197,24 +197,24 @@ diffs the result to catch a stale registry. See [Registry & Lockfile](registry-a
 ### `plugin build` — package policies as installable plugins
 
 ```bash
-chock plugin build [--repo .] [--policies-dir base] [--format agent-plugins|claude|copilot|cursor|codex|all] [--out-dir DIST] [--check]
+chock plugin build [--repo .] [--policies-dir base] [--format agent-plugins|claude|copilot|cursor|codex|all] [--out-dir DIST] [--policy ID ...] [--out PATH] [--check]
 ```
 
 Renders each policy as a plugin. The default `agent-plugins` format writes an
-[Agent Plugins 1.0.0](https://agent-plugins.org) package into each policy folder —
-additive, `manifest.yaml` stays the source of truth, and a packaged policy is `advisory`
-wherever it is read: v1 defines no enforcement semantics, so packaging changes no value in
-`coverage.json`.
+[Agent Plugins 1.0.0](https://agent-plugins.org) package into each policy folder — additive,
+`manifest.yaml` stays the source of truth, and a packaged policy is `advisory` wherever it is
+read: v1 defines no enforcement semantics, so packaging changes no value in `coverage.json`.
 
-The four hook formats ship a byte-identical guard and adapter; only the envelope
-differs. `claude` (`.claude-plugin/`) is read natively by Claude Code, Copilot CLI, VS Code
-and Grok Build; `copilot` is the Agent Plugins 1.0 layout with the hook under
-`com.github.copilot/hooks/`, which spec-validating marketplaces accept; `cursor`
-(`.cursor-plugin/`, `beforeShellExecution`) and `codex` (`.codex-plugin/`, `PreToolUse`) each reach a hook engine no other package can. A guard policy's
-plugin is session-enforced where the host honours the hook, failing **open** when
-`python3` is absent — a posture each description states verbatim. The hook formats require
-`--out-dir`; in-place output is refused so a policy folder is never mistaken for a
-published plugin. `--policies-dir` packages a published directory; `--check` judges without writing.
+The four hook formats ship a byte-identical guard and adapter; only the envelope differs.
+`claude` (`.claude-plugin/`) is read natively by Claude Code, Copilot CLI, VS Code and Grok
+Build; `copilot` is the Agent Plugins 1.0 layout under `com.github.copilot/hooks/`; `cursor`
+(`.cursor-plugin/`, `beforeShellExecution`) and `codex` (`.codex-plugin/`, `PreToolUse`) each
+reach a hook engine no other package can, failing **open** when `python3` is absent. They
+require `--out-dir` (or `--out`); in-place output is refused so a policy folder is never
+mistaken for a published plugin. `--policies-dir` packages a published directory; `--check`
+judges without writing. `--policy ID` (repeatable; manifest `id` or directory name, else a
+named error) narrows the build and skips `--out-dir` stale-package cleanup. `--out PATH`
+(exactly one `--policy`) writes straight to `PATH` instead of `<out-dir>/<format>/<id>/`.
 
 ### `marketplace build` — index a built plugin tree
 
