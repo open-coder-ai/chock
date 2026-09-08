@@ -1,7 +1,8 @@
 # Chock — hero demo GIF
 #
-# Renders the killer 15-second loop: onboard a repo, get blocked committing to
-# main, then succeed on a feature branch.
+# Renders the secrets-demo loop: onboard a repo, adopt scan-secrets, get blocked
+# committing a credential, then commit cleanly once the secret reads from the
+# environment instead.
 #
 # Prerequisites: `chock` on PATH (pip install -e .) and VHS
 #   (https://github.com/charmbracelet/vhs):  brew install vhs
@@ -11,52 +12,46 @@
 Output docs/assets/demo.gif
 
 Set Shell "bash"
-Set FontSize 20
-Set Width 1100
-Set Height 660
-Set Padding 22
+Set FontSize 16
+Set Width 1200
+Set Height 640
 Set Theme "Catppuccin Mocha"
-Set TypingSpeed 55ms
+Set TypingSpeed 40ms
+Set Padding 24
 
 # --- hidden setup: a throwaway repo on an (unborn) main branch ---
 Hide
-Type "cd $(mktemp -d)"
+Type "export HOME=$(mktemp -d) && cd $HOME"
 Enter
-Type "git -c init.defaultBranch=main init -q demo && cd demo && clear"
+Type "git -c init.defaultBranch=main init -q demo && cd demo"
+Enter
+Type "git config user.email demo@example.com && git config user.name Demo && clear"
 Enter
 Show
 
-# --- 1. Onboard the repo, then adopt a guardrail from the catalog ---
-# init is wiring-only (the framework ships no policies), so the blocked commit
-# below only happens after `add` + `sync` — the same 3-command flow the README shows.
+# --- 1. Onboard the repo, then adopt scan-secrets from the catalog ---
 Type "chock init ."
-Sleep 600ms
 Enter
-Sleep 3s
-Type "chock add protect-main-branch"
-Sleep 500ms
-Enter
-Sleep 2500ms
-Type "chock sync --repo ."
-Sleep 500ms
-Enter
-Sleep 2500ms
-
-# --- 2. Try to commit straight to main → BLOCKED ---
-Type "echo 'oops' > hotfix.txt && git add hotfix.txt"
-Enter
-Sleep 800ms
-Type 'git commit -m "quick fix straight to main"'
-Sleep 500ms
-Enter
-Sleep 3500ms
-
-# --- 3. Do it right on a feature branch → allowed ---
-Type "git checkout -b feature/x"
 Sleep 300ms
+Type "chock add scan-secrets"
 Enter
-Sleep 1s
-Type 'git commit -m "safe on a feature branch"'
-Sleep 500ms
+Sleep 300ms
+Type "chock sync --repo ."
+Enter
+Sleep 300ms
+
+# --- 2. Commit a credential → BLOCKED (hold 3.5s) ---
+Type "echo 'AWS_KEY=AKIAIOSFODNN7EXAMPLE' > config.py && git add config.py" # pragma: allowlist secret -- AWS's own documented example key, never a real one
+Enter
+Sleep 150ms
+Type 'git commit -m "add config"'
 Enter
 Sleep 3500ms
+
+# --- 3. Read the key from the environment instead → passes (hold 3s) ---
+Type `echo 'AWS_KEY = os.environ["AWS_KEY"]' > config.py && git add config.py`
+Enter
+Sleep 150ms
+Type 'git commit -m "read key from env"'
+Enter
+Sleep 3000ms
