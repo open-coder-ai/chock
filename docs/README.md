@@ -26,6 +26,7 @@ Everything you need to understand, use, and extend Chock. New here? Start with
 | [Policies](baseline-policies.md) | What the base catalog offers, and how to install and customise it |
 | [Adopting](adopting.md) | Fork, merge upstream, and keep consumer customizations safe |
 | [Adapters](adapters/README.md) | Per-agent wrapper notes |
+| [Ecosystem](ecosystem.md) | The sibling repositories, what each is, and where a contribution goes |
 
 ## 🧭 The 60-second mental model
 

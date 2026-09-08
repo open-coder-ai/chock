@@ -276,29 +276,12 @@ We're building in the open. Next up:
 
 **A policy manifest is the contribution we want most.** Write one for the guardrail your
 stack needs and send it to the catalog — [open a Policy Proposal
-issue](https://github.com/open-coder-ai/chock/issues/new?template=policy_proposal.md) to
-start, or read [Anatomy of a good policy PR](CONTRIBUTING.md#-anatomy-of-a-good-policy-pr).
-
+issue](https://github.com/open-coder-ai/chock/issues/new?template=policy_proposal.md) or
+read [Anatomy of a good policy PR](CONTRIBUTING.md#-anatomy-of-a-good-policy-pr). No code
+needed: an [evidence report](https://github.com/open-coder-ai/agentseam/blob/main/CONTRIBUTING.md#contributing-evidence-you-do-not-need-to-write-code)
+on what your agent actually does, a "this policy is wrong" [issue](https://github.com/open-coder-ai/chock-catalog/issues/new/choose) on the catalog, or a `policy wanted` entry from the [threat ledger](https://github.com/open-coder-ai/chock-threat-intel/blob/main/reference/agentic-threat-ledger.md).
 Docs fixes, bug reports, diagrams and clearer CLI output are equally first-class — see the
-[Contributing Guide](CONTRIBUTING.md) and the
-[`good first issue`](https://github.com/open-coder-ai/chock/labels/good%20first%20issue) label.
-
-Three ways in that need no code at all:
-
-- **Evidence from your agent.** The per-agent capability matrix chock builds on lives in
-  [agentseam](https://github.com/open-coder-ai/agentseam), and most of its rows rest on vendor documentation rather
-  than on anyone watching the agent run. If you have one of those agents installed,
-  [its probe](https://github.com/open-coder-ai/agentseam/blob/main/CONTRIBUTING.md#contributing-evidence-you-do-not-need-to-write-code) reports what your version actually does; a result that
-  contradicts the matrix is the most useful thing you can send.
-- **"This policy is wrong."** Open it on the
-  [catalog](https://github.com/open-coder-ai/chock-catalog/issues/new/choose). An overstated policy is worse than a
-  missing one, and the issue template exists for exactly that.
-- **A `policy wanted` entry.** The [threat ledger](https://github.com/open-coder-ai/chock-threat-intel/blob/main/reference/agentic-threat-ledger.md) lists published threats
-  nothing in the catalog covers yet, each linked to an issue you can claim.
-
-Questions and half-formed ideas go to [Discussions](https://github.com/open-coder-ai/chock/discussions) — telling us
-what is confusing is a contribution. Bugs, security reports and response times:
-[SUPPORT.md](SUPPORT.md).
+[Contributing Guide](CONTRIBUTING.md), [`good first issue`](https://github.com/open-coder-ai/chock/labels/good%20first%20issue) and [Discussions](https://github.com/open-coder-ai/chock/discussions). The sibling projects: [docs/ecosystem.md](docs/ecosystem.md).
 
 ## ⭐ Star history
 
@@ -311,20 +294,6 @@ that helps other teams find the project.
   <img src="https://api.star-history.com/svg?repos=open-coder-ai/chock&type=Date" alt="Star History Chart" width="600">
 </a>
 </div>
-
-## 🧭 Part of the open-coder-ai family
-
-Everything under [open-coder-ai](https://github.com/open-coder-ai) is built on one rule: a claim must match a
-mechanism. Where this repository sits among the others:
-
-| Repository | What it is |
-| :--- | :--- |
-| [chock-catalog](https://github.com/open-coder-ai/chock-catalog) | The policies, each graded by what it actually enforces |
-| [agentseam](https://github.com/open-coder-ai/agentseam) | The primitives layer under chock: one handler API over every agent's hooks, with a capability matrix that carries its provenance |
-| [context-report](https://github.com/open-coder-ai/context-report) | A signed report format for whether a plugin, hook, skill or `AGENTS.md` actually works |
-| [chock-threat-intel](https://github.com/open-coder-ai/chock-threat-intel) | A weekly, human-reviewed threat digest scored against the catalog |
-| [chock-claude-plugins](https://github.com/open-coder-ai/chock-claude-plugins) · [copilot](https://github.com/open-coder-ai/chock-copilot-plugins) · [cursor](https://github.com/open-coder-ai/chock-cursor-plugins) · [codex](https://github.com/open-coder-ai/chock-codex-plugins) | The catalog compiled into each client's native plugin format; generated only, rebuilt and diffed in CI |
-| [chock-quickstart](https://github.com/open-coder-ai/chock-quickstart) · [chock-example](https://github.com/open-coder-ai/chock-example) | Template repositories: exactly what `chock init` leaves behind, and a working adoption with one policy per layer |
 
 ## 📄 License
 
