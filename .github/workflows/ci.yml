@@ -65,6 +65,9 @@ jobs:
           done < <(git rev-list --no-merges "origin/$BASE_REF..HEAD")
           exit "$missing"
 
+  # Commit messages and PR bodies are as public as the diff and much easier to leak
+  # into -- container paths, session identifiers, personal addresses. Checked here
+  # because the local test can only see the history it has.
   template-lint:
     # Emitted-artifact templates (chock W48) are checked-in files in their own language,
     # not Python string literals -- so they are linted as that language, same as any
