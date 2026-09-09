@@ -50,7 +50,7 @@ jobs:
             fi
             while read -r addr; do
               [ -n "$addr" ] || continue
-              if [ "$(printf '%s' "$addr" | tr 'A-Z' 'a-z' | sha256sum | cut -d' ' -f1)" = "$blocked_digest" ]; then
+              if [ "$(printf '%s' "$addr" | tr '[:upper:]' '[:lower:]' | sha256sum | cut -d' ' -f1)" = "$blocked_digest" ]; then
                 echo "::error::commit $sha contains the maintainer's personal address; sign off with the GitHub noreply address"
                 found=1
               fi
