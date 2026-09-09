@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Docs: rebuilt the README as a landing page.** Shared section order (Quick start · What you
+  get · How it works · Author your own policy · Supported agents · For open-source maintainers ·
+  Contributing · Part of open-coder-ai · Security · License), the Why/Roadmap/doc-index prose
+  moved verbatim to `docs/why.md` and `docs/roadmap.md`, the hero GIF re-recorded as the
+  `scan-secrets` demo, and the Quick start block now runs for real in CI
+  (`tools/quickstart_block.py` + the `quickstart` job in `ci.yml`).
+
 - **Added `chock plugin build --policy` and `--out`** (#12). `--policy <id>` (repeatable) builds
   only the named policies, matched by manifest `id` or directory name -- the same rule
   `toggles._find_policy_manifest` uses, not a third one -- instead of always rebuilding every

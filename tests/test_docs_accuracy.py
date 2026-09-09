@@ -123,7 +123,7 @@ def test_docs_name_no_command_that_does_not_exist() -> None:
     """Prose describing a deleted command is drift nothing else catches."""
     from chock.cli import COMMANDS
 
-    known = set(COMMANDS) | {"scan", "list", "resolve", "get", "report", "init", "upgrade", "add", "remove"}
+    known = set(COMMANDS) | {"scan", "list", "resolve", "get", "report", "init", "upgrade", "add", "remove", "attest"}
     referenced = set(re.findall(r"`chock ([a-z][a-z-]+)", _docs_blob()))
     unknown = sorted(referenced - known)
     assert not unknown, f"docs reference commands that do not exist: {unknown}"

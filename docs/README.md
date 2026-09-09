@@ -10,6 +10,7 @@ Everything you need to understand, use, and extend Chock. New here? Start with
 
 | Guide | Read it to… |
 | :--- | :--- |
+| [Why](why.md) | The problem Chock solves, and the case for open-source maintainers |
 | [Getting Started](getting-started.md) | Install, onboard a repo, and author your first policy |
 | [Architecture](architecture.md) | Understand the *author → compile → enforce* model |
 | [Core Concepts](concepts.md) | Learn the vocabulary: artifacts, manifests, surfaces, coverage |
@@ -27,6 +28,7 @@ Everything you need to understand, use, and extend Chock. New here? Start with
 | [Adopting](adopting.md) | Fork, merge upstream, and keep consumer customizations safe |
 | [Adapters](adapters/README.md) | Per-agent wrapper notes |
 | [Ecosystem](ecosystem.md) | The sibling repositories, what each is, and where a contribution goes |
+| [Roadmap](roadmap.md) | Milestones shipped and planned, and the issues that track direction |
 
 ## 🧭 The 60-second mental model
 

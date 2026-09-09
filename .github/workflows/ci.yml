@@ -288,3 +288,13 @@ jobs:
           python -m pip install --require-hashes -r requirements/ci-tools.txt
       - name: Run acceptance suite
         run: python -m pytest acceptance/ -q -c acceptance/pytest.ini --rootdir=acceptance
+
+  quickstart:  # runs the README's own Quick start block for real (tools/quickstart_block.py)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with: { persist-credentials: false }
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with: { python-version: "3.12" }
+      - name: Install chock, then run the README's Quick start block for real
+        run: python -m pip install --require-hashes --upgrade -r requirements/pip.txt && pip install . && run_dir="$(mktemp -d)" && python3 tools/quickstart_block.py README.md | tee "$run_dir/quickstart.sh" && (cd "$run_dir" && bash -euo pipefail quickstart.sh)
