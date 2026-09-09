@@ -19,11 +19,11 @@ Set Theme "Catppuccin Mocha"
 Set TypingSpeed 40ms
 Set Padding 24
 
-# --- hidden setup: a throwaway repo on an (unborn) main branch ---
+# --- hidden setup: a throwaway repo on an (unborn) main branch. A fixed real path
+# (not `mktemp -d`) so `chock init`'s own printed paths are stable and reviewable,
+# never a per-run container temp path. ---
 Hide
-Type "export HOME=$(mktemp -d) && cd $HOME"
-Enter
-Type "git -c init.defaultBranch=main init -q demo && cd demo"
+Type "rm -rf /work/demo && git -c init.defaultBranch=main init -q /work/demo && cd /work/demo"
 Enter
 Type "git config user.email demo@example.com && git config user.name Demo && clear"
 Enter
