@@ -1,0 +1,53 @@
+# Runs the README's own Quick start block for real (tools/quickstart_block.py),
+# so the block a reader copies is the block CI executes -- not a hand-copied
+# approximation of it.
+#
+# docs/quickstart.sh is a generated, committed copy of that block (so it and the
+# README cannot drift silently): this job regenerates it from the README and fails
+# if the committed file differs, then runs the committed file. tools/quickstart_block.py
+# stays the single source of truth -- docs/quickstart.sh is its output, not a second
+# hand-maintained copy.
+name: Quick start
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quickstart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+
+      - name: Install chock
+        run: |
+          python -m pip install --require-hashes --upgrade -r requirements/pip.txt
+          pip install .
+
+      - name: Regenerate docs/quickstart.sh and diff against the committed copy
+        run: |
+          {
+            echo '#!/usr/bin/env bash'
+            echo "# Generated from README.md's Quick start block by tools/quickstart_block.py."
+            echo '# Edit the README, not this file -- .github/workflows/quickstart.yml regenerates'
+            echo '# and diffs this file against the README on every push and pull request.'
+            echo 'set -euo pipefail'
+            echo
+            python3 tools/quickstart_block.py README.md
+          } > /tmp/quickstart.sh.generated
+          diff -u docs/quickstart.sh /tmp/quickstart.sh.generated
+
+      - name: Run docs/quickstart.sh for real
+        run: |
+          run_dir="$(mktemp -d)"
+          cp docs/quickstart.sh "$run_dir/quickstart.sh"
+          (cd "$run_dir" && bash -euo pipefail quickstart.sh)

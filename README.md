@@ -257,13 +257,3 @@ honest tier, and what it doesn't.
 ## License
 
 Apache-2.0 — see [LICENSE](LICENSE). Built by and for teams shipping with AI agents.
-
-<div align="center">
-
-### Star history
-
-<a href="https://star-history.com/#open-coder-ai/chock&Date">
-  <img src="https://api.star-history.com/svg?repos=open-coder-ai/chock&type=Date" alt="Star History Chart" width="600">
-</a>
-
-</div>
