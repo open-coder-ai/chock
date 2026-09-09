@@ -224,6 +224,19 @@ Browse issues by label to find your entry point:
 
 Comment on an issue to claim it — we'll assign it to you so no one double-works.
 
+## Figures
+
+Every figure under `docs/figures/` is generated from this repository's own data by a script here,
+shipped as a light and a dark SVG, and regenerated in CI so a stale figure fails the build. If you
+are changing one, read the standard first — it explains the palette, why absence is never drawn as
+a weak grade, and why colour is never the only carrier of meaning:
+
+https://github.com/open-coder-ai/.github/blob/main/VISUAL.md
+
+`docs/figures/palette.py` and `make_family.py` are shared across every open-coder-ai repository and
+carried byte-identically. Change them at the source and copy them out; never edit one copy, and
+never add a per-repo lint or format exclude to work around them.
+
 ## 📜 Code of Conduct
 
 Be kind, be curious, assume good faith. We're all here to make AI-assisted development safer. Harassment of any kind isn't tolerated.
