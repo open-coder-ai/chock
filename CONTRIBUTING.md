@@ -15,6 +15,30 @@ You do **not** need to write Python to make a real difference here:
   to start one, or see [Anatomy of a good policy PR](#-anatomy-of-a-good-policy-pr) below.
 - 💬 **Ideas & feedback** — start a [Discussion](https://github.com/open-coder-ai/chock/discussions). Telling us what's confusing *is* a contribution.
 
+## The ladder
+
+Contributions here get larger in one direction, and you can stop at any rung:
+
+1. **An evidence report** — run a probe, paste what actually happened. No code, and it is
+   the most useful thing a newcomer can do, because a claim nobody re-ran is just a claim.
+2. **An eval case** — a input that should be caught, or should not be, with the expected
+   verdict. This is how a guard stops regressing.
+3. **A policy** — a rule plus the mechanism that enforces it, honestly labelled as enforced or
+   advisory.
+4. **An adapter** — support for one more agent, matched to what that agent's hooks can really do.
+5. **Review** — reading someone else's evidence and saying whether it holds.
+
+**Becoming a maintainer:** three merged pull requests earns triage rights — labelling, closing
+duplicates, and asking for the evidence a report is missing. Nobody is asked to commit to more
+than they want to.
+
+This repository enforces the first rung's honesty on itself: every PR here runs chock's own
+policies (`protect-main-branch`, `require-review-evidence`, and the rest of `.agents/policies/`)
+as a compiled git hook and CI gate, plus a DCO sign-off check on every commit. That pair — not a
+maintainer's judgment call — is the filter for low-effort machine-generated contributions. A PR
+that cannot say what it checked will not pass, whoever or whatever wrote it. See
+[Agent-authored code](#-agent-authored-code) below for what happens once a PR clears that bar.
+
 ## 🛠️ Development Setup
 
 ```bash
@@ -192,7 +216,7 @@ Artifacts follow `draft → review → production → deprecated` (spec §8). Pr
 
 Browse issues by label to find your entry point:
 
-- 🟢 [`good first issue`](https://github.com/open-coder-ai/chock/labels/good%20first%20issue) — small, well-scoped, and mentored. **Start here.**
+- 🟢 [`good first issue`](https://github.com/open-coder-ai/chock/labels/good%20first%20issue) — small, well-scoped, and mentored. **Start here.** The list is seeded on purpose with rung-one-and-two work from [the ladder](#the-ladder) above — an evidence report to re-run, an eval case to write — [browse what's currently open](https://github.com/open-coder-ai/chock/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
 - 🙌 [`help wanted`](https://github.com/open-coder-ai/chock/labels/help%20wanted) — we'd love a hand; slightly bigger than a first issue.
 - 🐛 `bug` — confirmed defects.
 - 📝 `documentation` — no code required.
