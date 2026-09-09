@@ -23,16 +23,15 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          # Local paths and session identifiers.
           local_data='/home/[A-Za-z0-9._-]+/|/Users/[A-Za-z0-9._-]+/|session_[0-9A-Za-z]{12,}|claude\.ai/code/session|/tmp/claude-[0-9]'
-          # Any address, not a handful of consumer domains: a corporate or self-hosted
-          # address is somebody's just as much as a gmail one. The last label must look like
-          # a TLD, so `claude_code@2.1.263.json` and `pkg@1.2.3.tar.gz` are not matches.
           email='[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,24}'
-          # Addresses that identify a service rather than a person.
-          allowed='@users\.noreply\.github\.com$|^noreply@anthropic\.com$|^support@github\.com$|^noreply@github\.com$'
           # Suffixes that make a match a file path rather than an address.
           not_mail='\.(json|ya?ml|md|txt|py|js|ts|tsx|sh|toml|cfg|ini|lock|log|csv|tsv|html?|svg|png|jpe?g|gif|pdf|zip|gz|tar|whl|so|dll|exe)$'
+          # Addresses that identify a service rather than a person.
+          service='@users\.noreply\.github\.com$|^noreply@anthropic\.com$|^support@github\.com$|^noreply@github\.com$'
+          # The maintainer's personal address, as a SHA-256 digest: writing it here in the
+          # clear would publish it more prominently than the commits this check guards.
+          blocked_digest='ecda4887099c1a8d73af02994c42938dfb0a1857674f6c3a6403af922360104f'
           found=0
           while read -r sha; do
             msg=$(git log -1 --format=%B "$sha")
@@ -41,9 +40,20 @@ jobs:
               echo "::error::commit $sha contains a local path or session identifier"
               found=1
             fi
-            if printf '%s' "$msg" | grep -oiE "$email" | grep -ivE "$not_mail" | grep -qivE "$allowed"; then
-              echo "::error::commit $sha contains an email address; sign off with your GitHub noreply address"
+            # A sign-off is somebody's own attestation, so a contributor's address there is
+            # their choice and stays allowed. Anywhere else an address arrived by accident --
+            # pasted from a log, a stack trace, or a quoted report.
+            body=$(printf '%s' "$msg" | grep -viE '^(Signed-off-by|Co-Authored-By|Reported-by|Reviewed-by|Tested-by|Acked-by):')
+            if printf '%s' "$body" | grep -oiE "$email" | grep -ivE "$not_mail" | grep -qivE "$service"; then
+              echo "::error::commit $sha contains an email address outside a sign-off trailer"
               found=1
             fi
+            while read -r addr; do
+              [ -n "$addr" ] || continue
+              if [ "$(printf '%s' "$addr" | tr 'A-Z' 'a-z' | sha256sum | cut -d' ' -f1)" = "$blocked_digest" ]; then
+                echo "::error::commit $sha contains the maintainer's personal address; sign off with the GitHub noreply address"
+                found=1
+              fi
+            done <<< "$(printf '%s' "$msg" | grep -oiE "$email")"
           done < <(git rev-list --no-merges "$BASE_SHA..HEAD")
           exit "$found"
