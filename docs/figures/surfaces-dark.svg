@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="500" viewBox="0 0 760 500" role="img" aria-labelledby="t d">
+  <title id="t">One policy, eight surfaces</title>
+  <desc id="d">A fan-out diagram: one chock policy compiles into eight enforcement surfaces. All 15 supported agent names get the advisory ambient rule and the two commit-time gates, git hook and CI gate. 9 also get a native pre-tool-use hook, enforced live in the agent, and 2 (vscode, copilot -- one underlying vendor) get chock's own agent-hooks file, also enforced in-agent. Three surfaces are named for honesty though no agent reaches them yet: managed-setting is compiled for Claude but not installed, gateway is modelled but not emitted, and mcp-gateway emits but is not yet credited to any agent.</desc>
+  <rect width="760" height="500" fill="#1a1a19"/>
+  <rect x="20" y="20" width="720" height="70" rx="4" fill="#1a1a19" stroke="#3987e5" stroke-width="2"/>
+  <text x="36" y="48" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="15" font-weight="600" fill="#ffffff" text-anchor="start">one policy</text>
+  <text x="36" y="68" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">.agents/policies/&lt;id&gt;/manifest.yaml -- compiled by chock.compile.compiler</text>
+  <line x1="380" y1="90" x2="380" y2="115" stroke="#3987e5" stroke-width="2"/>
+  <line x1="104" y1="115" x2="656" y2="115" stroke="#3987e5" stroke-width="2"/>
+  <rect x="20" y="150" width="168" height="100" rx="4" fill="#1a1a19" stroke="#9ec5f4" stroke-width="2"/>
+  <rect x="20" y="150" width="168" height="5" rx="0" fill="#9ec5f4"/>
+  <text x="32" y="176" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="13" font-weight="600" fill="#ffffff" text-anchor="start">ambient-rule</text>
+  <text x="32" y="196" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">15 agents</text>
+  <text x="32" y="216" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#9ec5f4" text-anchor="start">advisory only</text>
+  <line x1="104" y1="130" x2="104" y2="150" stroke="#9ec5f4" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="104,150 98,144 110,144" fill="#9ec5f4"/>
+  <rect x="204" y="150" width="168" height="100" rx="4" fill="#1a1a19" stroke="#3987e5" stroke-width="2"/>
+  <rect x="204" y="150" width="168" height="5" rx="0" fill="#3987e5"/>
+  <text x="216" y="176" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="13" font-weight="600" fill="#ffffff" text-anchor="start">git-hook</text>
+  <text x="216" y="196" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">15 agents</text>
+  <text x="216" y="216" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#3987e5" text-anchor="start">enforced at commit</text>
+  <line x1="288" y1="130" x2="288" y2="150" stroke="#3987e5" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="288,150 282,144 294,144" fill="#3987e5"/>
+  <rect x="388" y="150" width="168" height="100" rx="4" fill="#1a1a19" stroke="#3987e5" stroke-width="2"/>
+  <rect x="388" y="150" width="168" height="5" rx="0" fill="#3987e5"/>
+  <text x="400" y="176" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="13" font-weight="600" fill="#ffffff" text-anchor="start">ci-gate</text>
+  <text x="400" y="196" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">15 agents</text>
+  <text x="400" y="216" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#3987e5" text-anchor="start">enforced at commit</text>
+  <line x1="472" y1="130" x2="472" y2="150" stroke="#3987e5" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="472,150 466,144 478,144" fill="#3987e5"/>
+  <rect x="572" y="150" width="168" height="100" rx="4" fill="#1a1a19" stroke="#184f95" stroke-width="2"/>
+  <rect x="572" y="150" width="168" height="5" rx="0" fill="#184f95"/>
+  <text x="584" y="176" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="13" font-weight="600" fill="#ffffff" text-anchor="start">pre-tool-use</text>
+  <text x="584" y="196" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">9 agents</text>
+  <text x="584" y="216" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#184f95" text-anchor="start">enforced in-agent</text>
+  <line x1="656" y1="130" x2="656" y2="150" stroke="#184f95" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="656,150 650,144 662,144" fill="#184f95"/>
+  <line x1="380" y1="115" x2="380" y2="270" stroke="#3987e5" stroke-width="2"/>
+  <line x1="104" y1="270" x2="656" y2="270" stroke="#3987e5" stroke-width="2"/>
+  <rect x="20" y="290" width="168" height="100" rx="4" fill="#1a1a19" stroke="#184f95" stroke-width="2"/>
+  <rect x="20" y="290" width="168" height="5" rx="0" fill="#184f95"/>
+  <text x="32" y="316" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="13" font-weight="600" fill="#ffffff" text-anchor="start">agent-hooks</text>
+  <text x="32" y="336" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">2 agents</text>
+  <text x="32" y="356" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#184f95" text-anchor="start">enforced in-agent</text>
+  <line x1="104" y1="270" x2="104" y2="290" stroke="#184f95" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="104,290 98,284 110,284" fill="#184f95"/>
+  <rect x="204" y="290" width="168" height="100" rx="4" fill="#1a1a19" stroke="#383835" stroke-width="2"/>
+  <rect x="204" y="290" width="168" height="5" rx="0" fill="#383835"/>
+  <text x="216" y="316" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="13" font-weight="600" fill="#ffffff" text-anchor="start">managed-setting</text>
+  <text x="216" y="336" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">1 agent</text>
+  <text x="216" y="356" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#383835" text-anchor="start">compiled, not installed</text>
+  <line x1="288" y1="270" x2="288" y2="290" stroke="#383835" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="288,290 282,284 294,284" fill="#383835"/>
+  <rect x="388" y="290" width="168" height="100" rx="4" fill="#1a1a19" stroke="#383835" stroke-width="2"/>
+  <rect x="388" y="290" width="168" height="5" rx="0" fill="#383835"/>
+  <text x="400" y="316" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="13" font-weight="600" fill="#ffffff" text-anchor="start">gateway</text>
+  <text x="400" y="336" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">0 agents</text>
+  <text x="400" y="356" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#383835" text-anchor="start">modelled, not emitted</text>
+  <line x1="472" y1="270" x2="472" y2="290" stroke="#383835" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="472,290 466,284 478,284" fill="#383835"/>
+  <rect x="572" y="290" width="168" height="100" rx="4" fill="#1a1a19" stroke="#383835" stroke-width="2"/>
+  <rect x="572" y="290" width="168" height="5" rx="0" fill="#383835"/>
+  <text x="584" y="316" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="13" font-weight="600" fill="#ffffff" text-anchor="start">mcp-gateway</text>
+  <text x="584" y="336" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">0 agents</text>
+  <text x="584" y="356" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#383835" text-anchor="start">emits, not yet credited</text>
+  <line x1="656" y1="270" x2="656" y2="290" stroke="#383835" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="656,290 650,284 662,284" fill="#383835"/>
+  <text x="20" y="410" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#c3c2b7" text-anchor="start">Fill:</text>
+  <rect x="70" y="398" width="14" height="14" rx="4" fill="#9ec5f4"/>
+  <text x="90" y="410" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#ffffff" text-anchor="start">advisory</text>
+  <rect x="170" y="398" width="14" height="14" rx="4" fill="#3987e5"/>
+  <text x="190" y="410" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#ffffff" text-anchor="start">enforced at commit</text>
+  <rect x="340" y="398" width="14" height="14" rx="4" fill="#184f95"/>
+  <text x="360" y="410" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#ffffff" text-anchor="start">enforced in-agent</text>
+  <rect x="503" y="398" width="14" height="14" rx="4" fill="#383835"/>
+  <text x="523" y="410" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#ffffff" text-anchor="start">absent (reaches no agent yet)</text>
+  <text x="20" y="440" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">15 chock agent names map to 14 agentseam vendors (vscode and copilot share vscode_copilot).</text>
+</svg>

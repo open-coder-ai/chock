@@ -157,6 +157,11 @@ chock compile block-console-log      # emit every surface + the coverage report
 
 ## Supported agents
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/figures/surfaces-dark.svg">
+  <img alt="One chock policy fans into eight enforcement surfaces. All 15 supported agents get the advisory ambient rule and the two commit-time gates, git hook and CI gate; 9 also get a native pre-tool-use hook and 2 (vscode, copilot) get chock's own agent-hooks file, both enforced live in the agent. Three surfaces -- managed-setting, gateway, mcp-gateway -- are named for honesty even though no agent reaches them yet." src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/figures/surfaces-light.svg" width="760">
+</picture>
+
 Every agent in this table gets the same floor: a git hook, a CI gate and an ambient `AGENTS.md`
 rule, which is why those three columns aren't repeated below. What varies is whether the agent
 also exposes a native hook chock can wire directly into its own tool-call loop, and where the
@@ -222,6 +227,11 @@ request; [`good first issue`](https://github.com/open-coder-ai/chock/issues?q=is
 is where to start.
 
 ## Part of open-coder-ai
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/figures/family-dark.svg">
+  <img alt="The open-coder-ai family, layered: agentseam is the foundation, chock sits on it, chock-catalog feeds chock and generates the four plugin repositories, chock-threat-intel feeds the catalog, and context-report runs as a verification arm beside all of them." src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/figures/family-light.svg" width="800">
+</picture>
 
 | | |
 |---|---|

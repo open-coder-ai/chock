@@ -185,6 +185,19 @@ max-statements = 50
 # docs/assets/gen_brand_assets.py derives docs/assets/social-preview.svg from repo data
 # (see the ci.yml brand-assets job) -- a dev/build script, not shipped source.
 "docs/assets/**" = ["ERA001", "PLR0913", "PLR0917", "PLR2004", "PLW2901", "RUF001", "RUF003", "RUF005", "S101", "S603", "T201"]
+# docs/figures/{palette,make_family}.py are the open-coder-ai launch programme's shared
+# figure tooling, copied byte-identically into every repo in the family and never
+# hand-edited here (see docs/figures/make_surfaces.py's docstring): their SVG helpers take
+# more than five positional args by design, `_block`'s `filled` is a real boolean the
+# family diagram switches a fill on, and printing what a generator wrote is the feature.
+"docs/figures/palette.py" = ["PLR0913", "PLR0917", "T201"]
+"docs/figures/make_family.py" = ["ARG001", "FBT003", "PLR0913", "PLR0917", "T201"]
+# chock's own figure generators, same dev/build-script reasoning as docs/assets above:
+# render(t, name) fulfills the shared write_pair(stem, render) callback shape from
+# docs/figures/palette.py even where a figure's drawing does not need `name`, and
+# printing what each generator wrote is the feature.
+"docs/figures/make_surfaces.py" = ["ARG001", "T201"]
+"docs/figures/make_social_card.py" = ["T201"]
 # A standalone CLI dev-tool script: printing its findings to stderr is the feature.
 "tools/check_literal_duplication.py" = ["T201"]
 "tools/check_readme_wordcount.py" = ["T201"]
