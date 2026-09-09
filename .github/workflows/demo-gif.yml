@@ -1,0 +1,85 @@
+# Renders docs/assets/demo.tape -> demo.gif with VHS.
+#
+# Two triggers, two jobs, deliberately not sharing write access:
+#
+# - workflow_dispatch (job `render`): manual, authoring-only. Run it from the Actions
+#   tab, download the `demo-gif` artifact, review it, and commit the GIF yourself.
+#   `contents: read` -- it never writes back on its own.
+# - push on docs/assets/demo.tape, any branch but main (job `render-and-commit`):
+#   `main` is protected with no bypass, so this can only ever land on a feature
+#   branch -- which is the point, since it carries the regenerated GIF into that
+#   branch's own pull request instead of leaving the tape and the GIF to drift apart.
+#   `contents: write`, scoped to this job only. The commit only touches demo.gif, so
+#   it never re-triggers itself.
+#
+# Linux rendering is canonical in both jobs -- the tape is authored against a Unix
+# shell, and VHS is at its flakiest on Windows.
+name: Demo GIF
+
+on:
+  workflow_dispatch:
+  push:
+    branches-ignore: [main]
+    paths: ["docs/assets/demo.tape"]
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+
+      # The tape drives the real CLI; install the tree being rendered.
+      - name: Install chock
+        run: pip install .
+
+      - name: Render tape
+        uses: charmbracelet/vhs-action@f6d7db07a432fcd3b06772628d36a57f96d95dcf  # v2
+        with:
+          path: docs/assets/demo.tape
+
+      - name: Upload GIF
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: demo-gif
+          path: docs/assets/demo.gif
+          if-no-files-found: error
+
+  render-and-commit:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: true
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+
+      - name: Install chock
+        run: pip install .
+
+      - name: Render tape
+        uses: charmbracelet/vhs-action@f6d7db07a432fcd3b06772628d36a57f96d95dcf  # v2
+        with:
+          path: docs/assets/demo.tape
+
+      - name: Commit regenerated GIF
+        uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d  # v7.2.0
+        with:
+          commit_message: "docs: regenerate demo.gif"
+          file_pattern: docs/assets/demo.gif
