@@ -92,7 +92,7 @@ def _node(cx, y, surface, t):
     return out
 
 
-def render(t, name):
+def render(t, _name):
     a = t["enforcement"][1]
     n_names = len(CHOCK_AGENT)
     n_vendors = len(set(CHOCK_AGENT.values()))

@@ -39,7 +39,7 @@ def role(key):
     return " ".join(ROLES[key])
 
 
-def _block(rect, name, role, t, filled, chars):
+def _block(rect, name, role, t, chars, *, filled=False):
     """A repository: monospace identifier, wrapped role beneath it."""
     x, y, w, h = rect
     accent = t["enforcement"][1]
@@ -61,13 +61,13 @@ DESC = (
 )
 
 
-def render(t, name):
+def render(t, _name):
     """One theme's copy of the family diagram."""
     a = t["enforcement"][1]
     svg = p.open_svg(W, H, t, "The open-coder-ai family", DESC)
 
     intel = role("chock-threat-intel")
-    svg += _block((24, 24, 262, 72), "chock-threat-intel", intel, t, False, NARROW)
+    svg += _block((24, 24, 262, 72), "chock-threat-intel", intel, t, NARROW)
 
     svg += p.box(314, 24, 262, 72, t["surface"], t["neutral"])
     svg += p.text(326, 44, "plugin repositories", t["text"], NAME, p.MONO, "600")
@@ -78,11 +78,12 @@ def render(t, name):
     svg += p.arrow(445, 122, 445, 96, a)
 
     cat = role("chock-catalog")
-    svg += _block((24, 124, 552, 74), "chock-catalog", cat, t, True, WIDE)
+    svg += _block((24, 124, 552, 74), "chock-catalog", cat, t, WIDE, filled=True)
     svg += p.arrow(300, 198, 300, 224, a)
-    svg += _block((24, 226, 552, 74), "chock", role("chock"), t, True, WIDE)
+    svg += _block((24, 226, 552, 74), "chock", role("chock"), t, WIDE, filled=True)
     svg += p.arrow(300, 328, 300, 302, a)
-    svg += _block((24, 330, 552, 74), "agentseam", role("agentseam"), t, True, WIDE)
+    seam = role("agentseam")
+    svg += _block((24, 330, 552, 74), "agentseam", seam, t, WIDE, filled=True)
 
     svg += p.box(596, 24, 180, 380, t["surface"], a)
     svg += p.text(608, 46, "context-report", t["text"], NAME, p.MONO, "600")
