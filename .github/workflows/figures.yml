@@ -1,0 +1,41 @@
+name: Figures
+
+# A separate workflow, not a job appended to ci.yml: ci.yml sits exactly at the repo's own
+# 300-line review-budget (tests/test_repo_standards.py::test_no_file_exceeds_line_budget),
+# whose own failure message says to split by activity rather than grow the file further.
+#
+# docs/figures/{surfaces,social-card}-*.svg are generated from Surface/SURFACE_AGENTS (see
+# docs/figures/make_surfaces.py and make_social_card.py). Regenerate every figure and fail
+# on any diff, so a code change that moves a count or a surface cannot ship beside a figure
+# that still shows the old one -- same drift discipline as the ci.yml `brand-assets` job.
+# docs/figures/palette.py and make_family.py are the open-coder-ai launch programme's
+# shared, byte-identical tooling (never edited here) and regenerate to themselves.
+on:
+  push:
+    branches: [main, master, develop]
+    tags: ["v*"]
+  pull_request:
+    branches: [main, master, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  figures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --require-hashes --upgrade -r requirements/pip.txt
+          python -m pip install --require-hashes -r requirements/brand-assets.txt
+          pip install -e . --no-deps
+      - name: Regenerate figures and fail on drift
+        run: |
+          cd docs/figures && for g in make_*.py; do python "$g"; done
+          cd ../.. && git diff --exit-code -- docs/figures
