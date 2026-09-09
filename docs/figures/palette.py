@@ -1,5 +1,8 @@
 """The one visual language every open-coder-ai figure is drawn in.
 
+The standard this implements, and the reasoning behind each rule:
+https://github.com/open-coder-ai/.github/blob/main/VISUAL.md
+
 Four repositories carry this file byte-identically while configuring `ruff format` at
 three different line lengths (88, 100 and 120), so no formatted output could satisfy all
 of them. Every statement here therefore fits on a single line under 88 characters and
