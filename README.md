@@ -48,6 +48,9 @@ The next commit containing a credential exits non-zero:
 echo 'AWS_KEY=AKIAIOSFODNN7EXAMPLE' > config.py && git add config.py  # pragma: allowlist secret
 git commit -m "add config"
 # Potential secret detected in this change. Remove credentials and rotate any exposed keys.
+# At commit, add '# pragma: allowlist secret' on the same line only for documented test
+# fixtures; the pragma is NOT honored at tool-use, where the scanned text is a live tool
+# argument an appended token could neutralize.
 #   - config.py: content pattern
 
 echo 'AWS_KEY = os.environ["AWS_KEY"]' > config.py && git add config.py
@@ -241,6 +244,10 @@ verify` reports the moment a locally-edited policy drifts from what it claims to
 [Agentic-Risk Coverage](docs/agentic-risk-coverage.md) for what Chock stops today, at which
 honest tier, and what it doesn't.
 
+## License
+
+Apache-2.0 — see [LICENSE](LICENSE). Built by and for teams shipping with AI agents.
+
 <div align="center">
 
 ### Star history
@@ -250,7 +257,3 @@ honest tier, and what it doesn't.
 </a>
 
 </div>
-
-## License
-
-Apache-2.0 — see [LICENSE](LICENSE). Built by and for teams shipping with AI agents.
