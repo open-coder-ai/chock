@@ -69,7 +69,7 @@ jobs:
             echo "<title>Chock schemas v0</title>"
             echo "<h1>Chock schemas, v0</h1>"
             echo "<p>Published from"
-            echo "<a href=https://github.com/open-coder-ai/chock>open-coder-ai/chock</a>."
+            echo "<a href=https://github.com/${{ github.repository }}>${{ github.repository }}</a>."
             echo "These are the identifiers used in each schema's <code>\$id</code>."
             echo "Validation resolves them offline; this copy exists so the URIs are not dead.</p><ul>"
             for f in _site/schemas/v0/*.json; do
