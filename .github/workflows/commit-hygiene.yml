@@ -23,12 +23,26 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          pattern='/home/[A-Za-z0-9._-]+/|/Users/[A-Za-z0-9._-]+/|session_[0-9A-Za-z]{12,}|claude\.ai/code/session|/tmp/claude-[0-9]|@(gmail|yahoo|hotmail|outlook|protonmail)\.'
+          # Local paths and session identifiers.
+          local_data='/home/[A-Za-z0-9._-]+/|/Users/[A-Za-z0-9._-]+/|session_[0-9A-Za-z]{12,}|claude\.ai/code/session|/tmp/claude-[0-9]'
+          # Any address, not a handful of consumer domains: a corporate or self-hosted
+          # address is somebody's just as much as a gmail one. The last label must look like
+          # a TLD, so `claude_code@2.1.263.json` and `pkg@1.2.3.tar.gz` are not matches.
+          email='[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,24}'
+          # Addresses that identify a service rather than a person.
+          allowed='@users\.noreply\.github\.com$|^noreply@anthropic\.com$|^support@github\.com$|^noreply@github\.com$'
+          # Suffixes that make a match a file path rather than an address.
+          not_mail='\.(json|ya?ml|md|txt|py|js|ts|tsx|sh|toml|cfg|ini|lock|log|csv|tsv|html?|svg|png|jpe?g|gif|pdf|zip|gz|tar|whl|so|dll|exe)$'
           found=0
           while read -r sha; do
-            if git log -1 --format=%B "$sha" | grep -qiE "$pattern"; then
-              # Name the commit, never echo the match: a log line is a publication too.
-              echo "::error::commit $sha contains local or personal data in its message"
+            msg=$(git log -1 --format=%B "$sha")
+            # Name the commit, never echo the match: a log line is a publication too.
+            if printf '%s' "$msg" | grep -qiE "$local_data"; then
+              echo "::error::commit $sha contains a local path or session identifier"
+              found=1
+            fi
+            if printf '%s' "$msg" | grep -oiE "$email" | grep -ivE "$not_mail" | grep -qivE "$allowed"; then
+              echo "::error::commit $sha contains an email address; sign off with your GitHub noreply address"
               found=1
             fi
           done < <(git rev-list --no-merges "$BASE_SHA..HEAD")
