@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **CI/docs: launch prep -- smaller hero GIF, no star history, split workflows.**
+  `docs/assets/demo.gif` recompressed with gifsicle (2.37 MB -> 955 KB) for mobile,
+  verified legible at the 760px width the README renders at; the README's Star history
+  section is removed for now (the owner restores it after launch). `render-demo.yml`
+  is renamed to `demo-gif.yml` and gains a `push`-on-`docs/assets/demo.tape` trigger
+  (any branch but `main`) that commits the regenerated GIF back to that branch, so a
+  tape change carries its GIF into the same pull request; the `workflow_dispatch` path
+  is unchanged. The `quickstart` job moves out of `ci.yml` into its own
+  `.github/workflows/quickstart.yml`, which also generates and diff-checks the
+  committed `docs/quickstart.sh` against the README's Quick start block.
+
 - **Docs: rebuilt the README as a landing page.** Shared section order (Quick start · What you
   get · How it works · Author your own policy · Supported agents · For open-source maintainers ·
   Contributing · Part of open-coder-ai · Security · License), the Why/Roadmap/doc-index prose
