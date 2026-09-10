@@ -35,28 +35,33 @@ def _emit_shims(output_dir: Path, policy_id: str, events: list[str]) -> list[Pat
     return emitted
 
 
-def _script_guards(policy_dir: Path, policy_id: str) -> dict[str, str]:
-    """The events this policy backs with a script, mapped to that script's file name."""
+def _script_name(policy_dir: Path, policy_id: str, segment: str) -> str | None:
+    """The file the hook would run for `segment`, or None when the policy ships none."""
     impl = policy_dir / "implementations"
-    found: dict[str, str] = {}
-    for event in SCRIPT_EVENTS:
-        for suffix in GUARD_SUFFIXES:
-            name = f"{policy_id}-{event}{suffix}"
-            if (impl / name).exists():
-                found[event] = name
-                break
-    return found
+    for suffix in GUARD_SUFFIXES:
+        name = f"{policy_id}-{segment}{suffix}"
+        if (impl / name).exists():
+            return name
+    return None
 
 
-def _emit_script_shims(policy_dir: Path, output_dir: Path, policy_id: str) -> list[Path]:
-    """Emit one shim per script-backed event. The guard reads the change from git itself."""
-    guards = _script_guards(policy_dir, policy_id)
-    if not guards:
-        return []
+def declared_script_events(manifest: dict[str, Any]) -> list[str]:
+    """The events `hook.script` declares. This list is what gets wired, not what is on disk."""
+    declared = ((manifest.get("hook") or {}).get("script") or {}).get("on") or []
+    return [event for event in SCRIPT_EVENTS if event in declared]
+
+
+def _emit_script_shims(policy_dir: Path, output_dir: Path, policy_id: str, events: list[str]) -> list[Path]:
+    """Emit one shim per declared event. The guard reads the change from git itself."""
     rel = policy_rel_path(policy_dir)
     emitted: list[Path] = []
-    for event, script in guards.items():
-        shim = output_dir / f"git-{event}.sh"
+    for event in events:
+        segment = SCRIPT_EVENTS[event]
+        # A declared event with no script on disk is a validation error, not a shim that
+        # fails at commit time in someone else's repo.
+        if (script := _script_name(policy_dir, policy_id, segment)) is None:
+            continue
+        shim = output_dir / f"git-{segment}.sh"
         rendered = SCRIPT_SHIM_TEMPLATE.replace("__POLICY_ID__", policy_id).replace(
             "__GUARD_REL__", f"{rel}/implementations/{script}"
         )
@@ -77,8 +82,8 @@ def emit(policy_dir: Path, output_dir: Path, manifest: dict[str, Any]) -> list[P
     spec = build_gate_json(policy_dir, repo_root)
     if spec is None:
         # No declarative gate. A policy whose check needs more than a regex over the diff
-        # ships its own script instead, and the shim runs that.
-        return _emit_script_shims(policy_dir, output_dir, policy_id)
+        # ships its own script and declares the events it runs at; the shim runs that.
+        return _emit_script_shims(policy_dir, output_dir, policy_id, declared_script_events(manifest))
 
     hook_events = [e for e in spec.get("on", []) if e in ("commit", "push")]
     if not hook_events:

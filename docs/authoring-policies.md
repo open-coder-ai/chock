@@ -83,12 +83,9 @@ hook:
 Rules for guard design:
 
 - **Deterministic only** — no LLM calls, no network in the gate itself.
-- **Prefer the declarative gate** — the compiler vendors the runner, and a `hook.gate` wins
-  where a policy has both. A check needing *both revisions* of a file cannot be a `kind`: that
-  policy ships `implementations/<policy_id>-pre-commit.{py,sh}` (or `-pre-push`), and a shim
-  is emitted for it. No arguments (read the change from `git show :path` and
-  `git show HEAD:path`), cwd at the repo root, exit code is the verdict, stdlib only. Distinct
-  from `implementations/<policy_id>.sh`, the argv guard PreToolUse and the eval runner invoke.
+- **Prefer the declarative gate** — the compiler vendors the runner, so a `hook.gate` needs no
+  script of yours. A check no `kind` can express declares `hook.script` instead, which a `rule`
+  may also carry: see [Script-Backed Gates](script-backed-gates.md).
 - Keep `message` actionable; the runner prints it to stderr on block.
 
 ### `skill` — an on-demand procedure

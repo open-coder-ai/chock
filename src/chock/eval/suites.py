@@ -14,7 +14,7 @@ from chock.validation.loading import discover_artifacts
 
 #: A script named for a git event runs at that event with no argv and reads the change
 #: from git itself. Handing it an eval case's command would score a verdict it never gave.
-_EVENT_STEMS = tuple(f"-{event}" for event in SCRIPT_EVENTS)
+_EVENT_STEMS = tuple(f"-{segment}" for segment in SCRIPT_EVENTS.values())
 
 
 def _suite_doc(policy_dir: Path) -> dict[str, Any]:
