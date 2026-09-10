@@ -531,6 +531,8 @@ def degrade(decision, event):
 # >>> agentseam handler >>>
 GUARD_VIOLATION = 1
 
+PYTHON_SUFFIX = '.py'
+
 _BASH_CANDIDATES = ('bash', 'C:\\Program Files\\Git\\usr\\bin\\bash.exe', 'C:\\Program Files\\Git\\bin\\bash.exe', 'C:\\Program Files (x86)\\Git\\usr\\bin\\bash.exe', '/bin/bash', '/usr/bin/bash')
 
 GATE_LOG_ENV = 'CHOCK_GATE_LOG'
@@ -570,6 +572,12 @@ def find_bash(guard: _chock_Path) -> str | None:
             return candidate
     return None
 
+def find_interpreter(guard: _chock_Path) -> str | None:
+    """The interpreter that can run `guard`: this Python for `.py`, otherwise a usable bash."""
+    if guard.suffix == PYTHON_SUFFIX:
+        return sys.executable or None
+    return find_bash(guard)
+
 def run_guard(guard: _chock_Path, command: str) -> str:
     """`GUARD_BLOCKED` / `GUARD_CLEAN` when the guard ran, otherwise why it did not."""
     try:
@@ -579,13 +587,13 @@ def run_guard(guard: _chock_Path, command: str) -> str:
         return GUARD_UNCHECKED
     if not args:
         return GUARD_UNCHECKED
-    bash = find_bash(guard)
-    if bash is None:
-        print(f'chock: no usable bash found, {guard.name} not checked', file=sys.stderr)
+    interpreter = find_interpreter(guard)
+    if interpreter is None:
+        print(f'chock: no usable interpreter found, {guard.name} not checked', file=sys.stderr)
         return GUARD_UNCHECKED
     try:
         env = {**_chock_os.environ, 'CHOCK_RAW_COMMAND': command}
-        proc = _chock_subprocess.run([bash, str(guard), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=_GUARD_TIMEOUT_SECONDS, check=False)
+        proc = _chock_subprocess.run([interpreter, str(guard), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=_GUARD_TIMEOUT_SECONDS, check=False)
     except _chock_subprocess.TimeoutExpired:
         print(f'chock: guard timed out after {_GUARD_TIMEOUT_SECONDS}s, not checked', file=sys.stderr)
         return GUARD_ERRORED
