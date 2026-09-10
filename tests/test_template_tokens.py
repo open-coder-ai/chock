@@ -38,6 +38,15 @@ def test_git_hook_shim_template_tokens() -> None:
     assert "pre-push" in rendered
 
 
+def test_git_hook_script_shim_template_tokens() -> None:
+    rendered = _assert_round_trips(
+        git_hook.SCRIPT_SHIM_TEMPLATE,
+        {"__POLICY_ID__": "demo-policy", "__GUARD_REL__": "policies/demo/implementations/demo-pre-commit.py"},
+    )
+    assert "demo-policy" in rendered
+    assert "demo-pre-commit.py" in rendered
+
+
 def test_in_agent_bash_template_tokens() -> None:
     rendered = _assert_round_trips(
         in_agent._BASH_TEMPLATE, {"__ADAPTER__": ".chock/bin/x.py", "__GUARD__": "impl/x.sh"}

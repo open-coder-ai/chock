@@ -6,12 +6,13 @@ import contextlib
 from pathlib import Path
 from typing import Any
 
-from chock.compile.emitters import DATA_DIR
+from chock.compile.emitters import DATA_DIR, GUARD_SUFFIXES, SCRIPT_EVENTS, policy_rel_path
 from chock.compile.emitters.advisory import repo_root_from_output, template_message
 from chock.emit import write_generated, write_generated_json
 from chock.gate.build import build_gate_json, vendor_runner
 
 SHIM_TEMPLATE = DATA_DIR.joinpath("git_hook_shim.sh").read_text(encoding="utf-8")
+SCRIPT_SHIM_TEMPLATE = DATA_DIR.joinpath("git_hook_script_shim.sh").read_text(encoding="utf-8")
 
 
 def _emit_shims(output_dir: Path, policy_id: str, events: list[str]) -> list[Path]:
@@ -34,6 +35,38 @@ def _emit_shims(output_dir: Path, policy_id: str, events: list[str]) -> list[Pat
     return emitted
 
 
+def _script_guards(policy_dir: Path, policy_id: str) -> dict[str, str]:
+    """The events this policy backs with a script, mapped to that script's file name."""
+    impl = policy_dir / "implementations"
+    found: dict[str, str] = {}
+    for event in SCRIPT_EVENTS:
+        for suffix in GUARD_SUFFIXES:
+            name = f"{policy_id}-{event}{suffix}"
+            if (impl / name).exists():
+                found[event] = name
+                break
+    return found
+
+
+def _emit_script_shims(policy_dir: Path, output_dir: Path, policy_id: str) -> list[Path]:
+    """Emit one shim per script-backed event. The guard reads the change from git itself."""
+    guards = _script_guards(policy_dir, policy_id)
+    if not guards:
+        return []
+    rel = policy_rel_path(policy_dir)
+    emitted: list[Path] = []
+    for event, script in guards.items():
+        shim = output_dir / f"git-{event}.sh"
+        rendered = SCRIPT_SHIM_TEMPLATE.replace("__POLICY_ID__", policy_id).replace(
+            "__GUARD_REL__", f"{rel}/implementations/{script}"
+        )
+        write_generated(shim, rendered)
+        with contextlib.suppress(OSError):
+            shim.chmod(0o755)
+        emitted.append(shim)
+    return emitted
+
+
 def emit(policy_dir: Path, output_dir: Path, manifest: dict[str, Any]) -> list[Path]:
     """Emit git hooks from the manifest hook.gate as gate.json + shims."""
     policy_dir = Path(policy_dir).resolve()
@@ -43,7 +76,9 @@ def emit(policy_dir: Path, output_dir: Path, manifest: dict[str, Any]) -> list[P
     repo_root = repo_root_from_output(output_dir)
     spec = build_gate_json(policy_dir, repo_root)
     if spec is None:
-        return []
+        # No declarative gate. A policy whose check needs more than a regex over the diff
+        # ships its own script instead, and the shim runs that.
+        return _emit_script_shims(policy_dir, output_dir, policy_id)
 
     hook_events = [e for e in spec.get("on", []) if e in ("commit", "push")]
     if not hook_events:
