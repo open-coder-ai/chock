@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from chock import vendors
-from chock.compile.emitters import DATA_DIR
+from chock.compile.emitters import DATA_DIR, GUARD_SUFFIXES, policy_rel_path
 from chock.emit import write_generated_json
 
 _BASH_TEMPLATE = DATA_DIR.joinpath("agent_hook_bash.sh").read_text(encoding="utf-8").rstrip("\n")
@@ -18,9 +18,6 @@ GUARD_SCRIPTS = {
     "block-no-verify": "block-no-verify.sh",
 }
 
-
-#: Suffixes a guard implementation may carry, in the order discovery prefers them.
-GUARD_SUFFIXES = (".sh", ".py")
 
 
 def _guard_script(policy_dir: Path, policy_id: str) -> str | None:
@@ -54,18 +51,6 @@ assert PROJECT_DIR_TOKEN is not None  # noqa: S101 -- import-time upstream-data 
 AGENT_HOOKS_EVENT = "preToolUse"
 AGENT_HOOKS_ENVELOPE = {"version": 1}
 SHELL_MATCHER = "bash|powershell|pwsh|sh|shell"
-
-
-def _relative_to_repo(policy_dir: Path) -> str:
-    """The policy's path relative to the repo root, derived from the policy, not the output."""
-    path = Path(policy_dir).resolve()
-    for parent in path.parents:
-        if (parent / ".agents").is_dir() or (parent / ".chock").is_dir():
-            try:
-                return path.relative_to(parent).as_posix()
-            except ValueError:  # pragma: no cover - relative_to cannot fail on a parent
-                break
-    return path.name
 
 
 def _adapter_rel(vendor: str) -> str:
@@ -127,7 +112,7 @@ def emit_pre_tool_use(policy_dir: Path, output_dir: Path, manifest: dict[str, An
     if not script:
         return []
 
-    rel = _relative_to_repo(policy_dir)
+    rel = policy_rel_path(policy_dir)
     guard = f"{PROJECT_DIR_TOKEN}/{rel}/implementations/{script}"
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -163,7 +148,7 @@ def build_entry(policy_dir: Path, manifest: dict[str, Any]) -> dict[str, Any] | 
     script = _guard_script(policy_dir, policy_id)
     if not script:
         return None
-    rel = _relative_to_repo(policy_dir)
+    rel = policy_rel_path(policy_dir)
     adapter = _adapter_rel("vscode_copilot")
     guard = f"{rel}/implementations/{script}"
     bash = _bash_command(adapter, guard)
