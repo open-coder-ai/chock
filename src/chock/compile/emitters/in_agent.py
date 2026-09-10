@@ -19,11 +19,16 @@ GUARD_SCRIPTS = {
 }
 
 
+#: Suffixes a guard implementation may carry, in the order discovery prefers them.
+GUARD_SUFFIXES = (".sh", ".py")
+
+
 def _guard_script(policy_dir: Path, policy_id: str) -> str | None:
     """The policy's guard script name, by convention first, legacy map second."""
     impl = policy_dir / "implementations"
-    if (impl / f"{policy_id}.sh").exists():
-        return f"{policy_id}.sh"
+    for suffix in GUARD_SUFFIXES:
+        if (impl / f"{policy_id}{suffix}").exists():
+            return f"{policy_id}{suffix}"
     legacy = GUARD_SCRIPTS.get(policy_id)
     if legacy and (impl / legacy).exists():
         return legacy

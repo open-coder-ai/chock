@@ -12,6 +12,8 @@ from pathlib import Path
 
 GUARD_VIOLATION = 1
 
+PYTHON_SUFFIX = ".py"
+
 _BASH_CANDIDATES = (
     "bash",
     r"C:\Program Files\Git\usr\bin\bash.exe",
@@ -61,6 +63,13 @@ def find_bash(guard: Path) -> str | None:
     return None
 
 
+def find_interpreter(guard: Path) -> str | None:
+    """The interpreter that can run `guard`: this Python for `.py`, otherwise a usable bash."""
+    if guard.suffix == PYTHON_SUFFIX:
+        return sys.executable or None
+    return find_bash(guard)
+
+
 def run_guard(guard: Path, command: str) -> str:
     """`GUARD_BLOCKED` / `GUARD_CLEAN` when the guard ran, otherwise why it did not."""
     try:
@@ -71,15 +80,15 @@ def run_guard(guard: Path, command: str) -> str:
     if not args:
         return GUARD_UNCHECKED
 
-    bash = find_bash(guard)
-    if bash is None:
-        print(f"chock: no usable bash found, {guard.name} not checked", file=sys.stderr)
+    interpreter = find_interpreter(guard)
+    if interpreter is None:
+        print(f"chock: no usable interpreter found, {guard.name} not checked", file=sys.stderr)
         return GUARD_UNCHECKED
 
     try:
         env = {**os.environ, "CHOCK_RAW_COMMAND": command}
         proc = subprocess.run(  # noqa: S603 -- running the guard script against the command is the feature
-            [bash, str(guard), *args],
+            [interpreter, str(guard), *args],
             capture_output=True,
             text=True,
             encoding="utf-8",

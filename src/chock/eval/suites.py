@@ -7,6 +7,7 @@ from typing import Any
 
 import yaml
 
+from chock.compile.emitters.in_agent import GUARD_SUFFIXES
 from chock.eval.model import Case
 from chock.manifest import load_manifest
 from chock.validation.loading import discover_artifacts
@@ -67,7 +68,9 @@ class Policy:
     def guards(self) -> list[Path]:
         """Executable guard scripts shipped with the policy, if any."""
         impl = self.dir / "implementations"
-        return sorted(impl.glob("*.sh")) if impl.is_dir() else []
+        if not impl.is_dir():
+            return []
+        return sorted(p for p in impl.iterdir() if p.suffix in GUARD_SUFFIXES)
 
     @property
     def deterministic(self) -> bool:
