@@ -83,8 +83,36 @@ hook:
 Rules for guard design:
 
 - **Deterministic only** — no LLM calls, no network in the gate itself.
-- **No hand-written scripts** — the compiler vendors the runner; maintain `hook.gate` in `manifest.yaml` only.
+- **Prefer the declarative gate** — the compiler vendors the runner, so a `hook.gate` in
+  `manifest.yaml` needs no script of your own. Reach for one only when the check cannot be
+  expressed as a `kind` (see *Script-backed events* below).
 - Keep `message` actionable; the runner prints it to stderr on block.
+
+### Script-backed events
+
+A declarative `kind` answers one question about the diff. A check that needs both revisions of
+a file — comparing what an element carried before against what it carries now — cannot be
+written as one. Such a policy ships its own script instead:
+
+```
+implementations/<policy_id>-pre-commit.py      # or -pre-push, or .sh
+```
+
+`chock compile` emits `git-pre-commit.sh` for it, and the installed hook runs it. The contract
+is narrow on purpose:
+
+- **No arguments.** At pre-commit the guard reads the change from git itself: `git show :path`
+  is the staged blob and `git show HEAD:path` its predecessor.
+- **The working directory is the repo root.**
+- **The exit code is the verdict** — 0 allows, anything else refuses. A shim whose script has
+  gone missing exits 2 rather than 0.
+- **Stdlib only**, like the vendored runner: the script is copied into every adopting repo.
+
+A declarative gate wins where a policy has both. An event script is *not* a command guard:
+`implementations/<policy_id>.sh` takes a command's argv and is what the in-agent PreToolUse
+hooks and the eval runner invoke. The two never stand in for each other, so a policy backed
+only by an event script stays tier 3 in `chock check --only evals` until the eval runner can
+stage a tree for it.
 
 ### `skill` — an on-demand procedure
 

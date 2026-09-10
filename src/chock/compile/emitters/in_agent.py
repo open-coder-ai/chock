@@ -19,7 +19,6 @@ GUARD_SCRIPTS = {
 }
 
 
-
 def _guard_script(policy_dir: Path, policy_id: str) -> str | None:
     """The policy's guard script name, by convention first, legacy map second."""
     impl = policy_dir / "implementations"

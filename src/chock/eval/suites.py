@@ -74,9 +74,7 @@ class Policy:
         impl = self.dir / "implementations"
         if not impl.is_dir():
             return []
-        return sorted(
-            p for p in impl.iterdir() if p.suffix in GUARD_SUFFIXES and not p.stem.endswith(_EVENT_STEMS)
-        )
+        return sorted(p for p in impl.iterdir() if p.suffix in GUARD_SUFFIXES and not p.stem.endswith(_EVENT_STEMS))
 
     @property
     def deterministic(self) -> bool:
