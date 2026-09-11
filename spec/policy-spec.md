@@ -49,7 +49,7 @@ wiring:
 
 ```
 .agents/policies/<id>/
-├── manifest.yaml
+├── manifest.yaml          # + implementations/ when it declares hook.script
 └── evals/suite.yaml
 ```
 
@@ -117,7 +117,7 @@ require(evals/suite.yaml): minimum 3 cases across:
 target: policy, not agent
 default metric: pass_rate
 
-## 7. Gate definition (hooks only)
+## 7. Gate definition (`hook.gate`; for `hook.script` see `spec/script-backed-gates.md`)
 
 ```yaml
 gate:

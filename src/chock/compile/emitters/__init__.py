@@ -10,9 +10,10 @@ DATA_DIR = package_data_dir("chock.compile.emitters", "data")
 #: Suffixes a guard implementation may carry, in the order discovery prefers them.
 GUARD_SUFFIXES = (".sh", ".py")
 
-#: Git events a policy may back with its own script, named
-#: `implementations/<policy_id>-<event>.{sh,py}`. A declarative gate takes precedence.
-SCRIPT_EVENTS = ("pre-commit", "pre-push")
+#: Git events a policy may back with its own script, each mapped to the filename segment
+#: that names it: `implementations/<policy_id>-<segment>.{sh,py}`. The manifest's
+#: `hook.script.on` speaks the keys; the files on disk speak the values.
+SCRIPT_EVENTS = {"commit": "pre-commit", "push": "pre-push"}
 
 
 def policy_rel_path(policy_dir: Path) -> str:

@@ -114,7 +114,22 @@ def test_wrong_payload_for_artifact_errors() -> None:
         VALIDATOR.validate(instance=manifest)
 
 
-def test_two_payloads_error() -> None:
+def test_the_schema_admits_a_rule_that_declares_its_script() -> None:
+    """A rule may carry a hook holding only a script: one control, two surfaces."""
+    manifest = {**_rule(), "enforcement": "block", "hook": {"script": {"on": ["commit"]}}}
+    VALIDATOR.validate(instance=manifest)
+
+
+def test_two_payloads_are_rejected_in_code_not_by_the_schema() -> None:
+    """Exclusivity moved, it did not go away: `oneOf` cannot admit the one legal pair.
+
+    The schema now says "at least one payload" and `_check_manifest_payload` says which
+    combinations are legal -- this test pins where the check lives, so a reader who finds the
+    schema permissive does not conclude nothing enforces it.
+    """
+    from chock.validation.checks_manifest_schema import _check_manifest_payload
+    from chock.validation.report import Report
+
     manifest = _rule()
     manifest["hook"] = {
         "gate": {
@@ -125,8 +140,11 @@ def test_two_payloads_error() -> None:
             "params": {"refs": ["main"]},
         }
     }
-    with pytest.raises(jsonschema.ValidationError):
-        VALIDATOR.validate(instance=manifest)
+    VALIDATOR.validate(instance=manifest)  # the schema no longer objects
+
+    report = Report()
+    _check_manifest_payload(Path("policies/demo-policy"), manifest, report)
+    assert [f for f in report.errors if f.check == "manifest_payload"], "a rule carrying a gate"
 
 
 def test_unknown_top_level_key_errors() -> None:

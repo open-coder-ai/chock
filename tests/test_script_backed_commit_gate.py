@@ -37,16 +37,18 @@ _MANIFEST = {
     "name": "Refuse Erasure",
     "version": "0.0.1",
     "description": "trigger: editing marked files. avoid: erasing the marker.",
-    "artifact": "hook",
+    "artifact": "rule",
     "enforcement": "block",
     "rule": {"text": "never(erase): MARKER\n"},
+    # The filename alone no longer wires anything: `on` is what the compiler reads.
+    "hook": {"script": {"on": ["commit"]}},
 }
 
 
-def _policy(tmp_path: Path, name: str, body: str = _GUARD) -> Path:
+def _policy(tmp_path: Path, name: str, body: str = _GUARD, manifest: dict | None = None) -> Path:
     policy_dir = tmp_path / ".agents" / "policies" / POLICY_ID
     (policy_dir / "implementations").mkdir(parents=True)
-    (policy_dir / "manifest.yaml").write_text(yaml.safe_dump(_MANIFEST), encoding="utf-8")
+    (policy_dir / "manifest.yaml").write_text(yaml.safe_dump(manifest or _MANIFEST), encoding="utf-8")
     guard = policy_dir / "implementations" / name
     guard.write_text(body, encoding="utf-8")
     guard.chmod(0o755)
@@ -87,9 +89,10 @@ def test_a_declarative_gate_still_wins(tmp_path: Path) -> None:
     assert '.chock/bin/gate.py" run' in (git_hook_dir / "git-pre-commit.sh").read_text(encoding="utf-8")
 
 
-def test_an_unrelated_policy_emits_nothing(tmp_path: Path) -> None:
-    """A rule-only policy must not gain a hook: the fallback keys off the script's name."""
-    policy_dir = _policy(tmp_path, f"{POLICY_ID}.py")  # a command guard, not an event script
+def test_a_command_guard_alone_emits_nothing(tmp_path: Path) -> None:
+    """A policy shipping only an argv guard declares no event, so no git hook is its business."""
+    manifest = {k: v for k, v in _MANIFEST.items() if k != "hook"} | {"enforcement": "advise"}
+    policy_dir = _policy(tmp_path, f"{POLICY_ID}.py", manifest=manifest)
     output_root = tmp_path / ".chock" / "compiled"
 
     compile_policy(policy_dir, targets=[Surface.GIT_HOOK.value], output_root=output_root)

@@ -2,12 +2,9 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.hook.json",
   "title": "ChockHookPayload",
-  "description": "V3 hook payload: compiled gate DSL under 'hook.gate'.",
+  "description": "V3 hook payload: exactly one of the compiled gate DSL under 'hook.gate' or, for a check no declarative kind can express, the event declaration under 'hook.script'.",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "gate"
-  ],
   "properties": {
     "gate": {
       "type": "object",
@@ -55,6 +52,40 @@
           "description": "Per-kind params are validated by checks_gate."
         }
       }
+    },
+    "script": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A check that cannot be expressed as a gate kind, run by the installed hook from implementations/<policy_id>-<event>.{sh,py}. No kind and no params: the behaviour is the script's. No message either -- the script prints its own refusal, with the detail only it has. 'on' is authoritative: the compiler wires exactly these events, and the validator fails when a declared event has no script or a script is undeclared.",
+      "required": [
+        "on"
+      ],
+      "properties": {
+        "on": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "commit",
+              "push"
+            ]
+          }
+        }
+      }
     }
-  }
+  },
+  "oneOf": [
+    {
+      "required": [
+        "gate"
+      ]
+    },
+    {
+      "required": [
+        "script"
+      ]
+    }
+  ]
 }

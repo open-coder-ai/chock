@@ -46,6 +46,7 @@ from chock.validation.checks_repo import (
     check_ambient_token_budget,
     check_release_consistency,
 )
+from chock.validation.checks_script_events import check_script_events
 from chock.validation.checks_security import (
     check_ambient_tier,
     check_effects_and_approval,
@@ -121,6 +122,7 @@ def validate_artifact(
     check_verb_first_naming(artifact_dir, manifest, artifact_type, report)
     check_manifest_schema(artifact_dir, manifest, artifact_type, report)
     check_manifest_advice(artifact_dir, manifest, artifact_type, report)
+    check_script_events(artifact_dir, manifest, artifact_type, report)
 
     if registry_check:
         check_registry_freshness(artifact_dir, manifest, artifact_type, root, report)
