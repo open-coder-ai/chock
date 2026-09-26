@@ -28,6 +28,7 @@ from chock.index.cli import cmd_refresh
 from chock.output import warn
 from chock.policies import discover_policy_dirs
 from chock.registry.core import save_registry, scan
+from chock.scaffold.gitrules import ensure_git_rules
 from chock.vendored import vendored_differences
 from chock.vendors import CHOCK_AGENT
 
@@ -209,6 +210,9 @@ def recompile(repo_root: Path | str, agents: list[str], *, skip_hooks: bool = Fa
         if staged_runner.exists():
             (chock_dir / "bin").mkdir(parents=True, exist_ok=True)
             shutil.copy2(str(staged_runner), str(chock_dir / "bin" / "gate.py"))
+
+    # An adopter who ran `init` before the runtime was tracked explicitly gets the rule here.
+    ensure_git_rules(repo_root)
 
     write_generated_json(coverage_path, coverage)
 

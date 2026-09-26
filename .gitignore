@@ -49,3 +49,9 @@ docs/assets/promo/frames_test/
 docs/assets/promo/audio_work/
 docs/assets/promo/audio.wav
 dist-test/
+# chock: the gate runtime and compiled gates are what every hook runs -- tracked even where
+# a global rule (a `bin/` from a Visual Studio or Java template) would ignore them
+!.chock/bin/
+!.chock/bin/**
+!.chock/compiled/
+!.chock/compiled/**

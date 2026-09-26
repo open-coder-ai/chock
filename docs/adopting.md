@@ -130,7 +130,11 @@ reinstalled:
 3. `ls .chock/compiled/scan-secrets/git-hook/gate.json` should exist.
 4. Commit a file containing a credential. `scan-secrets` should block it and print the policy message.
 
-If your consumer `.gitignore` contains a broad `.chock/` rule, add un-ignore lines so the committed artifacts stay tracked:
+`chock init` and `chock sync` write these un-ignore lines to your `.gitignore`, so a global ignore
+rule cannot keep the gate out of your commits. The `bin/` in the Visual Studio, .NET and Java
+templates is the usual culprit: it matches `.chock/bin/`, and every agent hook then names a file a
+clone does not have. `chock check` reports a hook target that is missing or git-ignored. If your
+own `.gitignore` has a broad `.chock/` rule, keep the lines below after it:
 
 ```gitignore
 !.chock/bin/

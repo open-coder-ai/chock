@@ -30,6 +30,7 @@ from chock.validation.checks_drift import (
     check_registry_freshness,
 )
 from chock.validation.checks_evals import check_eval_first
+from chock.validation.checks_hook_targets import check_dangling_hook_targets
 from chock.validation.checks_manifest_advice import check_manifest_advice
 from chock.validation.checks_manifest_schema import check_manifest_schema
 from chock.validation.checks_orchestration import (
@@ -44,7 +45,6 @@ from chock.validation.checks_repo import (
     check_adapter_integrity,
     check_ambient_rule_blocks,
     check_ambient_token_budget,
-    check_dangling_hook_targets,
     check_gate_log_untracked,
     check_release_consistency,
 )

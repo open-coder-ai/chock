@@ -1,5 +1,24 @@
 # Chock changelog
 
+## Unreleased
+
+- **A global `bin/` ignore no longer takes the gate out of an adopter's repository.** The `bin/`
+  rule in the Visual Studio, .NET and Java gitignore templates, common in a developer's global
+  excludes file, matched `.chock/bin/`: `git add -A` never tracked the runtime every agent hook
+  runs, and a clone, a CI checkout or a `git clean -x` left `.claude/settings.json`,
+  `.cursor/hooks.json`, `.codex/hooks.json` and `.devin/hooks.json` naming a file that was not
+  there. Claude Code reported `SessionStart:startup hook error ... can't open file
+  '.chock/bin/claude_code.py'`, and no gate judged anything from then on: a hook whose script
+  cannot start refuses every call with an unrelated error on a client that reads its exit code 2
+  as a block, and lets every call through on one that treats a failed hook as non-blocking.
+  `chock init` and `chock sync` now add `!.chock/bin/` and `!.chock/compiled/` (and `/**` under
+  each) to the repository's .gitignore, which outranks a global excludes file.
+  Existing adopters get the rules at their next `chock sync`; commit them with the files.
+- **`chock check` names a hook target git would not keep.** The dangling-hook check caught only a
+  runtime that was missing here. It now reports a runtime that git ignores, naming the rule and
+  where it lives, and covers the compiled gate a hook hands the runtime as well as the runtime
+  itself.
+
 ## 0.11.2 — The plugins page states each client's own crash answer
 
 - **The plugins page states each client's own answer to a crashed guard.** Every tree's

@@ -11,7 +11,8 @@ from pathlib import Path
 
 from conftest import init_repo
 
-from chock.scaffold.init import GATE_LOG_IGNORE, cmd_init
+from chock.scaffold.gitrules import GATE_LOG_IGNORE
+from chock.scaffold.init import cmd_init
 from chock.validation.checks_repo import check_gate_log_untracked
 from chock.validation.report import Report
 
@@ -55,7 +56,9 @@ def test_a_rule_the_adopter_already_wrote_is_respected(tmp_path: Path) -> None:
     repo = init_repo(tmp_path)
     (repo / ".gitignore").write_text(".chock/log\n", encoding="utf-8")
     assert _init(repo) == 0
-    assert (repo / ".gitignore").read_text(encoding="utf-8") == ".chock/log\n"
+    lines = (repo / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert lines[0] == ".chock/log"
+    assert GATE_LOG_IGNORE not in lines
 
 
 # --- and validate says so when the log was committed anyway --------------------------------------

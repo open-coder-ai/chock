@@ -10,19 +10,11 @@ from pathlib import Path
 
 import yaml
 
-from chock import vendors
-from chock.hooks.in_agent_install import WIRED_VENDORS, agent_hooks_rel
 from chock.index.builder import max_tokens_for
 from chock.index.cli import is_stale
 from chock.scaffold.agents_md import POINTER_BLOCK, POINTER_END, POINTER_START
 from chock.validation.loading import discover_artifacts
 from chock.validation.report import Finding, Report
-
-#: `.chock/bin/<vendor>.py`, wherever it turns up inside a hook command: chock is the only
-#: writer of that directory, so naming a path under it identifies an entry as chock's own,
-#: independent of the vendor-specific shapes `in_agent_merged.py`/`in_agent_generic.py` merge
-#: it through.
-_BIN_TARGET_RE = re.compile(r"\.chock/bin/[\w.-]+\.py")
 
 _POINTER_RE = re.compile(
     re.escape(POINTER_START) + r"(.*?)" + re.escape(POINTER_END),
@@ -230,41 +222,6 @@ def _tracked_under(root: Path, rel: str) -> list[str]:
         check=False,
     )
     return result.stdout.split() if result.returncode == 0 else []
-
-
-def check_dangling_hook_targets(root: Path, report: Report) -> None:
-    """A chock-written hook entry naming a `.chock/bin/` runtime `sync` already deleted.
-
-    `sync` wires in-agent hooks only for the vendors `supported_agents` names and prunes a
-    vendored runtime once its vendor falls out of that list (`recompile.py`); a hook config
-    still naming the deleted runtime is a client-side failure on every tool call, silent to
-    both `chock sync --check` and `chock check` unless something reads the config back.
-    """
-    paths = [root / vendors.config_path(vendor) for vendor in WIRED_VENDORS]
-    paths.append(root / agent_hooks_rel())
-
-    seen: set[tuple[str, str]] = set()
-    for path in paths:
-        if not path.exists():
-            continue
-        try:
-            text = path.read_text(encoding="utf-8")
-        except OSError:
-            continue
-        for target in _BIN_TARGET_RE.findall(text):
-            key = (str(path), target)
-            if key in seen or (root / target).exists():
-                continue
-            seen.add(key)
-            report.add(
-                Finding(
-                    str(path),
-                    "dangling_hook_target",
-                    "error",
-                    f"{path} runs {target}, which does not exist. Run `chock sync` to reinstall or "
-                    "uninstall this vendor's hooks.",
-                )
-            )
 
 
 def check_ambient_token_budget(root: Path, report: Report) -> None:

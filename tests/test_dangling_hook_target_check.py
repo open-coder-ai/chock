@@ -11,7 +11,7 @@ from pathlib import Path
 from conftest import baseline_policy, init_repo
 
 from chock.scaffold.recompile import recompile
-from chock.validation.checks_repo import check_dangling_hook_targets
+from chock.validation.checks_hook_targets import check_dangling_hook_targets
 from chock.validation.report import Report
 from chock.vendors import CHOCK_AGENT
 
