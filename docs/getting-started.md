@@ -50,8 +50,9 @@ chock init .
 
 - creates `.chock/` (config, `coverage.json`, `dependency-allowlist.txt`, the vendored
 runtime under `bin/` and compiled output under `compiled/`) plus `chock.lock` at the repo root and an empty `.agents/policies/`,
-- writes `AGENTS.md`, a `.gitattributes` pinning generated scripts to LF, a `.gitignore` rule for
-  the per-machine gate log (`.chock/log/`), a wrapper file for each agent that does **not** read
+- writes `AGENTS.md`, a `.gitattributes` pinning generated scripts to LF, `.gitignore` rules that
+  ignore the per-machine gate log (`.chock/log/`) and keep the gate runtime and compiled gates
+  (`.chock/bin/`, `.chock/compiled/`) tracked even where a global `bin/` rule would ignore them, a wrapper file for each agent that does **not** read
   `AGENTS.md` natively (root `CLAUDE.md` for Claude Code, and by default nothing else — Cursor,
   Copilot, Codex, Gemini, VS Code and Windsurf all read `AGENTS.md` directly), and the
   guardrail pairs `.agents/policies/{AGENTS.md,CLAUDE.md}` and `.agents/skills/{AGENTS.md,CLAUDE.md}`,
