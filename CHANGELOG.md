@@ -1,6 +1,6 @@
 # Chock changelog
 
-## Unreleased
+## 0.11.3 — A global `bin/` ignore no longer takes the gate out of a repository
 
 - **A global `bin/` ignore no longer takes the gate out of an adopter's repository.** The `bin/`
   rule in the Visual Studio, .NET and Java gitignore templates, common in a developer's global
