@@ -18,7 +18,7 @@ from conftest import baseline_policy, init_repo
 
 from chock.scaffold.gitrules import GATE_LOG_IGNORE, TRACKED_RUNTIME, ensure_git_rules
 from chock.scaffold.recompile import recompile
-from chock.validation.checks_repo import check_dangling_hook_targets
+from chock.validation.checks_hook_targets import check_dangling_hook_targets
 from chock.validation.report import Report
 
 RUNTIME = ".chock/bin/claude_code.py"
