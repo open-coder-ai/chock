@@ -788,6 +788,80 @@ def evaluate(argv: list[str], command: str, tool: str='') -> tuple[str, str] | N
         return (VERDICT_ESCALATE, f"chock could not check this command: the {guard.stem} guard did not complete (see this hook's stderr). Approving runs it unchecked.")
     return None
 
+_EDIT_KEYS = (('old_string', 'new_string'), ('oldString', 'newString'), ('old_str', 'new_str'))
+
+_EDIT_LIST = 'edits'
+
+_CRLF = '\r\n'
+
+def _tool_input(event):
+    raw = getattr(event, 'raw', None)
+    tool_input = raw.get('tool_input') if isinstance(raw, dict) else None
+    if isinstance(tool_input, str) and tool_input[:1] == '{':
+        try:
+            tool_input = json.loads(tool_input)
+        except ValueError:
+            return {}
+    return tool_input if isinstance(tool_input, dict) else {}
+
+def _pair(item):
+    if not isinstance(item, dict):
+        return None
+    for old, new in _EDIT_KEYS:
+        if isinstance(item.get(old), str) and isinstance(item.get(new), str):
+            return (item[old], item[new], item.get('replace_all') is True)
+    return None
+
+def edit_replacements(event):
+    """The (old, new, replace_all) replacements an edit call applies, in order; None if not an edit."""
+    tool_input = _tool_input(event)
+    listed = tool_input.get(_EDIT_LIST)
+    found = [_pair(item) for item in (listed if isinstance(listed, list) else [tool_input])]
+    if not found or None in found:
+        return None
+    return found
+
+def _replace(text, old, new, every):
+    """`text` with the replacement applied, or None when `old` is not there to replace.
+
+    The file is read with universal newlines, so a CRLF file (a Windows checkout) arrives as
+    LF; the call's strings are brought to LF too, whichever ending the client sent them with,
+    rather than calling a real edit a failure over line endings.
+    """
+    old, new = (old.replace(_CRLF, '\n'), new.replace(_CRLF, '\n'))
+    if old == '':
+        return new if text == '' else None
+    if old not in text:
+        return None
+    return text.replace(old, new) if every else text.replace(old, new, 1)
+
+def edited_text(event, root=None):
+    """The file an edit call would leave behind, or None when it is not an edit or cannot be rebuilt."""
+    replacements = edit_replacements(event)
+    path = getattr(event, 'path', None)
+    if replacements is None or not path:
+        return None
+    target = _chock_Path(path)
+    if not target.is_absolute():
+        target = _chock_Path(root if root is not None else _chock_Path.cwd()) / target
+    try:
+        text = target.read_text(encoding='utf-8') if target.exists() else ''
+    except (OSError, UnicodeDecodeError):
+        return None
+    for old, new, every in replacements:
+        text = _replace(text, old, new, every)
+        if text is None:
+            return None
+    return text
+
+def added_from_event(event):
+    """What an edit call introduces -- what `added_lines` means for it -- or {} for any other call."""
+    replacements = edit_replacements(event)
+    path = getattr(event, 'path', None)
+    if replacements is None or not path:
+        return {}
+    return {str(path): '\n'.join((new for _, new, _ in replacements))}
+
 GATE_FLAG = '--gate'
 
 _GATE_TIMEOUT_SECONDS = 30
@@ -831,10 +905,21 @@ def runner_for(gate):
     runner = parents[_GATE_DEPTH_TO_CHOCK].joinpath(*_RUNNER_PARTS)
     return runner if runner.exists() else None
 
-def writes_from_event(event):
-    """The one file this tool call would write, or none when it carries no file text."""
+def writes_from_event(event, root=None):
+    """The one file this tool call would write, or none when it carries no file text.
+
+    An edit call carries only the text it inserts; judged alone, that fragment has no imports,
+    no class and no neighbours, so a gate that reads a whole file (a script kind) finds nothing
+    in it. An edit is therefore judged as the file it would leave: the file on disk with the
+    call's replacements applied. When that cannot be rebuilt -- the file is unreadable, or the
+    text to replace is not in it, so the call itself will fail -- the fragment is judged as
+    before and the turn's end judges what actually landed.
+    """
     path = getattr(event, 'path', None)
     content = getattr(event, 'content', None)
+    edited = edited_text(event, root)
+    if path and edited is not None:
+        return {str(path): edited}
     if not path or not isinstance(content, str):
         return {}
     return {str(path): content}
@@ -876,13 +961,18 @@ def writes_from_worktree(repo_root):
             continue
     return writes
 
-def run_gate(gate, writes, event, root=None):
-    """Ask the vendored runner. Returns (outcome, message) and never decides for itself."""
+def run_gate(gate, writes, event, root=None, added=None):
+    """Ask the vendored runner. Returns (outcome, message) and never decides for itself.
+
+    `added` carries, per edited path, only the text the edit introduces: a kind that reads
+    added lines judges that, while a kind that reads the file judges `writes`. A runner that
+    predates the key ignores it and judges the whole file for both, which only ever refuses more.
+    """
     runner = runner_for(gate)
     if runner is None:
         return (GATE_ERRORED, 'the vendored gate runner is not installed beside this gate')
     try:
-        proc = _chock_subprocess.run([sys.executable, str(runner), 'run', '--gate', str(gate), '--event', event], input=json.dumps({'writes': writes}), capture_output=True, text=True, timeout=_GATE_TIMEOUT_SECONDS, check=False, cwd=str(root) if root is not None else None)
+        proc = _chock_subprocess.run([sys.executable, str(runner), 'run', '--gate', str(gate), '--event', event], input=json.dumps({'writes': writes, **({'added': added} if added else {})}), capture_output=True, text=True, timeout=_GATE_TIMEOUT_SECONDS, check=False, cwd=str(root) if root is not None else None)
     except (OSError, _chock_subprocess.SubprocessError) as exc:
         return (GATE_ERRORED, str(exc))
     if proc.returncode == 0:
@@ -915,7 +1005,7 @@ def repo_root_for(event, gate):
 def writes_for(event, gate):
     """What this event puts under judgement: the call's own text, or what the turn left behind."""
     if event.event == PRE_TOOL:
-        return writes_from_event(event)
+        return writes_from_event(event, repo_root_for(event, gate))
     raw = event.raw or {}
     if raw.get('stop_hook_active') or raw.get('loop_count'):
         return {}
@@ -930,7 +1020,9 @@ def evaluate_gate(argv, event):
     writes = writes_for(event, gate)
     if not writes:
         return None
-    outcome, message = run_gate(gate, writes, name, repo_root_for(event, gate))
+    added = added_from_event(event) if event.event == PRE_TOOL else {}
+    added = {path: text for path, text in added.items() if path in writes}
+    outcome, message = run_gate(gate, writes, name, repo_root_for(event, gate), added)
     if outcome == GATE_BLOCKED:
         return (VERDICT_DENY, message or f'Blocked by chock policy: {gate.parent.parent.name}')
     if outcome == GATE_ERRORED:

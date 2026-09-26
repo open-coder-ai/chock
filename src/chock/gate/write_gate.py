@@ -16,6 +16,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .edit_image import added_from_event, edited_text
+
 GATE_FLAG = "--gate"
 
 _GATE_TIMEOUT_SECONDS = 30
@@ -62,10 +64,21 @@ def runner_for(gate):
     return runner if runner.exists() else None
 
 
-def writes_from_event(event):
-    """The one file this tool call would write, or none when it carries no file text."""
+def writes_from_event(event, root=None):
+    """The one file this tool call would write, or none when it carries no file text.
+
+    An edit call carries only the text it inserts; judged alone, that fragment has no imports,
+    no class and no neighbours, so a gate that reads a whole file (a script kind) finds nothing
+    in it. An edit is therefore judged as the file it would leave: the file on disk with the
+    call's replacements applied. When that cannot be rebuilt -- the file is unreadable, or the
+    text to replace is not in it, so the call itself will fail -- the fragment is judged as
+    before and the turn's end judges what actually landed.
+    """
     path = getattr(event, "path", None)
     content = getattr(event, "content", None)
+    edited = edited_text(event, root)
+    if path and edited is not None:
+        return {str(path): edited}
     if not path or not isinstance(content, str):
         return {}
     return {str(path): content}
@@ -116,15 +129,20 @@ def writes_from_worktree(repo_root):
     return writes
 
 
-def run_gate(gate, writes, event, root=None):
-    """Ask the vendored runner. Returns (outcome, message) and never decides for itself."""
+def run_gate(gate, writes, event, root=None, added=None):
+    """Ask the vendored runner. Returns (outcome, message) and never decides for itself.
+
+    `added` carries, per edited path, only the text the edit introduces: a kind that reads
+    added lines judges that, while a kind that reads the file judges `writes`. A runner that
+    predates the key ignores it and judges the whole file for both, which only ever refuses more.
+    """
     runner = runner_for(gate)
     if runner is None:
         return GATE_ERRORED, "the vendored gate runner is not installed beside this gate"
     try:
         proc = subprocess.run(  # noqa: S603 -- invoking the vendored runner is this function's job
             [sys.executable, str(runner), "run", "--gate", str(gate), "--event", event],
-            input=json.dumps({"writes": writes}),
+            input=json.dumps({"writes": writes, **({"added": added} if added else {})}),
             capture_output=True,
             text=True,
             timeout=_GATE_TIMEOUT_SECONDS,
@@ -170,7 +188,7 @@ def repo_root_for(event, gate):
 def writes_for(event, gate):
     """What this event puts under judgement: the call's own text, or what the turn left behind."""
     if event.event == PRE_TOOL:
-        return writes_from_event(event)
+        return writes_from_event(event, repo_root_for(event, gate))
     raw = event.raw or {}
     if raw.get("stop_hook_active") or raw.get("loop_count"):
         # A refusal that re-entered its own stop hook would never terminate: Claude Code marks
@@ -188,7 +206,9 @@ def evaluate_gate(argv, event):
     writes = writes_for(event, gate)
     if not writes:
         return None
-    outcome, message = run_gate(gate, writes, name, repo_root_for(event, gate))
+    added = added_from_event(event) if event.event == PRE_TOOL else {}
+    added = {path: text for path, text in added.items() if path in writes}
+    outcome, message = run_gate(gate, writes, name, repo_root_for(event, gate), added)
     if outcome == GATE_BLOCKED:
         return (VERDICT_DENY, message or f"Blocked by chock policy: {gate.parent.parent.name}")
     if outcome == GATE_ERRORED:
