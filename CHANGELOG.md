@@ -1,5 +1,16 @@
 # Chock changelog
 
+## Unreleased
+
+- **Bytecode no longer makes an untouched pack fail `chock check`.** A script gate runs its
+  implementation out of the pack directory, so the first gate run writes `__pycache__/` there --
+  per interpreter version, and more of it as more rules are imported. The lockfile's pack hash
+  counted those files, so after an agent's tool calls had run the gate, `chock check --only
+  verify` reported the pack as changed (`java-security: hash mismatch`) with nobody having
+  edited it; the first Copilot run of the java-security agent kit on Windows hit exactly that.
+  The pack hash now leaves `__pycache__/`, `.pyc` and `.pyo` out, as plugin packaging already
+  did. A lockfile written while bytecode sat in a pack is reported once; `chock sync` rewrites it.
+
 ## 0.11.3 — A global `bin/` ignore no longer takes the gate out of a repository
 
 - **A global `bin/` ignore no longer takes the gate out of an adopter's repository.** The `bin/`
