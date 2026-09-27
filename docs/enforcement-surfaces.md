@@ -42,9 +42,23 @@ each guarantee holds.
 > bash-syntax commands but not PowerShell-native destructive syntax. 0.0.6 closes that gap
 > with a PowerShell/cmd guard matched against the raw command (`CHOCK_RAW_COMMAND`); other
 > guards remain pattern filters, so the "non-standard shell" bypass class they document
-> still applies to them. The hook's interpreter is resolved at run time (skipping the
-> Windows Store `python3` alias stub) and the repo root via `git rev-parse`, so the
-> committed file is portable with no baked path.
+> still applies to them. The hook runs through the launcher below, so the committed file is
+> portable with no baked path.
+
+> **Every in-agent hook runs through one committed launcher.** Each entry chock writes, on
+> every vendor, is the same string -- read identically by bash, PowerShell and cmd.exe:
+>
+> ```
+> git -c "alias.chock-hook=!sh .chock/bin/launch.sh" chock-hook .chock/bin/<agent>.py [--guard|--gate "<repo-relative path>"]
+> ```
+>
+> git runs the alias from the repository's top level, so relative paths resolve even when a
+> session starts in a subdirectory. `.chock/bin/launch.sh` runs `git config chock.python`
+> (written to the clone's local `.git/config` by `chock sync`, never committed) if it
+> exists, else the first of `python3`/`python`/`py` that actually runs Python 3.11+ (the
+> Windows Store `python3` stub is skipped). With none it exits 2 with a fix-it message --
+> never allow. Installed entries equal compiled ones exactly, so `chock sync` on any machine
+> is a zero diff; entries in the old baked-interpreter form are recognised and replaced.
 
 **`git-hook` + `ci-gate` are the universal hard floor** every agent shares. `pre-tool-use` and
 `agent-hooks` are the premium tier on agents that expose native controls; membership
@@ -84,12 +98,11 @@ per gateway process; wrap N servers with N entries.
 > hook returning exit 2 alone was **witnessed NOT blocking** on a real install
 > (2026-08-24). The vendored adapter therefore also emits Cursor's stdout
 > `{"permission": "deny"}` response, which is what actually blocks (witnessed). Cursor
-> **fails open** on any other non-zero exit unless the hook entry sets `failClosed` —
-> and `failClosed: true` would brick
-> every shell command on a clone whose baked interpreter path does not resolve yet. Chock
-> ships fail-open entries and mitigates the gap the same way as Claude's exit-127 case:
-> install bakes an interpreter that provably runs. The guard covers shell commands
-> (`beforeShellExecution`); other tool classes are not intercepted.
+> **fails open** on any other non-zero exit unless the hook entry sets `failClosed`. Chock's
+> `beforeShellExecution` and `preToolUse` entries set `failClosed: true` (a hook that cannot
+> start blocks); `stop` entries do not. With no interpreter baked into the entry, a fresh
+> clone is not bricked: the launcher finds one or refuses with a fix-it message. The guard
+> covers shell commands (`beforeShellExecution`); other tool classes are not intercepted.
 
 > **`managed-setting` is compiled but not installed.** The compiler writes
 > `.chock/compiled/<id>/managed-setting/managed-settings.json` and nothing reads it — there is

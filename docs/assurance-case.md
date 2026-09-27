@@ -50,8 +50,8 @@ Threat classes defended against:
 |---|---|---|
 | Untrusted input is validated by allowlist (T1, T2) | Policy ids: anchored `fullmatch` against a fixed pattern, id must equal folder name; manifests: JSON Schema; agent selections: fixed allowlist; URLs: https-only; catalog paths: confinement to the catalog root | `tests/test_manifest_id_safety.py`, property-based suite (`tests/test_properties.py`), weekly atheris fuzzing of the same parsers |
 | Installed content is tamper-evident (T2, T3) | `chock.lock` pins sha256 of every pack and compiled artifact; `--verify-sha` refuses mismatched content before it touches disk; `chock check --only verify` re-derives hashes | lockfile test suite; verify exercised in CI on every PR |
-| Gates fail closed, not open (T4) | CI range mode exits non-zero on an unresolvable base; hook installer bakes an absolute interpreter path (a missing `python` once meant exit 127 = allow); diff filters include renames and merge commits; `core.quotePath` handled for non-ASCII paths | `tests/test_gate_bypasses.py`, `tests/test_pretooluse*.py` — each closed bypass carries its regression test |
-| Enforcement claims are computed, never asserted (T5) | `coverage_level()` credits a surface only when its install is witnessed (hook present, workflow written, settings baked); packaging formats cannot raise coverage (no plugin Surface exists); empty shims report nothing | `tests/test_coverage_honesty*.py`, `tests/test_agent_plugin.py::test_packaging_raises_no_coverage_claim` |
+| Gates fail closed, not open (T4) | CI range mode exits non-zero on an unresolvable base; agent hooks run through a committed launcher that refuses (exit 2) when no Python runs, never exit 127 = allow; Cursor gate entries set `failClosed`; diff filters include renames and merge commits; `core.quotePath` handled for non-ASCII paths | `tests/test_gate_bypasses.py`, `tests/test_pretooluse*.py`, `tests/test_hook_launcher.py` — each closed bypass carries its regression test |
+| Enforcement claims are computed, never asserted (T5) | `coverage_level()` credits a surface only when its install is witnessed (hook present, workflow written, settings installed); packaging formats cannot raise coverage (no plugin Surface exists); empty shims report nothing | `tests/test_coverage_honesty*.py`, `tests/test_agent_plugin.py::test_packaging_raises_no_coverage_claim` |
 | Compiled output is deterministic (T3, T5) | All generated artifacts written LF-normalized via one writer; PATCH releases are byte-identical by contract | golden-file suite (`tests/test_emitter_stability.py`) run in CI; `tests/test_windows_line_endings.py` |
 | An agent cannot widen its own permissions (T1) | `protect-agent-config` pre-tool-use guard blocks shell writes to agent config, hooks, and compiled trees without human approval | guard evals; exercised daily in this repo's own sessions |
 | Chock's own supply chain is pinned (T6) | Every GitHub Action pinned to a commit SHA; workflow tokens least-privilege; pip installs hash-pinned (`--require-hashes`); publishing via OIDC Trusted Publishing (no stored secrets); releases carry Sigstore build-provenance attestations | Scorecard (public), CodeQL on every PR, the release workflow itself |
@@ -61,8 +61,9 @@ Threat classes defended against:
 - **Least privilege**: workflow tokens are read-only by default, write scopes granted
   per job; the tool itself requests no credentials and holds no keys.
 - **Fail-safe defaults**: gates fail closed — an unresolvable CI base ref exits
-  non-zero rather than passing; the hook installer bakes an absolute interpreter path,
-  because a missing interpreter meant exit 127, which a host reads as *allow*; an
+  non-zero rather than passing; agent hooks run through a committed launcher that exits 2
+  when no Python runs, because a missing interpreter meant exit 127, which a host reads
+  as *allow*; an
   uninstalled surface claims nothing rather than assuming success.
 - **Complete mediation**: the CI gate re-runs the same compiled gates server-side,
   where a local `--no-verify` cannot reach; `check --only verify` re-derives hashes

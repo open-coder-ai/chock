@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **Agent hooks run on every machine, not just the one that last ran `chock sync`.** Hook
+  commands in committed agent configs named that machine's absolute Python (even a deleted
+  temporary one), so on any other clone every hook failed to start -- and Claude Code and Codex
+  treat that as non-blocking, so the gate silently did nothing. Every in-agent entry is now
+  `git -c "alias.chock-hook=!sh .chock/bin/launch.sh" chock-hook .chock/bin/<agent>.py ...`,
+  read identically by bash, PowerShell and cmd.exe; git runs it from the repository root, so a
+  session started in a subdirectory is guarded too. The committed `.chock/bin/launch.sh` runs
+  `git config chock.python` (written to the clone's local config by `chock sync`) or the first
+  `python3`/`python`/`py` that actually runs Python 3.11+, and with none refuses (exit 2) with a
+  fix-it message. Cursor's shell and pre-tool entries now set `failClosed`. Re-running
+  `chock sync` elsewhere is a zero diff; entries in the old form are replaced at the next sync.
+  `chock check` reports a missing or git-ignored launcher as a dangling hook target.
+
 - **An edit is judged before it lands, not only at the turn's end.** Claude Code changes an
   existing file with `Edit` or `MultiEdit`, whose payload carries only the text replaced and the
   text put in. The write gate judged that fragment alone, with no imports, class or neighbours
