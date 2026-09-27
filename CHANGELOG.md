@@ -1,6 +1,6 @@
 # Chock changelog
 
-## Unreleased
+## 0.11.4 — An edit is judged as the file it would leave, and bytecode no longer fails a pack
 
 - **An edit is judged before it lands, not only at the turn's end.** Claude Code changes an
   existing file with `Edit` or `MultiEdit`, whose payload carries only the text replaced and the
