@@ -146,12 +146,12 @@ def test_guard_outside_an_chock_repo_is_not_recorded(tmp_path: Path, monkeypatch
     assert read_log(tmp_path) == []
 
 
-def test_unparseable_command_is_allowed_and_unrecorded(tmp_path: Path, monkeypatch) -> None:
+def test_unparseable_command_asks_and_is_unrecorded(tmp_path: Path, monkeypatch) -> None:
     """Real run_guard, no stubbing: a parse failure must not masquerade as a clean check."""
     guard = make_guard(tmp_path, CLEAN_GUARD)
 
-    assert guard_runner.run_guard(guard, 'echo "unbalanced') == guard_runner.GUARD_UNCHECKED
-    assert evaluate(guard, 'echo "unbalanced') is None
+    assert guard_runner.run_guard(guard, 'echo "unbalanced') == guard_runner.GUARD_ERRORED
+    assert evaluate(guard, 'echo "unbalanced')[0] == guard_runner.VERDICT_ESCALATE
     assert read_log(tmp_path) == []
 
 

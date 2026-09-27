@@ -15,9 +15,11 @@ import sys
 
 import os as _chock_os
 import shlex as _chock_shlex
+import shutil as _chock_shutil
 import subprocess as _chock_subprocess
 from datetime import datetime as _chock_datetime, timezone as _chock_timezone
 from pathlib import Path as _chock_Path
+from pathlib import PurePosixPath as _chock_PurePosixPath, PureWindowsPath as _chock_PureWindowsPath
 import traceback
 import warnings as _warnings
 
@@ -672,7 +674,21 @@ GUARD_ASK_EXIT = 3
 
 PYTHON_SUFFIX = '.py'
 
-_BASH_CANDIDATES = ('bash', 'C:\\Program Files\\Git\\usr\\bin\\bash.exe', 'C:\\Program Files\\Git\\bin\\bash.exe', 'C:\\Program Files (x86)\\Git\\usr\\bin\\bash.exe', '/bin/bash', '/usr/bin/bash')
+_POSIX_BASH = ('bash', '/bin/bash', '/usr/bin/bash')
+
+_GIT_FOR_WINDOWS = ('C:\\Program Files\\Git', 'C:\\Program Files (x86)\\Git')
+
+_GIT_BASH_DIRS = (('bin',), ('usr', 'bin'))
+
+_BASH_EXE = 'bash.exe'
+
+_WINDOWS_STUB_DIRS = ('/system32/', '/windowsapps/')
+
+_COREUTILS_MARKER = 'sed.exe'
+
+_WINDOWS = 'nt'
+
+_FOUND_BASH = {}
 
 GATE_LOG_ENV = 'CHOCK_GATE_LOG'
 
@@ -702,14 +718,44 @@ def guard_path_from_argv(argv: list[str]) -> _chock_Path | None:
             return _chock_Path(argv[i + 1])
     return None
 
+def _git_roots() -> list[_chock_Path]:
+    """Git for Windows install roots: from `git` on PATH (cmd/ or mingw64/bin/), then the defaults."""
+    git = _chock_shutil.which('git')
+    near = [_chock_Path(git).parent.parent, _chock_Path(git).parent.parent.parent] if git else []
+    return [*near, *(_chock_Path(root) for root in _GIT_FOR_WINDOWS)]
+
+def bash_candidates() -> list[str]:
+    """Bash interpreters to try, best first; on Windows Git's own, never the WSL launcher."""
+    if _chock_os.name != _WINDOWS:
+        return list(_POSIX_BASH)
+    found = [str(root.joinpath(*sub, _BASH_EXE)) for root in _git_roots() for sub in _GIT_BASH_DIRS]
+    on_path = _chock_shutil.which('bash')
+    if on_path and (not any((stub in on_path.lower().replace('\\', '/') for stub in _WINDOWS_STUB_DIRS))):
+        found.append(on_path)
+    return [c for i, c in enumerate(found) if c not in found[:i] and _chock_Path(c).is_file()]
+
+def interpreter_env(interpreter: str) -> dict[str, str]:
+    """The environment a guard runs in: on Windows, Git's usr/bin ahead on PATH for sed and grep."""
+    env = dict(_chock_os.environ)
+    if _chock_os.name != _WINDOWS:
+        return env
+    home = _chock_Path(interpreter).parent
+    usr_bin = next((d for d in (home.parent / 'usr' / 'bin', home) if (d / _COREUTILS_MARKER).is_file()), None)
+    if usr_bin is not None:
+        env['PATH'] = str(usr_bin) + _chock_os.pathsep + env.get('PATH', '')
+    return env
+
 def find_bash(guard: _chock_Path) -> str | None:
-    """First interpreter that can actually see `guard`, or None."""
-    for candidate in _BASH_CANDIDATES:
+    """First bash that can actually see `guard`, probed once per process; None when none can."""
+    if 'bash' in _FOUND_BASH:
+        return _FOUND_BASH['bash']
+    for candidate in bash_candidates():
         try:
             proc = _chock_subprocess.run([candidate, '-c', f'test -f "{guard.as_posix()}"'], capture_output=True, timeout=10, check=False)
         except (OSError, _chock_subprocess.SubprocessError):
             continue
         if proc.returncode == 0:
+            _FOUND_BASH['bash'] = candidate
             return candidate
     return None
 
@@ -728,16 +774,18 @@ def run_guard_detailed(guard: _chock_Path, command: str) -> tuple[str, str]:
     try:
         args = _chock_shlex.split(command)
     except ValueError:
-        print('chock: could not parse command (unbalanced quotes), not checked', file=sys.stderr)
-        return (GUARD_UNCHECKED, '')
+        reason = 'the command could not be parsed (unbalanced quotes), so no guard could read it'
+        print(f'chock: {reason}', file=sys.stderr)
+        return (GUARD_ERRORED, reason)
     if not args:
         return (GUARD_UNCHECKED, '')
     interpreter = find_interpreter(guard)
     if interpreter is None:
-        print(f'chock: no usable interpreter found, {guard.name} not checked', file=sys.stderr)
-        return (GUARD_UNCHECKED, '')
+        reason = f'no usable bash was found to run {guard.name}; on Windows install Git for Windows (it ships bash), elsewhere put bash on PATH'
+        print(f'chock: {reason}', file=sys.stderr)
+        return (GUARD_ERRORED, reason)
     try:
-        env = {**_chock_os.environ, 'CHOCK_RAW_COMMAND': command}
+        env = {**interpreter_env(interpreter), 'CHOCK_RAW_COMMAND': command}
         proc = _chock_subprocess.run([interpreter, str(guard), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=_GUARD_TIMEOUT_SECONDS, check=False)
     except _chock_subprocess.TimeoutExpired:
         print(f'chock: guard timed out after {_GUARD_TIMEOUT_SECONDS}s, not checked', file=sys.stderr)
@@ -791,8 +839,10 @@ def log_outcome(guard: _chock_Path, tool: str, *, verdict: str) -> None:
 def evaluate(argv: list[str], command: str, tool: str='') -> tuple[str, str] | None:
     """Run the guard named on `argv` (`--guard <path>`) against `command`."""
     guard = guard_path_from_argv(argv)
-    if guard is None or not guard.exists():
+    if guard is None:
         return None
+    if not guard.exists():
+        return (VERDICT_DENY, f"chock guard {guard} is missing, so this command cannot be checked. Run `chock sync --repo .` to reinstall the policy's guards.")
     verdict, message = run_guard_detailed(guard, command)
     logged = {GUARD_BLOCKED: 'block', GUARD_ASKED: 'ask', GUARD_CLEAN: 'allow'}
     if verdict in logged:
@@ -802,7 +852,8 @@ def evaluate(argv: list[str], command: str, tool: str='') -> tuple[str, str] | N
     if verdict == GUARD_ASKED:
         return (VERDICT_ESCALATE, f'chock policy {guard.stem} asks before this runs: {message}' if message else f'chock policy {guard.stem} asks for confirmation before this runs (guard gave no reason).')
     if verdict == GUARD_ERRORED:
-        return (VERDICT_ESCALATE, f"chock could not check this command: the {guard.stem} guard did not complete (see this hook's stderr). Approving runs it unchecked.")
+        why = message or f"the {guard.stem} guard did not complete (see this hook's stderr)"
+        return (VERDICT_ESCALATE, f'chock could not check this command against {guard.stem}: {why}. Approving runs it unchecked.')
     return None
 
 _EDIT_KEYS = (('old_string', 'new_string'), ('oldString', 'newString'), ('old_str', 'new_str'))
@@ -1020,6 +1071,14 @@ _PACKAGED_RUNNER = 'gate.py'
 
 _GIT = 'git'
 
+_UTF8 = 'utf-8'
+
+_PATH_ERRORS = 'surrogateescape'
+
+_PARENT = '..'
+
+_DRIVE_COLON = ':'
+
 _DELETED = 'D'
 
 _RENAMED = 'R'
@@ -1074,10 +1133,38 @@ def writes_from_event(event, root=None):
         return {}
     return {str(path): content}
 
+def _folded(pure):
+    """`pure` with `..` folded lexically; an absolute path never climbs above its anchor."""
+    parts = []
+    for part in pure.parts:
+        if part != _PARENT:
+            parts.append(part)
+        elif len(parts) > 1:
+            parts.pop()
+    return type(pure)(*parts)
+
+def repo_relative(path, root):
+    """`path` relative to `root` in POSIX form, as scope globs are written; as given when outside `root`."""
+    text = str(path)
+    if root is None:
+        return text
+    windows = _chock_os.name == 'nt' or str(root)[1:2] == _DRIVE_COLON
+    flavour = _chock_PureWindowsPath if windows else _chock_PurePosixPath
+    try:
+        return _folded(flavour(str(root)) / text).relative_to(flavour(str(root))).as_posix()
+    except ValueError:
+        pass
+    if windows != (_chock_os.name == 'nt'):
+        return text
+    try:
+        return _chock_Path(root, text).resolve().relative_to(_chock_Path(root).resolve()).as_posix()
+    except (OSError, ValueError, RuntimeError):
+        return text
+
 def changed_paths(repo_root):
     """Every uncommitted path in the worktree. Outside a repository there is nothing to list."""
     try:
-        proc = _chock_subprocess.run([_GIT, '-C', str(repo_root), 'status', '--porcelain=v1', '--untracked-files=all', '-z'], capture_output=True, text=True, timeout=_GATE_TIMEOUT_SECONDS, check=False)
+        proc = _chock_subprocess.run([_GIT, '-C', str(repo_root), 'status', '--porcelain=v1', '--untracked-files=all', '-z'], capture_output=True, text=True, encoding=_UTF8, errors=_PATH_ERRORS, timeout=_GATE_TIMEOUT_SECONDS, check=False)
     except (OSError, _chock_subprocess.SubprocessError):
         return []
     if proc.returncode != 0:
@@ -1122,7 +1209,7 @@ def run_gate(gate, writes, event, root=None, added=None):
     if runner is None:
         return (GATE_ERRORED, 'the vendored gate runner is not installed beside this gate')
     try:
-        proc = _chock_subprocess.run([sys.executable, str(runner), 'run', '--gate', str(gate), '--event', event], input=json.dumps({'writes': writes, **({'added': added} if added else {})}), capture_output=True, text=True, timeout=_GATE_TIMEOUT_SECONDS, check=False, cwd=str(root) if root is not None else None)
+        proc = _chock_subprocess.run([sys.executable, str(runner), 'run', '--gate', str(gate), '--event', event], input=json.dumps({'writes': writes, **({'added': added} if added else {})}), capture_output=True, text=True, encoding=_UTF8, errors='replace', timeout=_GATE_TIMEOUT_SECONDS, check=False, cwd=str(root) if root is not None else None)
     except (OSError, _chock_subprocess.SubprocessError) as exc:
         return (GATE_ERRORED, str(exc))
     if proc.returncode == 0:
@@ -1156,23 +1243,37 @@ def writes_for(event, gate):
     """What this event puts under judgement: the call's own text, or what the turn left behind."""
     if event.event == PRE_TOOL:
         return writes_from_event(event, repo_root_for(event, gate))
-    raw = event.raw or {}
-    if raw.get('stop_hook_active') or raw.get('loop_count'):
+    if _reentered(event):
         return {}
     return writes_from_worktree(repo_root_for(event, gate))
+
+def _reentered(event):
+    """Whether this stop re-entered its own hook: Claude Code's `stop_hook_active`, Cursor's `loop_count`."""
+    raw = event.raw or {}
+    return bool(raw.get('stop_hook_active') or raw.get('loop_count'))
+
+def _missing_gate(gate, event):
+    """A gate the hook names but that is not on disk: a broken install, so a refusal that says so."""
+    if event.event != PRE_TOOL and _reentered(event):
+        return None
+    return (VERDICT_DENY, f'chock gate {gate} is missing, so this write cannot be checked. Run `chock sync --repo .` to rebuild the compiled gates.')
 
 def evaluate_gate(argv, event):
     """The decision this event earns from a compiled gate, or None when it has nothing to say."""
     gate = gate_path_from_argv(argv)
     name = _EVENT_ARG.get(getattr(event, 'event', ''))
-    if gate is None or name is None or (not gate.exists()):
+    if gate is None or name is None:
         return None
-    writes = writes_for(event, gate)
+    if not gate.exists():
+        return _missing_gate(gate, event)
+    root = repo_root_for(event, gate)
+    writes = {repo_relative(path, root): text for path, text in writes_for(event, gate).items()}
     if not writes:
         return None
     added = {**patch_added(event), **added_from_event(event)} if event.event == PRE_TOOL else {}
+    added = {repo_relative(path, root): text for path, text in added.items()}
     added = {path: text for path, text in added.items() if path in writes}
-    outcome, message = run_gate(gate, writes, name, repo_root_for(event, gate), added)
+    outcome, message = run_gate(gate, writes, name, root, added)
     if outcome == GATE_BLOCKED:
         return (VERDICT_DENY, message or f'Blocked by chock policy: {gate.parent.parent.name}')
     if outcome == GATE_ERRORED:

@@ -175,20 +175,18 @@ skipped with `--no-verify`.
 The levels above grade the **outer** boundary: what the client does when chock's hook never
 runs or dies outright. There is an inner one too — what the hook says when it *did* run and
 could not reach a verdict — and the two answers are not the same. `gate/guard_runner.py`
-distinguishes five such causes and answers two of them differently from the other three.
+distinguishes six such causes and answers only one of them with an allow.
 
 | Cause | What chock returns | Why |
 | :--- | :--- | :--- |
-| The command will not tokenize (unbalanced quotes) | allow | Common and usually benign — PowerShell quoting, a Windows path. A prompt here fires on a large share of ordinary tool calls. |
+| The command will not tokenize (unbalanced quotes) | **ask** | No guard read it. `rm -rf / #'` is valid bash and invalid shlex, so an allow here was a bypass. |
 | The command is empty after tokenizing | allow | There is nothing to check. |
-| No bash on the machine can resolve the guard | allow | Uniform: it holds for every command, not this one, so a prompt says nothing per call and would fire on every tool call on a platform without Git Bash. The fix is an install step. |
-| The guard crashed, or exited a code that is none of 0, 1 or 3 | **ask** | The control was installed, reachable and runnable, and still produced no answer. Rare, and anomalous. (Exit 3 is not this: it is the guard asking on purpose, and its own first line is the prompt.) |
+| No bash on the machine can resolve the guard | **ask** | No guard ran. The prompt names the fix: install Git for Windows (it ships bash), or put bash on PATH. |
+| The guard the hook names is not on disk | **deny** | The hook config names it, so its absence is a broken install, not nothing to check. The reason says to run `chock sync --repo .`. |
+| The guard crashed, or exited a code that is none of 0, 1 or 3 | **ask** | The control was installed, reachable and runnable, and still produced no answer. (Exit 3 is not this: it is the guard asking on purpose, and its own first line is the prompt.) |
 | The guard hit its 30-second timeout | **ask** | Same: the control ran and did not decide. |
 
-The split is deliberate, and it is a budget decision rather than a safety maximum. Oversight
-capacity is finite; a control that prompts on every unparseable command trains a developer to
-approve without reading, which costs the prompts that matter more than the extra coverage
-gains.
+A guard that fails refuses or asks; it never reports an allow it never established.
 
 **What an `ask` becomes depends on the client, and no client turns it into a silent allow.**
 
@@ -222,9 +220,8 @@ recheck it rather than take this table's word:
   non-rejected arm alone — so a literal `ask` there would let the call through.
 
 **This raises no coverage grade.** A control is only as strong as its worst degradation, and
-three of the five causes above still allow — so chock's in-agent controls stay at the level
-the ladder gives a control that degrades to allowing. The ask is a real improvement on two
-paths, not a new tier.
+the empty command above still allows — so chock's in-agent controls stay at the level the
+ladder gives a control that degrades to allowing until that grade is re-derived deliberately.
 
 ## Gate runner semantics
 
@@ -234,6 +231,10 @@ non-ASCII paths arrive unescaped and are scanned like any other file. `dependenc
 gates match their watched manifest basenames (e.g. `package.json`) anywhere in the tree, not
 only at the repo root. In CI range mode, a base ref that cannot be resolved fails **closed** —
 the gate exits 2 rather than passing an unscanned range.
+A compiled gate never judges chock's generated tree (`.chock/`) or its own policy's folder
+(`.agents/policies/<id>/`): that folder's evals and references show the very content the gate
+refuses, so judging them refused the policy's own adoption commit. Every other path, another
+policy's folder included, is judged as before.
 
 ## Reading the coverage report
 

@@ -10,6 +10,7 @@ from typing import Any
 
 import yaml
 
+from chock import yamlio
 from chock.emit import write_generated_json
 from chock.manifest import (
     ManifestSourceError,
@@ -79,7 +80,7 @@ def discover_manifests(root: Path) -> list[tuple[str, Path]]:
         art = default_type
         if art is None:
             try:
-                data = yaml.safe_load(manifest.read_text(encoding="utf-8")) or {}
+                data = yamlio.safe_load(manifest.read_text(encoding="utf-8")) or {}
                 art = data.get("artifact", "unknown")
             except (yaml.YAMLError, OSError):
                 art = "unknown"

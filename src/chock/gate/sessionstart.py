@@ -30,6 +30,8 @@ def _hooks_pre_commit(repo_root: Path) -> Path | None:
             cwd=repo_root,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="surrogateescape",
             timeout=15,
             check=False,
         )

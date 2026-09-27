@@ -10,6 +10,7 @@ from pathlib import Path
 
 import yaml
 
+from chock import yamlio
 from chock.index.builder import max_tokens_for
 from chock.index.cli import is_stale
 from chock.scaffold.agents_md import POINTER_BLOCK, POINTER_END, POINTER_START
@@ -123,7 +124,7 @@ def _resolve_id(root: Path, policy_id: str) -> bool:
             if not manifest.exists():
                 continue
             try:
-                data = yaml.safe_load(_frontmatter(manifest)) or {}
+                data = yamlio.safe_load(_frontmatter(manifest)) or {}
             except yaml.YAMLError:
                 continue
             if isinstance(data, dict) and data.get("id") == policy_id:

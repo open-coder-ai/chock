@@ -8,6 +8,7 @@ from typing import Any
 
 import yaml
 
+from chock import yamlio
 from chock.manifest import AGENT_SPECIFIC_VOCABULARY_KEY, CANONICAL_MANIFEST, resolve_manifest_path
 from chock.validation.loading import (
     ARTIFACT_TYPES,
@@ -225,7 +226,7 @@ def extract_skill_md_description(skill_md: Path) -> str | None:
     if len(parts) < _FRONTMATTER_SPLIT_PARTS:
         return None
     try:
-        front = yaml.safe_load(parts[1]) or {}
+        front = yamlio.safe_load(parts[1]) or {}
     except yaml.YAMLError:
         return None
     return front.get("description")

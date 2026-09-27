@@ -150,7 +150,8 @@ def test_chocks_degradation_constant_is_derived_from_the_running_guard(tmp_path:
         f"the claims in docs/enforcement-surfaces.md must move with it (per path: {observed})"
     )
 
-    assert guard_runner.evaluate(["--guard", str(tmp_path / "absent.sh")], "rm -rf /", "Bash") is None
+    absent = guard_runner.evaluate(["--guard", str(tmp_path / "absent.sh")], "rm -rf /", "Bash")
+    assert _degradation(absent) == DEGRADES_TO_DENY, "a guard the hook names but cannot find is a broken install"
 
 
 def test_chock_does_not_award_itself_the_new_level() -> None:

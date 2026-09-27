@@ -10,6 +10,7 @@ from typing import Any
 
 import yaml
 
+from chock import yamlio
 from chock.config import policy_status
 from chock.validation.report import Finding, Report, emit
 
@@ -32,7 +33,7 @@ def _git(repo_root: Path, *args: str) -> subprocess.CompletedProcess:
 
 def _parse(text: str, where: str) -> dict[str, Any]:
     try:
-        loaded = yaml.safe_load(text)
+        loaded = yamlio.safe_load(text)
     except yaml.YAMLError as exc:
         msg = f"{CONFIG_REL.as_posix()} at {where} is not valid YAML: {exc}"
         raise BaselineError(msg) from exc
