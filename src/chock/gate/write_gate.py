@@ -34,6 +34,9 @@ _RUNNER_PARTS = ("bin", "gate.py")
 _PACKAGED_RUNNER = "gate.py"
 
 _GIT = "git"
+#: git speaks UTF-8 whatever the console code page; a path that is not UTF-8 survives the round trip.
+_UTF8 = "utf-8"
+_PATH_ERRORS = "surrogateescape"
 _PARENT = ".."
 #: A Windows root is spelled with a drive (`C:`), which a POSIX root never is.
 _DRIVE_COLON = ":"
@@ -130,6 +133,8 @@ def changed_paths(repo_root):
             [_GIT, "-C", str(repo_root), "status", "--porcelain=v1", "--untracked-files=all", "-z"],
             capture_output=True,
             text=True,
+            encoding=_UTF8,
+            errors=_PATH_ERRORS,
             timeout=_GATE_TIMEOUT_SECONDS,
             check=False,
         )
@@ -184,6 +189,8 @@ def run_gate(gate, writes, event, root=None, added=None):
             input=json.dumps({"writes": writes, **({"added": added} if added else {})}),
             capture_output=True,
             text=True,
+            encoding=_UTF8,
+            errors="replace",
             timeout=_GATE_TIMEOUT_SECONDS,
             check=False,
             cwd=str(root) if root is not None else None,

@@ -1102,6 +1102,10 @@ _PACKAGED_RUNNER = 'gate.py'
 
 _GIT = 'git'
 
+_UTF8 = 'utf-8'
+
+_PATH_ERRORS = 'surrogateescape'
+
 _PARENT = '..'
 
 _DRIVE_COLON = ':'
@@ -1191,7 +1195,7 @@ def repo_relative(path, root):
 def changed_paths(repo_root):
     """Every uncommitted path in the worktree. Outside a repository there is nothing to list."""
     try:
-        proc = _chock_subprocess.run([_GIT, '-C', str(repo_root), 'status', '--porcelain=v1', '--untracked-files=all', '-z'], capture_output=True, text=True, timeout=_GATE_TIMEOUT_SECONDS, check=False)
+        proc = _chock_subprocess.run([_GIT, '-C', str(repo_root), 'status', '--porcelain=v1', '--untracked-files=all', '-z'], capture_output=True, text=True, encoding=_UTF8, errors=_PATH_ERRORS, timeout=_GATE_TIMEOUT_SECONDS, check=False)
     except (OSError, _chock_subprocess.SubprocessError):
         return []
     if proc.returncode != 0:
@@ -1236,7 +1240,7 @@ def run_gate(gate, writes, event, root=None, added=None):
     if runner is None:
         return (GATE_ERRORED, 'the vendored gate runner is not installed beside this gate')
     try:
-        proc = _chock_subprocess.run([sys.executable, str(runner), 'run', '--gate', str(gate), '--event', event], input=json.dumps({'writes': writes, **({'added': added} if added else {})}), capture_output=True, text=True, timeout=_GATE_TIMEOUT_SECONDS, check=False, cwd=str(root) if root is not None else None)
+        proc = _chock_subprocess.run([sys.executable, str(runner), 'run', '--gate', str(gate), '--event', event], input=json.dumps({'writes': writes, **({'added': added} if added else {})}), capture_output=True, text=True, encoding=_UTF8, errors='replace', timeout=_GATE_TIMEOUT_SECONDS, check=False, cwd=str(root) if root is not None else None)
     except (OSError, _chock_subprocess.SubprocessError) as exc:
         return (GATE_ERRORED, str(exc))
     if proc.returncode == 0:
@@ -1318,7 +1322,7 @@ def _repo_root() -> _chock_Path:
 def _hooks_pre_commit(repo_root: _chock_Path) -> _chock_Path | None:
     """The active pre-commit hook path, honouring core.hooksPath. None when git is absent."""
     try:
-        proc = _chock_subprocess.run([_GIT, 'rev-parse', '--git-path', 'hooks'], cwd=repo_root, capture_output=True, text=True, timeout=15, check=False)
+        proc = _chock_subprocess.run([_GIT, 'rev-parse', '--git-path', 'hooks'], cwd=repo_root, capture_output=True, text=True, encoding='utf-8', errors='surrogateescape', timeout=15, check=False)
     except (OSError, _chock_subprocess.TimeoutExpired):
         return None
     if proc.returncode != 0:

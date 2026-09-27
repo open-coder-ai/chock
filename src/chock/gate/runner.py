@@ -600,7 +600,15 @@ def _writes(raw: str) -> dict[str, str]:
     return _texts(raw, "writes")
 
 
+def _utf8_streams() -> None:
+    """Speak UTF-8 on stdin and stderr whatever the console code page, so a match cannot crash the verdict."""
+    for stream in (sys.stdin, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
+
 def main(argv: list[str] | None = None) -> int:
+    _utf8_streams()
     parser = argparse.ArgumentParser(prog="gate.py")
     sub = parser.add_subparsers(dest="command", required=True)
     run_p = sub.add_parser("run", help="Run a compiled gate")
