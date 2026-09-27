@@ -1,6 +1,6 @@
 # Chock changelog
 
-## Unreleased — hooks that run on every machine and refuse when they cannot judge
+## 0.12.0 — Hooks that run on every machine and refuse when they cannot judge
 
 - **Agent hooks run on every machine, not just the one that last ran `chock sync`.** Hook
   commands in committed agent configs named that machine's absolute Python (even a deleted
