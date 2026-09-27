@@ -146,3 +146,60 @@ def test_a_missing_runner_refuses_too(tmp_path: Path) -> None:
     (tmp_path / ".chock" / "bin" / "gate.py").unlink()
     verdict = write_gate.evaluate_gate(["--gate", str(gate)], _event(path="app.py", content=SECRET))
     assert verdict is not None and verdict[0] == write_gate.VERDICT_DENY
+
+
+# --- a client names the file absolutely; a scope glob is repository-relative ----------------------
+
+UNPINNED = "      - uses: actions/checkout@v4\n"
+PIN_SPEC = {
+    "kind": "content_regex",
+    "on": ["commit", "tool_use"],
+    "action": "block",
+    "message": "pin it",
+    "paths": [".github/workflows/*"],
+    "params": {"scan": "added_lines", "content_pattern": r"uses:\s*[\w./-]+@(?![0-9a-fA-F]{40})[\w./-]+"},
+}
+
+
+def _installed_pin(tmp_path: Path) -> Path:
+    gate = _installed(tmp_path)
+    gate.write_text(json.dumps(PIN_SPEC), encoding="utf-8")
+    return gate
+
+
+def test_a_scoped_gate_judges_a_write_named_by_its_absolute_path(tmp_path: Path) -> None:
+    """Claude Code and Cursor send tool_input.file_path absolute; the scope must still match it."""
+    gate = _installed_pin(tmp_path)
+    absolute = tmp_path / ".github" / "workflows" / "ci.yml"
+    verdict = write_gate.evaluate_gate(["--gate", str(gate)], _event(path=str(absolute), content=UNPINNED))
+    assert verdict is not None and verdict[0] == write_gate.VERDICT_DENY
+
+
+def test_an_absolute_path_reached_through_a_symlink_is_still_inside(tmp_path: Path) -> None:
+    real = tmp_path / "real"
+    real.mkdir()
+    gate = _installed_pin(real)
+    (tmp_path / "link").symlink_to(real, target_is_directory=True)
+    via_link = tmp_path / "link" / ".github" / "workflows" / "ci.yml"
+    verdict = write_gate.evaluate_gate(["--gate", str(gate)], _event(path=str(via_link), content=UNPINNED))
+    assert verdict is not None and verdict[0] == write_gate.VERDICT_DENY
+
+
+def test_paths_are_made_repository_relative_posix() -> None:
+    assert write_gate.repo_relative("/r/.github/workflows/ci.yml", "/r") == ".github/workflows/ci.yml"
+    assert write_gate.repo_relative("./a/../.github/x.yml", "/r") == ".github/x.yml"
+    assert write_gate.repo_relative(".github/x.yml", None) == ".github/x.yml"
+
+
+def test_windows_paths_fold_drive_separator_and_case() -> None:
+    windows = r"C:\Users\Dev\Repo\.github\workflows\ci.yml"
+    assert write_gate.repo_relative(windows, r"c:\users\dev\repo") == ".github/workflows/ci.yml"
+    assert write_gate.repo_relative("C:/Users/Dev/Repo/.github/x.yml", r"C:\Users\Dev\Repo") == ".github/x.yml"
+
+
+def test_a_path_outside_the_repository_is_left_as_given() -> None:
+    """Outside the root it matches no relative glob, which is what out of scope means."""
+    assert (
+        write_gate.repo_relative("/elsewhere/.github/workflows/ci.yml", "/r") == "/elsewhere/.github/workflows/ci.yml"
+    )
+    assert write_gate.repo_relative(r"D:\x\ci.yml", r"C:\Repo") == r"D:\x\ci.yml"

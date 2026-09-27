@@ -18,6 +18,7 @@ import shlex as _chock_shlex
 import subprocess as _chock_subprocess
 from datetime import datetime as _chock_datetime, timezone as _chock_timezone
 from pathlib import Path as _chock_Path
+from pathlib import PurePosixPath as _chock_PurePosixPath, PureWindowsPath as _chock_PureWindowsPath
 import traceback
 import warnings as _warnings
 
@@ -827,6 +828,10 @@ _PACKAGED_RUNNER = 'gate.py'
 
 _GIT = 'git'
 
+_PARENT = '..'
+
+_DRIVE_COLON = ':'
+
 _DELETED = 'D'
 
 _RENAMED = 'R'
@@ -880,6 +885,34 @@ def writes_from_event(event, root=None):
     if not path or not isinstance(content, str):
         return {}
     return {str(path): content}
+
+def _folded(pure):
+    """`pure` with `..` folded lexically; an absolute path never climbs above its anchor."""
+    parts = []
+    for part in pure.parts:
+        if part != _PARENT:
+            parts.append(part)
+        elif len(parts) > 1:
+            parts.pop()
+    return type(pure)(*parts)
+
+def repo_relative(path, root):
+    """`path` relative to `root` in POSIX form, as scope globs are written; as given when outside `root`."""
+    text = str(path)
+    if root is None:
+        return text
+    windows = _chock_os.name == 'nt' or str(root)[1:2] == _DRIVE_COLON
+    flavour = _chock_PureWindowsPath if windows else _chock_PurePosixPath
+    try:
+        return _folded(flavour(str(root)) / text).relative_to(flavour(str(root))).as_posix()
+    except ValueError:
+        pass
+    if windows != (_chock_os.name == 'nt'):
+        return text
+    try:
+        return _chock_Path(root, text).resolve().relative_to(_chock_Path(root).resolve()).as_posix()
+    except (OSError, ValueError, RuntimeError):
+        return text
 
 def changed_paths(repo_root):
     """Every uncommitted path in the worktree. Outside a repository there is nothing to list."""
@@ -974,12 +1007,14 @@ def evaluate_gate(argv, event):
     name = _EVENT_ARG.get(getattr(event, 'event', ''))
     if gate is None or name is None or (not gate.exists()):
         return None
-    writes = writes_for(event, gate)
+    root = repo_root_for(event, gate)
+    writes = {repo_relative(path, root): text for path, text in writes_for(event, gate).items()}
     if not writes:
         return None
     added = {**patch_added(event), **added_from_event(event)} if event.event == PRE_TOOL else {}
+    added = {repo_relative(path, root): text for path, text in added.items()}
     added = {path: text for path, text in added.items() if path in writes}
-    outcome, message = run_gate(gate, writes, name, repo_root_for(event, gate), added)
+    outcome, message = run_gate(gate, writes, name, root, added)
     if outcome == GATE_BLOCKED:
         return (VERDICT_DENY, message or f'Blocked by chock policy: {gate.parent.parent.name}')
     if outcome == GATE_ERRORED:

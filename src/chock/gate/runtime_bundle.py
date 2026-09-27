@@ -31,6 +31,8 @@ _RENAME = {
     "datetime": "_chock_datetime",
     "timezone": "_chock_timezone",
     "Path": "_chock_Path",
+    "PurePosixPath": "_chock_PurePosixPath",
+    "PureWindowsPath": "_chock_PureWindowsPath",
 }
 
 

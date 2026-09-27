@@ -12,9 +12,10 @@ invokes, so a policy cannot mean one thing at commit and another in the session.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from .edit_image import added_from_event, edited_text
 from .patch_image import patch_added, patched_files
@@ -33,6 +34,9 @@ _RUNNER_PARTS = ("bin", "gate.py")
 _PACKAGED_RUNNER = "gate.py"
 
 _GIT = "git"
+_PARENT = ".."
+#: A Windows root is spelled with a drive (`C:`), which a POSIX root never is.
+_DRIVE_COLON = ":"
 #: git status codes: a deletion leaves no content to judge, a rename is followed by its old path.
 _DELETED = "D"
 _RENAMED = "R"
@@ -87,6 +91,36 @@ def writes_from_event(event, root=None):
     if not path or not isinstance(content, str):
         return {}
     return {str(path): content}
+
+
+def _folded(pure):
+    """`pure` with `..` folded lexically; an absolute path never climbs above its anchor."""
+    parts = []
+    for part in pure.parts:
+        if part != _PARENT:
+            parts.append(part)
+        elif len(parts) > 1:
+            parts.pop()
+    return type(pure)(*parts)
+
+
+def repo_relative(path, root):
+    """`path` relative to `root` in POSIX form, as scope globs are written; as given when outside `root`."""
+    text = str(path)
+    if root is None:
+        return text
+    windows = os.name == "nt" or str(root)[1:2] == _DRIVE_COLON
+    flavour = PureWindowsPath if windows else PurePosixPath
+    try:
+        return _folded(flavour(str(root)) / text).relative_to(flavour(str(root))).as_posix()
+    except ValueError:
+        pass
+    if windows != (os.name == "nt"):
+        return text
+    try:
+        return Path(root, text).resolve().relative_to(Path(root).resolve()).as_posix()
+    except (OSError, ValueError, RuntimeError):
+        return text
 
 
 def changed_paths(repo_root):
@@ -208,12 +242,14 @@ def evaluate_gate(argv, event):
     name = _EVENT_ARG.get(getattr(event, "event", ""))
     if gate is None or name is None or not gate.exists():
         return None
-    writes = writes_for(event, gate)
+    root = repo_root_for(event, gate)
+    writes = {repo_relative(path, root): text for path, text in writes_for(event, gate).items()}
     if not writes:
         return None
     added = {**patch_added(event), **added_from_event(event)} if event.event == PRE_TOOL else {}
+    added = {repo_relative(path, root): text for path, text in added.items()}
     added = {path: text for path, text in added.items() if path in writes}
-    outcome, message = run_gate(gate, writes, name, repo_root_for(event, gate), added)
+    outcome, message = run_gate(gate, writes, name, root, added)
     if outcome == GATE_BLOCKED:
         return (VERDICT_DENY, message or f"Blocked by chock policy: {gate.parent.parent.name}")
     if outcome == GATE_ERRORED:
