@@ -159,7 +159,11 @@ def _hook_schema(repo: Adopter) -> None:
         assert entry["matcher"], "an entry has no matcher"
         for hook in entry["hooks"]:
             assert hook["type"] == "command"
-            assert "${CLAUDE_PROJECT_DIR}" in hook["command"], "paths must survive a repo move"
+            # Repo-relative, run by git from the top level: survives a repo move, names no interpreter.
+            assert hook["command"].startswith(
+                'git -c "alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh" chock-hook '
+            )
+            assert "${" not in hook["command"], hook["command"]
 
 
 @then("the hand-written hook survives")

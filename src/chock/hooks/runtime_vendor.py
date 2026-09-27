@@ -8,6 +8,7 @@ from pathlib import Path
 
 from chock.emit import write_generated
 from chock.gate import runtime_bundle
+from chock.hooks.launch import write_launcher
 from chock.resources import package_data_dir
 
 #: Basenames chock has written under `.chock/bin/` before the current per-vendor naming
@@ -26,9 +27,11 @@ def runtime_rel(agent: str) -> Path:
 
 def owned_markers(agent: str) -> tuple[str, ...]:
     """Every `.chock/bin/` command substring that identifies a hook entry as `agent`'s own."""
-    current = f"/{runtime_rel(agent).as_posix()}"
+    rel = runtime_rel(agent).as_posix()
+    # `/...` in a root-token command (`${CLAUDE_PROJECT_DIR}/.chock/bin/x.py`) from before the
+    # launcher; ` ...` in the launcher form (`chock-hook .chock/bin/x.py`).
     legacy = tuple(f"/.chock/bin/{name}" for name in LEGACY_RUNTIME_BASENAMES)
-    return (current, *legacy)
+    return (f"/{rel}", f" {rel}", *legacy)
 
 
 def vendor_runtime(repo_root: Path, agent: str) -> Path:
@@ -40,4 +43,5 @@ def vendor_runtime(repo_root: Path, agent: str) -> Path:
     write_generated(dest, runtime_bundle.render(agent))
     with contextlib.suppress(OSError):
         dest.chmod(0o755)
+    write_launcher(repo_root)
     return dest

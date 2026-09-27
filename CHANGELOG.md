@@ -1,7 +1,52 @@
 # Chock changelog
 
-## Unreleased
+## Unreleased — hooks that run on every machine and refuse when they cannot judge
 
+- **Agent hooks run on every machine, not just the one that last ran `chock sync`.** Hook
+  commands in committed agent configs named that machine's absolute Python (even a deleted
+  temporary one), so on any other clone every hook failed to start -- and Claude Code and Codex
+  treat that as non-blocking, so the gate silently did nothing. Every in-agent entry is now
+  `git -c "alias.chock-hook=!sh .chock/bin/launch.sh" chock-hook .chock/bin/<agent>.py ...`,
+  read identically by bash, PowerShell and cmd.exe; git runs it from the repository root, so a
+  session started in a subdirectory is guarded too. The committed `.chock/bin/launch.sh` runs
+  `git config chock.python` (written to the clone's local config by `chock sync`) or the first
+  `python3`/`python`/`py` that actually runs Python 3.11+ (the recorded one is probed too: a venv
+  whose base Python is gone still exists), and with none refuses (exit 2) with a fix-it message.
+  With no launcher at git's top level (a nested repository, an unsynced clone) the command
+  refuses the same way; bash-as-`sh` used to exit 127 there, which agents let through. Sync
+  records its interpreter only when `--repo` is a repository's top level. Cursor's shell and pre-tool entries now set `failClosed`. Re-running
+  `chock sync` elsewhere is a zero diff; entries in the old form are replaced at the next sync.
+  `chock check` reports a missing or git-ignored launcher as a dangling hook target.
+
+- **A gate judges an absolute path as the repository file it names.** Claude Code and Cursor send
+  `file_path` absolute; scoped gates matched repo-relative globs against it, so `pin-github-actions`
+  allowed `actions/checkout@v4` written by the agent. Paths are made repo-relative first (drive
+  letters, backslashes and case folded on Windows; a path outside the repo stays out of scope). A
+  write through a symlinked folder is judged under its target's path as well as the one named.
+- **A guard that cannot run asks instead of allowing.** No usable bash, or a command `shlex` cannot
+  parse (`rm -rf / #'`), used to allow. Both now ask, naming what to install. Bash is found from
+  `git` (Git for Windows' `bin\bash.exe` first, never System32's WSL launcher or a WindowsApps
+  stub), found once per process, and runs with Git's `usr\bin` on PATH.
+- **A hook naming a missing gate or guard refuses** and says to run `chock sync --repo .`, instead of
+  allowing silently. A re-entered Stop is still let through so a refusal cannot trap the turn.
+- **A gate never judges its own policy's files or the generated tree.** java-security refused the
+  commit that adopted it (its own eval suite and setup page) and blocked every Stop until then. Each
+  gate now skips `.agents/policies/<its id>/` and `.chock/compiled/<its id>/`, and nothing else: a file
+  planted anywhere else under `.chock/` is judged like any other.
+- **Git output is decoded as UTF-8 on every console**, so the Stop gate no longer skips non-ASCII
+  paths on Windows, and a match printed to a cp1252 console no longer crashes the gate.
+- **The PowerShell pre-commit probe no longer blocks the commit** when a candidate interpreter is
+  missing or is the Store stub (PowerShell 5.1 made that a terminating error).
+- **Sync fails when an agent's hooks could not be wired**, after wiring the rest, naming each agent
+  and why. It used to print one warning and exit 0 with that agent ungated.
+- **Sync says when an agent needs you to trust its hooks.** Codex (and grok) skip an untrusted
+  project hook without a word; sync now prints an ACTION NEEDED line with the agent's own steps.
+- **gemini_cli gets the write gate it was compiled.** Its fragment was never merged into
+  `.gemini/settings.json`; only the turn-end check caught a bad `write_file` or `replace`.
+- **Runtime bundling tolerates a reordered agentseam import block.** An exact-block anchor stopped
+  matching agentseam 0.3.4's hoisted imports, and every runtime failed to render.
+- **`chock check` is about 2.5x faster**: each YAML text is parsed once with the C loader, each bundled
+  module is split once, and bash is probed once per process.
 - **INDEX.md says where a gate runs.** The generated index headed its gates "enforced
   automatically at commit/push", so an agent reading it could expect nothing until a commit --
   while a gate compiled for tool use refuses the write in the turn. The heading now says gates

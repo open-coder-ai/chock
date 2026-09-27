@@ -13,6 +13,7 @@ from pathlib import Path
 
 import yaml
 
+from chock import yamlio
 from chock.config import agents_from_config as _agents_from_config
 from chock.lock import compute_pack_hash, read_lock, write_lock
 from chock.output import error
@@ -107,7 +108,7 @@ def _reject_foreign_id(pack_dir: Path, artifact_id: str) -> None:
     if not manifest.is_file():
         return
     try:
-        declared = (yaml.safe_load(manifest.read_text(encoding="utf-8")) or {}).get("id")
+        declared = (yamlio.safe_load(manifest.read_text(encoding="utf-8")) or {}).get("id")
     except (yaml.YAMLError, AttributeError) as exc:
         msg = f"{artifact_id}: the catalog pack's manifest.yaml does not parse ({exc}). Nothing was installed."
         raise IntegrityError(msg) from exc
@@ -123,7 +124,7 @@ def locate(catalog_root: Path, artifact_id: str) -> tuple[Path, Path]:
 
     registry = catalog_root / "registry.yaml"
     if registry.exists():
-        data = yaml.safe_load(registry.read_text(encoding="utf-8")) or {}
+        data = yamlio.safe_load(registry.read_text(encoding="utf-8")) or {}
         for entry in data.get("policies", []) or []:
             if entry.get("id") == artifact_id and entry.get("path"):
                 candidate = catalog_root / entry["path"]

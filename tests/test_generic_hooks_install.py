@@ -14,6 +14,7 @@ from chock.compile.compiler import compile_policy
 from chock.compile.emitters.in_agent import GENERIC_VENDORS
 from chock.compile.surfaces import Surface
 from chock.hooks.in_agent_install import install_hooks, installed_policy_ids
+from chock.hooks.launch import LAUNCHER_REL, hook_command
 
 POLICY = "block-destructive-commands"
 
@@ -68,10 +69,13 @@ def test_install_writes_config_runtime_and_reports(tmp_path: Path, vendor: str) 
     assert (repo / ".chock" / "bin" / f"{vendor}.py").exists()
     commands = _commands(_config(repo, vendor))
     assert any(f".chock/bin/{vendor}.py" in c for c in commands)
+    compiled = repo / ".chock" / "compiled" / POLICY / "pre-tool-use" / f"{vendor}-hooks.json"
+    assert commands == _commands(json.loads(compiled.read_text(encoding="utf-8"))), "installed == compiled"
+    assert (repo / LAUNCHER_REL).is_file()
     # Compared on the parsed strings, not the JSON text: a Windows interpreter path is
     # backslash-escaped on disk and would never match its own `sys.executable`.
-    assert any(sys.executable in c for c in commands), "the interpreter placeholder must be baked at install"
-    assert not any("@CHOCK_PYTHON@" in c for c in commands)
+    assert not any(sys.executable in c for c in commands), "no interpreter path may be committed"
+    assert not any("@CHOCK_PYTHON@" in c or "${" in c for c in commands)
     assert installed_policy_ids(repo, vendor) == {POLICY}
 
 
@@ -132,16 +136,42 @@ def test_windsurf_wires_both_recorded_pre_tool_events(tmp_path: Path) -> None:
     assert set(hooks) == {"pre_run_command", "pre_mcp_tool_use"}
 
 
-def test_a_stale_interpreter_is_rebaked_not_reused(tmp_path: Path) -> None:
+def test_an_old_baked_entry_is_replaced_by_the_launcher_form(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     install_hooks(repo, "devin")
     config_path = repo / vendors.config_path("devin")
-    stale = json.loads(config_path.read_text(encoding="utf-8"))
-    _replace_in_commands(stale, sys.executable, "/no/such/python3")
-    config_path.write_text(json.dumps(stale, indent=2), encoding="utf-8")
+    current = config_path.read_bytes()
+    old = json.loads(current)
+    launcher = hook_command(".chock/bin/devin.py")
+    _replace_in_commands(old, launcher, '"/no/such/python3" ".chock/bin/devin.py"')
+    assert "/no/such/python3" in json.dumps(old)
+    config_path.write_text(json.dumps(old, indent=2), encoding="utf-8")
+    assert installed_policy_ids(repo, "devin") == set(), "an old-form entry is not current"
 
     install_hooks(repo, "devin")
 
-    commands = _commands(_config(repo, "devin"))
-    assert not any("/no/such/python3" in c for c in commands)
-    assert any(sys.executable in c for c in commands)
+    assert config_path.read_bytes() == current, "the old entry is ours: replaced, not kept beside the new one"
+
+
+def test_a_generic_vendor_with_a_write_vocabulary_gets_its_write_gate_installed(tmp_path: Path) -> None:
+    """gemini_cli's write fragment was compiled as a bare entry and never merged: no write gate."""
+    vendor = "gemini_cli"
+    assert vendors.write_matcher(vendor), "the premise: gemini_cli records write tools"
+    repo = tmp_path / "r"
+    repo.mkdir()
+    compile_policy(
+        baseline_policy("pin-github-actions"),
+        targets=[Surface.PRE_TOOL_USE.value],
+        output_root=repo / ".chock" / "compiled",
+        agents=["gemini"],
+        repo_root=repo,
+    )
+    install_hooks(repo, vendor)
+
+    entries = _config(repo, vendor)["hooks"][vendors.pre_tool_event(vendor)]
+    write = [e for e in entries if e.get("matcher") == vendors.write_matcher(vendor)]
+    assert write, "the write gate is wired under the vendor's own pre-tool event"
+    assert write[0]["hooks"][0]["command"] == hook_command(
+        f".chock/bin/{vendor}.py", "--gate", ".chock/compiled/pin-github-actions/pre-tool-use/gate.json"
+    )
+    assert "pin-github-actions" in installed_policy_ids(repo, vendor)

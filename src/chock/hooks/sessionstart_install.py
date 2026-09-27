@@ -9,12 +9,7 @@ from agentseam import contract as _contract
 
 from chock import vendors
 from chock.emit import write_generated_json
-from chock.hooks.in_agent_merged import (
-    INTERPRETER_PLACEHOLDER,
-    bake_interpreter,
-    interpreter_runs_here,
-    normalize_fragment,
-)
+from chock.hooks.launch import hook_command
 from chock.hooks.runtime_vendor import owned_markers, runtime_rel, vendor_runtime
 from chock.output import warn
 
@@ -27,7 +22,7 @@ ARM_FRAGMENT = {
     "hooks": [
         {
             "type": "command",
-            "command": f'{INTERPRETER_PLACEHOLDER} "${{CLAUDE_PROJECT_DIR}}/.chock/bin/claude_code.py"',
+            "command": hook_command(ADAPTER_REL.as_posix()),
             "timeout": 300,
         }
     ]
@@ -64,21 +59,11 @@ def install_sessionstart_hook(repo_root: Path) -> bool:
     hooks = settings.setdefault("hooks", {}) if isinstance(settings.get("hooks", {}), dict) else {}
     settings["hooks"] = hooks
     existing = hooks.get(ARM_EVENT)
-    ours_before = [e for e in existing if _is_ours(e)] if isinstance(existing, list) else []
     kept = [e for e in existing if not _is_ours(e)] if isinstance(existing, list) else []
-
-    wanted = normalize_fragment(ARM_FRAGMENT)
-    install_form = None
-    for entry in ours_before:
-        if normalize_fragment(entry) == wanted and interpreter_runs_here(entry):
-            install_form = entry
-            break
-    if install_form is None:
-        install_form = bake_interpreter(ARM_FRAGMENT)
 
     vendor_adapter(repo_root)
 
-    desired = [*kept, install_form]
+    desired = [*kept, json.loads(json.dumps(ARM_FRAGMENT))]
     if isinstance(existing, list) and desired == existing:
         return False
     hooks[ARM_EVENT] = desired

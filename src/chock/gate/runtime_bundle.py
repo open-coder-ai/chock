@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import functools
 import inspect
 import re
 
@@ -31,6 +32,8 @@ _RENAME = {
     "datetime": "_chock_datetime",
     "timezone": "_chock_timezone",
     "Path": "_chock_Path",
+    "PurePosixPath": "_chock_PurePosixPath",
+    "PureWindowsPath": "_chock_PureWindowsPath",
 }
 
 
@@ -45,14 +48,24 @@ class _Renamer(ast.NodeTransformer):
         return node
 
 
+def _segment(lines: list[bytes], node: ast.stmt) -> str:
+    """`ast.get_source_segment` over lines split once: it re-splits the whole source on every call."""
+    chunk = lines[node.lineno - 1 : node.end_lineno]
+    chunk[-1] = chunk[-1][: node.end_col_offset]
+    chunk[0] = chunk[0][node.col_offset :]
+    return b"".join(chunk).decode("utf-8")
+
+
+@functools.cache
 def _extract(module) -> str:
     """Every top-level def/assignment in `module`, source order, minus its own imports --"""
     source = inspect.getsource(module)
     tree = ast.parse(source)
+    lines = source.encode("utf-8").splitlines(keepends=True)  # bytes split on \r, \n only, as ast counts lines
     segments = []
     for node in tree.body:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Assign)):
-            segments.append(_Renamer().visit(ast.parse(ast.get_source_segment(source, node))))
+            segments.append(_Renamer().visit(ast.parse(_segment(lines, node))))
     return "\n\n".join(ast.unparse(seg) for seg in segments) + "\n"
 
 
@@ -84,7 +97,25 @@ def _handler_source(agent: str) -> str:
     return "".join(parts)
 
 
-_TOP_IMPORTS_ANCHOR = "from __future__ import annotations\n\nimport json\n_json = json\nimport sys\n"
+_FUTURE = "from __future__ import annotations\n\n"
+
+#: chock's imports go right after this line of agentseam's hoisted block. Anchored on the one
+#: line, not the whole block: agentseam 0.3.4 hoists contextlib/io/os around json and sys, and
+#: an exact-block anchor then matched nothing -- every runtime failed to render and sync wired
+#: no hooks at all. Where the block is unchanged the output is byte-identical to before.
+_SYS_IMPORT = "import sys\n"
+
+
+def _hoist_point(source: str) -> int:
+    """Offset just past `import sys` in the import block after `from __future__`, or -1."""
+    start = source.find(_FUTURE)
+    if start < 0:
+        return -1
+    block_start = start + len(_FUTURE)
+    block_end = source.find("\n\n", block_start)
+    block = source[block_start : block_end + 1 if block_end >= 0 else len(source)]
+    at = ("\n" + block).find("\n" + _SYS_IMPORT)
+    return -1 if at < 0 else block_start + at + len(_SYS_IMPORT)
 
 
 def _needed_imports(handler_source: str) -> str:
@@ -101,13 +132,15 @@ def _needed_imports(handler_source: str) -> str:
     return "\n".join(lines) + ("\n" if lines else "")
 
 
+@functools.cache
 def render(agent: str) -> str:
     """Render `agent`'s self-contained vendored runtime: agentseam's bundle, chock's"""
     source = bundler.bundle(agent)
-    if _TOP_IMPORTS_ANCHOR not in source:
+    at = _hoist_point(source)
+    if at < 0:
         raise ValueError("%s: bundle() output has no top-imports anchor to hoist onto" % agent)
     handler = _handler_source(agent)
-    source = source.replace(_TOP_IMPORTS_ANCHOR, _TOP_IMPORTS_ANCHOR + "\n" + _needed_imports(handler), 1)
+    source = source[:at] + "\n" + _needed_imports(handler) + source[at:]
     head, sep, rest = source.partition(BEGIN)
     if not sep:
         raise ValueError("%s: bundle() output has no %r marker" % (agent, BEGIN))

@@ -7,6 +7,7 @@ from typing import Any
 
 import yaml
 
+from chock import yamlio
 from chock.validation.loading import (
     ARTIFACT_TYPES,
     BUDGETS,
@@ -19,7 +20,7 @@ from chock.validation.report import Finding, Report
 def _schema_validate_suite(suite_file: Path, report: Report) -> None:
     """Validate an eval suite file against the canonical eval schema."""
     try:
-        doc = yaml.safe_load(suite_file.read_text(encoding="utf-8")) or {}
+        doc = yamlio.safe_load(suite_file.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError as exc:
         report.add(Finding(str(suite_file), "eval_first", "error", f"Invalid YAML: {exc}"))
         return
@@ -49,7 +50,7 @@ def check_eval_first(artifact_dir: Path, manifest: dict[str, Any], artifact_type
     _schema_validate_suite(suite_file, report)
 
     try:
-        doc = yaml.safe_load(suite_file.read_text(encoding="utf-8")) or {}
+        doc = yamlio.safe_load(suite_file.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError as exc:
         report.add(Finding(str(suite_file), "eval_first", "error", f"Invalid YAML: {exc}"))
         return

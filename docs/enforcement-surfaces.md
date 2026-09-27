@@ -42,9 +42,24 @@ each guarantee holds.
 > bash-syntax commands but not PowerShell-native destructive syntax. 0.0.6 closes that gap
 > with a PowerShell/cmd guard matched against the raw command (`CHOCK_RAW_COMMAND`); other
 > guards remain pattern filters, so the "non-standard shell" bypass class they document
-> still applies to them. The hook's interpreter is resolved at run time (skipping the
-> Windows Store `python3` alias stub) and the repo root via `git rev-parse`, so the
-> committed file is portable with no baked path.
+> still applies to them. The hook runs through the launcher below, so the committed file is
+> portable with no baked path.
+
+> **Every in-agent hook runs through one committed launcher.** Each entry chock writes, on
+> every vendor, is the same string -- read identically by bash, PowerShell and cmd.exe:
+>
+> ```
+> git -c "alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh" chock-hook .chock/bin/<agent>.py [--guard|--gate "<repo-relative path>"]
+> ```
+>
+> git runs the alias from the repository's top level, so relative paths resolve even when a
+> session starts in a subdirectory. `.chock/bin/launch.sh` runs the first of
+> `git config chock.python` (written to the clone's local `.git/config` by `chock sync`,
+> never committed), `python3`, `python` and `py` that actually runs Python 3.11+ (the
+> Windows Store `python3` stub, or a venv whose base Python is gone, is skipped). With none
+> it exits 2 with a fix-it message -- never allow. With no launcher at git's top level (a
+> nested repository, or a clone never synced) the command exits 2 the same way. Installed entries equal compiled ones exactly, so `chock sync` on any machine
+> is a zero diff; entries in the old baked-interpreter form are recognised and replaced.
 
 **`git-hook` + `ci-gate` are the universal hard floor** every agent shares. `pre-tool-use` and
 `agent-hooks` are the premium tier on agents that expose native controls; membership
@@ -84,12 +99,11 @@ per gateway process; wrap N servers with N entries.
 > hook returning exit 2 alone was **witnessed NOT blocking** on a real install
 > (2026-08-24). The vendored adapter therefore also emits Cursor's stdout
 > `{"permission": "deny"}` response, which is what actually blocks (witnessed). Cursor
-> **fails open** on any other non-zero exit unless the hook entry sets `failClosed` —
-> and `failClosed: true` would brick
-> every shell command on a clone whose baked interpreter path does not resolve yet. Chock
-> ships fail-open entries and mitigates the gap the same way as Claude's exit-127 case:
-> install bakes an interpreter that provably runs. The guard covers shell commands
-> (`beforeShellExecution`); other tool classes are not intercepted.
+> **fails open** on any other non-zero exit unless the hook entry sets `failClosed`. Chock's
+> `beforeShellExecution` and `preToolUse` entries set `failClosed: true` (a hook that cannot
+> start blocks); `stop` entries do not. With no interpreter baked into the entry, a fresh
+> clone is not bricked: the launcher finds one or refuses with a fix-it message. The guard
+> covers shell commands (`beforeShellExecution`); other tool classes are not intercepted.
 
 > **`managed-setting` is compiled but not installed.** The compiler writes
 > `.chock/compiled/<id>/managed-setting/managed-settings.json` and nothing reads it — there is
@@ -162,20 +176,18 @@ skipped with `--no-verify`.
 The levels above grade the **outer** boundary: what the client does when chock's hook never
 runs or dies outright. There is an inner one too — what the hook says when it *did* run and
 could not reach a verdict — and the two answers are not the same. `gate/guard_runner.py`
-distinguishes five such causes and answers two of them differently from the other three.
+distinguishes six such causes and answers only one of them with an allow.
 
 | Cause | What chock returns | Why |
 | :--- | :--- | :--- |
-| The command will not tokenize (unbalanced quotes) | allow | Common and usually benign — PowerShell quoting, a Windows path. A prompt here fires on a large share of ordinary tool calls. |
+| The command will not tokenize (unbalanced quotes) | **ask** | No guard read it. `rm -rf / #'` is valid bash and invalid shlex, so an allow here was a bypass. |
 | The command is empty after tokenizing | allow | There is nothing to check. |
-| No bash on the machine can resolve the guard | allow | Uniform: it holds for every command, not this one, so a prompt says nothing per call and would fire on every tool call on a platform without Git Bash. The fix is an install step. |
-| The guard crashed, or exited a code that is none of 0, 1 or 3 | **ask** | The control was installed, reachable and runnable, and still produced no answer. Rare, and anomalous. (Exit 3 is not this: it is the guard asking on purpose, and its own first line is the prompt.) |
+| No bash on the machine can resolve the guard | **ask** | No guard ran. The prompt names the fix: install Git for Windows (it ships bash), or put bash on PATH. |
+| The guard the hook names is not on disk | **deny** | The hook config names it, so its absence is a broken install, not nothing to check. The reason says to run `chock sync --repo .`. |
+| The guard crashed, or exited a code that is none of 0, 1 or 3 | **ask** | The control was installed, reachable and runnable, and still produced no answer. (Exit 3 is not this: it is the guard asking on purpose, and its own first line is the prompt.) |
 | The guard hit its 30-second timeout | **ask** | Same: the control ran and did not decide. |
 
-The split is deliberate, and it is a budget decision rather than a safety maximum. Oversight
-capacity is finite; a control that prompts on every unparseable command trains a developer to
-approve without reading, which costs the prompts that matter more than the extra coverage
-gains.
+A guard that fails refuses or asks; it never reports an allow it never established.
 
 **What an `ask` becomes depends on the client, and no client turns it into a silent allow.**
 
@@ -209,9 +221,8 @@ recheck it rather than take this table's word:
   non-rejected arm alone — so a literal `ask` there would let the call through.
 
 **This raises no coverage grade.** A control is only as strong as its worst degradation, and
-three of the five causes above still allow — so chock's in-agent controls stay at the level
-the ladder gives a control that degrades to allowing. The ask is a real improvement on two
-paths, not a new tier.
+the empty command above still allows — so chock's in-agent controls stay at the level the
+ladder gives a control that degrades to allowing until that grade is re-derived deliberately.
 
 ## Gate runner semantics
 
@@ -221,6 +232,10 @@ non-ASCII paths arrive unescaped and are scanned like any other file. `dependenc
 gates match their watched manifest basenames (e.g. `package.json`) anywhere in the tree, not
 only at the repo root. In CI range mode, a base ref that cannot be resolved fails **closed** —
 the gate exits 2 rather than passing an unscanned range.
+A compiled gate never judges chock's generated tree (`.chock/`) or its own policy's folder
+(`.agents/policies/<id>/`): that folder's evals and references show the very content the gate
+refuses, so judging them refused the policy's own adoption commit. Every other path, another
+policy's folder included, is judged as before.
 
 ## Reading the coverage report
 

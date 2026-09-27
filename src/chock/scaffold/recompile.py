@@ -37,6 +37,10 @@ class BookkeepingError(RuntimeError):
     """Bookkeeping the attestation chain depends on failed after a successful compile."""
 
 
+class HookWiringError(BookkeepingError):
+    """An agent's hooks could not be wired; everything else sync does has already been done."""
+
+
 def _compile_all(repo_root: Path, agents: list[str], compiled_root: Path) -> dict[str, dict[str, dict[str, object]]]:
     """Compile every enabled policy into `compiled_root`. Returns the coverage map."""
     config = load_config(repo_root)
@@ -231,14 +235,19 @@ def recompile(repo_root: Path | str, agents: list[str], *, skip_hooks: bool = Fa
             return tuple(installed_policy_ids(repo_root, vendor) for vendor in wired)
 
         before = _witness()
+        unwired: list[str] = []
         for vendor in wired:
             try:
                 installed = install_hooks(repo_root, vendor)
             except ValueError as exc:
                 warn(str(exc))
+                unwired.append(f"{vendor}: {exc}")
             else:
                 if installed:
                     print(f"Registered {len(installed)} {install_label(vendor)}")
+                    if hint := vendors.trust_hint(vendor):
+                        # Codex skips an untrusted project hook without a word: wired is not live.
+                        print(f"  ACTION NEEDED ({vendor}): hooks are not live until trusted -- {hint}")
         if _witness() != before:
             with tempfile.TemporaryDirectory(prefix="chock-coverage-", dir=chock_dir) as tmp2:
                 coverage = _compile_all(repo_root, agents, Path(tmp2) / "compiled")
@@ -246,4 +255,8 @@ def recompile(repo_root: Path | str, agents: list[str], *, skip_hooks: bool = Fa
 
     _refresh_bookkeeping(repo_root)
 
+    if not skip_hooks and unwired:
+        # A vendor left unwired runs no gate at all; a warning scrolled past is how that went unseen.
+        msg = "hooks were NOT wired for: " + "; ".join(unwired)
+        raise HookWiringError(msg)
     return coverage

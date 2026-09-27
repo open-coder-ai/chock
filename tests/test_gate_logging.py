@@ -119,10 +119,11 @@ def test_uncovered_event_is_not_recorded(tmp_path: Path) -> None:
 
 
 def test_missing_gate_is_not_recorded(tmp_path: Path) -> None:
+    """A missing gate refuses (a broken install), but no gate ran, so there is no outcome to log."""
     init_repo(tmp_path)
     absent = tmp_path / ".chock" / "compiled" / "scan-secrets" / "git-hook" / "gate.json"
 
-    assert run(absent, "pre-commit", None, tmp_path) == 0
+    assert run(absent, "pre-commit", None, tmp_path) == 2
     assert not log_path(tmp_path).exists()
 
 

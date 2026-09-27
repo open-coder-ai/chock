@@ -7,6 +7,7 @@ from typing import Any
 
 import yaml
 
+from chock import yamlio
 from chock.skill_metadata import _as_bool, _as_list, _chock_metadata
 
 CANONICAL_MANIFEST = "manifest.yaml"
@@ -60,7 +61,7 @@ def _load_interface(
         return {}
 
     try:
-        data = yaml.safe_load(interface_path.read_text(encoding="utf-8")) or {}
+        data = yamlio.safe_load(interface_path.read_text(encoding="utf-8")) or {}
     except (yaml.YAMLError, OSError) as exc:
         if warnings is not None:
             warnings.append(f"interface.yaml parse error: {exc}")
@@ -191,7 +192,7 @@ def _parse_skill_frontmatter(text: str) -> dict[str, Any]:
     if end == -1:
         return {}
 
-    return yaml.safe_load("\n".join(lines[:end])) or {}
+    return yamlio.safe_load("\n".join(lines[:end])) or {}
 
 
 def normalize_manifest(data: dict[str, Any]) -> dict[str, Any]:
@@ -212,7 +213,7 @@ def load_manifest_file(
         frontmatter = _parse_skill_frontmatter(text)
         return _project_skill_frontmatter(manifest_path, frontmatter, warnings)
 
-    data = yaml.safe_load(text) or {}
+    data = yamlio.safe_load(text) or {}
     return normalize_manifest(data)
 
 

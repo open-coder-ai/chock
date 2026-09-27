@@ -9,13 +9,11 @@ from chock import vendors
 from chock.compile.emitters.in_agent import AGENT_HOOKS_ENVELOPE, AGENT_HOOKS_EVENT, GENERIC_VENDORS
 from chock.emit import write_generated_json
 from chock.hooks.in_agent_generic import install_generic, installed_generic_ids
-from chock.hooks.in_agent_merged import INTERPRETER_PLACEHOLDER, MERGED, install_merged, installed_merged_ids
+from chock.hooks.in_agent_merged import MERGED, install_merged, installed_merged_ids
 from chock.hooks.runtime_vendor import vendor_runtime
 
-#: Re-exported: the placeholder is one token, shared by both halves of the installer.
 __all__ = [
     "AGENT_HOOKS_VENDORS",
-    "INTERPRETER_PLACEHOLDER",
     "WIRED_VENDORS",
     "agent_hooks_rel",
     "install_hooks",

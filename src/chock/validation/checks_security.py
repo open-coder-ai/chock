@@ -8,6 +8,7 @@ from typing import Any
 
 import yaml
 
+from chock import yamlio
 from chock.manifest import CANONICAL_MANIFEST, CONTENT_INSTRUCTIONS_KEY
 from chock.validation.loading import (
     find_manifest,
@@ -31,7 +32,7 @@ def _split_eval_suite(path: Path) -> tuple[str, list[str]] | None:
     if "evals" not in path.parts:
         return None
     try:
-        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        doc = yamlio.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, yaml.YAMLError):
         return None
     if not isinstance(doc, dict):

@@ -17,7 +17,7 @@ from chock.compile.compiler import _load_manifest
 from chock.eval.model import Case, CaseResult
 from chock.gate import runner as gate_runner
 from chock.gate.build import build_gate_json
-from chock.gate.guard_runner import GUARD_ASK_EXIT, GUARD_VIOLATION, find_bash
+from chock.gate.guard_runner import GUARD_ASK_EXIT, GUARD_VIOLATION, find_bash, interpreter_env
 from chock.gate.runner import GATE_LOG_ENV
 
 BLOCK = "block"
@@ -140,7 +140,7 @@ def _run_guard(repo: Path, guard: Path, command: str) -> tuple[str, str]:
         return ERROR, f"case command has unbalanced quotes: {command}"
 
     try:
-        env = {**os.environ, "CHOCK_RAW_COMMAND": command}
+        env = {**interpreter_env(bash), "CHOCK_RAW_COMMAND": command}
         proc = subprocess.run(  # noqa: S603 -- running the guard under test is the point of this harness
             [bash, str(guard), *args],
             cwd=str(repo),

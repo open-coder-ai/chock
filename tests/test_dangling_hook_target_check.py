@@ -39,6 +39,19 @@ def test_a_hand_planted_dangling_entry_fails(tmp_path: Path) -> None:
     assert "chock sync" in report.errors[0].message
 
 
+def test_a_missing_launcher_fails(tmp_path: Path) -> None:
+    """Every hook command runs `.chock/bin/launch.sh` first: without it no gate starts."""
+    repo = _repo(tmp_path)
+    recompile(repo, ["cursor"], skip_hooks=False)
+
+    (repo / ".chock" / "bin" / "launch.sh").unlink()
+
+    report = Report()
+    check_dangling_hook_targets(repo, report)
+    assert [f.check for f in report.errors] == ["dangling_hook_target"]
+    assert ".chock/bin/launch.sh" in report.errors[0].message
+
+
 def test_a_clean_tree_is_silent(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     recompile(repo, ["cursor", "claude"], skip_hooks=False)

@@ -7,6 +7,7 @@ from typing import Any
 
 import yaml
 
+from chock import yamlio
 from chock.compile.emitters import GUARD_SUFFIXES, SCRIPT_EVENTS
 from chock.eval.model import Case
 from chock.manifest import load_manifest
@@ -22,7 +23,7 @@ def _suite_doc(policy_dir: Path) -> dict[str, Any]:
     if not suite_file.exists():
         return {}
     try:
-        doc = yaml.safe_load(suite_file.read_text(encoding="utf-8")) or {}
+        doc = yamlio.safe_load(suite_file.read_text(encoding="utf-8")) or {}
     except (yaml.YAMLError, OSError):
         return {}
     if not isinstance(doc, dict):

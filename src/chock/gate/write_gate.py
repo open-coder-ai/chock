@@ -12,9 +12,10 @@ invokes, so a policy cannot mean one thing at commit and another in the session.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from .edit_image import added_from_event, edited_text
 from .patch_image import patch_added, patched_files
@@ -33,6 +34,12 @@ _RUNNER_PARTS = ("bin", "gate.py")
 _PACKAGED_RUNNER = "gate.py"
 
 _GIT = "git"
+#: git speaks UTF-8 whatever the console code page; a path that is not UTF-8 survives the round trip.
+_UTF8 = "utf-8"
+_PATH_ERRORS = "surrogateescape"
+_PARENT = ".."
+#: A Windows root is spelled with a drive (`C:`), which a POSIX root never is.
+_DRIVE_COLON = ":"
 #: git status codes: a deletion leaves no content to judge, a rename is followed by its old path.
 _DELETED = "D"
 _RENAMED = "R"
@@ -89,6 +96,48 @@ def writes_from_event(event, root=None):
     return {str(path): content}
 
 
+def _folded(pure):
+    """`pure` with `..` folded lexically; an absolute path never climbs above its anchor."""
+    parts = []
+    for part in pure.parts:
+        if part != _PARENT:
+            parts.append(part)
+        elif len(parts) > 1:
+            parts.pop()
+    return type(pure)(*parts)
+
+
+def repo_relative(path, root):
+    """`path` relative to `root` in POSIX form, as scope globs are written; as given when outside `root`."""
+    text = str(path)
+    if root is None:
+        return text
+    windows = os.name == "nt" or str(root)[1:2] == _DRIVE_COLON
+    flavour = PureWindowsPath if windows else PurePosixPath
+    try:
+        return _folded(flavour(str(root)) / text).relative_to(flavour(str(root))).as_posix()
+    except ValueError:
+        pass
+    if windows != (os.name == "nt"):
+        return text
+    try:
+        return Path(root, text).resolve().relative_to(Path(root).resolve()).as_posix()
+    except (OSError, ValueError, RuntimeError):
+        return text
+
+
+def repo_paths(path, root):
+    """Every repo-relative name a write is judged under: as written, and through symlinks and case."""
+    lexical = repo_relative(path, root)
+    if root is None or (str(root)[1:2] == _DRIVE_COLON) != (os.name == "nt"):
+        return (lexical,)
+    try:
+        resolved = Path(root, str(path)).resolve().relative_to(Path(root).resolve()).as_posix()
+    except (OSError, ValueError, RuntimeError):
+        return (lexical,)
+    return tuple(dict.fromkeys((lexical, resolved)))
+
+
 def changed_paths(repo_root):
     """Every uncommitted path in the worktree. Outside a repository there is nothing to list."""
     try:
@@ -96,6 +145,8 @@ def changed_paths(repo_root):
             [_GIT, "-C", str(repo_root), "status", "--porcelain=v1", "--untracked-files=all", "-z"],
             capture_output=True,
             text=True,
+            encoding=_UTF8,
+            errors=_PATH_ERRORS,
             timeout=_GATE_TIMEOUT_SECONDS,
             check=False,
         )
@@ -150,6 +201,8 @@ def run_gate(gate, writes, event, root=None, added=None):
             input=json.dumps({"writes": writes, **({"added": added} if added else {})}),
             capture_output=True,
             text=True,
+            encoding=_UTF8,
+            errors="replace",
             timeout=_GATE_TIMEOUT_SECONDS,
             check=False,
             cwd=str(root) if root is not None else None,
@@ -194,26 +247,45 @@ def writes_for(event, gate):
     """What this event puts under judgement: the call's own text, or what the turn left behind."""
     if event.event == PRE_TOOL:
         return writes_from_event(event, repo_root_for(event, gate))
-    raw = event.raw or {}
-    if raw.get("stop_hook_active") or raw.get("loop_count"):
-        # A refusal that re-entered its own stop hook would never terminate: Claude Code marks
-        # the re-entry `stop_hook_active`, Cursor counts it in `loop_count`.
+    if _reentered(event):
         return {}
     return writes_from_worktree(repo_root_for(event, gate))
+
+
+def _reentered(event):
+    """Whether this stop re-entered its own hook: Claude Code's `stop_hook_active`, Cursor's `loop_count`."""
+    # A refusal that re-entered its own stop hook would never terminate.
+    raw = event.raw or {}
+    return bool(raw.get("stop_hook_active") or raw.get("loop_count"))
+
+
+def _missing_gate(gate, event):
+    """A gate the hook names but that is not on disk: a broken install, so a refusal that says so."""
+    if event.event != PRE_TOOL and _reentered(event):
+        return None
+    return (
+        VERDICT_DENY,
+        f"chock gate {gate} is missing, so this write cannot be checked. "
+        "Run `chock sync --repo .` to rebuild the compiled gates.",
+    )
 
 
 def evaluate_gate(argv, event):
     """The decision this event earns from a compiled gate, or None when it has nothing to say."""
     gate = gate_path_from_argv(argv)
     name = _EVENT_ARG.get(getattr(event, "event", ""))
-    if gate is None or name is None or not gate.exists():
+    if gate is None or name is None:
         return None
-    writes = writes_for(event, gate)
+    if not gate.exists():
+        return _missing_gate(gate, event)
+    root = repo_root_for(event, gate)
+    writes = {rel: text for path, text in writes_for(event, gate).items() for rel in repo_paths(path, root)}
     if not writes:
         return None
     added = {**patch_added(event), **added_from_event(event)} if event.event == PRE_TOOL else {}
+    added = {rel: text for path, text in added.items() for rel in repo_paths(path, root)}
     added = {path: text for path, text in added.items() if path in writes}
-    outcome, message = run_gate(gate, writes, name, repo_root_for(event, gate), added)
+    outcome, message = run_gate(gate, writes, name, root, added)
     if outcome == GATE_BLOCKED:
         return (VERDICT_DENY, message or f"Blocked by chock policy: {gate.parent.parent.name}")
     if outcome == GATE_ERRORED:

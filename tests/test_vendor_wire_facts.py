@@ -12,11 +12,12 @@ from __future__ import annotations
 import json
 
 from agentseam import adapters
-from agentseam.vendor_config import SCHEMA, VENDOR_CONFIG
+from agentseam.vendor_config import VENDOR_CONFIG
 
 from chock import evidence, vendors
 from chock.compile.emitters import in_agent, in_agent_hooks
 from chock.hooks.in_agent_install import WIRED_VENDORS, agent_hooks_rel
+from chock.hooks.launch import hook_command
 
 
 def test_derived_wire_facts_still_produce_todays_bytes() -> None:
@@ -86,29 +87,32 @@ def test_agent_hooks_shape_is_a_witnessed_override_until_upstream_ingests_it() -
     )
 
 
-def test_repo_root_token_is_derived_from_vendor_config() -> None:
-    """The `${CLAUDE_PROJECT_DIR}` wire token used to live in chock as a hardcoded copy.
+def test_no_emitted_hook_command_uses_a_repo_root_token() -> None:
+    """Hook commands no longer anchor on `${CLAUDE_PROJECT_DIR}`: git runs the launcher from the top level.
 
-    agentseam's vendor-config schema now carries `repo_root_token`; PROJECT_DIR_TOKEN must
-    read it via vendors.repo_root_token instead. If a future release drops the field again,
-    this fails and says to hardcode the token back.
+    The token only ever existed for claude_code (the `${CLAUDE_PROJECT_DIR}` gap), so every
+    other vendor's relative path broke in a subdirectory; the launcher form has no such gap.
     """
-    assert "repo_root_token" in SCHEMA["properties"], "agentseam's vendor-config schema lost repo_root_token"
-    assert VENDOR_CONFIG["claude_code"]["repo_root_token"] == "${CLAUDE_PROJECT_DIR}"
-    assert vendors.repo_root_token("claude_code") == in_agent.PROJECT_DIR_TOKEN == "${CLAUDE_PROJECT_DIR}"
+    tokens = {vendors.repo_root_token(v) for v in VENDOR_CONFIG} - {None}
+    assert "${CLAUDE_PROJECT_DIR}" in tokens, "agentseam's vendor config lost repo_root_token"
+    assert not hasattr(in_agent, "PROJECT_DIR_TOKEN")
+    command = hook_command(".chock/bin/claude_code.py", "--guard", "p/implementations/g.sh")
+    assert not any(token in command for token in tokens)
 
 
-def test_cursor_fail_closed_stays_unset_pending_the_owner_decision() -> None:
-    """M.5(5): setting failClosed is an enforcement-behaviour change (owner decision plus a
+def test_cursor_fail_closed_is_set_only_where_a_gate_must_refuse() -> None:
+    """Cursor allows when a hook cannot start unless the entry says failClosed.
 
-    witnessed run), never a silent flag-flip. chock's cursor wire bytes carry no failClosed;
-    the flag's one source, when decided, is agentseam's public fail_closed accessor.
+    chock's pre-tool and shell entries set it (a hook that cannot start must block); stop
+    entries do not. The key chock writes is the one agentseam's renderer writes for the flag.
     """
     assert "failClosed" not in json.dumps(in_agent_hooks.cursor_hooks_file("CMD"))
     assert "failClosed" not in json.dumps(in_agent_hooks.cursor_entry("CMD"))
+    ours = in_agent_hooks.cursor_entry("CMD", fail_closed=True)
     rendered = adapters.get("cursor").hook_config(("pre_tool",), "CMD", fail_closed=True)
     (entry,) = rendered["hooks"]["preToolUse"]
     assert entry.get("failClosed") is True
+    assert ours.get("failClosed") is True
     rendered = adapters.get("cursor").hook_config(("pre_tool",), "CMD", fail_closed=None)
     (entry,) = rendered["hooks"]["preToolUse"]
     assert "failClosed" not in entry

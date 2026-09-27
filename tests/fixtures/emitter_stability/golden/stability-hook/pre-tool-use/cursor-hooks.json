@@ -1,8 +1,9 @@
 {
   "beforeShellExecution": [
     {
-      "command": "@CHOCK_PYTHON@ \"${CLAUDE_PROJECT_DIR}/.chock/bin/cursor.py\" --guard \"${CLAUDE_PROJECT_DIR}/tests/fixtures/emitter_stability/policies/stability-hook/implementations/stability-hook.sh\"",
-      "timeout": 30
+      "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/cursor.py --guard \"tests/fixtures/emitter_stability/policies/stability-hook/implementations/stability-hook.sh\"",
+      "timeout": 30,
+      "failClosed": true
     }
   ]
 }

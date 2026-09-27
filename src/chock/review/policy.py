@@ -10,6 +10,7 @@ from typing import Any
 
 import yaml
 
+from chock import yamlio
 from chock.config import CONFIG_DIR, CONFIG_NAME, load_config
 
 BUILTIN_CHECKS: dict[str, list[str]] = {
@@ -45,7 +46,7 @@ def _review_at(root: Path, ref: str) -> dict[str, Any] | None:
         return None
     text = shown.stdout
     try:
-        return _review_section(yaml.safe_load(text))
+        return _review_section(yamlio.safe_load(text))
     except yaml.YAMLError as exc:
         msg = f"{CONFIG_DIR}/{CONFIG_NAME} at {ref} is not valid YAML: {exc}"
         raise ReviewPolicyError(msg) from exc
