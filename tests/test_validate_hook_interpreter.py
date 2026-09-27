@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -76,3 +77,32 @@ def test_the_hook_runs_and_allows_a_clean_repo(installed_hook: Path, tmp_path: P
     proc = subprocess.run([bash, str(installed_hook)], cwd=str(repo), capture_output=True, text=True, check=False)
     assert proc.returncode == 0, f"the hook blocked a clean repo:\n{proc.stdout}\n{proc.stderr}"
     assert "No module named chock" not in (proc.stdout + proc.stderr)
+
+
+POWERSHELL_HOOK = Path(__file__).resolve().parents[1] / "src" / "chock" / "hooks" / "data" / "pre-commit.ps1"
+
+
+def test_the_powershell_probe_cannot_end_the_hook_on_a_missing_candidate() -> None:
+    """Under "Stop", PS 5.1 makes `& <missing> 2>$null` a terminating error: the commit was blocked."""
+    body = POWERSHELL_HOOK.read_text(encoding="utf-8")
+    loop = body[
+        body.index("foreach ($candidate") : body.index('$ErrorActionPreference = "Stop"', body.index("foreach"))
+    ]
+    probe_start = body.index("foreach ($candidate")
+    assert body.rindex('$ErrorActionPreference = "Continue"', 0, probe_start) > body.index('= "Stop"')
+    assert "Get-Command $candidate -ErrorAction SilentlyContinue" in loop
+    assert "try {" in loop and "} catch {" in loop
+    assert loop.index("Get-Command") < loop.index("& $candidate"), "resolve before invoking"
+
+
+@pytest.mark.skipif(not (shutil.which("pwsh") or shutil.which("powershell")), reason="no PowerShell here")
+def test_the_powershell_hook_survives_a_stale_baked_interpreter(installed_hook: Path, tmp_path: Path) -> None:
+    body = POWERSHELL_HOOK.read_text(encoding="utf-8").replace("@CHOCK_PYTHON@", str(tmp_path / "gone" / "python.exe"))
+    hook = tmp_path / "hook.ps1"
+    hook.write_text(body, encoding="utf-8")
+    shell = shutil.which("pwsh") or shutil.which("powershell")
+    repo = installed_hook.parents[3]
+    proc = subprocess.run(
+        [shell, "-NoProfile", "-File", str(hook)], cwd=repo, capture_output=True, text=True, check=False
+    )
+    assert "is not recognized" not in proc.stderr + proc.stdout
