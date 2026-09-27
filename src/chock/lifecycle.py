@@ -36,6 +36,11 @@ def sync_main(argv: list[str] | None) -> int:
     if rc or args.check:
         return rc
 
+    from chock.hooks.launch import record_interpreter
+
+    # The launcher every agent hook runs prefers this interpreter; local config, never committed.
+    record_interpreter(Path(args.repo))
+
     if args.ci:
         from chock.scaffold.install_ci import main as install_ci_main
 

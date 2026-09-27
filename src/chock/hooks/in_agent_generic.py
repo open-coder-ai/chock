@@ -3,18 +3,12 @@
 from __future__ import annotations
 
 import json
-import re
-import sys
 from pathlib import Path
 from typing import Any
 
 from chock import vendors
 from chock.emit import write_generated_json
 from chock.hooks.runtime_vendor import runtime_rel, vendor_runtime
-
-INTERPRETER_PLACEHOLDER = "@CHOCK_PYTHON@"
-
-_INTERP_RE = re.compile(r'(^|&\s+)("[^"]+"|\S+)(?=\s+"\.chock/bin/)')
 
 
 def load_config(path: Path) -> dict:
@@ -39,43 +33,6 @@ def _ours(node: Any, marker: str) -> bool:
     return marker in json.dumps(node)
 
 
-def _map_strings(node: Any, fn) -> Any:
-    if isinstance(node, dict):
-        return {key: _map_strings(value, fn) for key, value in node.items()}
-    if isinstance(node, list):
-        return [_map_strings(value, fn) for value in node]
-    return fn(node) if isinstance(node, str) else node
-
-
-def _bake(node: Any) -> Any:
-    exe = f'"{sys.executable}"'
-    return _map_strings(node, lambda s: s.replace(INTERPRETER_PLACEHOLDER, exe))
-
-
-def _normalize(node: Any) -> Any:
-    return _map_strings(node, lambda s: _INTERP_RE.sub(rf"\g<1>{INTERPRETER_PLACEHOLDER}", s))
-
-
-def _norm_key(entry: dict) -> str:
-    return json.dumps(_normalize(entry), sort_keys=True)
-
-
-def _interpreter_runs(entry: dict) -> bool:
-    """Whether every baked interpreter in `entry` still resolves on this machine."""
-    stale = []
-
-    def _probe(value: str) -> str:
-        match = _INTERP_RE.search(value)
-        if match:
-            interpreter = match.group(2).strip('"')
-            if interpreter != INTERPRETER_PLACEHOLDER and not Path(interpreter).is_file():
-                stale.append(interpreter)
-        return value
-
-    _map_strings(entry, _probe)
-    return not stale
-
-
 def _collect_ours(node: Any, marker: str, into: dict[str, dict]) -> None:
     """Every list-borne entry of ours anywhere under `node`, keyed by its normalized form."""
     if isinstance(node, dict):
@@ -84,7 +41,7 @@ def _collect_ours(node: Any, marker: str, into: dict[str, dict]) -> None:
     elif isinstance(node, list):
         for entry in node:
             if isinstance(entry, dict) and _ours(entry, marker):
-                into[_norm_key(entry)] = entry
+                into[json.dumps(entry, sort_keys=True)] = entry
 
 
 def _strip_ours(node: dict, marker: str) -> None:
@@ -103,28 +60,19 @@ def _strip_ours(node: dict, marker: str) -> None:
                 del node[key]
 
 
-def _merge(settings: dict, fragment: dict, prior: dict[str, dict]) -> None:
+def _merge(settings: dict, fragment: dict) -> None:
     """Deep-merge one rendered fragment: append entries, keep the vendor's own keys."""
     for key, value in fragment.items():
         if isinstance(value, dict):
             if not isinstance(settings.get(key), dict):
                 settings[key] = {}
-            _merge(settings[key], value, prior)
+            _merge(settings[key], value)
         elif isinstance(value, list):
             existing = settings.get(key)
             base = existing if isinstance(existing, list) else []
-            settings[key] = base + [_install_form(entry, prior) for entry in value]
+            settings[key] = base + list(value)
         else:
             settings.setdefault(key, value)
-
-
-def _install_form(entry: Any, prior: dict[str, dict]) -> Any:
-    if not isinstance(entry, dict):
-        return entry
-    installed = prior.get(_norm_key(entry))
-    if installed is not None and _interpreter_runs(installed):
-        return installed
-    return _bake(entry)
 
 
 #: The compiled surfaces whose fragments are whole hook-config documents for this vendor.
@@ -176,7 +124,7 @@ def install_generic(repo_root: Path, vendor: str, *, uninstall: bool = False) ->
 
     vendor_runtime(repo_root, vendor)
     for _policy_id, fragment in fragments:
-        _merge(settings, fragment, prior)
+        _merge(settings, fragment)
     config_path.parent.mkdir(parents=True, exist_ok=True)
     write_generated_json(config_path, settings)
     return [policy_id for policy_id, _ in fragments]

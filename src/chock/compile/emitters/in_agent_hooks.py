@@ -12,10 +12,8 @@ TIMEOUT_SECONDS = 30
 def generic_hooks_file(vendor: str, command: str) -> dict[str, Any]:
     """`vendor`'s full hook-config document for one guard command, agentseam's rendering.
 
-    Paths inside `command` are repo-relative: no repo-root token is recorded upstream for
-    these vendors (the `${CLAUDE_PROJECT_DIR}` gap), so the entry resolves only where the
-    vendor runs hooks from the repo root -- the same condition under which the relative
-    adapter path resolves at all.
+    Paths inside `command` are repo-relative and resolve wherever the session started: the
+    launcher form has git run them from the repository's top level.
     """
     return vendors.pre_tool_hook_config(vendor, command, matcher=vendors.shell_matcher(vendor))
 
@@ -42,9 +40,16 @@ def hooks_map_file(vendor: str, command: str) -> dict[str, Any]:
     return event_map if vendors.hook_entry_bare(vendor) else {"hooks": event_map}
 
 
-def cursor_entry(command: str) -> dict[str, Any]:
-    """One cursor hook entry: the flat `cursor` wrapper shape plus chock's timeout."""
-    return {"command": command, "timeout": TIMEOUT_SECONDS}
+def cursor_entry(command: str, *, fail_closed: bool = False) -> dict[str, Any]:
+    """One cursor hook entry: the flat `cursor` wrapper shape plus chock's timeout.
+
+    `fail_closed` for a gate that must refuse: Cursor otherwise allows when the hook crashes,
+    times out or cannot start (docs: cursor.com/docs/agent/hooks, `failClosed`).
+    """
+    entry: dict[str, Any] = {"command": command, "timeout": TIMEOUT_SECONDS}
+    if fail_closed:
+        entry["failClosed"] = True
+    return entry
 
 
 def cursor_hooks_file(command: str) -> dict[str, Any]:

@@ -11,8 +11,6 @@ from __future__ import annotations
 
 import copy
 import json
-import re
-import sys
 from pathlib import Path
 from typing import NamedTuple
 
@@ -20,49 +18,6 @@ from chock import vendors
 from chock.emit import write_generated_json
 from chock.hooks.in_agent_generic import load_config as _load_config
 from chock.hooks.runtime_vendor import owned_markers, runtime_rel, vendor_runtime
-
-INTERPRETER_PLACEHOLDER = "@CHOCK_PYTHON@"
-
-_COMMAND_TAIL_RE = re.compile(r'^.*?(?="\$\{CLAUDE_PROJECT_DIR\}[^"]*?/\.chock/bin/[a-z_]+\.py")')
-_BIN_MARKER = "/.chock/bin/"
-
-
-def bake_interpreter(fragment: dict) -> dict:
-    """A copy of `fragment` with the interpreter placeholder replaced by this machine's python."""
-    exe = f'"{sys.executable}"'
-    baked = copy.deepcopy(fragment)
-    for hook in baked.get("hooks", []) or []:
-        if isinstance(hook, dict) and isinstance(hook.get("command"), str):
-            hook["command"] = hook["command"].replace(INTERPRETER_PLACEHOLDER, exe)
-    return baked
-
-
-def normalize_fragment(fragment: dict) -> dict:
-    """A copy of `fragment` with the interpreter token normalised to the placeholder."""
-    normalized = copy.deepcopy(fragment)
-    for hook in normalized.get("hooks", []) or []:
-        command = hook.get("command") if isinstance(hook, dict) else None
-        if isinstance(command, str) and _BIN_MARKER in command:
-            hook["command"] = _COMMAND_TAIL_RE.sub(f"{INTERPRETER_PLACEHOLDER} ", command, count=1)
-    return normalized
-
-
-def interpreter_runs_here(fragment: dict) -> bool:
-    """Whether every baked interpreter in `fragment` still resolves on this machine."""
-    for hook in fragment.get("hooks", []) or []:
-        command = hook.get("command") if isinstance(hook, dict) else None
-        if not isinstance(command, str) or _BIN_MARKER not in command:
-            continue
-        match = _COMMAND_TAIL_RE.match(command)
-        if not match:
-            continue
-        interpreter = match.group(0).strip().strip('"')
-        if not interpreter or interpreter == INTERPRETER_PLACEHOLDER:
-            continue
-        if not Path(interpreter).is_file():
-            return False
-    return True
-
 
 class Wiring(NamedTuple):
     """One (event key, fragment shape) pair a vendor's config file receives."""
@@ -138,10 +93,6 @@ MERGED = {
 }
 
 
-def _wrap(entry: dict) -> dict:
-    return {"hooks": [copy.deepcopy(entry)]}
-
-
 def _compiled(repo_root: Path, wiring: Wiring) -> list[dict]:
     """Compiled fragments (claude shape) or entries (cursor shape), ordered by policy id."""
     compiled = Path(repo_root) / ".chock" / "compiled"
@@ -162,11 +113,6 @@ def _compiled(repo_root: Path, wiring: Wiring) -> list[dict]:
     return found
 
 
-def _norm_entry(entry: dict, wiring: Wiring) -> dict:
-    """`entry` with its interpreter normalised, in whichever shape this wiring speaks."""
-    return normalize_fragment(_wrap(entry))["hooks"][0] if wiring.flat else normalize_fragment(entry)
-
-
 def _ours_under(entry: dict, wiring: Wiring, markers: tuple[str, ...]) -> bool:
     """Whether this installed entry is one chock put there, by the vendored-runtime path in it."""
     if wiring.flat:
@@ -183,19 +129,11 @@ def _merge_event(hooks: dict, wiring: Wiring, wanted: list[dict], markers: tuple
     """Replace chock's entries under one event key in place, keeping entries that are not ours."""
     existing = hooks.get(wiring.event)
     existing = existing if isinstance(existing, list) else []
-    ours_before = [e for e in existing if _ours_under(e, wiring, markers)]
     kept = [e for e in existing if not _ours_under(e, wiring, markers)]
 
-    def _install_form(entry: dict) -> dict:
-        target = _norm_entry(entry, wiring)
-        for installed in ours_before:
-            runs = interpreter_runs_here(_wrap(installed) if wiring.flat else installed)
-            if _norm_entry(installed, wiring) == target and runs:
-                return installed
-        return bake_interpreter(_wrap(entry))["hooks"][0] if wiring.flat else bake_interpreter(entry)
-
+    # Ours are replaced wholesale: an entry carries nothing machine-specific worth keeping.
     if wanted:
-        hooks[wiring.event] = kept + [_install_form(entry) for entry in wanted]
+        hooks[wiring.event] = kept + [copy.deepcopy(entry) for entry in wanted]
     elif kept:
         hooks[wiring.event] = kept
     else:
@@ -287,7 +225,6 @@ def installed_merged_ids(repo_root: Path, vendor: str) -> set[str]:
                 continue
             wanted = list(fragment.get(wiring.event, []) or []) if wiring.flat else [fragment]
             for candidate in wanted:
-                target = _norm_entry(candidate, wiring)
-                if any(_norm_entry(e, wiring) == target for e in entries if isinstance(e, dict)):
+                if any(e == candidate for e in entries if isinstance(e, dict)):
                     installed.add(path.parent.parent.name)
     return installed

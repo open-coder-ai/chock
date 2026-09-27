@@ -7,15 +7,13 @@ from types import SimpleNamespace
 from typing import Any
 
 from chock import vendors
-from chock.compile.emitters import DATA_DIR, GUARD_SUFFIXES, policy_rel_path
+from chock.compile.emitters import GUARD_SUFFIXES, policy_rel_path
 from chock.compile.emitters.advisory import repo_root_from_output
 from chock.compile.emitters.in_agent_hooks import TIMEOUT_SECONDS, cursor_entry, generic_hooks_file, hook_entry
 from chock.emit import write_generated_json
 from chock.gate.build import build_gate_json
 from chock.gate.runner import WRITE_PATH_KINDS
-
-_BASH_TEMPLATE = DATA_DIR.joinpath("agent_hook_bash.sh").read_text(encoding="utf-8").rstrip("\n")
-_POWERSHELL_TEMPLATE = DATA_DIR.joinpath("agent_hook_powershell.ps1").read_text(encoding="utf-8").rstrip("\n")
+from chock.hooks.launch import hook_command
 
 GUARD_SCRIPTS = {
     "block-destructive-commands": "block-destructive.sh",
@@ -38,11 +36,6 @@ def _guard_script(policy_dir: Path, policy_id: str) -> str | None:
 #: claude_code's own recorded shell vocabulary, used for its claude-plugin hooks file.
 MATCHER = vendors.shell_matcher("claude_code")
 assert MATCHER is not None  # noqa: S101 -- import-time upstream-data invariant, not request handling
-
-#: Wire token Claude Code substitutes for the repo root, read from agentseam's vendor
-#: config (`repo_root_token`) instead of chock's own hardcoded copy.
-PROJECT_DIR_TOKEN = vendors.repo_root_token("claude_code")
-assert PROJECT_DIR_TOKEN is not None  # noqa: S101 -- import-time upstream-data invariant, not request handling
 
 # Witnessed overrides: chock's agent-hooks file speaks `preToolUse` with bash/powershell/
 # timeoutSec entry keys (live deny, data/witnesses.json: vscode_copilot x agent-hooks);
@@ -102,20 +95,22 @@ def _tool_use_gate(policy_dir: Path, output_dir: Path) -> dict[str, Any] | None:
 
 def _guard_fragments(policy_dir: Path, script: str, output_dir: Path) -> list[Path]:
     """The shell-command fragments, one per wired vendor. Behaviour unchanged."""
-    rel = policy_rel_path(policy_dir)
-    guard = f"{PROJECT_DIR_TOKEN}/{rel}/implementations/{script}"
+    guard = f"{policy_rel_path(policy_dir)}/implementations/{script}"
     written: list[Path] = []
     for vendor, name, build in (
         ("claude_code", "pretooluse.json", lambda cmd: hook_entry(cmd, matcher=MATCHER)),
-        ("cursor", "cursor-hooks.json", lambda cmd: {vendors.shell_gate_event("cursor"): [cursor_entry(cmd)]}),
+        (
+            "cursor",
+            "cursor-hooks.json",
+            lambda cmd: {vendors.shell_gate_event("cursor"): [cursor_entry(cmd, fail_closed=True)]},
+        ),
     ):
-        adapter = f"{PROJECT_DIR_TOKEN}/{_adapter_rel(vendor)}"
-        command = f'@CHOCK_PYTHON@ "{adapter}" --guard "{guard}"'
+        command = hook_command(_adapter_rel(vendor), "--guard", guard)
         dest = output_dir / name
         write_generated_json(dest, build(command))
         written.append(dest)
     for vendor in GENERIC_VENDORS:
-        command = f'@CHOCK_PYTHON@ "{_adapter_rel(vendor)}" --guard "{rel}/implementations/{script}"'
+        command = hook_command(_adapter_rel(vendor), "--guard", guard)
         dest = output_dir / f"{vendor}-hooks.json"
         write_generated_json(dest, generic_hooks_file(vendor, command))
         written.append(dest)
@@ -133,19 +128,18 @@ def _gate_fragments(policy_id: str, spec: dict[str, Any], output_dir: Path) -> l
     write_generated_json(gate, spec)
     written: list[Path] = [gate]
 
-    reference = f"{PROJECT_DIR_TOKEN}/{_compiled_rel(policy_id)}/{GATE_FILE}"
+    reference = f"{_compiled_rel(policy_id)}/{GATE_FILE}"
     for vendor in sorted(vendors.in_agent_vendors()):
         matcher = vendors.write_matcher(vendor)
         if matcher is None:
             continue
-        adapter = f"{PROJECT_DIR_TOKEN}/{_adapter_rel(vendor)}"
-        command = f'@CHOCK_PYTHON@ "{adapter}" --gate "{reference}"'
+        command = hook_command(_adapter_rel(vendor), "--gate", reference)
         name = WRITE_FRAGMENT if vendor == "claude_code" else f"{vendor}-write-hooks.json"
         dest = output_dir / name
         if vendors.hook_entry_flat(vendor):
             # A flat entry carries no matcher: the runtime answers every tool under the event
             # and judges only a write it recognises; an unmatched tool is allowed unremarked.
-            doc: dict[str, Any] = {vendors.pre_tool_event(vendor): [cursor_entry(command)]}
+            doc: dict[str, Any] = {vendors.pre_tool_event(vendor): [cursor_entry(command, fail_closed=True)]}
         else:
             doc = hook_entry(command, matcher=matcher)
         write_generated_json(dest, doc)
@@ -175,15 +169,11 @@ def _stop_fragments(policy_id: str, spec: dict[str, Any], output_dir: Path) -> l
     written: list[Path] = [gate]
 
     for vendor in vendors.stop_vendors():
-        token = vendors.repo_root_token(vendor)
-        root = f"{token}/" if token else ""
-        command = f'@CHOCK_PYTHON@ "{root}{_adapter_rel(vendor)}" --gate "{root}{_stop_rel(policy_id)}/{GATE_FILE}"'
+        command = hook_command(_adapter_rel(vendor), "--gate", f"{_stop_rel(policy_id)}/{GATE_FILE}")
         if vendor == "claude_code":
             dest, doc = output_dir / STOP_FRAGMENT, hook_entry(command)
         elif vendors.hook_entry_flat(vendor):
-            # Cursor's fragment is the event's entry list, the shape its merged installer reads,
-            # rooted the way its shell and write entries are so the installer recognises it.
-            command = f'@CHOCK_PYTHON@ "{PROJECT_DIR_TOKEN}/{_adapter_rel(vendor)}" --gate "{PROJECT_DIR_TOKEN}/{_stop_rel(policy_id)}/{GATE_FILE}"'
+            # Cursor's fragment is the event's entry list, the shape its merged installer reads.
             dest, doc = output_dir / f"{vendor}-hooks.json", {vendors.stop_event(vendor): [cursor_entry(command)]}
         else:
             dest, doc = output_dir / f"{vendor}-hooks.json", vendors.stop_hook_config(vendor, command)
@@ -221,25 +211,15 @@ def emit_pre_tool_use(policy_dir: Path, output_dir: Path, manifest: dict[str, An
     return _gate_fragments(str(policy_id), spec or {}, output_dir)
 
 
-def _bash_command(adapter: str, guard: str) -> str:
-    return _BASH_TEMPLATE.replace("__ADAPTER__", adapter).replace("__GUARD__", guard)
-
-
-def _powershell_command(adapter: str, guard: str) -> str:
-    return _POWERSHELL_TEMPLATE.replace("__ADAPTER__", adapter).replace("__GUARD__", guard)
-
-
 def build_entry(policy_dir: Path, manifest: dict[str, Any]) -> dict[str, Any] | None:
     """The single agent-hooks entry for one policy, or None when it has no guard script."""
     policy_id = manifest.get("id", policy_dir.name)
     script = _guard_script(policy_dir, policy_id)
     if not script:
         return None
-    rel = policy_rel_path(policy_dir)
-    adapter = _adapter_rel("vscode_copilot")
-    guard = f"{rel}/implementations/{script}"
-    bash = _bash_command(adapter, guard)
-    powershell = _powershell_command(adapter, guard)
+    # One string for both keys: the launcher form reads the same under bash and PowerShell.
+    command = hook_command(_adapter_rel("vscode_copilot"), "--guard", f"{policy_rel_path(policy_dir)}/implementations/{script}")
+    bash = powershell = command
     return {
         "type": "command",
         "matcher": SHELL_MATCHER,
