@@ -10,6 +10,7 @@ import jsonschema
 import yaml
 from referencing import Registry, Resource
 
+from chock import yamlio
 from chock.manifest import MANIFEST_NAMES, SKILL_MD
 from chock.resources import package_data_dir
 from chock.validation.report import Finding, Report
@@ -53,7 +54,7 @@ def load_schema(name: str) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as f:
         if name.endswith(".json"):
             return json.load(f)
-        return yaml.safe_load(f)
+        return yamlio.safe_load(f)
 
 
 ARTIFACT_TYPES: frozenset[str] = frozenset(load_schema(MANIFEST_SCHEMA)["properties"]["artifact"]["enum"])
@@ -89,7 +90,7 @@ def discover_artifacts(root: Path) -> Iterable[tuple[str, Path]]:
         if not manifest.exists():
             continue
         try:
-            data = yaml.safe_load(manifest.read_text(encoding="utf-8")) or {}
+            data = yamlio.safe_load(manifest.read_text(encoding="utf-8")) or {}
         except yaml.YAMLError:
             yield ("unknown", root)
             return
@@ -121,7 +122,7 @@ def discover_artifacts(root: Path) -> Iterable[tuple[str, Path]]:
             if not manifest.exists():
                 continue
             try:
-                data = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+                data = yamlio.safe_load(manifest.read_text(encoding="utf-8"))
                 art = (data or {}).get("artifact")
             except yaml.YAMLError:
                 yield ("unknown", sub)
@@ -138,7 +139,7 @@ def discover_artifacts(root: Path) -> Iterable[tuple[str, Path]]:
             for eval_file in base.rglob("suite.yaml"):
                 if not rel_dir.startswith(".agents/"):
                     try:
-                        doc = yaml.safe_load(eval_file.read_text(encoding="utf-8"))
+                        doc = yamlio.safe_load(eval_file.read_text(encoding="utf-8"))
                     except (yaml.YAMLError, OSError):
                         continue
                     if not isinstance(doc, dict) or not ("eval_suite" in doc or "suite" in doc):

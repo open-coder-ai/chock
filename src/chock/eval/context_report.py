@@ -15,6 +15,7 @@ from typing import Any
 
 import yaml
 
+from chock import yamlio
 from chock.compile.emitters.advisory import advisory_lines
 from chock.emit import write_generated, write_generated_json
 from chock.eval.suites import Policy, discover_policies
@@ -95,7 +96,7 @@ def path_slug(text: str) -> str:
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:
-    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    return yamlio.safe_load(path.read_text(encoding="utf-8")) or {}
 
 
 def tier3_cases(policy: Policy) -> list[Tier3Case]:

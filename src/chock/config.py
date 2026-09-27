@@ -7,6 +7,7 @@ from typing import Any
 
 import yaml
 
+from chock import yamlio
 from chock.compile.surface_kinds import Surface
 from chock.vendors import CHOCK_AGENT
 
@@ -19,7 +20,7 @@ def load_config(repo_root: Path | str) -> dict[str, Any]:
     path = Path(repo_root) / CONFIG_DIR / CONFIG_NAME
     if not path.exists():
         return {}
-    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    return yamlio.safe_load(path.read_text(encoding="utf-8")) or {}
 
 
 def agents_from_config(repo_root: Path) -> list[str]:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import functools
 import inspect
 import re
 
@@ -47,14 +48,24 @@ class _Renamer(ast.NodeTransformer):
         return node
 
 
+def _segment(lines: list[bytes], node: ast.stmt) -> str:
+    """`ast.get_source_segment` over lines split once: it re-splits the whole source on every call."""
+    chunk = lines[node.lineno - 1 : node.end_lineno]
+    chunk[-1] = chunk[-1][: node.end_col_offset]
+    chunk[0] = chunk[0][node.col_offset :]
+    return b"".join(chunk).decode("utf-8")
+
+
+@functools.cache
 def _extract(module) -> str:
     """Every top-level def/assignment in `module`, source order, minus its own imports --"""
     source = inspect.getsource(module)
     tree = ast.parse(source)
+    lines = source.encode("utf-8").splitlines(keepends=True)  # bytes split on \r, \n only, as ast counts lines
     segments = []
     for node in tree.body:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Assign)):
-            segments.append(_Renamer().visit(ast.parse(ast.get_source_segment(source, node))))
+            segments.append(_Renamer().visit(ast.parse(_segment(lines, node))))
     return "\n\n".join(ast.unparse(seg) for seg in segments) + "\n"
 
 
@@ -103,6 +114,7 @@ def _needed_imports(handler_source: str) -> str:
     return "\n".join(lines) + ("\n" if lines else "")
 
 
+@functools.cache
 def render(agent: str) -> str:
     """Render `agent`'s self-contained vendored runtime: agentseam's bundle, chock's"""
     source = bundler.bundle(agent)

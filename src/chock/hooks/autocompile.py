@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import yaml
-
+from chock import yamlio
 from chock.compile.surfaces import Surface
 from chock.config import agents_from_config, load_config, policy_status
 from chock.output import warn
@@ -23,7 +22,7 @@ def compile_one_dropin(
     mf_path = pack_dir / "manifest.yaml"
     if not mf_path.exists():
         return False
-    manifest = yaml.safe_load(mf_path.read_text(encoding="utf-8")) or {}
+    manifest = yamlio.safe_load(mf_path.read_text(encoding="utf-8")) or {}
 
     if manifest.get("artifact") != "hook":
         return False

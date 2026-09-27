@@ -9,6 +9,7 @@ from pathlib import Path
 
 import yaml
 
+from chock import yamlio
 from chock.compile.surfaces import AGENTS_ARG_REQUIRED_MSG
 from chock.config import agents_from_config, load_config
 from chock.emit import write_generated
@@ -54,7 +55,7 @@ def _fresh_config(agents: list[str], *, agent_agnostic: bool) -> dict[str, objec
         agent_agnostic="true" if agent_agnostic else "false",
         onboarded_at=datetime.now(timezone.utc).isoformat(),
     )
-    return yaml.safe_load(text) or {}  # type: ignore[return-value]
+    return yamlio.safe_load(text) or {}  # type: ignore[return-value]
 
 
 def _fresh_policies(repo_root: Path, fresh: dict[str, object]) -> dict[str, object]:
