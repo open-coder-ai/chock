@@ -53,11 +53,11 @@
   before_add(file|abstraction|feature): need.exists AND repeated
   if not: leave_out; on_find(unused): delete
 
-## Gates — enforced automatically at commit/push
+## Gates — enforced automatically at commit/push, and in the agent where noted
 
 - **block-invisible-unicode**: Invisible or direction-override Unicode detected in staged changes. These characters change how code reads to a human or hide instructions an agent will still obey. Remove them, or add 'pragma: allowlist invisible-unicode' on the same line for a documented exception (e.g. a test fixture).
 - **block-wildcard-agent-permissions**: Wildcard agent permission grant detected. Scope the grant to specific tools or commands (e.g. Bash(git status:*), a named tool list), or add 'pragma: allowlist broad-agency' on the same line for a reviewed exception.
-- **pin-github-actions**: Unpinned GitHub Action detected: a workflow references an action by a tag or branch (owner/repo at a movable ref) rather than a full 40-character commit SHA. Pin it to the SHA -- keep the version in a trailing comment for readability -- so a re-tagged or compromised release cannot change what runs. At commit, 'pragma: allowlist unpinned-action' on the same line marks a deliberate exception; the pragma is NOT honored at tool-use, where the scanned text is a live tool argument an appended token could neutralize.
+- **pin-github-actions**: Unpinned GitHub Action detected: a workflow references an action by a tag or branch (owner/repo at a movable ref) rather than a full 40-character commit SHA. Pin it to the SHA -- keep the version in a trailing comment for readability -- so a re-tagged or compromised release cannot change what runs. At commit, 'pragma: allowlist unpinned-action' on the same line marks a deliberate exception; the pragma is NOT honored at tool-use, where the scanned text is a live tool argument an appended token could neutralize. Also checked in the agent: before a write, or at the end of the turn, depending on the agent.
 - **protect-main-branch**: Direct commits/pushes to a protected branch (main|master) are blocked. Create a feature branch and open a pull request.
 - **scan-secrets**: Potential secret detected in staged changes. Remove credentials and rotate any exposed keys. Add '# pragma: allowlist secret' on the same line only for documented test fixtures.
 - **test-integrity**: Tests were weakened, not fixed. If a test is genuinely obsolete, say so on the line that removes it with `chock: test-removal-reviewed` and have a human confirm it.

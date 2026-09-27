@@ -1,5 +1,14 @@
 # Chock changelog
 
+## Unreleased
+
+- **INDEX.md says where a gate runs.** The generated index headed its gates "enforced
+  automatically at commit/push", so an agent reading it could expect nothing until a commit --
+  while a gate compiled for tool use refuses the write in the turn. The heading now says gates
+  run at commit/push and in the agent where noted, and each gate declared `on: tool_use` ends
+  with "Also checked in the agent: before a write, or at the end of the turn, depending on the
+  agent." Adopters pick it up on their next `chock sync`.
+
 ## 0.11.4 — An edit is judged as the file it would leave, and bytecode no longer fails a pack
 
 - **An edit is judged before it lands, not only at the turn's end.** Claude Code changes an

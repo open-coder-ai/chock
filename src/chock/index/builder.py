@@ -28,6 +28,8 @@ class IndexEntry:
     description: str
     rule_text: str = ""
     manifest_path: str = ""
+    #: The gate is also compiled for the agent's own hooks (`on: tool_use`), not only for git.
+    in_agent: bool = False
 
     def priority(self) -> int:
         return _ENFORCEMENT_ORDER.get(self.enforcement, 3)
@@ -81,8 +83,11 @@ def _entry_from_manifest(artifact_dir: Path, manifest: dict[str, Any], rel_path:
     rule_text = substitute_policy_vars(str((manifest.get("rule") or {}).get("text", "")), artifact_dir)
     description = _one_liner(manifest.get("description", ""))
 
+    in_agent = False
     if artifact == "hook":
         description = _summarize_hook(manifest, artifact_dir, root)
+        gate = (manifest.get("hook") or {}).get("gate") or {}
+        in_agent = "tool_use" in (gate.get("on") or [])
 
     return IndexEntry(
         id=pid,
@@ -92,6 +97,7 @@ def _entry_from_manifest(artifact_dir: Path, manifest: dict[str, Any], rel_path:
         description=description,
         rule_text=rule_text,
         manifest_path=rel_path,
+        in_agent=in_agent,
     )
 
 
