@@ -161,7 +161,7 @@ un-forkable.) Add a step using this repository's `action.yml`:
 - uses: actions/checkout@v4
   with:
     fetch-depth: 0
-- uses: open-coder-ai/chock@v0.11.4
+- uses: open-coder-ai/chock@v0.12.0
   with:
     command: review require --base origin/main
 ```
