@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import shlex
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -16,14 +17,20 @@ GUARD_ASK_EXIT = 3
 
 PYTHON_SUFFIX = ".py"
 
-_BASH_CANDIDATES = (
-    "bash",
-    r"C:\Program Files\Git\usr\bin\bash.exe",
-    r"C:\Program Files\Git\bin\bash.exe",
-    r"C:\Program Files (x86)\Git\usr\bin\bash.exe",
-    "/bin/bash",
-    "/usr/bin/bash",
-)
+_POSIX_BASH = ("bash", "/bin/bash", "/usr/bin/bash")
+#: Where Git for Windows installs when `git` is not on PATH to say where it is.
+_GIT_FOR_WINDOWS = (r"C:\Program Files\Git", r"C:\Program Files (x86)\Git")
+#: Git's own launcher first: bin/bash.exe sets up the environment usr/bin/bash.exe expects.
+_GIT_BASH_DIRS = (("bin",), ("usr", "bin"))
+_BASH_EXE = "bash.exe"
+#: `bash` on a bare Windows PATH is System32's WSL launcher or a Store stub, neither of which
+#: can see a Windows path: never a guard's interpreter.
+_WINDOWS_STUB_DIRS = ("/system32/", "/windowsapps/")
+#: Git's coreutils (sed, grep) live in usr/bin; a guard calling them needs it on PATH.
+_COREUTILS_MARKER = "sed.exe"
+_WINDOWS = "nt"
+#: The bash found by the first probe, reused for every later guard in this process.
+_FOUND_BASH = {}
 
 GATE_LOG_ENV = "CHOCK_GATE_LOG"
 _LOG_MAX_BYTES = 1_048_576
@@ -49,9 +56,41 @@ def guard_path_from_argv(argv: list[str]) -> Path | None:
     return None
 
 
+def _git_roots() -> list[Path]:
+    """Git for Windows install roots: from `git` on PATH (cmd/ or mingw64/bin/), then the defaults."""
+    git = shutil.which("git")
+    near = [Path(git).parent.parent, Path(git).parent.parent.parent] if git else []
+    return [*near, *(Path(root) for root in _GIT_FOR_WINDOWS)]
+
+
+def bash_candidates() -> list[str]:
+    """Bash interpreters to try, best first; on Windows Git's own, never the WSL launcher."""
+    if os.name != _WINDOWS:
+        return list(_POSIX_BASH)
+    found = [str(root.joinpath(*sub, _BASH_EXE)) for root in _git_roots() for sub in _GIT_BASH_DIRS]
+    on_path = shutil.which("bash")
+    if on_path and not any(stub in on_path.lower().replace("\\", "/") for stub in _WINDOWS_STUB_DIRS):
+        found.append(on_path)
+    return [c for i, c in enumerate(found) if c not in found[:i] and Path(c).is_file()]
+
+
+def interpreter_env(interpreter: str) -> dict[str, str]:
+    """The environment a guard runs in: on Windows, Git's usr/bin ahead on PATH for sed and grep."""
+    env = dict(os.environ)
+    if os.name != _WINDOWS:
+        return env
+    home = Path(interpreter).parent
+    usr_bin = next((d for d in (home.parent / "usr" / "bin", home) if (d / _COREUTILS_MARKER).is_file()), None)
+    if usr_bin is not None:
+        env["PATH"] = str(usr_bin) + os.pathsep + env.get("PATH", "")
+    return env
+
+
 def find_bash(guard: Path) -> str | None:
-    """First interpreter that can actually see `guard`, or None."""
-    for candidate in _BASH_CANDIDATES:
+    """First bash that can actually see `guard`, probed once per process; None when none can."""
+    if "bash" in _FOUND_BASH:
+        return _FOUND_BASH["bash"]
+    for candidate in bash_candidates():
         try:
             proc = subprocess.run(  # noqa: S603 -- probing candidate shells is this function's job
                 [candidate, "-c", f'test -f "{guard.as_posix()}"'],
@@ -62,6 +101,7 @@ def find_bash(guard: Path) -> str | None:
         except (OSError, subprocess.SubprocessError):
             continue
         if proc.returncode == 0:
+            _FOUND_BASH["bash"] = candidate
             return candidate
     return None
 
@@ -83,18 +123,23 @@ def run_guard_detailed(guard: Path, command: str) -> tuple[str, str]:
     try:
         args = shlex.split(command)
     except ValueError:
-        print("chock: could not parse command (unbalanced quotes), not checked", file=sys.stderr)
-        return GUARD_UNCHECKED, ""
+        reason = "the command could not be parsed (unbalanced quotes), so no guard could read it"
+        print(f"chock: {reason}", file=sys.stderr)
+        return GUARD_ERRORED, reason
     if not args:
         return GUARD_UNCHECKED, ""
 
     interpreter = find_interpreter(guard)
     if interpreter is None:
-        print(f"chock: no usable interpreter found, {guard.name} not checked", file=sys.stderr)
-        return GUARD_UNCHECKED, ""
+        reason = (
+            f"no usable bash was found to run {guard.name}; on Windows install Git for Windows "
+            "(it ships bash), elsewhere put bash on PATH"
+        )
+        print(f"chock: {reason}", file=sys.stderr)
+        return GUARD_ERRORED, reason
 
     try:
-        env = {**os.environ, "CHOCK_RAW_COMMAND": command}
+        env = {**interpreter_env(interpreter), "CHOCK_RAW_COMMAND": command}
         proc = subprocess.run(  # noqa: S603 -- running the guard script against the command is the feature
             [interpreter, str(guard), *args],
             capture_output=True,
@@ -192,9 +237,9 @@ def evaluate(argv: list[str], command: str, tool: str = "") -> tuple[str, str] |
             else f"chock policy {guard.stem} asks for confirmation before this runs (guard gave no reason).",
         )
     if verdict == GUARD_ERRORED:
+        why = message or f"the {guard.stem} guard did not complete (see this hook's stderr)"
         return (
             VERDICT_ESCALATE,
-            f"chock could not check this command: the {guard.stem} guard did not complete "
-            f"(see this hook's stderr). Approving runs it unchecked.",
+            f"chock could not check this command against {guard.stem}: {why}. Approving runs it unchecked.",
         )
     return None

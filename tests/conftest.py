@@ -10,6 +10,8 @@ from pathlib import Path
 
 import pytest
 
+from chock.gate.guard_runner import bash_candidates
+
 FRAMEWORK_ROOT = Path(__file__).resolve().parents[1]
 
 REPO_POLICIES = FRAMEWORK_ROOT / ".agents" / "policies"
@@ -30,15 +32,8 @@ def bash_executable() -> str:
     """
     if sys.platform != "win32":
         return shutil.which("bash") or "bash"
-    git = shutil.which("git")
-    if git:
-        for candidate in (
-            Path(git).parent.parent / "bin" / "bash.exe",
-            Path(git).parent.parent / "usr" / "bin" / "bash.exe",
-        ):
-            if candidate.is_file():
-                return str(candidate)
-    return shutil.which("bash") or "bash"
+    candidates = bash_candidates()
+    return candidates[0] if candidates else (shutil.which("bash") or "bash")
 
 
 def baseline_policy(policy_id: str) -> Path:

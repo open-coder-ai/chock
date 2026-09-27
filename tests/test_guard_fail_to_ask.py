@@ -191,22 +191,25 @@ def test_the_ask_does_not_fire_on_a_clean_or_a_violating_guard(agent: str, tmp_p
 
 
 @pytest.mark.parametrize("agent", sorted(ASK_ON_THE_WIRE))
-def test_an_unparseable_command_still_allows(agent: str, tmp_path: Path, runtimes) -> None:
-    """The path deliberately NOT changed, pinned so nobody quietly widens the prompt."""
-    guard = make_guard(tmp_path, "crash.sh", "exit 4")
+def test_an_unparseable_command_asks(agent: str, tmp_path: Path, runtimes) -> None:
+    """`rm -rf / #'` is valid bash but not valid shlex: no guard read it, so it is not an allow."""
+    guard = make_guard(tmp_path, "clean.sh", "exit 0")
 
-    verdict = decision(run(runtimes, agent, guard, "echo 'unbalanced"))
+    verdict = decision(run(runtimes, agent, guard, "rm -rf / #'"))
 
-    assert verdict.get("decision") in ALLOWED_WORDS[agent], "an unparseable command must not prompt"
+    assert verdict.get("decision") == ASK_ON_THE_WIRE[agent], "an unparsed command must not pass unchecked"
+    assert "could not be parsed" in verdict.get("reason", "")
 
 
-def test_a_missing_bash_still_allows(tmp_path: Path, monkeypatch) -> None:
-    """The other path deliberately not changed, and the strongest case for leaving it."""
+def test_a_missing_bash_asks_and_names_what_to_install(tmp_path: Path, monkeypatch) -> None:
+    """No bash means no guard ran; the old silent allow hid the reason on a stderr nobody reads."""
     guard = make_guard(tmp_path, "clean.sh", "exit 0")
     monkeypatch.setattr(guard_runner, "find_bash", lambda _: None)
 
-    assert guard_runner.run_guard(guard, "ls -la") == guard_runner.GUARD_UNCHECKED
-    assert guard_runner.evaluate(["--guard", str(guard)], "ls -la", "Bash") is None
+    assert guard_runner.run_guard(guard, "ls -la") == guard_runner.GUARD_ERRORED
+    outcome, reason = guard_runner.evaluate(["--guard", str(guard)], "ls -la", "Bash")
+    assert outcome == guard_runner.VERDICT_ESCALATE
+    assert "bash" in reason and "Git for Windows" in reason
 
 
 def test_a_timed_out_guard_asks(tmp_path: Path, monkeypatch) -> None:
