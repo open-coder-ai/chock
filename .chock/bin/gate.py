@@ -37,6 +37,7 @@ class GateContext:
         base: str | None = None,
         head_ref: str | None = None,
         scope: Sequence[str] | None = None,
+        own: Sequence[str] = (),
     ) -> None:
         self.repo_root = Path(repo_root)
         self._push_stdin = push_stdin or ""
@@ -44,6 +45,8 @@ class GateContext:
         self.head_ref = head_ref
         #: The policy's applies_to.paths. Empty means every changed file is in scope.
         self.scope = tuple(scope or ())
+        #: Path prefixes this gate never judges: chock's generated tree and its own policy folder.
+        self.own = tuple(own)
 
     def in_scope(self, path: str) -> bool:
         """Whether this policy may judge this file at all.
@@ -52,6 +55,8 @@ class GateContext:
         A gate with no scope sees every changed file, which is what every gate did before
         applies_to.paths was read.
         """
+        if path.startswith(self.own):
+            return False
         return not self.scope or any(fnmatch.fnmatchcase(path, g) for g in self.scope)
 
     def _range(self) -> list[str]:
@@ -138,8 +143,9 @@ class WriteContext(GateContext):
         writes: Mapping[str, str],
         scope: Sequence[str] | None = None,
         added: Mapping[str, str] | None = None,
+        own: Sequence[str] = (),
     ) -> None:
-        super().__init__(repo_root=repo_root, scope=scope)
+        super().__init__(repo_root=repo_root, scope=scope, own=own)
         self._writes = dict(writes)
         self._added = dict(added or {})
 
@@ -465,6 +471,18 @@ AGENT_EVENTS = ("pre-tool-use", "stop")
 #: `script_base` value naming the gate file's own directory as where `params.script` lives.
 SCRIPT_BASE_GATE = "gate"
 
+#: chock's generated tree: compiled gates and vendored runtimes, never an author's content.
+GENERATED_PREFIX = ".chock/"
+POLICIES_PREFIX = ".agents/policies/"
+
+
+def own_paths(gate_path: Path) -> tuple[str, ...]:
+    """Prefixes a gate never judges: the generated tree, and its own policy's shipped files."""
+    parents = gate_path.resolve().parents
+    if len(parents) < _MIN_COMPILED_PATH_DEPTH or parents[2].name != "compiled":
+        return (GENERATED_PREFIX,)
+    return (GENERATED_PREFIX, f"{POLICIES_PREFIX}{parents[1].name}/")
+
 
 def _params(gate_path: Path, spec: dict) -> dict:
     """The gate's params, with a packaged script gate's program located beside the gate file."""
@@ -483,11 +501,12 @@ def _context(
     head_ref: str | None,
     writes: Mapping[str, str] | None,
     added: Mapping[str, str] | None = None,
+    own: Sequence[str] = (),
 ) -> GateContext | None:
     """The material this event puts under judgement, or None when the kind cannot read it."""
     if event not in AGENT_EVENTS:
         return GateContext(
-            repo_root=repo_root, push_stdin=push_stdin, base=base, head_ref=head_ref, scope=spec.get("paths")
+            repo_root=repo_root, push_stdin=push_stdin, base=base, head_ref=head_ref, scope=spec.get("paths"), own=own
         )
     if spec.get("kind") not in WRITE_PATH_KINDS:
         print(
@@ -497,7 +516,7 @@ def _context(
             file=sys.stderr,
         )
         return None
-    return WriteContext(repo_root=repo_root, writes=writes or {}, scope=spec.get("paths"), added=added)
+    return WriteContext(repo_root=repo_root, writes=writes or {}, scope=spec.get("paths"), added=added, own=own)
 
 
 def run(
@@ -534,7 +553,7 @@ def run(
     if kind is None:
         print(f"gate: unknown kind {spec.get('kind')!r}", file=sys.stderr)
         return 2
-    ctx = _context(event, spec, repo_root, push_stdin, base, head_ref, writes, added)
+    ctx = _context(event, spec, repo_root, push_stdin, base, head_ref, writes, added, own_paths(gate_path))
     if ctx is None:
         return 2
     if event == "ci" and base and not ctx.rev_exists(base):

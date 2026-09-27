@@ -218,6 +218,10 @@ non-ASCII paths arrive unescaped and are scanned like any other file. `dependenc
 gates match their watched manifest basenames (e.g. `package.json`) anywhere in the tree, not
 only at the repo root. In CI range mode, a base ref that cannot be resolved fails **closed** —
 the gate exits 2 rather than passing an unscanned range.
+A compiled gate never judges chock's generated tree (`.chock/`) or its own policy's folder
+(`.agents/policies/<id>/`): that folder's evals and references show the very content the gate
+refuses, so judging them refused the policy's own adoption commit. Every other path, another
+policy's folder included, is judged as before.
 
 ## Reading the coverage report
 
