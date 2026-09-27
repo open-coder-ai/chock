@@ -43,7 +43,9 @@ assert MATCHER is not None  # noqa: S101 -- import-time upstream-data invariant,
 # stay here until upstream ingests the witnessed shape; tests/test_vendor_wire_facts.py
 # pins the disagreement so its resolution surfaces loudly.
 AGENT_HOOKS_EVENT = "preToolUse"
-POWERSHELL_KEEP_EXIT = "; exit $LASTEXITCODE"
+#: `exit $LASTEXITCODE` alone exits 0 when no native command ran (git or sh not on PATH):
+#: $LASTEXITCODE is $null then, and 0 is an allow; nothing judged the call, so refuse (2).
+POWERSHELL_KEEP_EXIT = "; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
 AGENT_HOOKS_ENVELOPE = {"version": 1}
 SHELL_MATCHER = "bash|powershell|pwsh|sh|shell"
 
