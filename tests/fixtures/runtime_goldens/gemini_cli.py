@@ -867,7 +867,7 @@ _EDIT_LIST = 'edits'
 
 _CRLF = '\r\n'
 
-def _tool_input(event):
+def _edit_call_input(event):
     raw = getattr(event, 'raw', None)
     tool_input = raw.get('tool_input') if isinstance(raw, dict) else None
     if isinstance(tool_input, str) and tool_input[:1] == '{':
@@ -887,7 +887,7 @@ def _pair(item):
 
 def edit_replacements(event):
     """The (old, new, replace_all) replacements an edit call applies, in order; None if not an edit."""
-    tool_input = _tool_input(event)
+    tool_input = _edit_call_input(event)
     listed = tool_input.get(_EDIT_LIST)
     found = [_pair(item) for item in (listed if isinstance(listed, list) else [tool_input])]
     if not found or None in found:

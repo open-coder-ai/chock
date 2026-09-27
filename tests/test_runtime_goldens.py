@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import ast
 import os
 import shutil
 from pathlib import Path
 
 import pytest
+from agentseam import bundler, contract
 
-from chock.gate import runtime_bundle
+from chock.gate import runtime_bundle, write_gate
 
 GOLDEN = Path(__file__).resolve().parent / "fixtures" / "runtime_goldens"
 
@@ -58,3 +60,23 @@ def test_chock_imports_land_after_import_sys_however_agentseam_orders_its_block(
 def test_a_bundle_without_the_import_block_is_refused() -> None:
     assert runtime_bundle._hoist_point("from __future__ import annotations\n\nimport json\n\nimport sys\n") == -1
     assert runtime_bundle._hoist_point("import sys\n") == -1
+
+
+def _top_level_names(source: str) -> set[str]:
+    names = set()
+    for node in ast.parse(source).body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(node.name)
+        elif isinstance(node, ast.Assign):
+            names.update(t.id for t in node.targets if isinstance(t, ast.Name))
+    return names
+
+
+@pytest.mark.parametrize("agent", sorted(runtime_bundle.RUNTIME_AGENTS))
+def test_chock_handler_shadows_no_agentseam_name(agent: str) -> None:
+    """One flat namespace: agentseam 0.3.4's vscode_copilot `_tool_input(raw)` lost to chock's."""
+    head, _, rest = bundler.bundle(agent).partition(runtime_bundle.BEGIN)
+    _, _, tail = rest.partition(runtime_bundle.END)
+    shared = _top_level_names(head + tail) & _top_level_names(runtime_bundle._handler_source(agent))
+    assert shared <= {"PRE_TOOL"}, f"{agent}: chock's handler rebinds agentseam's {sorted(shared)}"
+    assert write_gate.PRE_TOOL == contract.PRE_TOOL
