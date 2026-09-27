@@ -27,8 +27,8 @@
   allowing silently. A re-entered Stop is still let through so a refusal cannot trap the turn.
 - **A gate never judges its own policy's files or the generated tree.** java-security refused the
   commit that adopted it (its own eval suite and setup page) and blocked every Stop until then. Each
-  gate now skips `.agents/policies/<its id>/`, `.chock/compiled/` and `.chock/bin/`; `.chock/config.yaml`
-  and the dependency allowlist are still judged.
+  gate now skips `.agents/policies/<its id>/` and `.chock/compiled/<its id>/`, and nothing else: a file
+  planted anywhere else under `.chock/` is judged like any other.
 - **Git output is decoded as UTF-8 on every console**, so the Stop gate no longer skips non-ASCII
   paths on Windows, and a match printed to a cp1252 console no longer crashes the gate.
 - **The PowerShell pre-commit probe no longer blocks the commit** when a candidate interpreter is

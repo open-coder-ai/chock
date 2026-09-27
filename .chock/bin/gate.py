@@ -45,7 +45,7 @@ class GateContext:
         self.head_ref = head_ref
         #: The policy's applies_to.paths. Empty means every changed file is in scope.
         self.scope = tuple(scope or ())
-        #: Path prefixes this gate never judges: chock's generated tree and its own policy folder.
+        #: Path prefixes this gate never judges: its own policy's source and compiled folders.
         self.own = tuple(own)
 
     def in_scope(self, path: str) -> bool:
@@ -471,19 +471,20 @@ AGENT_EVENTS = ("pre-tool-use", "stop")
 #: `script_base` value naming the gate file's own directory as where `params.script` lives.
 SCRIPT_BASE_GATE = "gate"
 
-#: chock's generated tree: compiled gates and vendored runtimes, never an author's content.
-#: What sync writes and a person never edits. Not all of `.chock/`: config.yaml and the
-#: dependency allowlist are the adopter's own text and stay in scope for every gate.
-GENERATED_PREFIXES = (".chock/compiled/", ".chock/bin/")
+#: A gate skips only its own policy's folders, so a policy's evals (which carry the very
+#: content its gate refuses) never trip it. The rest of `.chock/`, including other policies'
+#: compiled output and the vendored runtimes, stays in scope: a file planted there is judged.
+COMPILED_PREFIX = ".chock/compiled/"
 POLICIES_PREFIX = ".agents/policies/"
 
 
 def own_paths(gate_path: Path) -> tuple[str, ...]:
-    """Prefixes a gate never judges: the generated tree, and its own policy's shipped files."""
+    """Prefixes a gate never judges: its own policy's shipped and compiled files."""
     parents = gate_path.resolve().parents
     if len(parents) < _MIN_COMPILED_PATH_DEPTH or parents[2].name != "compiled":
-        return GENERATED_PREFIXES
-    return (*GENERATED_PREFIXES, f"{POLICIES_PREFIX}{parents[1].name}/")
+        return ()
+    policy = parents[1].name
+    return (f"{COMPILED_PREFIX}{policy}/", f"{POLICIES_PREFIX}{policy}/")
 
 
 def _params(gate_path: Path, spec: dict) -> dict:
