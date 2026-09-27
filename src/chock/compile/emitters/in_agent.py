@@ -140,6 +140,10 @@ def _gate_fragments(policy_id: str, spec: dict[str, Any], output_dir: Path) -> l
             # A flat entry carries no matcher: the runtime answers every tool under the event
             # and judges only a write it recognises; an unmatched tool is allowed unremarked.
             doc: dict[str, Any] = {vendors.pre_tool_event(vendor): [cursor_entry(command, fail_closed=True)]}
+        elif vendor in GENERIC_VENDORS:
+            # The generic installer merges whole config documents; a bare entry was never merged,
+            # so a vendor with a recorded write vocabulary (gemini_cli) got no write gate at all.
+            doc = vendors.pre_tool_hook_config(vendor, command, matcher=matcher)
         else:
             doc = hook_entry(command, matcher=matcher)
         write_generated_json(dest, doc)

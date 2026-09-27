@@ -151,3 +151,27 @@ def test_an_old_baked_entry_is_replaced_by_the_launcher_form(tmp_path: Path) -> 
     install_hooks(repo, "devin")
 
     assert config_path.read_bytes() == current, "the old entry is ours: replaced, not kept beside the new one"
+
+
+def test_a_generic_vendor_with_a_write_vocabulary_gets_its_write_gate_installed(tmp_path: Path) -> None:
+    """gemini_cli's write fragment was compiled as a bare entry and never merged: no write gate."""
+    vendor = "gemini_cli"
+    assert vendors.write_matcher(vendor), "the premise: gemini_cli records write tools"
+    repo = tmp_path / "r"
+    repo.mkdir()
+    compile_policy(
+        baseline_policy("pin-github-actions"),
+        targets=[Surface.PRE_TOOL_USE.value],
+        output_root=repo / ".chock" / "compiled",
+        agents=["gemini"],
+        repo_root=repo,
+    )
+    install_hooks(repo, vendor)
+
+    entries = _config(repo, vendor)["hooks"][vendors.pre_tool_event(vendor)]
+    write = [e for e in entries if e.get("matcher") == vendors.write_matcher(vendor)]
+    assert write, "the write gate is wired under the vendor's own pre-tool event"
+    assert write[0]["hooks"][0]["command"] == hook_command(
+        f".chock/bin/{vendor}.py", "--gate", ".chock/compiled/pin-github-actions/pre-tool-use/gate.json"
+    )
+    assert "pin-github-actions" in installed_policy_ids(repo, vendor)

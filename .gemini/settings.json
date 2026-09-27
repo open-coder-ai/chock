@@ -23,6 +23,15 @@
         "hooks": [
           {
             "type": "command",
+            "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/gemini_cli.py --gate \".chock/compiled/pin-github-actions/pre-tool-use/gate.json\""
+          }
+        ],
+        "matcher": "write_file|replace"
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
             "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/gemini_cli.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\""
           }
         ],

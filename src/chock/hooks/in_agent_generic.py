@@ -84,6 +84,7 @@ FRAGMENT_SURFACES = ("pre-tool-use", "stop")
 def _fragments(repo_root: Path, vendor: str) -> list[tuple[str, dict]]:
     compiled = repo_root / ".chock" / "compiled"
     globs = [f"*/{surface}/{vendor}-hooks.json" for surface in FRAGMENT_SURFACES]
+    globs.append(f"*/pre-tool-use/{vendor}-write-hooks.json")
     found: list[tuple[str, dict]] = []
     for path in sorted(path for glob in globs for path in compiled.glob(glob)):
         try:
