@@ -6,7 +6,7 @@
           {
             "type": "command",
             "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\"",
-            "commandWindows": "& git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\""
+            "commandWindows": "& git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\"; exit $LASTEXITCODE"
           }
         ],
         "matcher": "Bash"

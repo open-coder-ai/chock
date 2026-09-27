@@ -16,7 +16,7 @@
       "managed": false,
       "sha256": "59fffb91c6f65710b461e87782d355c1403953f36700e05369fca065683821c0",
       "source": "local",
-      "artifacts_sha256": "f621c131b3c183d70b729be8360212ff3b896af35d8f8c26899dc961d47e7a35"
+      "artifacts_sha256": "05d2a6b526cb31fadf13b08da0a6211b27f2f4352f1247075702a0a9eb73147c"
     },
     {
       "id": "block-invisible-unicode",
@@ -32,7 +32,7 @@
       "managed": false,
       "sha256": "ef0d729c413086bd4ce77c7191bcc1393f4e0cdfcfc959b33a1ddb771afdf2b0",
       "source": "local",
-      "artifacts_sha256": "2382a8a41fc1d0920311ae9cf8b5498c54ef3931b25f330db1f6244a73800f22"
+      "artifacts_sha256": "9bb8ab646401b8a5fa586cbdd1b3654307ad1754dddb342952bbe27d7bdfef6a"
     },
     {
       "id": "block-wildcard-agent-permissions",
@@ -96,7 +96,7 @@
       "managed": false,
       "sha256": "e73dbc039cdcbf137049a1f5035e4b595d12afe74a12a0f78e2e102d20d29479",
       "source": "local",
-      "artifacts_sha256": "cd4e097ea6a53c077cec25e0fd7116d73c26c51edf9f54d9fb4a9eb17f849f32"
+      "artifacts_sha256": "4ffb28559f53e6b3ccdb37b2ad48da2a7b747f3c161d3ff02fd260625c5768a4"
     },
     {
       "id": "pre-generated-scripts",
@@ -112,7 +112,7 @@
       "managed": false,
       "sha256": "b98d5472c534d381b87e253086642675c71ce3947e2cfe01ed9fec5ed8b66295",
       "source": "local",
-      "artifacts_sha256": "f9087daed9092fb0ab4f41b3f478a1d79e9e004d892f90b2cd18793f008aba5d"
+      "artifacts_sha256": "433cd778b6236ae31cbc05524e71c420d7dd1cce665d0272192c75a1785357b5"
     },
     {
       "id": "protect-commit-privacy",
@@ -120,7 +120,7 @@
       "managed": false,
       "sha256": "281522db2b259ea9a12d76b30d57ed9993882089b04a1fb4ce9932bc15a3388f",
       "source": "local",
-      "artifacts_sha256": "59517e11f8226a731f7371a48682aa6f3d0741ce6c9497f74e29beb0a85a1223"
+      "artifacts_sha256": "3c0acf064c6bf01714e0f53360ba786a0f800328225e91cee3b81258f7117686"
     },
     {
       "id": "protect-main-branch",

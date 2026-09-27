@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --gate \".chock/compiled/pin-github-actions/pre-tool-use/gate.json\"",
+            "commandWindows": "& git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --gate \".chock/compiled/pin-github-actions/pre-tool-use/gate.json\"; exit $LASTEXITCODE"
+          }
+        ],
+        "matcher": "apply_patch"
+      }
+    ]
+  }
+}

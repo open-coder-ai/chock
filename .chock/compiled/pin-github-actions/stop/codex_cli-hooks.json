@@ -6,7 +6,7 @@
           {
             "type": "command",
             "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --gate \".chock/compiled/pin-github-actions/stop/gate.json\"",
-            "commandWindows": "& git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --gate \".chock/compiled/pin-github-actions/stop/gate.json\""
+            "commandWindows": "& git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --gate \".chock/compiled/pin-github-actions/stop/gate.json\"; exit $LASTEXITCODE"
           }
         ]
       }

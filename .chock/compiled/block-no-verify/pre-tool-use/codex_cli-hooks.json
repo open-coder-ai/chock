@@ -6,7 +6,7 @@
           {
             "type": "command",
             "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.sh\"",
-            "commandWindows": "& git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.sh\""
+            "commandWindows": "& git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.sh\"; exit $LASTEXITCODE"
           }
         ],
         "matcher": "Bash"
