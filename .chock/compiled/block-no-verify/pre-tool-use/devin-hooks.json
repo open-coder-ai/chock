@@ -4,7 +4,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "@CHOCK_PYTHON@ \".chock/bin/devin.py\" --guard \".agents/policies/block-no-verify/implementations/block-no-verify.sh\""
+          "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.sh\""
         }
       ]
     }

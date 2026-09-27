@@ -3,7 +3,7 @@
   "hooks": [
     {
       "type": "command",
-      "command": "@CHOCK_PYTHON@ \"${CLAUDE_PROJECT_DIR}/.chock/bin/claude_code.py\" --gate \"${CLAUDE_PROJECT_DIR}/.chock/compiled/pin-github-actions/pre-tool-use/gate.json\"",
+      "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/claude_code.py --gate \".chock/compiled/pin-github-actions/pre-tool-use/gate.json\"",
       "timeout": 30
     }
   ]

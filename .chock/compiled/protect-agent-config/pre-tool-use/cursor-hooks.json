@@ -1,8 +1,9 @@
 {
   "beforeShellExecution": [
     {
-      "command": "@CHOCK_PYTHON@ \"${CLAUDE_PROJECT_DIR}/.chock/bin/cursor.py\" --guard \"${CLAUDE_PROJECT_DIR}/.agents/policies/protect-agent-config/implementations/protect-agent-config.sh\"",
-      "timeout": 30
+      "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/cursor.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\"",
+      "timeout": 30,
+      "failClosed": true
     }
   ]
 }

@@ -5,8 +5,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"/usr/local/bin/python\" \".chock/bin/codex_cli.py\" --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\"",
-            "commandWindows": "& \"/usr/local/bin/python\" \".chock/bin/codex_cli.py\" --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\""
+            "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\"",
+            "commandWindows": "& git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\""
           }
         ],
         "matcher": "Bash"
@@ -15,8 +15,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"/usr/local/bin/python\" \".chock/bin/codex_cli.py\" --guard \".agents/policies/block-no-verify/implementations/block-no-verify.sh\"",
-            "commandWindows": "& \"/usr/local/bin/python\" \".chock/bin/codex_cli.py\" --guard \".agents/policies/block-no-verify/implementations/block-no-verify.sh\""
+            "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.sh\"",
+            "commandWindows": "& git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.sh\""
           }
         ],
         "matcher": "Bash"
@@ -25,8 +25,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"/usr/local/bin/python\" \".chock/bin/codex_cli.py\" --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\"",
-            "commandWindows": "& \"/usr/local/bin/python\" \".chock/bin/codex_cli.py\" --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\""
+            "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\"",
+            "commandWindows": "& git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\""
           }
         ],
         "matcher": "Bash"
@@ -35,8 +35,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"/usr/local/bin/python\" \".chock/bin/codex_cli.py\" --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\"",
-            "commandWindows": "& \"/usr/local/bin/python\" \".chock/bin/codex_cli.py\" --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\""
+            "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\"",
+            "commandWindows": "& git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\""
           }
         ],
         "matcher": "Bash"
@@ -47,8 +47,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"/tmp/chock-cursor/bin/python3\" \".chock/bin/codex_cli.py\" --gate \".chock/compiled/pin-github-actions/stop/gate.json\"",
-            "commandWindows": "& \"/tmp/chock-cursor/bin/python3\" \".chock/bin/codex_cli.py\" --gate \".chock/compiled/pin-github-actions/stop/gate.json\""
+            "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --gate \".chock/compiled/pin-github-actions/stop/gate.json\"",
+            "commandWindows": "& git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --gate \".chock/compiled/pin-github-actions/stop/gate.json\""
           }
         ]
       }

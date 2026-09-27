@@ -3,7 +3,7 @@
   "hooks": [
     {
       "type": "command",
-      "command": "@CHOCK_PYTHON@ \"${CLAUDE_PROJECT_DIR}/.chock/bin/claude_code.py\" --guard \"${CLAUDE_PROJECT_DIR}/.agents/policies/protect-agent-config/implementations/protect-agent-config.sh\"",
+      "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/claude_code.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\"",
       "timeout": 30
     }
   ]

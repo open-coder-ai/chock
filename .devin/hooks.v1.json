@@ -4,7 +4,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "\"/usr/local/bin/python\" \".chock/bin/devin.py\" --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\""
+          "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\""
         }
       ]
     },
@@ -12,7 +12,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "\"/usr/local/bin/python\" \".chock/bin/devin.py\" --guard \".agents/policies/block-no-verify/implementations/block-no-verify.sh\""
+          "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.sh\""
         }
       ]
     },
@@ -20,7 +20,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "\"/usr/local/bin/python\" \".chock/bin/devin.py\" --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\""
+          "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\""
         }
       ]
     },
@@ -28,7 +28,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "\"/usr/local/bin/python\" \".chock/bin/devin.py\" --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\""
+          "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\""
         }
       ]
     }
@@ -38,7 +38,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "\"/tmp/chock-cursor/bin/python3\" \".chock/bin/devin.py\" --gate \".chock/compiled/pin-github-actions/stop/gate.json\""
+          "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --gate \".chock/compiled/pin-github-actions/stop/gate.json\""
         }
       ]
     }

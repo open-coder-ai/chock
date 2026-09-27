@@ -1,7 +1,7 @@
 {
   "stop": [
     {
-      "command": "@CHOCK_PYTHON@ \"${CLAUDE_PROJECT_DIR}/.chock/bin/cursor.py\" --gate \"${CLAUDE_PROJECT_DIR}/.chock/compiled/pin-github-actions/stop/gate.json\"",
+      "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/cursor.py --gate \".chock/compiled/pin-github-actions/stop/gate.json\"",
       "timeout": 30
     }
   ]

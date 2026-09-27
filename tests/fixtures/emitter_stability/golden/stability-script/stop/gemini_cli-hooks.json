@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "@CHOCK_PYTHON@ \".chock/bin/gemini_cli.py\" --gate \".chock/compiled/stability-script/stop/gate.json\""
+            "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/gemini_cli.py --gate \".chock/compiled/stability-script/stop/gate.json\""
           }
         ]
       }
