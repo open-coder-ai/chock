@@ -14,6 +14,7 @@ import pytest
 from conftest import FRAMEWORK_ROOT, baseline_policy, bash_executable, init_repo
 
 from chock.compile.compiler import compile_policy
+from chock.compile.emitters.in_agent import POWERSHELL_KEEP_EXIT
 from chock.compile.surfaces import Surface
 from chock.hooks import launch
 from chock.hooks.launch import LAUNCHER_REL, PYTHON_CONFIG_KEY, hook_command, record_interpreter, write_launcher
@@ -224,11 +225,24 @@ def test_hook_command_runs_under_every_available_shell(
         assert proc.returncode == 2, f"{shell} lost the blocking exit code: {proc.stderr}"
 
 
+#: Keys a PowerShell-only host reads: there the launcher is called with `&` and keeps its exit code.
+_POWERSHELL_KEYS = {"powershell", "windows", "commandWindows"}
+_POWERSHELL_WRAP = ("& ", POWERSHELL_KEEP_EXIT)
+
+
+def _unwrapped(key: str, command: str) -> str:
+    """The launcher command inside a PowerShell-only field's `& ...` exit-keeping wrapper."""
+    head, tail = _POWERSHELL_WRAP
+    if key in _POWERSHELL_KEYS and command.startswith(head) and command.endswith(tail):
+        return command[len(head) : -len(tail)]
+    return command
+
+
 def _commands(node) -> list[str]:
     if isinstance(node, dict):
-        return [v for k, v in node.items() if k in {"command", "bash", "powershell"} and isinstance(v, str)] + [
-            c for v in node.values() for c in _commands(v)
-        ]
+        keys = {"command", "bash", *_POWERSHELL_KEYS}
+        own = [_unwrapped(k, v) for k, v in node.items() if k in keys and isinstance(v, str)]
+        return own + [c for v in node.values() for c in _commands(v)]
     if isinstance(node, list):
         return [c for v in node for c in _commands(v)]
     return []

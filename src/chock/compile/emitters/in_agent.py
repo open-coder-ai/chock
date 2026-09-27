@@ -43,6 +43,9 @@ assert MATCHER is not None  # noqa: S101 -- import-time upstream-data invariant,
 # stay here until upstream ingests the witnessed shape; tests/test_vendor_wire_facts.py
 # pins the disagreement so its resolution surfaces loudly.
 AGENT_HOOKS_EVENT = "preToolUse"
+#: `exit $LASTEXITCODE` alone exits 0 when no native command ran (git or sh not on PATH):
+#: $LASTEXITCODE is $null then, and 0 is an allow; nothing judged the call, so refuse (2).
+POWERSHELL_KEEP_EXIT = "; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
 AGENT_HOOKS_ENVELOPE = {"version": 1}
 SHELL_MATCHER = "bash|powershell|pwsh|sh|shell"
 
@@ -221,11 +224,12 @@ def build_entry(policy_dir: Path, manifest: dict[str, Any]) -> dict[str, Any] | 
     script = _guard_script(policy_dir, policy_id)
     if not script:
         return None
-    # One string for both keys: the launcher form reads the same under bash and PowerShell.
-    command = hook_command(
+    # The launcher form reads the same under bash and PowerShell; PowerShell also needs its exit
+    # code kept (`pwsh -Command` reports any failure as 1), as agentseam's own Windows form does.
+    bash = hook_command(
         _adapter_rel("vscode_copilot"), "--guard", f"{policy_rel_path(policy_dir)}/implementations/{script}"
     )
-    bash = powershell = command
+    powershell = f"& {bash}{POWERSHELL_KEEP_EXIT}"
     return {
         "type": "command",
         "matcher": SHELL_MATCHER,

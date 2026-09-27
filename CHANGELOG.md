@@ -18,6 +18,13 @@
   `chock sync` elsewhere is a zero diff; entries in the old form are replaced at the next sync.
   `chock check` reports a missing or git-ignored launcher as a dangling hook target.
 
+- **agentseam 0.3.4.** Claude Code's shell guards also match its `PowerShell` tool (Windows' default
+  shell tool, where `Bash`-only guards never fired); Codex gets a pre-write gate on `apply_patch`;
+  a policy handler's stray stdout can no longer turn a deny into an allow; Copilot CLI's camelCase
+  payloads are read. A chock helper no longer shadows agentseam's Copilot input reader inside the
+  single-file runtime (which made every Copilot guard allow), and a test now fails on any such clash.
+  Copilot's PowerShell entries keep the hook's exit code, and refuse (exit 2) when no command ran at
+  all: a bare `exit $LASTEXITCODE` exits 0 then, which is an allow.
 - **A gate judges an absolute path as the repository file it names.** Claude Code and Cursor send
   `file_path` absolute; scoped gates matched repo-relative globs against it, so `pin-github-actions`
   allowed `actions/checkout@v4` written by the agent. Paths are made repo-relative first (drive

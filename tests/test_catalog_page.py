@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from chock.plugin import catalog_page
 from chock.plugin.cli import main as plugin_main
 from chock.plugin.marketplace import CATALOG_PAGE
 from chock.plugin.marketplace import main as marketplace_main
@@ -79,14 +80,22 @@ def test_catalog_page_tells_a_gate_from_a_guard(gate_dist: Path) -> None:
     assert "refuses rather than allowing one it never judged" in body
 
 
-def test_catalog_page_says_when_a_client_cannot_judge_the_write(gate_dist: Path) -> None:
-    """Where the vendor records no write vocabulary, the gate runs at the turn's end only."""
-    marketplace_main(["build", "--dist", str(gate_dist), "--tree", "codex"])
-    body = (gate_dist / CATALOG_PAGE).read_text(encoding="utf-8")
+def test_catalog_page_says_when_a_client_cannot_judge_the_write() -> None:
+    """A gate published at the turn's end only says so; no page tree is stop-only since agentseam 0.3.4."""
+    body = catalog_page._explain("codex", 0, [], 1, ["Stop"])
 
     assert "hooked at `Stop`, re-reading what the turn left on disk" in body
     assert "so the write itself is not judged" in body
     assert "judging the file a write would create" not in body
+
+
+def test_catalog_page_says_codex_judges_the_write(gate_dist: Path) -> None:
+    """agentseam 0.3.4 records `apply_patch` as Codex's write tool, so its gate runs before the write too."""
+    marketplace_main(["build", "--dist", str(gate_dist), "--tree", "codex"])
+    body = (gate_dist / CATALOG_PAGE).read_text(encoding="utf-8")
+
+    assert "hooked at `PreToolUse` and `Stop`, judging the file a write would create" in body
+    assert "so the write itself is not judged" not in body
 
 
 def test_catalog_page_names_each_client_s_own_events(gate_dist: Path) -> None:

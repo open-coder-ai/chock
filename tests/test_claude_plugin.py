@@ -69,7 +69,7 @@ def test_guard_policy_ships_hooks_adapter_and_guard(policy, tmp_path: Path) -> N
 
     hooks = json.loads((out / "hooks" / "hooks.json").read_text(encoding="utf-8"))
     entry = hooks["hooks"]["PreToolUse"][0]
-    assert entry["matcher"] == "Bash"
+    assert entry["matcher"] == "Bash|PowerShell"
     command = entry["hooks"][0]["command"]
     assert "${CLAUDE_PLUGIN_ROOT}/scripts/claude_code.py" in command
     assert "${CLAUDE_PLUGIN_ROOT}/scripts/block-destructive-commands.sh" in command

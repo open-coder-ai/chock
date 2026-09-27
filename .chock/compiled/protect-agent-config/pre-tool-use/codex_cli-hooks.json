@@ -6,7 +6,7 @@
           {
             "type": "command",
             "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\"",
-            "commandWindows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\""
+            "commandWindows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
           }
         ],
         "matcher": "Bash"
