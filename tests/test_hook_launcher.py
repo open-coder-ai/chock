@@ -159,11 +159,24 @@ def test_hook_command_reads_the_same_under_every_shell(args: tuple[str, ...]) ->
         assert char not in command, f"{char!r} is read differently by bash, PowerShell or cmd.exe"
 
 
+#: Keys a PowerShell-only host reads: there the launcher is called with `&` and keeps its exit code.
+_POWERSHELL_KEYS = {"powershell", "windows", "commandWindows"}
+_POWERSHELL_WRAP = ("& ", "; exit $LASTEXITCODE")
+
+
+def _unwrapped(key: str, command: str) -> str:
+    """The launcher command inside a PowerShell-only field's `& ...; exit $LASTEXITCODE` wrapper."""
+    head, tail = _POWERSHELL_WRAP
+    if key in _POWERSHELL_KEYS and command.startswith(head) and command.endswith(tail):
+        return command[len(head) : -len(tail)]
+    return command
+
+
 def _commands(node) -> list[str]:
     if isinstance(node, dict):
-        return [v for k, v in node.items() if k in {"command", "bash", "powershell"} and isinstance(v, str)] + [
-            c for v in node.values() for c in _commands(v)
-        ]
+        keys = {"command", "bash", *_POWERSHELL_KEYS}
+        own = [_unwrapped(k, v) for k, v in node.items() if k in keys and isinstance(v, str)]
+        return own + [c for v in node.values() for c in _commands(v)]
     if isinstance(node, list):
         return [c for v in node for c in _commands(v)]
     return []

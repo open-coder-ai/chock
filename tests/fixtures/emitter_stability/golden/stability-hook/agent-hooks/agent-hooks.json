@@ -5,6 +5,6 @@
   "timeoutSec": 30,
   "bash": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \"tests/fixtures/emitter_stability/policies/stability-hook/implementations/stability-hook.sh\"",
   "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \"tests/fixtures/emitter_stability/policies/stability-hook/implementations/stability-hook.sh\"",
-  "powershell": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \"tests/fixtures/emitter_stability/policies/stability-hook/implementations/stability-hook.sh\"",
-  "windows": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \"tests/fixtures/emitter_stability/policies/stability-hook/implementations/stability-hook.sh\""
+  "powershell": "& git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \"tests/fixtures/emitter_stability/policies/stability-hook/implementations/stability-hook.sh\"; exit $LASTEXITCODE",
+  "windows": "& git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \"tests/fixtures/emitter_stability/policies/stability-hook/implementations/stability-hook.sh\"; exit $LASTEXITCODE"
 }

@@ -52,7 +52,9 @@ def test_build_entry_has_all_four_command_fields(tmp_path):
     assert set(entry) >= {"bash", "command", "powershell", "windows", "matcher", "type"}
     assert entry["bash"] == entry["command"]
     assert entry["powershell"] == entry["windows"]
-    assert entry["bash"] == entry["powershell"], "the launcher form reads the same under both shells"
+    assert entry["powershell"] == f"& {entry['bash']}; exit $LASTEXITCODE", (
+        "the same launcher command, keeping its exit code under pwsh -Command"
+    )
     assert entry["matcher"] == SHELL_MATCHER
 
 

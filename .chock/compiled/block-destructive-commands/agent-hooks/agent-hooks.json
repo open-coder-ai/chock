@@ -5,6 +5,6 @@
   "timeoutSec": 30,
   "bash": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\"",
   "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\"",
-  "powershell": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\"",
-  "windows": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\""
+  "powershell": "& git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\"; exit $LASTEXITCODE",
+  "windows": "& git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\"; exit $LASTEXITCODE"
 }

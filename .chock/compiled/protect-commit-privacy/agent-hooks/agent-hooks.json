@@ -5,6 +5,6 @@
   "timeoutSec": 30,
   "bash": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\"",
   "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\"",
-  "powershell": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\"",
-  "windows": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\""
+  "powershell": "& git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\"; exit $LASTEXITCODE",
+  "windows": "& git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\"; exit $LASTEXITCODE"
 }
