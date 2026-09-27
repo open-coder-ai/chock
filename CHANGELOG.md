@@ -10,8 +10,11 @@
   read identically by bash, PowerShell and cmd.exe; git runs it from the repository root, so a
   session started in a subdirectory is guarded too. The committed `.chock/bin/launch.sh` runs
   `git config chock.python` (written to the clone's local config by `chock sync`) or the first
-  `python3`/`python`/`py` that actually runs Python 3.11+, and with none refuses (exit 2) with a
-  fix-it message. Cursor's shell and pre-tool entries now set `failClosed`. Re-running
+  `python3`/`python`/`py` that actually runs Python 3.11+ (the recorded one is probed too: a venv
+  whose base Python is gone still exists), and with none refuses (exit 2) with a fix-it message.
+  With no launcher at git's top level (a nested repository, an unsynced clone) the command
+  refuses the same way; bash-as-`sh` used to exit 127 there, which agents let through. Sync
+  records its interpreter only when `--repo` is a repository's top level. Cursor's shell and pre-tool entries now set `failClosed`. Re-running
   `chock sync` elsewhere is a zero diff; entries in the old form are replaced at the next sync.
   `chock check` reports a missing or git-ignored launcher as a dangling hook target.
 
@@ -20,10 +23,13 @@
   a policy handler's stray stdout can no longer turn a deny into an allow; Copilot CLI's camelCase
   payloads are read. A chock helper no longer shadows agentseam's Copilot input reader inside the
   single-file runtime (which made every Copilot guard allow), and a test now fails on any such clash.
+  Copilot's PowerShell entries keep the hook's exit code, and refuse (exit 2) when no command ran at
+  all: a bare `exit $LASTEXITCODE` exits 0 then, which is an allow.
 - **A gate judges an absolute path as the repository file it names.** Claude Code and Cursor send
   `file_path` absolute; scoped gates matched repo-relative globs against it, so `pin-github-actions`
   allowed `actions/checkout@v4` written by the agent. Paths are made repo-relative first (drive
-  letters, backslashes and case folded on Windows; a path outside the repo stays out of scope).
+  letters, backslashes and case folded on Windows; a path outside the repo stays out of scope). A
+  write through a symlinked folder is judged under its target's path as well as the one named.
 - **A guard that cannot run asks instead of allowing.** No usable bash, or a command `shlex` cannot
   parse (`rm -rf / #'`), used to allow. Both now ask, naming what to install. Bash is found from
   `git` (Git for Windows' `bin\bash.exe` first, never System32's WSL launcher or a WindowsApps
@@ -32,8 +38,8 @@
   allowing silently. A re-entered Stop is still let through so a refusal cannot trap the turn.
 - **A gate never judges its own policy's files or the generated tree.** java-security refused the
   commit that adopted it (its own eval suite and setup page) and blocked every Stop until then. Each
-  gate now skips `.agents/policies/<its id>/`, `.chock/compiled/` and `.chock/bin/`; `.chock/config.yaml`
-  and the dependency allowlist are still judged.
+  gate now skips `.agents/policies/<its id>/` and `.chock/compiled/<its id>/`, and nothing else: a file
+  planted anywhere else under `.chock/` is judged like any other.
 - **Git output is decoded as UTF-8 on every console**, so the Stop gate no longer skips non-ASCII
   paths on Windows, and a match printed to a cp1252 console no longer crashes the gate.
 - **The PowerShell pre-commit probe no longer blocks the commit** when a candidate interpreter is
@@ -48,6 +54,12 @@
   matching agentseam 0.3.4's hoisted imports, and every runtime failed to render.
 - **`chock check` is about 2.5x faster**: each YAML text is parsed once with the C loader, each bundled
   module is split once, and bash is probed once per process.
+- **INDEX.md says where a gate runs.** The generated index headed its gates "enforced
+  automatically at commit/push", so an agent reading it could expect nothing until a commit --
+  while a gate compiled for tool use refuses the write in the turn. The heading now says gates
+  run at commit/push and in the agent where noted, and each gate declared `on: tool_use` ends
+  with "Also checked in the agent: before a write, or at the end of the turn, depending on the
+  agent." Adopters pick it up on their next `chock sync`.
 
 ## 0.11.4 — An edit is judged as the file it would leave, and bytecode no longer fails a pack
 
