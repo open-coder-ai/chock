@@ -1144,6 +1144,17 @@ def repo_relative(path, root):
     except (OSError, ValueError, RuntimeError):
         return text
 
+def repo_paths(path, root):
+    """Every repo-relative name a write is judged under: as written, and through symlinks and case."""
+    lexical = repo_relative(path, root)
+    if root is None or (str(root)[1:2] == _DRIVE_COLON) != (_chock_os.name == 'nt'):
+        return (lexical,)
+    try:
+        resolved = _chock_Path(root, str(path)).resolve().relative_to(_chock_Path(root).resolve()).as_posix()
+    except (OSError, ValueError, RuntimeError):
+        return (lexical,)
+    return tuple(dict.fromkeys((lexical, resolved)))
+
 def changed_paths(repo_root):
     """Every uncommitted path in the worktree. Outside a repository there is nothing to list."""
     try:
@@ -1250,11 +1261,11 @@ def evaluate_gate(argv, event):
     if not gate.exists():
         return _missing_gate(gate, event)
     root = repo_root_for(event, gate)
-    writes = {repo_relative(path, root): text for path, text in writes_for(event, gate).items()}
+    writes = {rel: text for path, text in writes_for(event, gate).items() for rel in repo_paths(path, root)}
     if not writes:
         return None
     added = {**patch_added(event), **added_from_event(event)} if event.event == PRE_TOOL else {}
-    added = {repo_relative(path, root): text for path, text in added.items()}
+    added = {rel: text for path, text in added.items() for rel in repo_paths(path, root)}
     added = {path: text for path, text in added.items() if path in writes}
     outcome, message = run_gate(gate, writes, name, root, added)
     if outcome == GATE_BLOCKED:
