@@ -11,11 +11,12 @@ from chock import vendors
 from chock.hooks.in_agent_install import WIRED_VENDORS, agent_hooks_rel
 from chock.validation.report import Finding, Report
 
-#: A file an agent hook command runs or hands the gate: the runtime (`.chock/bin/<vendor>.py`)
-#: and the compiled gate it reads. chock is the only writer of both directories, so naming a
-#: path under them identifies an entry as chock's own, independent of the vendor-specific shapes
-#: `in_agent_merged.py`/`in_agent_generic.py` merge it through.
-_BIN_TARGET_RE = re.compile(r"\.chock/(?:bin/[\w.-]+\.py|compiled/[\w./-]+\.json)")
+#: A file an agent hook command runs or hands the gate: the launcher (`.chock/bin/launch.sh`),
+#: the runtime (`.chock/bin/<vendor>.py`) and the compiled gate it reads. chock is the only
+#: writer of both directories, so naming a path under them identifies an entry as chock's
+#: own, independent of the vendor-specific shapes `in_agent_merged.py`/`in_agent_generic.py`
+#: merge it through.
+_BIN_TARGET_RE = re.compile(r"\.chock/(?:bin/[\w.-]+\.py|bin/launch\.sh|compiled/[\w./-]+\.json)")
 
 
 def _ignore_rule(root: Path, rel: str) -> str | None:
