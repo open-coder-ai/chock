@@ -11,7 +11,7 @@ from agentseam import bundler
 from chock.resources import package_data_dir
 from chock.vendors import in_agent_vendors
 
-from . import edit_image, guard_runner, sessionstart, write_gate
+from . import edit_image, guard_runner, patch_image, sessionstart, write_gate
 
 BEGIN = "# >>> agentseam handler >>>"
 END = "# <<< agentseam handler <<<"
@@ -66,7 +66,15 @@ _SESSION_START_ORCHESTRATION = _DATA_DIR.joinpath("session_start_orchestration.p
 
 def _handler_source(agent: str) -> str:
     """The full handler-block body for `agent`: extracted guard logic, optionally extracted"""
-    parts = [_extract(guard_runner), "\n", _extract(edit_image), "\n", _extract(write_gate)]
+    parts = [
+        _extract(guard_runner),
+        "\n",
+        _extract(edit_image),
+        "\n",
+        _extract(patch_image),
+        "\n",
+        _extract(write_gate),
+    ]
     if agent in _SESSION_START_AGENTS:
         parts.append("\n")
         parts.append(_extract(sessionstart))

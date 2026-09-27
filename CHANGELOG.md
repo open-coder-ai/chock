@@ -15,6 +15,11 @@
   kind that reads added lines still judges only the text the edit introduces, so a line already
   in the repository does not count as added. When the file cannot be rebuilt (the text to
   replace is not there, so the call itself will fail) the fragment is judged as before.
+- **The write gate can read a Codex `apply_patch`.** Codex CLI writes with one tool whose only
+  argument is the patch text, so the gate had no path and no content to judge. Each file the
+  patch adds or updates is now rebuilt from disk, per Codex's documented patch format, and judged
+  whole; `added_lines` sees only the lines it adds. Codex's hooks are not yet wired to call the
+  gate before a write -- only at the turn's end -- so this is the runtime half of that.
 
 ## 0.11.3 — A global `bin/` ignore no longer takes the gate out of a repository
 

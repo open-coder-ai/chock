@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 
 from .edit_image import added_from_event, edited_text
+from .patch_image import patch_added, patched_files
 
 GATE_FLAG = "--gate"
 
@@ -72,8 +73,12 @@ def writes_from_event(event, root=None):
     in it. An edit is therefore judged as the file it would leave: the file on disk with the
     call's replacements applied. When that cannot be rebuilt -- the file is unreadable, or the
     text to replace is not in it, so the call itself will fail -- the fragment is judged as
-    before and the turn's end judges what actually landed.
+    before and the turn's end judges what actually landed. A Codex apply_patch call names its
+    files only inside the patch; each one it adds or updates is judged as the patch leaves it.
     """
+    patched = patched_files(event, root)
+    if patched:
+        return patched
     path = getattr(event, "path", None)
     content = getattr(event, "content", None)
     edited = edited_text(event, root)
@@ -206,7 +211,7 @@ def evaluate_gate(argv, event):
     writes = writes_for(event, gate)
     if not writes:
         return None
-    added = added_from_event(event) if event.event == PRE_TOOL else {}
+    added = {**patch_added(event), **added_from_event(event)} if event.event == PRE_TOOL else {}
     added = {path: text for path, text in added.items() if path in writes}
     outcome, message = run_gate(gate, writes, name, repo_root_for(event, gate), added)
     if outcome == GATE_BLOCKED:
