@@ -159,6 +159,34 @@ def test_hook_command_reads_the_same_under_every_shell(args: tuple[str, ...]) ->
         assert char not in command, f"{char!r} is read differently by bash, PowerShell or cmd.exe"
 
 
+def _shells() -> list[tuple[str, list[str], bool]]:
+    """(name, argv prefix, keeps exit 2) for every shell an agent may hand a hook command to."""
+    found = [("bash", [bash_executable(), "-c"], True)]
+    for ps in ("pwsh", "powershell"):
+        if exe := shutil.which(ps):
+            found.append((ps, [exe, "-NoProfile", "-NonInteractive", "-Command"], False))
+    if sys.platform == "win32" and (cmd := shutil.which("cmd")):
+        found.append(("cmd", [cmd, "/d", "/c"], True))
+    return found
+
+
+@pytest.mark.parametrize(("shell", "argv", "keeps_exit"), _shells(), ids=[s[0] for s in _shells()])
+def test_hook_command_runs_under_every_available_shell(
+    tmp_path: Path, shell: str, argv: list[str], *, keeps_exit: bool
+) -> None:
+    repo = _repo(tmp_path)
+    (repo / _PROBE_REL).write_text(_PROBE + "sys.exit(2)\n", encoding="utf-8")
+    nested = repo / "a"
+    nested.mkdir()
+    command = hook_command(_PROBE_REL, "--gate", "p/stop/gate.json")
+    proc = subprocess.run([*argv, command], cwd=nested, capture_output=True, text=True, check=False)
+    out = json.loads(proc.stdout)
+    assert Path(out["cwd"]).resolve() == repo.resolve(), shell
+    assert out["args"] == ["--gate", "p/stop/gate.json"], shell
+    if keeps_exit:
+        assert proc.returncode == 2, f"{shell} lost the blocking exit code: {proc.stderr}"
+
+
 def _commands(node) -> list[str]:
     if isinstance(node, dict):
         return [v for k, v in node.items() if k in {"command", "bash", "powershell"} and isinstance(v, str)] + [
