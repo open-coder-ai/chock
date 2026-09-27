@@ -130,7 +130,7 @@ class Adopter:
         settings = self.read_json(".claude/settings.json")
         for entry in settings.get("hooks", {}).get("PreToolUse", []):
             for hook in entry.get("hooks", []):
-                cmd = hook["command"].replace("${CLAUDE_PROJECT_DIR}", str(self.repo))
+                cmd = hook["command"]
                 # This harness runs the installed hook COMMAND STRING exactly as the
                 # client does, shell interpretation included; an argv list would test
                 # a different mechanism than the one adopters get.

@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from conftest import baseline_policy
+from conftest import baseline_policy, run_hook_command
 
 from chock.gate import runtime_bundle
 from chock.gate.guard_runner import find_bash
@@ -164,7 +164,9 @@ def test_install_writes_claude_settings_schema() -> None:
         assert entry["matcher"] == "Bash"
         hook = entry["hooks"][0]
         assert hook["type"] == "command"
-        assert "${CLAUDE_PROJECT_DIR}" in hook["command"], "paths must survive a repo move"
+        assert hook["command"].startswith('git -c "alias.chock-hook=!sh .chock/bin/launch.sh" chock-hook ')
+        assert "${" not in hook["command"], "repo-relative: git runs the launcher from the top level"
+        assert sys.executable not in hook["command"], "no interpreter path may be committed"
     assert (repo / ".chock" / "bin" / "claude_code.py").exists()
 
 
@@ -247,20 +249,20 @@ def test_end_to_end_installed_hooks_block_real_commands() -> None:
     subprocess.run([sys.executable, "-m", "chock.cli", "install-hooks", "."], cwd=repo, capture_output=True, env=env)
     settings = json.loads((repo / ".claude" / "settings.json").read_text(encoding="utf-8"))
     entries = settings["hooks"]["PreToolUse"]
-    env = {**env, "CLAUDE_PROJECT_DIR": str(repo)}
+    nested = repo / "pkg" / "sub"
+    nested.mkdir(parents=True)
 
-    def blocked(command: str) -> bool:
+    def blocked(command: str, cwd: Path = repo) -> bool:
         for entry in entries:
-            cmd = entry["hooks"][0]["command"].replace("${CLAUDE_PROJECT_DIR}", str(repo))
-            proc = subprocess.run(
-                cmd, cwd=repo, shell=True, env=env, capture_output=True, text=True, input=_payload(command)
-            )
+            proc = run_hook_command(entry["hooks"][0]["command"], cwd, _payload(command), env=env)
             if _denied(proc):
                 return True
         return False
 
     assert blocked("rm -rf /")
+    assert blocked("rm -rf /", nested), "a session started below the repo root is still guarded"
     assert blocked("git push --force origin main")
     assert blocked("git commit --no-verify -m x")
     assert not blocked("git push --force-with-lease origin main")
     assert not blocked("ls -la")
+    assert not blocked("ls -la", nested)

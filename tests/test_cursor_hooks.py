@@ -10,11 +10,13 @@ import sys
 import tempfile
 from pathlib import Path
 
-from conftest import baseline_policy
+import pytest
+from conftest import baseline_policy, run_hook_command
 
 from chock.compile.compiler import compile_policy
 from chock.compile.surfaces import Surface
-from chock.hooks.in_agent_install import INTERPRETER_PLACEHOLDER, install_hooks, installed_policy_ids
+from chock.hooks.in_agent_install import install_hooks, installed_policy_ids
+from chock.hooks.launch import hook_command
 
 FRAMEWORK_ROOT = Path(__file__).resolve().parents[1]
 
@@ -59,68 +61,56 @@ def test_both_fragments_reference_the_same_guard(tmp_path: Path) -> None:
     surface_dir = out / "block-destructive-commands" / "pre-tool-use"
     claude = json.loads((surface_dir / "pretooluse.json").read_text())["hooks"][0]["command"]
     cursor = json.loads((surface_dir / "cursor-hooks.json").read_text())["beforeShellExecution"][0]["command"]
-    assert INTERPRETER_PLACEHOLDER in claude
-    assert INTERPRETER_PLACEHOLDER in cursor
-    assert '--guard "${CLAUDE_PROJECT_DIR}/.agents/policies/block-destructive-commands' in claude
+    guard = ".agents/policies/block-destructive-commands/implementations/block-destructive.sh"
+    assert claude == hook_command(".chock/bin/claude_code.py", "--guard", guard)
+    assert cursor == hook_command(".chock/bin/cursor.py", "--guard", guard)
     assert claude.split("--guard", 1)[1] == cursor.split("--guard", 1)[1], "same guard, both envelopes"
-    assert '"${CLAUDE_PROJECT_DIR}/.chock/bin/claude_code.py"' in claude
-    assert '"${CLAUDE_PROJECT_DIR}/.chock/bin/cursor.py"' in cursor
 
 
-def test_install_bakes_and_preserves_foreign_entries() -> None:
+def _hooks_path(repo: Path) -> Path:
+    return repo / ".cursor" / "hooks.json"
+
+
+def test_install_writes_the_compiled_entry_and_preserves_foreign_entries() -> None:
     repo = _fresh_repo()
-    hooks_path = repo / ".cursor" / "hooks.json"
+    hooks_path = _hooks_path(repo)
     hooks_path.parent.mkdir(parents=True, exist_ok=True)
     theirs = {"command": "./scripts/audit.sh"}
     hooks_path.write_text(json.dumps({"version": 1, "hooks": {"beforeShellExecution": [theirs]}}), encoding="utf-8")
     install_hooks(repo, "cursor")
-    settings = json.loads(hooks_path.read_text(encoding="utf-8"))
-    entries = settings["hooks"]["beforeShellExecution"]
+    entries = json.loads(hooks_path.read_text(encoding="utf-8"))["hooks"]["beforeShellExecution"]
     assert entries[0] == theirs, "the adopter's own entry must survive, first"
     assert len(entries) == 2
-    assert INTERPRETER_PLACEHOLDER not in entries[1]["command"]
-    assert sys.executable in entries[1]["command"]
+    compiled = repo / ".chock" / "compiled" / "block-destructive-commands" / "pre-tool-use" / "cursor-hooks.json"
+    assert entries[1] == json.loads(compiled.read_text(encoding="utf-8"))["beforeShellExecution"][0]
+    assert sys.executable not in entries[1]["command"]
 
 
-def _fake_but_real_interpreter(tmp_path: Path) -> str:
-    """A path that is not `sys.executable` but genuinely resolves on this machine."""
-    import shutil
-
-    fake = tmp_path / "another-machine-python3"
-    shutil.copy(sys.executable, fake)
-    fake.chmod(0o755)
-    return str(fake)
-
-
-def test_reinstall_does_not_churn_a_committed_entry(tmp_path: Path) -> None:
+def test_reinstall_on_another_machine_is_byte_identical(monkeypatch: pytest.MonkeyPatch) -> None:
     repo = _fresh_repo()
     install_hooks(repo, "cursor")
-    hooks_path = repo / ".cursor" / "hooks.json"
-    settings = json.loads(hooks_path.read_text(encoding="utf-8"))
-    entry = settings["hooks"]["beforeShellExecution"][0]
-    other = _fake_but_real_interpreter(tmp_path)
-    entry["command"] = f'"{other}"' + entry["command"][entry["command"].index(' "') :]
-    hooks_path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
-    before = hooks_path.read_text(encoding="utf-8")
+    before = _hooks_path(repo).read_bytes()
+    monkeypatch.setattr(sys, "executable", "/opt/elsewhere/bin/python3")
     install_hooks(repo, "cursor")
-    assert json.loads(hooks_path.read_text(encoding="utf-8")) == json.loads(before)
+    assert _hooks_path(repo).read_bytes() == before
     assert "block-destructive-commands" in installed_policy_ids(repo, "cursor")
 
 
-def test_reinstall_rebakes_an_interpreter_that_no_longer_resolves() -> None:
+def test_an_old_baked_entry_is_replaced_by_the_launcher_form() -> None:
     repo = _fresh_repo()
     install_hooks(repo, "cursor")
-    hooks_path = repo / ".cursor" / "hooks.json"
+    hooks_path = _hooks_path(repo)
     settings = json.loads(hooks_path.read_text(encoding="utf-8"))
-    entry = settings["hooks"]["beforeShellExecution"][0]
-    entry["command"] = (
-        '"/usr/local/bin/definitely-not-a-real-interpreter3"' + entry["command"][entry["command"].index(' "') :]
-    )
+    current = settings["hooks"]["beforeShellExecution"][0]
+    root = "${CLAUDE_PROJECT_DIR}"
+    guard = ".agents/policies/block-destructive-commands/implementations/block-destructive.sh"
+    settings["hooks"]["beforeShellExecution"] = [
+        {"command": f'"/usr/bin/python3" "{root}/.chock/bin/cursor.py" --guard "{root}/{guard}"', "timeout": 30}
+    ]
     hooks_path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
     install_hooks(repo, "cursor")
-    settings = json.loads(hooks_path.read_text(encoding="utf-8"))
-    command = settings["hooks"]["beforeShellExecution"][0]["command"]
-    assert sys.executable in command, "a dead interpreter path must be rebaked to one that runs here"
+    entries = json.loads(hooks_path.read_text(encoding="utf-8"))["hooks"]["beforeShellExecution"]
+    assert entries == [current], "the old entry is ours: replaced by the launcher form, not duplicated"
 
 
 def test_coverage_witness_is_per_agent() -> None:
@@ -164,19 +154,14 @@ def test_adapter_parses_cursor_payload_and_denies() -> None:
     repo = _fresh_repo()
     install_hooks(repo, "cursor")
     settings = json.loads((repo / ".cursor" / "hooks.json").read_text(encoding="utf-8"))
-    command = settings["hooks"]["beforeShellExecution"][0]["command"].replace("${CLAUDE_PROJECT_DIR}", str(repo))
+    command = settings["hooks"]["beforeShellExecution"][0]["command"]
     payload = json.dumps({"command": "rm -rf /", "cwd": str(repo), "hook_event_name": "beforeShellExecution"})
-    proc = subprocess.run(
-        command,
-        cwd=repo,
-        shell=True,
-        env={**os.environ, "CLAUDE_PROJECT_DIR": str(repo)},
-        capture_output=True,
-        text=True,
-        input=payload,
-    )
-    assert proc.returncode == 0, f"adapter errored on a Cursor-shaped payload:\n{proc.stdout}{proc.stderr}"
-    decision = json.loads(proc.stdout)
-    assert decision["permission"] == "deny", (
-        f"adapter did not deny a Cursor-shaped payload:\n{proc.stdout}{proc.stderr}"
-    )
+    nested = repo / "sub" / "dir"
+    nested.mkdir(parents=True)
+    for cwd in (repo, nested):
+        proc = run_hook_command(command, cwd, payload)
+        assert proc.returncode == 0, f"adapter errored on a Cursor-shaped payload:\n{proc.stdout}{proc.stderr}"
+        decision = json.loads(proc.stdout)
+        assert decision["permission"] == "deny", (
+            f"adapter did not deny a Cursor-shaped payload from {cwd}:\n{proc.stdout}{proc.stderr}"
+        )

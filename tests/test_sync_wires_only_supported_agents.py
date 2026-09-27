@@ -8,6 +8,7 @@ from pathlib import Path
 from conftest import baseline_policy, init_repo
 
 from chock.hooks.in_agent_install import WIRED_VENDORS
+from chock.hooks.launch import LAUNCHER_REL
 from chock.scaffold.recompile import recompile, wired_vendors
 from chock.vendors import CHOCK_AGENT
 
@@ -38,8 +39,9 @@ def test_a_claude_only_repo_gets_no_other_vendors_config(tmp_path: Path) -> None
     assert (repo / ".chock" / "bin" / "claude_code.py").exists()
     for stray in (".cursor", ".codex", ".windsurf", ".devin", ".gemini", ".github/hooks", ".agents/hooks.json"):
         assert not (repo / stray).exists(), stray
-    runtimes = sorted(p.name for p in (repo / ".chock" / "bin").iterdir() if p.name != "gate.py")
+    runtimes = sorted(p.name for p in (repo / ".chock" / "bin").iterdir() if p.name not in {"gate.py", "launch.sh"})
     assert runtimes == ["claude_code.py"], "no other vendor's runtime is vendored either"
+    assert (repo / LAUNCHER_REL).is_file(), "the launcher every hook command runs"
 
 
 def test_a_cursor_only_repo_gets_no_claude_settings(tmp_path: Path) -> None:

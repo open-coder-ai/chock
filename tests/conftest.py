@@ -41,6 +41,15 @@ def bash_executable() -> str:
     return shutil.which("bash") or "bash"
 
 
+def run_hook_command(
+    command: str, cwd: Path, payload: str, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess:
+    """Run an installed agent-hook command the way an agent does: one shell string, from `cwd`."""
+    return subprocess.run(
+        [bash_executable(), "-c", command], cwd=cwd, env=env, input=payload, capture_output=True, text=True, check=False
+    )
+
+
 def baseline_policy(policy_id: str) -> Path:
     """Directory of one of this repo's own baseline-derived policies."""
     path = REPO_POLICIES / policy_id

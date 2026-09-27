@@ -89,8 +89,8 @@ jobs:
             src/chock/compile/emitters/data/git_hook_shim.sh \
             src/chock/hooks/data/dispatcher.sh \
             src/chock/hooks/data/validate_wrapper_windows.sh \
-            src/chock/hooks/data/policy_wrapper.sh
-          shellcheck --shell=bash src/chock/compile/emitters/data/agent_hook_bash.sh
+            src/chock/hooks/data/policy_wrapper.sh \
+            src/chock/hooks/data/launch.sh
 
       - name: Install actionlint (pinned, checksum-verified)
         run: |

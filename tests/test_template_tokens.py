@@ -6,9 +6,9 @@ from __future__ import annotations
 
 import re
 
-from chock.compile.emitters import ci, git_hook, in_agent
+from chock.compile.emitters import ci, git_hook
 from chock.gate import runtime_bundle
-from chock.hooks import installers
+from chock.hooks import installers, launch
 
 _TOKEN_RE = re.compile(r"__[A-Z0-9_]+__")
 
@@ -47,20 +47,11 @@ def test_git_hook_script_shim_template_tokens() -> None:
     assert "demo-pre-commit.py" in rendered
 
 
-def test_in_agent_bash_template_tokens() -> None:
-    rendered = _assert_round_trips(
-        in_agent._BASH_TEMPLATE, {"__ADAPTER__": ".chock/bin/x.py", "__GUARD__": "impl/x.sh"}
-    )
-    assert ".chock/bin/x.py" in rendered
-    assert "impl/x.sh" in rendered
-
-
-def test_in_agent_powershell_template_tokens() -> None:
-    rendered = _assert_round_trips(
-        in_agent._POWERSHELL_TEMPLATE, {"__ADAPTER__": ".chock/bin/x.py", "__GUARD__": "impl/x.sh"}
-    )
-    assert ".chock/bin/x.py" in rendered
-    assert "impl/x.sh" in rendered
+def test_launcher_template_tokens() -> None:
+    rendered = _assert_round_trips(launch._TEMPLATE, {"__MIN_PYTHON__": "3, 11", "__MIN_PYTHON_TEXT__": "3.11"})
+    assert rendered == launch.launcher_text(), "launcher_text() substitutes every token"
+    assert "sys.version_info < (3, 11,)" in rendered
+    assert "Python 3.11+" in rendered
 
 
 def test_dispatcher_template_tokens() -> None:
