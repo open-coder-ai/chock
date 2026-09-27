@@ -1,7 +1,7 @@
 {
   "preToolUse": [
     {
-      "command": "git -c \"alias.chock-hook=!sh .chock/bin/launch.sh\" chock-hook .chock/bin/cursor.py --gate \".chock/compiled/stability-script/pre-tool-use/gate.json\"",
+      "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/cursor.py --gate \".chock/compiled/stability-script/pre-tool-use/gate.json\"",
       "timeout": 30,
       "failClosed": true
     }

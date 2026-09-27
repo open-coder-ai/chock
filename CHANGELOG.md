@@ -10,15 +10,19 @@
   read identically by bash, PowerShell and cmd.exe; git runs it from the repository root, so a
   session started in a subdirectory is guarded too. The committed `.chock/bin/launch.sh` runs
   `git config chock.python` (written to the clone's local config by `chock sync`) or the first
-  `python3`/`python`/`py` that actually runs Python 3.11+, and with none refuses (exit 2) with a
-  fix-it message. Cursor's shell and pre-tool entries now set `failClosed`. Re-running
+  `python3`/`python`/`py` that actually runs Python 3.11+ (the recorded one is probed too: a venv
+  whose base Python is gone still exists), and with none refuses (exit 2) with a fix-it message.
+  With no launcher at git's top level (a nested repository, an unsynced clone) the command
+  refuses the same way; bash-as-`sh` used to exit 127 there, which agents let through. Sync
+  records its interpreter only when `--repo` is a repository's top level. Cursor's shell and pre-tool entries now set `failClosed`. Re-running
   `chock sync` elsewhere is a zero diff; entries in the old form are replaced at the next sync.
   `chock check` reports a missing or git-ignored launcher as a dangling hook target.
 
 - **A gate judges an absolute path as the repository file it names.** Claude Code and Cursor send
   `file_path` absolute; scoped gates matched repo-relative globs against it, so `pin-github-actions`
   allowed `actions/checkout@v4` written by the agent. Paths are made repo-relative first (drive
-  letters, backslashes and case folded on Windows; a path outside the repo stays out of scope).
+  letters, backslashes and case folded on Windows; a path outside the repo stays out of scope). A
+  write through a symlinked folder is judged under its target's path as well as the one named.
 - **A guard that cannot run asks instead of allowing.** No usable bash, or a command `shlex` cannot
   parse (`rm -rf / #'`), used to allow. Both now ask, naming what to install. Bash is found from
   `git` (Git for Windows' `bin\bash.exe` first, never System32's WSL launcher or a WindowsApps

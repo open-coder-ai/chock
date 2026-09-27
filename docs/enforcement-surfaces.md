@@ -49,15 +49,16 @@ each guarantee holds.
 > every vendor, is the same string -- read identically by bash, PowerShell and cmd.exe:
 >
 > ```
-> git -c "alias.chock-hook=!sh .chock/bin/launch.sh" chock-hook .chock/bin/<agent>.py [--guard|--gate "<repo-relative path>"]
+> git -c "alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh" chock-hook .chock/bin/<agent>.py [--guard|--gate "<repo-relative path>"]
 > ```
 >
 > git runs the alias from the repository's top level, so relative paths resolve even when a
-> session starts in a subdirectory. `.chock/bin/launch.sh` runs `git config chock.python`
-> (written to the clone's local `.git/config` by `chock sync`, never committed) if it
-> exists, else the first of `python3`/`python`/`py` that actually runs Python 3.11+ (the
-> Windows Store `python3` stub is skipped). With none it exits 2 with a fix-it message --
-> never allow. Installed entries equal compiled ones exactly, so `chock sync` on any machine
+> session starts in a subdirectory. `.chock/bin/launch.sh` runs the first of
+> `git config chock.python` (written to the clone's local `.git/config` by `chock sync`,
+> never committed), `python3`, `python` and `py` that actually runs Python 3.11+ (the
+> Windows Store `python3` stub, or a venv whose base Python is gone, is skipped). With none
+> it exits 2 with a fix-it message -- never allow. With no launcher at git's top level (a
+> nested repository, or a clone never synced) the command exits 2 the same way. Installed entries equal compiled ones exactly, so `chock sync` on any machine
 > is a zero diff; entries in the old baked-interpreter form are recognised and replaced.
 
 **`git-hook` + `ci-gate` are the universal hard floor** every agent shares. `pre-tool-use` and

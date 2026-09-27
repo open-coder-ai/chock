@@ -1,6 +1,6 @@
 #!/bin/sh
 # chock hook launcher. Every agent hook chock writes runs:
-#   git -c "alias.chock-hook=!sh .chock/bin/launch.sh" chock-hook <runtime.py> [args...]
+#   git -c "alias.chock-hook=!test -f <this> || { ...; exit 2; }; sh <this>" chock-hook <runtime.py> [args...]
 # git runs the alias from the repository's top level under its own sh (bash, PowerShell
 # and cmd.exe all pass that string through unchanged), so relative paths resolve and no
 # absolute interpreter path is ever committed. This script picks the first Python that
@@ -10,11 +10,10 @@
 runtime="$1"
 shift
 configured="$(git config --get chock.python 2>/dev/null)"
-if [ -n "$configured" ] && [ -f "$configured" ]; then
-    exec "$configured" -X utf8 "$runtime" "$@"
-fi
-for candidate in python3 python py; do
-    if "$candidate" -c 'import sys; sys.exit(sys.version_info < (__MIN_PYTHON__,))' </dev/null >/dev/null 2>&1; then
+# The recorded interpreter is probed like the rest: a venv whose base Python was removed
+# still exists, and exec'ing it exits non-zero without a verdict, which agents let through.
+for candidate in "$configured" python3 python py; do
+    if [ -n "$candidate" ] && "$candidate" -c 'import sys; sys.exit(sys.version_info < (__MIN_PYTHON__,))' </dev/null >/dev/null 2>&1; then
         exec "$candidate" -X utf8 "$runtime" "$@"
     fi
 done
