@@ -245,6 +245,9 @@ def recompile(repo_root: Path | str, agents: list[str], *, skip_hooks: bool = Fa
             else:
                 if installed:
                     print(f"Registered {len(installed)} {install_label(vendor)}")
+                    if hint := vendors.trust_hint(vendor):
+                        # Codex skips an untrusted project hook without a word: wired is not live.
+                        print(f"  ACTION NEEDED ({vendor}): hooks are not live until trusted -- {hint}")
         if _witness() != before:
             with tempfile.TemporaryDirectory(prefix="chock-coverage-", dir=chock_dir) as tmp2:
                 coverage = _compile_all(repo_root, agents, Path(tmp2) / "compiled")

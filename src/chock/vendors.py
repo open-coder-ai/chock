@@ -89,6 +89,18 @@ def repo_root_token(vendor: str) -> str | None:
     return str(token) if token else None
 
 
+#: Said when agentseam records that the agent needs trust but gives no vendor-specific steps.
+_TRUST_FALLBACK = "this agent runs a project's hooks only after you trust them in the agent itself"
+
+
+def trust_hint(vendor: str) -> str | None:
+    """How to make `vendor` run the repo's hooks, where it skips untrusted ones silently; else None."""
+    cfg = entry(vendor)
+    if not cfg.get("needs_trust"):
+        return None
+    return str(cfg.get("trust_hint") or _TRUST_FALLBACK)
+
+
 def wire_event(vendor: str, canonical: str) -> str:
     """The vendor's wire spelling of one of agentseam's canonical events."""
     return str(_adapters.get(vendor).REVERSE_EVENT_MAP[canonical])

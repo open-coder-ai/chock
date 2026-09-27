@@ -124,3 +124,24 @@ def test_a_vendor_that_cannot_be_wired_fails_sync_after_wiring_the_rest(tmp_path
     assert (repo / ".cursor" / "hooks.json").read_text(encoding="utf-8") == "{ not json", (
         "a foreign file is never clobbered"
     )
+
+
+def test_sync_says_when_a_wired_agent_skips_untrusted_hooks(tmp_path: Path, capsys) -> None:
+    """Wired is not live for an agent that runs a project's hooks only once trusted."""
+    from chock import vendors
+
+    trusting = [v for v in WIRED_VENDORS if vendors.trust_hint(v)]
+    assert trusting, "agentseam records at least one wired agent that needs trust"
+    agents = [a for a, v in CHOCK_AGENT.items() if v in trusting]
+    recompile(_repo(tmp_path), agents, skip_hooks=False)
+    out = capsys.readouterr().out
+    for vendor in trusting:
+        assert f"ACTION NEEDED ({vendor})" in out
+
+
+def test_no_trust_notice_for_an_agent_that_runs_hooks_untrusted(tmp_path: Path, capsys) -> None:
+    from chock import vendors
+
+    assert vendors.trust_hint("claude_code") is None
+    recompile(_repo(tmp_path), ["claude"], skip_hooks=False)
+    assert "ACTION NEEDED" not in capsys.readouterr().out
