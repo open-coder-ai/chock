@@ -123,17 +123,25 @@ class WriteContext(GateContext):
     """Files an agent is about to write, or has just written, shaped like a staged diff.
 
     The gate kinds are untouched and cannot tell the difference: only the material changes.
-    A whole-file write is entirely added lines, and an edit carries exactly the text being
-    introduced, so "added_lines" means at this surface what it has always meant.
+    A whole-file write is entirely added lines. An edit is judged as the file it would leave
+    (`writes`), but its added lines are only the text it introduces (`added`), so "added_lines"
+    means at this surface what it has always meant while a kind reading the file sees all of it.
 
     It still subclasses GateContext so repo_root and the git-backed accessors a kind may
     reach for keep working -- an allowlist file still lives in the repository even when the
     content under judgement does not.
     """
 
-    def __init__(self, repo_root: Path, writes: Mapping[str, str], scope: Sequence[str] | None = None) -> None:
+    def __init__(
+        self,
+        repo_root: Path,
+        writes: Mapping[str, str],
+        scope: Sequence[str] | None = None,
+        added: Mapping[str, str] | None = None,
+    ) -> None:
         super().__init__(repo_root=repo_root, scope=scope)
         self._writes = dict(writes)
+        self._added = dict(added or {})
 
     def staged_paths(self, diff_filter: str = "ACMRT") -> list[str]:  # noqa: ARG002 -- no diff to filter
         return [path for path in self._writes if self.in_scope(path)]
@@ -142,7 +150,7 @@ class WriteContext(GateContext):
         return self._writes.get(path, "")
 
     def added_lines(self, path: str) -> list[str]:
-        return self._writes.get(path, "").splitlines()
+        return self._added.get(path, self._writes.get(path, "")).splitlines()
 
     def removed_lines(self, path: str) -> list[str]:  # noqa: ARG002 -- a write removes nothing yet
         """Nothing is removed by a write that has not landed, so a kind reading this sees none."""
@@ -474,6 +482,7 @@ def _context(
     base: str | None,
     head_ref: str | None,
     writes: Mapping[str, str] | None,
+    added: Mapping[str, str] | None = None,
 ) -> GateContext | None:
     """The material this event puts under judgement, or None when the kind cannot read it."""
     if event not in AGENT_EVENTS:
@@ -488,7 +497,7 @@ def _context(
             file=sys.stderr,
         )
         return None
-    return WriteContext(repo_root=repo_root, writes=writes or {}, scope=spec.get("paths"))
+    return WriteContext(repo_root=repo_root, writes=writes or {}, scope=spec.get("paths"), added=added)
 
 
 def run(
@@ -499,6 +508,7 @@ def run(
     base: str | None = None,
     head_ref: str | None = None,
     writes: Mapping[str, str] | None = None,
+    added: Mapping[str, str] | None = None,
 ) -> int:
     gate_path = Path(gate_path)
     if not gate_path.exists():
@@ -519,7 +529,7 @@ def run(
     if kind is None:
         print(f"gate: unknown kind {spec.get('kind')!r}", file=sys.stderr)
         return 2
-    ctx = _context(event, spec, repo_root, push_stdin, base, head_ref, writes)
+    ctx = _context(event, spec, repo_root, push_stdin, base, head_ref, writes, added)
     if ctx is None:
         return 2
     if event == "ci" and base and not ctx.rev_exists(base):
@@ -549,16 +559,21 @@ def _repo_root() -> Path:
         return Path.cwd()
 
 
-def _writes(raw: str) -> dict[str, str]:
-    """The files this event puts under judgement. Unreadable input yields none, never a guess."""
+def _texts(raw: str, key: str) -> dict[str, str]:
+    """One {path: text} map off the stdin payload. Unreadable input yields none, never a guess."""
     try:
         payload = json.loads(raw or "{}")
     except json.JSONDecodeError:
         return {}
-    writes = payload.get("writes")
-    if not isinstance(writes, dict):
+    texts = payload.get(key) if isinstance(payload, dict) else None
+    if not isinstance(texts, dict):
         return {}
-    return {str(path): str(text) for path, text in writes.items() if isinstance(text, str)}
+    return {str(path): str(text) for path, text in texts.items() if isinstance(text, str)}
+
+
+def _writes(raw: str) -> dict[str, str]:
+    """The files this event puts under judgement, whole."""
+    return _texts(raw, "writes")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -576,8 +591,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.event in AGENT_EVENTS:
         # The files are on stdin because a tool call's content is not in the repository yet and
-        # cannot be read back from it. {"writes": {"<path>": "<text>"}}.
-        return run(Path(args.gate), args.event, None, _repo_root(), writes=_writes(sys.stdin.read()))
+        # cannot be read back from it. {"writes": {"<path>": "<text>"}, "added": {"<path>": "<text>"}},
+        # `added` present only for an edit, carrying the text it introduces.
+        raw = sys.stdin.read()
+        return run(Path(args.gate), args.event, None, _repo_root(), writes=_writes(raw), added=_texts(raw, "added"))
 
     push_stdin = sys.stdin.read() if args.event == "pre-push" and not sys.stdin.isatty() else None
     return run(Path(args.gate), args.event, push_stdin, _repo_root(), base=args.base, head_ref=args.head_ref)
