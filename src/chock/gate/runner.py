@@ -535,7 +535,7 @@ def run(
     gate_path = Path(gate_path)
     if not gate_path.exists():
         print(
-            f"gate: {gate_path} is missing -- this hook names it, so the install is incomplete. "
+            "gate: the compiled gate this hook names is missing, so the install is incomplete. "
             "Run `chock sync --repo .` to rebuild the compiled gates.",
             file=sys.stderr,
         )
