@@ -226,9 +226,11 @@ def test_dependency_allowlist_no_crash_on_unparseable(tmp_path: Path) -> None:
     assert run(gate, "pre-commit", None, repo) == 0
 
 
-def test_run_missing_gate(tmp_path: Path) -> None:
+def test_run_missing_gate_refuses_and_says_to_sync(tmp_path: Path, capsys) -> None:
+    """The hook names the gate, so a missing one is a broken install, never "nothing to check"."""
     missing = tmp_path / "no.json"
-    assert run(missing, "pre-commit", None, tmp_path) == 0
+    assert run(missing, "pre-commit", None, tmp_path) == 2
+    assert "chock sync" in capsys.readouterr().err
 
 
 def test_run_event_not_covered(tmp_path: Path) -> None:

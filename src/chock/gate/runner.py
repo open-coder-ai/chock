@@ -512,7 +512,12 @@ def run(
 ) -> int:
     gate_path = Path(gate_path)
     if not gate_path.exists():
-        return 0
+        print(
+            f"gate: {gate_path} is missing -- this hook names it, so the install is incomplete. "
+            "Run `chock sync --repo .` to rebuild the compiled gates.",
+            file=sys.stderr,
+        )
+        return 2
     try:
         spec = json.loads(gate_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:

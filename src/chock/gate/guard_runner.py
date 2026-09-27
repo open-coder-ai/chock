@@ -219,8 +219,15 @@ def log_outcome(guard: Path, tool: str, *, verdict: str) -> None:
 def evaluate(argv: list[str], command: str, tool: str = "") -> tuple[str, str] | None:
     """Run the guard named on `argv` (`--guard <path>`) against `command`."""
     guard = guard_path_from_argv(argv)
-    if guard is None or not guard.exists():
+    if guard is None:
         return None
+    if not guard.exists():
+        # The hook config names this guard, so its absence is a broken install, not "nothing to check".
+        return (
+            VERDICT_DENY,
+            f"chock guard {guard} is missing, so this command cannot be checked. "
+            "Run `chock sync --repo .` to reinstall the policy's guards.",
+        )
     verdict, message = run_guard_detailed(guard, command)
     logged = {GUARD_BLOCKED: "block", GUARD_ASKED: "ask", GUARD_CLEAN: "allow"}
     if verdict in logged:

@@ -203,3 +203,19 @@ def test_a_path_outside_the_repository_is_left_as_given() -> None:
         write_gate.repo_relative("/elsewhere/.github/workflows/ci.yml", "/r") == "/elsewhere/.github/workflows/ci.yml"
     )
     assert write_gate.repo_relative(r"D:\x\ci.yml", r"C:\Repo") == r"D:\x\ci.yml"
+
+
+def test_a_gate_named_but_missing_refuses_and_says_to_sync(tmp_path: Path) -> None:
+    """The hook config names the gate, so its absence is misconfiguration, not nothing to check."""
+    gate = _installed(tmp_path)
+    gate.unlink()
+    verdict = write_gate.evaluate_gate(["--gate", str(gate)], _event(path="app.py", content="x = 1\n"))
+    assert verdict is not None and verdict[0] == write_gate.VERDICT_DENY
+    assert "chock sync" in verdict[1]
+
+
+def test_a_missing_gate_does_not_trap_a_reentered_stop(tmp_path: Path) -> None:
+    """A refusal on re-entry would never let the turn end."""
+    gate = _installed(tmp_path)
+    gate.unlink()
+    assert write_gate.evaluate_gate(["--gate", str(gate)], _event("stop", raw={"stop_hook_active": True})) is None

@@ -228,20 +228,37 @@ def writes_for(event, gate):
     """What this event puts under judgement: the call's own text, or what the turn left behind."""
     if event.event == PRE_TOOL:
         return writes_from_event(event, repo_root_for(event, gate))
-    raw = event.raw or {}
-    if raw.get("stop_hook_active") or raw.get("loop_count"):
-        # A refusal that re-entered its own stop hook would never terminate: Claude Code marks
-        # the re-entry `stop_hook_active`, Cursor counts it in `loop_count`.
+    if _reentered(event):
         return {}
     return writes_from_worktree(repo_root_for(event, gate))
+
+
+def _reentered(event):
+    """Whether this stop re-entered its own hook: Claude Code's `stop_hook_active`, Cursor's `loop_count`."""
+    # A refusal that re-entered its own stop hook would never terminate.
+    raw = event.raw or {}
+    return bool(raw.get("stop_hook_active") or raw.get("loop_count"))
+
+
+def _missing_gate(gate, event):
+    """A gate the hook names but that is not on disk: a broken install, so a refusal that says so."""
+    if event.event != PRE_TOOL and _reentered(event):
+        return None
+    return (
+        VERDICT_DENY,
+        f"chock gate {gate} is missing, so this write cannot be checked. "
+        "Run `chock sync --repo .` to rebuild the compiled gates.",
+    )
 
 
 def evaluate_gate(argv, event):
     """The decision this event earns from a compiled gate, or None when it has nothing to say."""
     gate = gate_path_from_argv(argv)
     name = _EVENT_ARG.get(getattr(event, "event", ""))
-    if gate is None or name is None or not gate.exists():
+    if gate is None or name is None:
         return None
+    if not gate.exists():
+        return _missing_gate(gate, event)
     root = repo_root_for(event, gate)
     writes = {repo_relative(path, root): text for path, text in writes_for(event, gate).items()}
     if not writes:

@@ -94,10 +94,12 @@ def test_unparseable_input_allows(claude_code_runtime: Path) -> None:
     assert result.stdout.strip() == ""
 
 
-def test_missing_guard_allows(tmp_path: Path, claude_code_runtime: Path) -> None:
+def test_missing_guard_denies_and_says_to_sync(tmp_path: Path, claude_code_runtime: Path) -> None:
+    """The hook names the guard; a missing one is a broken install, never "nothing to check"."""
     result = _adapter(claude_code_runtime, "rm -rf /", guard=tmp_path / "absent.sh")
     assert result.returncode == 0
-    assert not _denied(result)
+    assert _denied(result)
+    assert "chock sync" in result.stdout
 
 
 def test_non_command_tool_input_is_ignored(claude_code_runtime: Path) -> None:

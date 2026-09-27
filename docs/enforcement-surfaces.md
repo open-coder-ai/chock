@@ -162,13 +162,14 @@ skipped with `--no-verify`.
 The levels above grade the **outer** boundary: what the client does when chock's hook never
 runs or dies outright. There is an inner one too — what the hook says when it *did* run and
 could not reach a verdict — and the two answers are not the same. `gate/guard_runner.py`
-distinguishes five such causes and answers only one of them with an allow.
+distinguishes six such causes and answers only one of them with an allow.
 
 | Cause | What chock returns | Why |
 | :--- | :--- | :--- |
 | The command will not tokenize (unbalanced quotes) | **ask** | No guard read it. `rm -rf / #'` is valid bash and invalid shlex, so an allow here was a bypass. |
 | The command is empty after tokenizing | allow | There is nothing to check. |
 | No bash on the machine can resolve the guard | **ask** | No guard ran. The prompt names the fix: install Git for Windows (it ships bash), or put bash on PATH. |
+| The guard the hook names is not on disk | **deny** | The hook config names it, so its absence is a broken install, not nothing to check. The reason says to run `chock sync --repo .`. |
 | The guard crashed, or exited a code that is none of 0, 1 or 3 | **ask** | The control was installed, reachable and runnable, and still produced no answer. (Exit 3 is not this: it is the guard asking on purpose, and its own first line is the prompt.) |
 | The guard hit its 30-second timeout | **ask** | Same: the control ran and did not decide. |
 
