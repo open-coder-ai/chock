@@ -66,6 +66,14 @@ def test_another_policys_folder_and_ordinary_files_are_still_judged(tmp_path: Pa
     assert run(gate, "stop", None, tmp_path, writes={"App.java": MARKER}) == 1
 
 
+@pytest.mark.parametrize("path", [".chock/config.yaml", ".chock/dependency-allowlist.txt"])
+def test_the_adopters_own_chock_files_are_still_judged(tmp_path: Path, path: str) -> None:
+    """Only what sync generates is exempt; config the adopter writes by hand is ordinary text."""
+    init_repo(tmp_path)
+    gate = _script_gate(tmp_path)
+    assert run(gate, "stop", None, tmp_path, writes={path: MARKER}) == 1
+
+
 def test_a_content_gate_follows_the_same_rule(tmp_path: Path) -> None:
     """Declarative kinds had the same self-trigger; the catalog dodged it per policy with self-safe patterns."""
     init_repo(tmp_path)

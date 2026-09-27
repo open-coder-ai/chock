@@ -472,7 +472,9 @@ AGENT_EVENTS = ("pre-tool-use", "stop")
 SCRIPT_BASE_GATE = "gate"
 
 #: chock's generated tree: compiled gates and vendored runtimes, never an author's content.
-GENERATED_PREFIX = ".chock/"
+#: What sync writes and a person never edits. Not all of `.chock/`: config.yaml and the
+#: dependency allowlist are the adopter's own text and stay in scope for every gate.
+GENERATED_PREFIXES = (".chock/compiled/", ".chock/bin/")
 POLICIES_PREFIX = ".agents/policies/"
 
 
@@ -480,8 +482,8 @@ def own_paths(gate_path: Path) -> tuple[str, ...]:
     """Prefixes a gate never judges: the generated tree, and its own policy's shipped files."""
     parents = gate_path.resolve().parents
     if len(parents) < _MIN_COMPILED_PATH_DEPTH or parents[2].name != "compiled":
-        return (GENERATED_PREFIX,)
-    return (GENERATED_PREFIX, f"{POLICIES_PREFIX}{parents[1].name}/")
+        return GENERATED_PREFIXES
+    return (*GENERATED_PREFIXES, f"{POLICIES_PREFIX}{parents[1].name}/")
 
 
 def _params(gate_path: Path, spec: dict) -> dict:
