@@ -53,7 +53,7 @@ def write_launcher(repo_root: Path) -> Path:
 def record_interpreter(repo_root: Path) -> bool:
     """Name this interpreter in the clone's own .git/config; never committed. True when set."""
     with contextlib.suppress(OSError, subprocess.SubprocessError):
-        proc = subprocess.run(
+        proc = subprocess.run(  # noqa: S603 -- fixed argv: git config with this process's own interpreter path
             ["git", "config", "--local", PYTHON_CONFIG_KEY, PurePath(sys.executable).as_posix()],  # noqa: S607 -- git on PATH is the repo route's premise
             cwd=repo_root,
             capture_output=True,

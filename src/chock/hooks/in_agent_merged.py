@@ -19,6 +19,7 @@ from chock.emit import write_generated_json
 from chock.hooks.in_agent_generic import load_config as _load_config
 from chock.hooks.runtime_vendor import owned_markers, runtime_rel, vendor_runtime
 
+
 class Wiring(NamedTuple):
     """One (event key, fragment shape) pair a vendor's config file receives."""
 

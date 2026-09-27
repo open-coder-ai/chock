@@ -218,7 +218,9 @@ def build_entry(policy_dir: Path, manifest: dict[str, Any]) -> dict[str, Any] | 
     if not script:
         return None
     # One string for both keys: the launcher form reads the same under bash and PowerShell.
-    command = hook_command(_adapter_rel("vscode_copilot"), "--guard", f"{policy_rel_path(policy_dir)}/implementations/{script}")
+    command = hook_command(
+        _adapter_rel("vscode_copilot"), "--guard", f"{policy_rel_path(policy_dir)}/implementations/{script}"
+    )
     bash = powershell = command
     return {
         "type": "command",
