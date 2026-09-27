@@ -28,9 +28,21 @@ def _hash_file(path: Path) -> str:
     return h.hexdigest()
 
 
+#: What Python writes beside a module it imports. A script gate runs its implementation from the
+#: pack directory, so the first gate run leaves bytecode there -- per interpreter version, and more
+#: of it as more rules are imported. Hashing it made the lockfile depend on which gates had run on
+#: which Python, and `chock check` report a pack nobody edited as changed.
+_BYTECODE_DIR = "__pycache__"
+_BYTECODE_SUFFIXES = (".pyc", ".pyo")
+
+
+def _is_pack_content(path: Path) -> bool:
+    return path.is_file() and _BYTECODE_DIR not in path.parts and path.suffix not in _BYTECODE_SUFFIXES
+
+
 def compute_pack_hash(pack_dir: Path) -> str:
-    """Return a single sha256 for all files in a pack directory."""
-    files = sorted(p for p in pack_dir.rglob("*") if p.is_file())
+    """Return a single sha256 for all files in a pack directory, bytecode left out."""
+    files = sorted(p for p in pack_dir.rglob("*") if _is_pack_content(p))
     h = hashlib.sha256()
     for f in files:
         rel = f.relative_to(pack_dir).as_posix()
