@@ -26,8 +26,16 @@ def _rule_lines(entry: IndexEntry) -> list[str]:
     return [f"- **{entry.id}**:", *(f"  {line}" for line in body)]
 
 
+#: Said once per in-agent gate. INDEX.md is shared by every agent, so it names both places the
+#: agent may meet the refusal: before the write where its hooks can refuse one, at the end of
+#: the turn where they can only judge what it left.
+GATES_HEADING = "## Gates — enforced automatically at commit/push, and in the agent where noted"
+IN_AGENT_NOTE = "Also checked in the agent: before a write, or at the end of the turn, depending on the agent."
+
+
 def _gate_line(entry: IndexEntry) -> str:
-    return f"- **{entry.id}**: {entry.description or 'automatic gate'}"
+    line = f"- **{entry.id}**: {entry.description or 'automatic gate'}"
+    return f"{line} {IN_AGENT_NOTE}" if entry.in_agent else line
 
 
 def _skill_line(entry: IndexEntry) -> str:
@@ -49,7 +57,7 @@ def _render_main(entries: list[IndexEntry], *, has_extended: bool) -> str:
     if sections["rule"]:
         lines.extend(["## Rules — always apply", ""] + sections["rule"] + [""])
     if sections["hook"]:
-        lines.extend(["## Gates — enforced automatically at commit/push", ""] + sections["hook"] + [""])
+        lines.extend([GATES_HEADING, ""] + sections["hook"] + [""])
     if sections["skill"]:
         lines.extend(["## Skills — invoke when the task matches", ""] + sections["skill"] + [""])
 

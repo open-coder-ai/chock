@@ -21,8 +21,12 @@ MIN_PYTHON = (3, 11)
 
 ALIAS = "chock-hook"
 
+#: No launcher at git's top level (a nested repo, no repo, not synced) refuses with exit 2:
+#: bash-as-sh exits 127 on a missing script, which agents treat as non-blocking.
+_MISSING = f"test -f {LAUNCHER_REL} || {{ echo chock: no {LAUNCHER_REL} here, run chock sync --repo . >&2; exit 2; }}"
+
 #: No `$`, no backslash, no single quote: bash, PowerShell and cmd.exe read it identically.
-_PREFIX = f'git -c "alias.{ALIAS}=!sh {LAUNCHER_REL}" {ALIAS}'
+_PREFIX = f'git -c "alias.{ALIAS}=!{_MISSING}; sh {LAUNCHER_REL}" {ALIAS}'
 
 _TEMPLATE = package_data_dir("chock", "hooks", "data").joinpath("launch.sh").read_text(encoding="utf-8")
 
@@ -50,15 +54,25 @@ def write_launcher(repo_root: Path) -> Path:
     return dest
 
 
+def _git(repo_root: Path, *args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(  # noqa: S603 -- fixed argv: git reading or setting this clone's own config
+        ["git", *args],  # noqa: S607 -- git on PATH is the repo route's premise
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+
+
 def record_interpreter(repo_root: Path) -> bool:
     """Name this interpreter in the clone's own .git/config; never committed. True when set."""
     with contextlib.suppress(OSError, subprocess.SubprocessError):
-        proc = subprocess.run(  # noqa: S603 -- fixed argv: git config with this process's own interpreter path
-            ["git", "config", "--local", PYTHON_CONFIG_KEY, PurePath(sys.executable).as_posix()],  # noqa: S607 -- git on PATH is the repo route's premise
-            cwd=repo_root,
-            capture_output=True,
-            check=False,
-            timeout=30,
+        # Only when repo_root is the top level: inside another repo it is that repo's config.
+        top = _git(repo_root, "rev-parse", "--show-toplevel").stdout.strip()
+        if not top or Path(top).resolve() != Path(repo_root).resolve():
+            return False
+        return (
+            _git(repo_root, "config", "--local", PYTHON_CONFIG_KEY, PurePath(sys.executable).as_posix()).returncode == 0
         )
-        return proc.returncode == 0
     return False

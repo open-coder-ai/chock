@@ -14,6 +14,7 @@ import pytest
 from conftest import FRAMEWORK_ROOT, baseline_policy, bash_executable, init_repo
 
 from chock.compile.compiler import compile_policy
+from chock.compile.emitters.in_agent import POWERSHELL_KEEP_EXIT
 from chock.compile.surfaces import Surface
 from chock.hooks import launch
 from chock.hooks.launch import LAUNCHER_REL, PYTHON_CONFIG_KEY, hook_command, record_interpreter, write_launcher
@@ -114,6 +115,29 @@ def test_a_stale_recorded_interpreter_falls_back_to_path(tmp_path: Path) -> None
 
 
 @posix_only
+def test_a_recorded_interpreter_that_exists_but_does_not_run_falls_back_to_path(tmp_path: Path) -> None:
+    """A venv whose base Python was removed still exists; exec'ing it would exit without a verdict."""
+    repo = _repo(tmp_path)
+    broken = tmp_path / "venv-python"
+    broken.write_text("#!/bin/sh\nexit 103\n", encoding="utf-8")
+    broken.chmod(0o755)
+    bin_dir = _bin_dir(tmp_path, "bin", python3=sys.executable)
+    subprocess.run(["git", "config", "--local", PYTHON_CONFIG_KEY, str(broken)], cwd=repo, check=True)
+    out = _probe(_run(repo, repo, path=str(bin_dir)))
+    assert out["exe"] == str(bin_dir / "python3")
+
+
+@pytest.mark.parametrize("where", ["unsynced", "outside"])
+def test_no_launcher_at_the_top_level_refuses(tmp_path: Path, where: str) -> None:
+    """bash-as-sh exits 127 on a missing script, which agents let through; the command says 2."""
+    cwd = _git_repo(tmp_path) if where == "unsynced" else tmp_path
+    command = hook_command(_PROBE_REL)
+    proc = subprocess.run([bash_executable(), "-c", command], cwd=cwd, capture_output=True, text=True, check=False)
+    assert proc.returncode == 2, proc.stderr
+    assert "chock sync --repo ." in proc.stderr
+
+
+@posix_only
 def test_no_python_anywhere_refuses_with_an_actionable_message(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     bin_dir = _bin_dir(tmp_path, "bin")
@@ -148,24 +172,66 @@ def test_record_interpreter_writes_local_config_only(tmp_path: Path, monkeypatch
     assert status.stdout == "", "nothing committable is written"
 
 
+def test_record_interpreter_leaves_an_enclosing_repo_alone(tmp_path: Path) -> None:
+    """`--repo` below another repo's top level (a dotfiles home, say) is not that repo's clone."""
+    outer = _git_repo(tmp_path)
+    inner = outer / "project"
+    inner.mkdir()
+    assert record_interpreter(inner) is False
+    got = subprocess.run(["git", "config", "--local", "--get", PYTHON_CONFIG_KEY], cwd=outer, check=False)
+    assert got.returncode == 1, "the enclosing repo's config was written"
+
+
 @pytest.mark.parametrize(
     "args",
     [(), ("--guard", ".agents/policies/p/implementations/g.sh"), ("--gate", ".chock/compiled/p/stop/gate.json")],
 )
 def test_hook_command_reads_the_same_under_every_shell(args: tuple[str, ...]) -> None:
     command = hook_command(".chock/bin/cursor.py", *args)
-    assert command.startswith('git -c "alias.chock-hook=!sh .chock/bin/launch.sh" chock-hook .chock/bin/cursor.py')
+    assert command.startswith(
+        'git -c "alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh" chock-hook .chock/bin/cursor.py'
+    )
     for char in ("$", "\\", "'"):
         assert char not in command, f"{char!r} is read differently by bash, PowerShell or cmd.exe"
 
 
+def _shells() -> list[tuple[str, list[str], bool]]:
+    """(name, argv prefix, keeps exit 2) for every shell an agent may hand a hook command to."""
+    found = [("bash", [bash_executable(), "-c"], True)]
+    for ps in ("pwsh", "powershell"):
+        if exe := shutil.which(ps):
+            found.append((ps, [exe, "-NoProfile", "-NonInteractive", "-Command"], False))
+    if sys.platform == "win32" and (cmd := shutil.which("cmd")):
+        found.append(("cmd", [cmd, "/d", "/c"], True))
+    return found
+
+
+@pytest.mark.parametrize(("shell", "argv", "keeps_exit"), _shells(), ids=[s[0] for s in _shells()])
+def test_hook_command_runs_under_every_available_shell(
+    tmp_path: Path, shell: str, argv: list[str], *, keeps_exit: bool
+) -> None:
+    repo = _repo(tmp_path)
+    (repo / _PROBE_REL).write_text(_PROBE + "sys.exit(2)\n", encoding="utf-8")
+    nested = repo / "a"
+    nested.mkdir()
+    command = hook_command(_PROBE_REL, "--gate", "p/stop/gate.json")
+    # cmd.exe reads its command line raw (no `\"` unescaping), as an agent hands it over.
+    args = f"{subprocess.list2cmdline(argv)} {command}" if shell == "cmd" else [*argv, command]
+    proc = subprocess.run(args, cwd=nested, capture_output=True, text=True, check=False)
+    out = json.loads(proc.stdout)
+    assert Path(out["cwd"]).resolve() == repo.resolve(), shell
+    assert out["args"] == ["--gate", "p/stop/gate.json"], shell
+    if keeps_exit:
+        assert proc.returncode == 2, f"{shell} lost the blocking exit code: {proc.stderr}"
+
+
 #: Keys a PowerShell-only host reads: there the launcher is called with `&` and keeps its exit code.
 _POWERSHELL_KEYS = {"powershell", "windows", "commandWindows"}
-_POWERSHELL_WRAP = ("& ", "; exit $LASTEXITCODE")
+_POWERSHELL_WRAP = ("& ", POWERSHELL_KEEP_EXIT)
 
 
 def _unwrapped(key: str, command: str) -> str:
-    """The launcher command inside a PowerShell-only field's `& ...; exit $LASTEXITCODE` wrapper."""
+    """The launcher command inside a PowerShell-only field's `& ...` exit-keeping wrapper."""
     head, tail = _POWERSHELL_WRAP
     if key in _POWERSHELL_KEYS and command.startswith(head) and command.endswith(tail):
         return command[len(head) : -len(tail)]

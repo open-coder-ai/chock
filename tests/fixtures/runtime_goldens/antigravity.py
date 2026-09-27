@@ -205,7 +205,7 @@ def tool_input_of(raw):
     """The tool's arguments as a dict, decoding the JSON-string form some vendors send."""
     if isinstance(raw, dict):
         return raw
-    if isinstance(raw, str) and raw[:1] == "{":
+    if isinstance(raw, str) and raw.lstrip()[:1] == "{":
         try:
             parsed = _json.loads(raw)
         except (ValueError, RecursionError):
@@ -1132,6 +1132,17 @@ def repo_relative(path, root):
     except (OSError, ValueError, RuntimeError):
         return text
 
+def repo_paths(path, root):
+    """Every repo-relative name a write is judged under: as written, and through symlinks and case."""
+    lexical = repo_relative(path, root)
+    if root is None or (str(root)[1:2] == _DRIVE_COLON) != (_chock_os.name == 'nt'):
+        return (lexical,)
+    try:
+        resolved = _chock_Path(root, str(path)).resolve().relative_to(_chock_Path(root).resolve()).as_posix()
+    except (OSError, ValueError, RuntimeError):
+        return (lexical,)
+    return tuple(dict.fromkeys((lexical, resolved)))
+
 def changed_paths(repo_root):
     """Every uncommitted path in the worktree. Outside a repository there is nothing to list."""
     try:
@@ -1238,11 +1249,11 @@ def evaluate_gate(argv, event):
     if not gate.exists():
         return _missing_gate(gate, event)
     root = repo_root_for(event, gate)
-    writes = {repo_relative(path, root): text for path, text in writes_for(event, gate).items()}
+    writes = {rel: text for path, text in writes_for(event, gate).items() for rel in repo_paths(path, root)}
     if not writes:
         return None
     added = {**patch_added(event), **added_from_event(event)} if event.event == PRE_TOOL else {}
-    added = {repo_relative(path, root): text for path, text in added.items()}
+    added = {rel: text for path, text in added.items() for rel in repo_paths(path, root)}
     added = {path: text for path, text in added.items() if path in writes}
     outcome, message = run_gate(gate, writes, name, root, added)
     if outcome == GATE_BLOCKED:
@@ -1320,19 +1331,32 @@ def _report(text):
         return
 
 
+_STDERR_FD = 2
+
+
 def _divert_fd1():
     """Point fd 1 at stderr (devnull if there is none); the saved fd 1, or None if it could not."""
     try:
         saved = os.dup(1)
     except OSError:
         return None
-    try:
-        os.dup2(2, 1)
-    except OSError:
-        sink = os.open(os.devnull, os.O_WRONLY)
-        os.dup2(sink, 1)
-        os.close(sink)
+    # With fd 2 closed, dup() hands back 2 itself, and "stderr" would be stdout again.
+    if saved > _STDERR_FD:
+        with contextlib.suppress(OSError):
+            os.dup2(_STDERR_FD, 1)
+            return saved
+    sink = os.open(os.devnull, os.O_WRONLY)
+    os.dup2(sink, 1)
+    os.close(sink)
     return saved
+
+
+def _flush(streams):
+    """Flush each stream that exists; a broken one is no reason to lose the verdict."""
+    for stream in streams:
+        if stream is not None:
+            with contextlib.suppress(Exception):
+                stream.flush()
 
 
 @contextlib.contextmanager
@@ -1341,14 +1365,17 @@ def _stdout_to_stderr():
     # ahead of the JSON makes the host fail to parse it, and Claude Code and Gemini CLI then
     # treat the hook as a non-blocking error: a deny became an allow, witnessed live.
     sink = sys.stderr if sys.stderr is not None else io.StringIO()
+    held = (sys.stdout, sys.__stdout__)
+    _flush(held)
     saved = _divert_fd1()
     try:
         with contextlib.redirect_stdout(sink):
             yield
     finally:
         if saved is not None:
-            with contextlib.suppress(Exception):
-                sink.flush()
+            # A stream the handler held on to (sys.__stdout__, a reference cached at import)
+            # buffers past redirect_stdout; flushed now it lands on stderr, not after the verdict.
+            _flush((sink, *held))
             os.dup2(saved, 1)
             os.close(saved)
 

@@ -160,7 +160,9 @@ def _hook_schema(repo: Adopter) -> None:
         for hook in entry["hooks"]:
             assert hook["type"] == "command"
             # Repo-relative, run by git from the top level: survives a repo move, names no interpreter.
-            assert hook["command"].startswith('git -c "alias.chock-hook=!sh .chock/bin/launch.sh" chock-hook ')
+            assert hook["command"].startswith(
+                'git -c "alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh" chock-hook '
+            )
             assert "${" not in hook["command"], hook["command"]
 
 

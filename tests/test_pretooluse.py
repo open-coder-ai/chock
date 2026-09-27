@@ -166,7 +166,9 @@ def test_install_writes_claude_settings_schema() -> None:
         assert entry["matcher"] == "Bash|PowerShell"
         hook = entry["hooks"][0]
         assert hook["type"] == "command"
-        assert hook["command"].startswith('git -c "alias.chock-hook=!sh .chock/bin/launch.sh" chock-hook ')
+        assert hook["command"].startswith(
+            'git -c "alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh" chock-hook '
+        )
         assert "${" not in hook["command"], "repo-relative: git runs the launcher from the top level"
         assert sys.executable not in hook["command"], "no interpreter path may be committed"
     assert (repo / ".chock" / "bin" / "claude_code.py").exists()

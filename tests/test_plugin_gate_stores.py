@@ -106,6 +106,7 @@ def _run_cursor_hook(out: Path, repo: Path, payload: str) -> subprocess.Complete
         env={**os.environ, "CURSOR_PLUGIN_ROOT": str(out)},
         capture_output=True,
         text=True,
+        encoding="utf-8",
         input=payload,
         check=False,
     )

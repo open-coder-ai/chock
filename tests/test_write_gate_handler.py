@@ -185,6 +185,17 @@ def test_an_absolute_path_reached_through_a_symlink_is_still_inside(tmp_path: Pa
     assert verdict is not None and verdict[0] == write_gate.VERDICT_DENY
 
 
+def test_a_write_through_a_symlinked_folder_inside_the_repo_is_judged_as_its_target(tmp_path: Path) -> None:
+    """`wf -> .github/workflows`: the lexical `wf/ci.yml` misses the scope glob; the target does not."""
+    gate = _installed_pin(tmp_path)
+    (tmp_path / ".github" / "workflows").mkdir(parents=True)
+    (tmp_path / "wf").symlink_to(tmp_path / ".github" / "workflows", target_is_directory=True)
+    for path in ("wf/ci.yml", str(tmp_path / "wf" / "ci.yml")):
+        verdict = write_gate.evaluate_gate(["--gate", str(gate)], _event(path=path, content=UNPINNED))
+        assert verdict is not None and verdict[0] == write_gate.VERDICT_DENY, path
+    assert write_gate.repo_paths("wf/ci.yml", str(tmp_path)) == ("wf/ci.yml", ".github/workflows/ci.yml")
+
+
 def test_paths_are_made_repository_relative_posix() -> None:
     assert write_gate.repo_relative("/r/.github/workflows/ci.yml", "/r") == ".github/workflows/ci.yml"
     assert write_gate.repo_relative("./a/../.github/x.yml", "/r") == ".github/x.yml"
