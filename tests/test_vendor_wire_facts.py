@@ -31,7 +31,7 @@ def test_derived_wire_facts_still_produce_todays_bytes() -> None:
     assert vendors.shell_gate_event("cursor") == "beforeShellExecution"
     assert vendors.config_envelope("cursor") == {"version": 1}
     assert vendors.config_envelope("claude_code") == {}
-    assert in_agent.MATCHER == "Bash"
+    assert in_agent.MATCHER == "Bash|PowerShell"
 
 
 def test_every_wired_vendor_has_a_public_vendor_entry() -> None:
@@ -47,7 +47,7 @@ def test_shell_vocabulary_is_derived_per_vendor_not_borrowed() -> None:
     claude_code's MATCHER; if a future release drops the vocabulary again, this fails and
     says to reinstate the borrow.
     """
-    assert adapters.shell_tools("claude_code") == ("Bash",)
+    assert adapters.shell_tools("claude_code") == ("Bash", "PowerShell")
     for vendor in ("codex_cli", "vscode_copilot"):
         assert adapters.shell_tools(vendor), f"agentseam records no shell vocabulary for {vendor} anymore"
 

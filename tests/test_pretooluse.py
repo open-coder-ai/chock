@@ -163,7 +163,7 @@ def test_install_writes_claude_settings_schema() -> None:
     entries = settings["hooks"]["PreToolUse"]
     assert entries, "no PreToolUse entries installed"
     for entry in entries:
-        assert entry["matcher"] == "Bash"
+        assert entry["matcher"] == "Bash|PowerShell"
         hook = entry["hooks"][0]
         assert hook["type"] == "command"
         assert hook["command"].startswith('git -c "alias.chock-hook=!sh .chock/bin/launch.sh" chock-hook ')
