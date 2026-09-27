@@ -84,7 +84,25 @@ def _handler_source(agent: str) -> str:
     return "".join(parts)
 
 
-_TOP_IMPORTS_ANCHOR = "from __future__ import annotations\n\nimport json\n_json = json\nimport sys\n"
+_FUTURE = "from __future__ import annotations\n\n"
+
+#: chock's imports go right after this line of agentseam's hoisted block. Anchored on the one
+#: line, not the whole block: agentseam 0.3.4 hoists contextlib/io/os around json and sys, and
+#: an exact-block anchor then matched nothing -- every runtime failed to render and sync wired
+#: no hooks at all. Where the block is unchanged the output is byte-identical to before.
+_SYS_IMPORT = "import sys\n"
+
+
+def _hoist_point(source: str) -> int:
+    """Offset just past `import sys` in the import block after `from __future__`, or -1."""
+    start = source.find(_FUTURE)
+    if start < 0:
+        return -1
+    block_start = start + len(_FUTURE)
+    block_end = source.find("\n\n", block_start)
+    block = source[block_start : block_end + 1 if block_end >= 0 else len(source)]
+    at = ("\n" + block).find("\n" + _SYS_IMPORT)
+    return -1 if at < 0 else block_start + at + len(_SYS_IMPORT)
 
 
 def _needed_imports(handler_source: str) -> str:
@@ -104,10 +122,11 @@ def _needed_imports(handler_source: str) -> str:
 def render(agent: str) -> str:
     """Render `agent`'s self-contained vendored runtime: agentseam's bundle, chock's"""
     source = bundler.bundle(agent)
-    if _TOP_IMPORTS_ANCHOR not in source:
+    at = _hoist_point(source)
+    if at < 0:
         raise ValueError("%s: bundle() output has no top-imports anchor to hoist onto" % agent)
     handler = _handler_source(agent)
-    source = source.replace(_TOP_IMPORTS_ANCHOR, _TOP_IMPORTS_ANCHOR + "\n" + _needed_imports(handler), 1)
+    source = source[:at] + "\n" + _needed_imports(handler) + source[at:]
     head, sep, rest = source.partition(BEGIN)
     if not sep:
         raise ValueError("%s: bundle() output has no %r marker" % (agent, BEGIN))
