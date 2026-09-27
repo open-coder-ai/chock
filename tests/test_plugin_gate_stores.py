@@ -1,8 +1,8 @@
 """The packaged gate in every hook-carrying store, reaching exactly what agentseam records.
 
 Claude Code records a write-tool vocabulary and a blocking turn-end hook, so its package gates
-both. Codex, Devin and Copilot record no write tools but block at the turn's end, so their
-packages carry the gate at `Stop` alone and say so. Cursor records `Write` at its generic
+both, as does Codex with `apply_patch`. Devin and Copilot record no write tools but block at
+the turn's end, so their packages carry the gate at `Stop` alone and say so. Cursor records `Write` at its generic
 `preToolUse` and a turn-end hook that hands a refusal back as a follow-up message, so its
 package gates the write and reports at `stop`, in Cursor's own flat entry shape. None of that
 is typed here: the test asks agentseam the same question the emitter does.
@@ -70,13 +70,13 @@ def test_the_gate_reaches_what_the_vendor_records(gate_policy, tmp_path: Path, s
 def test_which_vendors_the_gate_reaches_is_agentseam_s_answer() -> None:
     """Pinned so a change upstream surfaces here rather than silently widening or narrowing a package."""
     assert gate_reach("claude_code") == ("Write|Edit|MultiEdit|NotebookEdit", True)
-    assert gate_reach("codex_cli") == (None, True)
+    assert gate_reach("codex_cli") == ("apply_patch", True)
     assert gate_reach("devin") == (None, True)
     assert gate_reach("vscode_copilot") == (None, True)
     assert gate_reach("cursor") == ("Write", True)
 
 
-@pytest.mark.parametrize("store", ["codex", "devin", "copilot"])
+@pytest.mark.parametrize("store", ["devin", "copilot"])
 def test_a_stop_only_package_says_the_write_is_not_judged(gate_policy, tmp_path: Path, store: str) -> None:
     vendor, build, _, _ = STORES[store]
     manifest = _manifest()
