@@ -102,3 +102,25 @@ def test_a_repo_already_broken_by_0_9_1_self_heals_on_the_next_sync(tmp_path: Pa
     recompile(repo, ["claude"], skip_hooks=False)
 
     assert not cursor_hooks.exists() or ".chock/bin/cursor.py" not in cursor_hooks.read_text(encoding="utf-8")
+
+
+def test_a_vendor_that_cannot_be_wired_fails_sync_after_wiring_the_rest(tmp_path: Path) -> None:
+    """A warning scrolled past was the only sign a vendor's gate was not installed at all."""
+    import json
+
+    import pytest
+
+    from chock.scaffold.recompile import HookWiringError
+
+    repo = _repo(tmp_path)
+    (repo / ".cursor").mkdir()
+    (repo / ".cursor" / "hooks.json").write_text("{ not json", encoding="utf-8")
+
+    with pytest.raises(HookWiringError, match="cursor"):
+        recompile(repo, ["claude", "cursor"], skip_hooks=False)
+
+    settings = json.loads((repo / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    assert settings["hooks"]["PreToolUse"], "the vendor that could be wired still was"
+    assert (repo / ".cursor" / "hooks.json").read_text(encoding="utf-8") == "{ not json", (
+        "a foreign file is never clobbered"
+    )
