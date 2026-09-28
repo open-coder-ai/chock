@@ -208,7 +208,7 @@ the envelope differs. `claude` (`.claude-plugin/`, `PreToolUse` + `Stop`) is rea
 CLI, VS Code and Grok Build; `copilot` is the Agent Plugins 1.0 layout under `com.github.copilot/hooks/` (`Stop`);
 `cursor` (`.cursor-plugin/`) takes `beforeShellExecution` per guard and, per gate, `preToolUse` on the write plus
 `stop`; `codex` (`.codex-plugin/`, `PreToolUse` per guard, `Stop` per gate) reaches a hook engine no other package
-can, both failing **open** without `python3`; `devin` (`.devin-plugin/plugin.json` + `hooks.json`, same two events)
+can, both failing **open** without `git`; `devin` (`.devin-plugin/plugin.json` + `hooks.json`, same two events)
 is best-effort by the vendor's own design, fail-open, not enforced. They require `--out-dir` (or `--out`); in-place output is
 refused so a policy folder is never mistaken for a published plugin. `--policies-dir` packages
 a published directory; `--check` judges without writing. `--policy ID` (repeatable; manifest

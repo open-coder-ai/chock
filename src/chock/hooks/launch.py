@@ -28,6 +28,14 @@ _MISSING = f"test -f {LAUNCHER_REL} || {{ echo chock: no {LAUNCHER_REL} here, ru
 #: No `$`, no backslash, no single quote: bash, PowerShell and cmd.exe read it identically.
 _PREFIX = f'git -c "alias.{ALIAS}=!{_MISSING}; sh {LAUNCHER_REL}" {ALIAS}'
 
+#: A plugin has no repository root to resolve against, so its alias carries nothing but `sh`: git
+#: supplies a POSIX sh under bash, PowerShell and cmd.exe alike, and the launcher's path is an
+#: argument the client expands in its plugin-root token, as it did for `python3 "<path>"`.
+PLUGIN_ALIAS = "chock-sh"
+
+#: The launcher's name beside a plugin's packaged runtime.
+PLUGIN_LAUNCHER = "launch.sh"
+
 _TEMPLATE = package_data_dir("chock", "hooks", "data").joinpath("launch.sh").read_text(encoding="utf-8")
 
 
@@ -35,6 +43,11 @@ def hook_command(runtime: str, *args: str) -> str:
     """The command an agent config carries to run `runtime` (repo-relative) with `args`."""
     words = [f'"{arg}"' if "/" in arg else arg for arg in args]
     return " ".join([_PREFIX, runtime, *words])
+
+
+def plugin_interpreter(launcher: str) -> str:
+    """What stands where a plugin hook said `python3`: git's sh running the shipped launcher."""
+    return f'git -c "alias.{PLUGIN_ALIAS}=!sh" {PLUGIN_ALIAS} {launcher}'
 
 
 def launcher_text() -> str:

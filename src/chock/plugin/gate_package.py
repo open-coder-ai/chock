@@ -25,18 +25,20 @@ RUNNER_FILE = "gate.py"
 IMPLEMENTATIONS = "implementations"
 
 _STOP_ONLY_POSTURE = (
-    "Session-enforced at the turn's end by a Stop hook; needs python3. This client records no "
+    "Session-enforced at the turn's end by a Stop hook; needs git and a Python 3.11+. This client records no "
     "file-writing tool vocabulary, so the write itself is not judged: what the turn actually left "
     "on disk is re-read, and a construct a rule denies is refused then, however it was written. "
-    "Without python3, fail-open clients allow silently. A gate that cannot reach a decision "
+    "With no working Python the hook exits 2; without git, fail-open clients allow silently. "
+    "A gate that cannot reach a decision "
     "refuses rather than allowing one it never judged. Enforcement at every commit and in CI "
     "still needs chock installed in the repo."
 )
 _WRITE_AND_STOP_POSTURE = (
-    "Session-enforced via PreToolUse and Stop hooks; needs python3. PreToolUse judges the file "
+    "Session-enforced via PreToolUse and Stop hooks; needs git and a Python 3.11+. PreToolUse "
+    "judges the file "
     "a tool call would write; Stop re-reads what the turn actually left on disk, so a file "
-    "written through a shell heredoc is judged too. Without python3, fail-open clients allow "
-    "silently. A gate that cannot reach a decision refuses rather than allowing one it never "
+    "written through a shell heredoc is judged too. With no working Python the hook exits 2; "
+    "without git, fail-open clients allow silently. A gate that cannot reach a decision refuses rather than allowing one it never "
     "judged. Enforcement at every commit and in CI still needs chock installed in the repo."
 )
 _STOP_ONLY_NOTE = (

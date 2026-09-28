@@ -74,7 +74,8 @@ def test_guard_policy_ships_hooks_adapter_and_guard(policy, tmp_path: Path) -> N
     assert "${CLAUDE_PLUGIN_ROOT}/scripts/claude_code.py" in command
     assert "${CLAUDE_PLUGIN_ROOT}/scripts/block-destructive-commands.sh" in command
     assert command == (
-        'python3 "${CLAUDE_PLUGIN_ROOT}/scripts/claude_code.py" '
+        'git -c "alias.chock-sh=!sh" chock-sh "${CLAUDE_PLUGIN_ROOT}/scripts/launch.sh" '
+        '"${CLAUDE_PLUGIN_ROOT}/scripts/claude_code.py" '
         '--guard "${CLAUDE_PLUGIN_ROOT}/scripts/block-destructive-commands.sh"'
     )
 

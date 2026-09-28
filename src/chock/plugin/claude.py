@@ -11,6 +11,7 @@ from agentseam import packaging
 from chock.compile.emitters.in_agent import GATE_FILE, _guard_script, tool_use_gate_spec
 from chock.compile.emitters.in_agent_hooks import hooks_map_file
 from chock.gate import runtime_bundle
+from chock.hooks import launch
 from chock.plugin import gate_package, store
 from chock.plugin.build import (
     _ADVISORY_NOTE_HOOK,
@@ -29,10 +30,11 @@ from chock.plugin.store import SCRIPTS_TEMPLATE as _SCRIPTS_TEMPLATE
 _MANIFEST_REL = packaging.layout("claude_code")["manifest"]
 
 POSTURE_ENFORCED = (
-    "Session-enforced via a PreToolUse hook; needs python3 and a usable bash. Without them, "
-    "fail-open clients allow silently; fail-closed clients refuse matched commands. On Windows, "
-    "disable the python3 Store alias or install Python. If the guard itself crashes or times "
-    "out, the hook asks for confirmation rather than allowing silently."
+    "Session-enforced via a PreToolUse hook; needs git, a usable bash and a Python 3.11+ "
+    "(python3, python or py, whichever actually runs; the Windows Store stub is skipped). With no "
+    "working Python the hook refuses (exit 2); without git or bash, fail-open clients allow "
+    "silently and fail-closed clients refuse matched commands. If the guard itself crashes or "
+    "times out, the hook asks for confirmation rather than allowing silently."
 )
 POSTURE_ENFORCED_GATE = gate_package.gate_posture("claude_code")
 POSTURE_ADVISORY = "Advisory skill only; enforcement needs chock installed in the repo."
@@ -54,18 +56,34 @@ def _adapter_source(agent: str = "claude_code") -> str:
     return runtime_bundle.render(agent)
 
 
+_LAUNCHER_REL = _SCRIPTS_TEMPLATE.format(name=launch.PLUGIN_LAUNCHER)
+
+
+def _runtime_files(agent: str) -> dict[Path, str]:
+    """`agent`'s runtime, and the launcher that starts it with a Python that actually runs."""
+    return {
+        Path(_SCRIPTS_TEMPLATE.format(name=f"{agent}.py")): _adapter_source(agent),
+        Path(_LAUNCHER_REL): launch.launcher_text(),
+    }
+
+
+def _interpreter(agent: str) -> str:
+    """The launcher invocation for `agent`'s plugin, reached through its plugin-root token."""
+    return launch.plugin_interpreter(f'"{packaging.executable_ref(agent, _LAUNCHER_REL)}"')
+
+
 def _hook_command(script: str) -> str:
     """One interpreter invocation, deliberately without a fallback chain."""
     adapter = packaging.executable_ref("claude_code", _SCRIPTS_TEMPLATE.format(name="claude_code.py"))
     guard = packaging.executable_ref("claude_code", _SCRIPTS_TEMPLATE.format(name=script))
-    return f'python3 "{adapter}" --guard "{guard}"'
+    return f'{_interpreter("claude_code")} "{adapter}" --guard "{guard}"'
 
 
 def _gate_command() -> str:
     """The same adapter, handed the packaged gate instead of a guard."""
     adapter = packaging.executable_ref("claude_code", _SCRIPTS_TEMPLATE.format(name="claude_code.py"))
     gate = packaging.executable_ref("claude_code", _GATE_REL)
-    return f'python3 "{adapter}" --gate "{gate}"'
+    return f'{_interpreter("claude_code")} "{adapter}" --gate "{gate}"'
 
 
 def build_claude_manifest(
@@ -126,13 +144,13 @@ def claude_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
     hooks_rel = Path(packaging.supports("claude_code", packaging.HOOKS))
     if script:
         files[hooks_rel] = json.dumps(hooks_map_file("claude_code", _hook_command(script)), indent=2) + "\n"
-        files[Path(_SCRIPTS_TEMPLATE.format(name="claude_code.py"))] = _adapter_source("claude_code")
+        files.update(_runtime_files("claude_code"))
         files[Path(_SCRIPTS_TEMPLATE.format(name=script))] = (policy_dir / _IMPLEMENTATIONS / script).read_text(
             encoding="utf-8"
         )
     elif gate:
         files[hooks_rel] = json.dumps(gate_package.gate_hooks_file("claude_code", _gate_command()), indent=2) + "\n"
-        files[Path(_SCRIPTS_TEMPLATE.format(name="claude_code.py"))] = _adapter_source("claude_code")
+        files.update(_runtime_files("claude_code"))
         files.update(gate_package.packaged_gate_files(policy_dir, gate, _SCRIPTS_TEMPLATE))
     return files
 

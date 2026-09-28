@@ -66,6 +66,7 @@ def test_devin_guard_policy_layout_and_hook(policy, tmp_path: Path) -> None:
         Path("skills/block-destructive-commands/SKILL.md"),
         Path("hooks.json"),
         Path("scripts/devin.py"),
+        Path("scripts/launch.sh"),
         Path("scripts/block-destructive-commands.sh"),
     }
 
@@ -76,7 +77,8 @@ def test_devin_guard_policy_layout_and_hook(policy, tmp_path: Path) -> None:
     inner = entry["hooks"][0]
     assert inner["type"] == "command"
     assert inner["command"] == (
-        'python3 "$DEVIN_PLUGIN_ROOT/scripts/devin.py" --guard "$DEVIN_PLUGIN_ROOT/scripts/block-destructive-commands.sh"'
+        'git -c "alias.chock-sh=!sh" chock-sh "$DEVIN_PLUGIN_ROOT/scripts/launch.sh" '
+        '"$DEVIN_PLUGIN_ROOT/scripts/devin.py" --guard "$DEVIN_PLUGIN_ROOT/scripts/block-destructive-commands.sh"'
     )
 
 

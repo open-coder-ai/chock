@@ -10,6 +10,7 @@ from agentseam import packaging
 
 from chock.compile.emitters.in_agent import _guard_script, tool_use_gate_spec
 from chock.compile.emitters.in_agent_hooks import hooks_map_file
+from chock.hooks import launch
 from chock.plugin import gate_package, posture, store
 from chock.plugin.build import (
     _ADVISORY_NOTE_HOOK,
@@ -21,7 +22,7 @@ from chock.plugin.build import (
     plugin_name,
     skill_assets,
 )
-from chock.plugin.claude import POSTURE_ADVISORY, _adapter_source
+from chock.plugin.claude import POSTURE_ADVISORY, _runtime_files
 from chock.plugin.store import SCRIPTS_TEMPLATE as _SCRIPTS_TEMPLATE
 
 _LAYOUT = packaging.layout("devin")
@@ -65,8 +66,11 @@ DEVIN_PLUGIN_ROOT_VAR = "DEVIN_PLUGIN_ROOT"
 def _hook_command(script: str) -> str:
     """One interpreter invocation, via a shell expansion of `$DEVIN_PLUGIN_ROOT`."""
     adapter = f"${DEVIN_PLUGIN_ROOT_VAR}/{_SCRIPTS_TEMPLATE.format(name='devin.py')}"
+    launcher = launch.plugin_interpreter(
+        f'"${DEVIN_PLUGIN_ROOT_VAR}/{_SCRIPTS_TEMPLATE.format(name=launch.PLUGIN_LAUNCHER)}"'
+    )
     guard = f"${DEVIN_PLUGIN_ROOT_VAR}/{_SCRIPTS_TEMPLATE.format(name=script)}"
-    return f'python3 "{adapter}" --guard "{guard}"'
+    return f'{launcher} "{adapter}" --guard "{guard}"'
 
 
 POSTURE_GATE_DEVIN = gate_package.gate_posture(
@@ -79,8 +83,11 @@ _GATE_NOTE_DEVIN = gate_package.gate_skill_note("devin")
 def _gate_command() -> str:
     """The same adapter, handed the packaged gate instead of a guard."""
     adapter = f"${DEVIN_PLUGIN_ROOT_VAR}/{_SCRIPTS_TEMPLATE.format(name='devin.py')}"
+    launcher = launch.plugin_interpreter(
+        f'"${DEVIN_PLUGIN_ROOT_VAR}/{_SCRIPTS_TEMPLATE.format(name=launch.PLUGIN_LAUNCHER)}"'
+    )
     gate = f"${DEVIN_PLUGIN_ROOT_VAR}/{_SCRIPTS_TEMPLATE.format(name='gate.json')}"
-    return f'python3 "{adapter}" --gate "{gate}"'
+    return f'{launcher} "{adapter}" --gate "{gate}"'
 
 
 def build_devin_manifest(
@@ -133,13 +140,13 @@ def devin_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
         files[LICENSE_REL] = licence
     if script:
         files[Path(HOOKS_REL)] = json.dumps(hooks_map_file("devin", _hook_command(script)), indent=2) + "\n"
-        files[Path(_SCRIPTS_TEMPLATE.format(name="devin.py"))] = _adapter_source("devin")
+        files.update(_runtime_files("devin"))
         files[Path(_SCRIPTS_TEMPLATE.format(name=script))] = (policy_dir / "implementations" / script).read_text(
             encoding="utf-8"
         )
     elif gate:
         files[Path(HOOKS_REL)] = json.dumps(gate_package.gate_hooks_file("devin", _gate_command()), indent=2) + "\n"
-        files[Path(_SCRIPTS_TEMPLATE.format(name="devin.py"))] = _adapter_source("devin")
+        files.update(_runtime_files("devin"))
         files.update(gate_package.packaged_gate_files(policy_dir, gate, _SCRIPTS_TEMPLATE))
     return files
 

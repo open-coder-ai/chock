@@ -23,7 +23,7 @@ from chock.plugin.build import (
     plugin_name,
     skill_assets,
 )
-from chock.plugin.claude import POSTURE_ADVISORY, _adapter_source
+from chock.plugin.claude import POSTURE_ADVISORY, _interpreter, _runtime_files
 from chock.plugin.store import SCRIPTS_TEMPLATE as _SCRIPTS_TEMPLATE
 
 _LAYOUT = packaging.layout("cursor")
@@ -59,7 +59,7 @@ def _hook_command(script: str) -> str:
     """One interpreter invocation against the plugin's own bundled copies."""
     adapter = packaging.executable_ref("cursor", _SCRIPTS_TEMPLATE.format(name="cursor.py"))
     guard = packaging.executable_ref("cursor", _SCRIPTS_TEMPLATE.format(name=script))
-    return f'python3 "{adapter}" --guard "{guard}"'
+    return f'{_interpreter("cursor")} "{adapter}" --guard "{guard}"'
 
 
 POSTURE_GATE_CURSOR = gate_package.gate_posture(
@@ -74,7 +74,7 @@ def _gate_command() -> str:
     """The same adapter, handed the packaged gate instead of a guard."""
     adapter = packaging.executable_ref("cursor", _SCRIPTS_TEMPLATE.format(name="cursor.py"))
     gate = packaging.executable_ref("cursor", _SCRIPTS_TEMPLATE.format(name="gate.json"))
-    return f'python3 "{adapter}" --gate "{gate}"'
+    return f'{_interpreter("cursor")} "{adapter}" --gate "{gate}"'
 
 
 def build_cursor_manifest(
@@ -140,13 +140,13 @@ def cursor_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
         files[LICENSE_REL] = licence
     if script:
         files[Path(HOOKS_REL)] = json.dumps(cursor_hooks_file(_hook_command(script)), indent=2) + "\n"
-        files[Path(_SCRIPTS_TEMPLATE.format(name="cursor.py"))] = _adapter_source("cursor")
+        files.update(_runtime_files("cursor"))
         files[Path(_SCRIPTS_TEMPLATE.format(name=script))] = (policy_dir / "implementations" / script).read_text(
             encoding="utf-8"
         )
     elif gate:
         files[Path(HOOKS_REL)] = json.dumps(gate_package.gate_hooks_file("cursor", _gate_command()), indent=2) + "\n"
-        files[Path(_SCRIPTS_TEMPLATE.format(name="cursor.py"))] = _adapter_source("cursor")
+        files.update(_runtime_files("cursor"))
         files.update(gate_package.packaged_gate_files(policy_dir, gate, _SCRIPTS_TEMPLATE))
     return files
 

@@ -1,5 +1,16 @@
 # Chock changelog
 
+## Unreleased
+
+- **A plugin's hook starts on Windows.** Every plugin package (claude, cursor, codex, copilot,
+  devin) ran its runtime with a bare `python3`, which on Windows is often missing or the Store
+  stub that exits 9009; the hook failed to start and Claude Code let the command run. Each
+  package now ships `scripts/launch.sh` beside its runtime, and its hook runs it through git's
+  own sh (`git -c "alias.chock-sh=!sh" chock-sh "<plugin root>/scripts/launch.sh" ...`), under
+  bash, PowerShell or cmd.exe alike. The launcher starts the first of `python3`, `python` and
+  `py` that actually runs Python 3.11+, or refuses with exit 2. The plugin descriptions now say
+  it needs git and a Python 3.11+, not python3.
+
 ## 0.12.0 — Hooks that run on every machine and refuse when they cannot judge
 
 - **Agent hooks run on every machine, not just the one that last ran `chock sync`.** Hook
