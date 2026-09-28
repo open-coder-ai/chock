@@ -62,6 +62,7 @@ def test_cursor_guard_policy_layout_and_hook(policy, tmp_path: Path) -> None:
         Path("skills/block-destructive-commands/SKILL.md"),
         Path("hooks/hooks.json"),
         Path("scripts/cursor.py"),
+        Path("scripts/launch.sh"),
         Path("scripts/block-destructive-commands.sh"),
     }
 
@@ -72,7 +73,8 @@ def test_cursor_guard_policy_layout_and_hook(policy, tmp_path: Path) -> None:
     entry = entries[0]
     assert set(entry) == {"command", "timeout"}
     assert entry["command"] == (
-        'python3 "${CURSOR_PLUGIN_ROOT}/scripts/cursor.py" '
+        'git -c "alias.chock-sh=!sh" chock-sh "${CURSOR_PLUGIN_ROOT}/scripts/launch.sh" '
+        '"${CURSOR_PLUGIN_ROOT}/scripts/cursor.py" '
         '--guard "${CURSOR_PLUGIN_ROOT}/scripts/block-destructive-commands.sh"'
     )
 
@@ -110,6 +112,7 @@ def test_codex_guard_policy_layout_and_hook(policy, tmp_path: Path) -> None:
         Path("skills/block-destructive-commands/SKILL.md"),
         Path("hooks/hooks.json"),
         Path("scripts/codex_cli.py"),
+        Path("scripts/launch.sh"),
         Path("scripts/block-destructive-commands.sh"),
         Path("assets/icon.svg"),
     }
@@ -122,7 +125,8 @@ def test_codex_guard_policy_layout_and_hook(policy, tmp_path: Path) -> None:
     assert inner["type"] == "command"
     assert "async" not in inner, "Codex only honours a blocking decision from a sync hook"
     assert inner["command"] == (
-        'python3 "${PLUGIN_ROOT}/scripts/codex_cli.py" --guard "${PLUGIN_ROOT}/scripts/block-destructive-commands.sh"'
+        'git -c "alias.chock-sh=!sh" chock-sh "${PLUGIN_ROOT}/scripts/launch.sh" '
+        '"${PLUGIN_ROOT}/scripts/codex_cli.py" --guard "${PLUGIN_ROOT}/scripts/block-destructive-commands.sh"'
     )
 
 
@@ -225,7 +229,7 @@ def test_losing_a_guard_removes_the_hook(policy, tmp_path: Path, build, tree, ho
 def test_each_vendor_claims_only_what_was_witnessed(policy, tmp_path: Path) -> None:
     """Cursor was witnessed blocking; Codex was witnessed NOT blocking. The packages say so."""
     assert "Session-enforced in Cursor" in POSTURE_ENFORCED_CURSOR
-    assert "OPEN" in POSTURE_ENFORCED_CURSOR and "python3" in POSTURE_ENFORCED_CURSOR
+    assert "OPEN" in POSTURE_ENFORCED_CURSOR and "Python 3.11+" in POSTURE_ENFORCED_CURSOR
 
     assert "Session-enforced in Codex" in POSTURE_ENFORCED_CODEX, "witnessed 2026-08-24"
     assert "trust review" in POSTURE_ENFORCED_CODEX, "hooks are inert until a human approves"

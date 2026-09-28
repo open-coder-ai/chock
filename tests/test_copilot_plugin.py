@@ -83,7 +83,7 @@ def test_hook_lives_in_the_copilot_namespace(policy, tmp_path: Path) -> None:
     command = entry["hooks"][0]["command"]
     assert command == (
         'r="${PLUGIN_ROOT:-}"; [ -n "$r" ] && [ -f "$r/scripts/vscode_copilot.py" ] || exit 0; '
-        'exec python3 "$r/scripts/vscode_copilot.py" '
+        'exec git -c "alias.chock-sh=!sh" chock-sh "$r/scripts/launch.sh" "$r/scripts/vscode_copilot.py" '
         '--guard "$r/scripts/block-destructive-commands.sh"'
     )
 
@@ -123,7 +123,7 @@ def test_descriptions_state_the_fail_posture(policy, tmp_path: Path) -> None:
     assert POSTURE_ADVISORY in bare_manifest["description"]
     assert "com.github.copilot" in POSTURE_ENFORCED_COPILOT, "the scope must be named"
     assert "ignores it" in POSTURE_ENFORCED_COPILOT, "the namespace-ignoring outcome must be named"
-    assert "python3" in POSTURE_ENFORCED_COPILOT and "bash" in POSTURE_ENFORCED_COPILOT
+    assert "Python 3.11+" in POSTURE_ENFORCED_COPILOT and "bash" in POSTURE_ENFORCED_COPILOT
 
 
 def test_extension_claims_match_the_package_contents(policy, tmp_path: Path) -> None:

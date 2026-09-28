@@ -113,7 +113,8 @@ def _explain(tree: str, guards: int, guard_events: list[str], gates: int, gate_e
         parts.append(
             f"A guard package ships a guard script and a stdlib-only adapter, hooked at "
             f"{_event_list(guard_events)}, and can deny a shell command before the client runs it. "
-            "It fails open when `python3` or a usable `bash` is unavailable. When the guard itself "
+            "It fails open when `git` or a usable `bash` is unavailable, and exits 2 when no Python "
+            "3.11+ runs. When the guard itself "
             f"crashes, the hook {_on_crash(tree)}."
         )
     if gates:
@@ -126,8 +127,8 @@ def _explain(tree: str, guards: int, guard_events: list[str], gates: int, gate_e
         )
         parts.append(
             f"A gate package ships the policy's gate and a stdlib-only runner instead, hooked at "
-            f"{_event_list(gate_events)}, {reach}. It needs `python3`; without it a fail-open client "
-            "allows silently, and a gate that cannot reach a decision refuses rather than allowing "
+            f"{_event_list(gate_events)}, {reach}. It needs `git` and a Python 3.11+; with no working "
+            "Python it exits 2, without git a fail-open client allows silently, and a gate that cannot reach a decision refuses rather than allowing "
             "one it never judged."
         )
     parts.append("An advisory package ships skill text; nothing stops a violation.")

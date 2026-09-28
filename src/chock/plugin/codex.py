@@ -21,7 +21,7 @@ from chock.plugin.build import (
     plugin_name,
     skill_assets,
 )
-from chock.plugin.claude import POSTURE_ADVISORY, _adapter_source
+from chock.plugin.claude import POSTURE_ADVISORY, _interpreter, _runtime_files
 from chock.plugin.listing import ICON_REL, LICENSE_REL, icon_svg, interface_block, license_text
 from chock.plugin.store import SCRIPTS_TEMPLATE as _SCRIPTS_TEMPLATE
 
@@ -58,7 +58,7 @@ def _hook_command(script: str) -> str:
     """One interpreter invocation against the plugin's own bundled copies."""
     adapter = packaging.executable_ref("codex_cli", _SCRIPTS_TEMPLATE.format(name="codex_cli.py"))
     guard = packaging.executable_ref("codex_cli", _SCRIPTS_TEMPLATE.format(name=script))
-    return f'python3 "{adapter}" --guard "{guard}"'
+    return f'{_interpreter("codex_cli")} "{adapter}" --guard "{guard}"'
 
 
 POSTURE_GATE_CODEX = gate_package.gate_posture(
@@ -72,7 +72,7 @@ def _gate_command() -> str:
     """The same adapter, handed the packaged gate instead of a guard."""
     adapter = packaging.executable_ref("codex_cli", _SCRIPTS_TEMPLATE.format(name="codex_cli.py"))
     gate = packaging.executable_ref("codex_cli", _SCRIPTS_TEMPLATE.format(name="gate.json"))
-    return f'python3 "{adapter}" --gate "{gate}"'
+    return f'{_interpreter("codex_cli")} "{adapter}" --gate "{gate}"'
 
 
 def build_codex_manifest(
@@ -142,13 +142,13 @@ def codex_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
         files[LICENSE_REL] = licence
     if script:
         files[Path(HOOKS_REL)] = json.dumps(hooks_map_file("codex_cli", _hook_command(script)), indent=2) + "\n"
-        files[Path(_SCRIPTS_TEMPLATE.format(name="codex_cli.py"))] = _adapter_source("codex_cli")
+        files.update(_runtime_files("codex_cli"))
         files[Path(_SCRIPTS_TEMPLATE.format(name=script))] = (policy_dir / "implementations" / script).read_text(
             encoding="utf-8"
         )
     elif gate:
         files[Path(HOOKS_REL)] = json.dumps(gate_package.gate_hooks_file("codex_cli", _gate_command()), indent=2) + "\n"
-        files[Path(_SCRIPTS_TEMPLATE.format(name="codex_cli.py"))] = _adapter_source("codex_cli")
+        files.update(_runtime_files("codex_cli"))
         files.update(gate_package.packaged_gate_files(policy_dir, gate, _SCRIPTS_TEMPLATE))
     return files
 

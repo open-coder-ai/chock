@@ -10,6 +10,7 @@ from agentseam import packaging
 
 from chock.compile.emitters.in_agent import _guard_script, tool_use_gate_spec
 from chock.compile.emitters.in_agent_hooks import hooks_map_file
+from chock.hooks import launch
 from chock.plugin import gate_package, store
 from chock.plugin.build import (
     _ADVISORY_NOTE_HOOK,
@@ -22,7 +23,7 @@ from chock.plugin.build import (
     plugin_name,
     skill_assets,
 )
-from chock.plugin.claude import POSTURE_ADVISORY, _adapter_source
+from chock.plugin.claude import POSTURE_ADVISORY, _runtime_files
 from chock.plugin.store import SCRIPTS_TEMPLATE as _SCRIPTS_TEMPLATE
 
 _LAYOUT = packaging.layout("copilot")
@@ -33,9 +34,10 @@ POSTURE_ENFORCED_COPILOT = (
     "Session-enforced by the PreToolUse hook under com.github.copilot/ in clients that "
     "read that namespace (documented for VS Code agent mode); a client that ignores it, "
     "as the Agent Plugins spec tells generic clients to, gets the advisory skill only. "
-    "The hook needs python3 and a usable bash. Without them, fail-open clients allow "
-    "silently; fail-closed clients refuse matched commands. On Windows, disable the "
-    "python3 Store alias or install Python. If the guard itself crashes or times out, the "
+    "The hook needs git, a usable bash and a Python 3.11+ (python3, python or py, whichever "
+    "actually runs). With no working Python it exits 2; without git or bash, fail-open clients "
+    "allow silently and fail-closed clients refuse matched commands. If the guard itself "
+    "crashes or times out, the "
     "hook asks for confirmation rather than allowing silently -- VS Code agent mode honours "
     "that ask and it overrides the client's own auto-approve."
 )
@@ -56,8 +58,9 @@ def _hook_command(script: str) -> str:
     assert PLUGIN_ROOT.startswith("${") and PLUGIN_ROOT.endswith("}"), PLUGIN_ROOT  # noqa: S101 -- build-time constant, not request input
     root = f"{PLUGIN_ROOT[:-1]}:-}}"
     adapter = f'"$r/{_SCRIPTS_TEMPLATE.format(name="vscode_copilot.py")}"'
+    launcher = launch.plugin_interpreter(f'"$r/{_SCRIPTS_TEMPLATE.format(name=launch.PLUGIN_LAUNCHER)}"')
     guard = f'"$r/{_SCRIPTS_TEMPLATE.format(name=script)}"'
-    return f'r="{root}"; [ -n "$r" ] && [ -f {adapter} ] || exit 0; exec python3 {adapter} --guard {guard}'
+    return f'r="{root}"; [ -n "$r" ] && [ -f {adapter} ] || exit 0; exec {launcher} {adapter} --guard {guard}'
 
 
 POSTURE_GATE_COPILOT = gate_package.gate_posture(
@@ -72,8 +75,9 @@ def _gate_command() -> str:
     assert PLUGIN_ROOT.startswith("${") and PLUGIN_ROOT.endswith("}"), PLUGIN_ROOT  # noqa: S101 -- build-time constant, not request input
     root = f"{PLUGIN_ROOT[:-1]}:-}}"
     adapter = f'"$r/{_SCRIPTS_TEMPLATE.format(name="vscode_copilot.py")}"'
+    launcher = launch.plugin_interpreter(f'"$r/{_SCRIPTS_TEMPLATE.format(name=launch.PLUGIN_LAUNCHER)}"')
     gate = f'"$r/{_SCRIPTS_TEMPLATE.format(name="gate.json")}"'
-    return f'r="{root}"; [ -n "$r" ] && [ -f {adapter} ] || exit 0; exec python3 {adapter} --gate {gate}'
+    return f'r="{root}"; [ -n "$r" ] && [ -f {adapter} ] || exit 0; exec {launcher} {adapter} --gate {gate}'
 
 
 def build_copilot_manifest(
@@ -126,7 +130,7 @@ def copilot_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: 
         files[LICENSE_REL] = licence
     if script:
         files[Path(HOOKS_REL)] = json.dumps(hooks_map_file("vscode_copilot", _hook_command(script)), indent=2) + "\n"
-        files[Path(_SCRIPTS_TEMPLATE.format(name="vscode_copilot.py"))] = _adapter_source("vscode_copilot")
+        files.update(_runtime_files("vscode_copilot"))
         files[Path(_SCRIPTS_TEMPLATE.format(name=script))] = (policy_dir / "implementations" / script).read_text(
             encoding="utf-8"
         )
@@ -134,7 +138,7 @@ def copilot_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: 
         files[Path(HOOKS_REL)] = (
             json.dumps(gate_package.gate_hooks_file("vscode_copilot", _gate_command()), indent=2) + "\n"
         )
-        files[Path(_SCRIPTS_TEMPLATE.format(name="vscode_copilot.py"))] = _adapter_source("vscode_copilot")
+        files.update(_runtime_files("vscode_copilot"))
         files.update(gate_package.packaged_gate_files(policy_dir, gate, _SCRIPTS_TEMPLATE))
     return files
 
