@@ -1,6 +1,6 @@
 # Chock changelog
 
-## Unreleased
+## 0.12.1 — Plugin hooks that start on Windows
 
 - **A plugin's hook starts on Windows.** Every plugin package (claude, cursor, codex, copilot,
   devin) ran its runtime with a bare `python3`, which on Windows is often missing or the Store
