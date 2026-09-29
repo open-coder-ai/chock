@@ -183,25 +183,64 @@ WRITE_PATH_KINDS = frozenset({"content_regex", "script"})
 #: evaluator never read it for that reason, and the published policy message says so.
 WAIVABLE_EVENTS = frozenset({"commit", "push", "ci"})
 
+#: Env var marking the commit as a coding agent's. No repo file or agentseam data records a vendor
+#: env marker verified to reach a git hook, so this explicit opt-in is the only trigger.
+AGENT_COMMIT_ENV = "CHOCK_AGENT_COMMIT"
+
+#: The event an agent-made commit is judged at: outside WAIVABLE_EVENTS, so a waiver the commit
+#: adds is not honoured. Coverage (`on: [commit]`) is still decided by the name `commit`.
+AGENT_COMMIT_EVENT = "agent-commit"
+
+_FALSY_ENV = frozenset({"", "0", "false", "no", "off"})
+
+_AGENT_COMMIT_NOTE = (
+    f"gate: this commit is treated as an agent's ({AGENT_COMMIT_ENV} is set), so a waiver it adds "
+    "was not honoured; only waivers already in HEAD count. A person reviews and waives it, then "
+    f"commits from their own shell with {AGENT_COMMIT_ENV} unset."
+)
+
+
+def agent_commit() -> bool:
+    """True when the environment marks this commit as a coding agent's."""
+    return os.environ.get(AGENT_COMMIT_ENV, "").strip().lower() not in _FALSY_ENV
+
+
+def _judged_event(name: str) -> str:
+    """The event a gate is judged at: an agent's commit reads `agent-commit`, not `commit`."""
+    return AGENT_COMMIT_EVENT if name == "commit" and agent_commit() else name
+
+
+def _waiver_re(params: dict, event: str) -> re.Pattern[str] | None:
+    """The waiver regex for events that honour a waiver at all, else None."""
+    pragma = params.get("allowlist_pragma") if event in WAIVABLE_EVENTS or event == AGENT_COMMIT_EVENT else None
+    return re.compile(pragma) if pragma else None
+
+
+def _honoured(pragma_re: re.Pattern[str] | None, text: str, head: frozenset[str] | None) -> bool:
+    """A waiver on `text` counts unless `head` is given and the text is not already committed."""
+    return bool(pragma_re and pragma_re.search(text) and (head is None or text in head))
+
 
 def _kind_content_regex(ctx: GateContext, params: dict, event: str) -> GateResult:
     content_re = re.compile(params["content_pattern"])
     forbidden_path_regex = params.get("forbidden_path_regex")
     path_re = re.compile(forbidden_path_regex) if forbidden_path_regex else None
-    pragma = params.get("allowlist_pragma") if event in WAIVABLE_EVENTS else None
-    pragma_re = re.compile(pragma) if pragma else None
+    pragma_re = _waiver_re(params, event)
+    agent = event == AGENT_COMMIT_EVENT
     scan = params.get("scan", "added_lines")
     diff_filter = params.get("diff_filter", "ACMRT")
 
     matches: list[str] = []
     for path in ctx.staged_paths(diff_filter):
+        head_text = ctx.head_blob(path) if agent else ""
+        head = frozenset(head_text.splitlines()) if agent else None
         if path_re and path_re.search(path):
-            blob = ctx.staged_blob(path)
+            blob = head_text if agent else ctx.staged_blob(path)
             if not (pragma_re and pragma_re.search(blob)):
                 matches.append(f"{path}: forbidden path")
         lines = ctx.staged_blob(path).splitlines() if scan == "staged_blob" else ctx.added_lines(path)
         for line in lines:
-            if pragma_re and pragma_re.search(line):
+            if _honoured(pragma_re, line, head):
                 continue
             if content_re.search(line):
                 matches.append(f"{path}: content pattern")
@@ -320,18 +359,17 @@ def _kind_dependency_allowlist(ctx: GateContext, params: dict, _event: str) -> G
     return GateResult(allowed=not matches, matches=matches)
 
 
-def _count(pattern: "re.Pattern[str]", lines: list[str], pragma: "re.Pattern[str] | None") -> int:
+def _count(pattern: "re.Pattern[str]", lines: list[str], pragma: re.Pattern[str] | None) -> int:
     return sum(1 for line in lines if pattern.search(line) and not (pragma and pragma.search(line)))
 
 
-def _kind_test_integrity(ctx: GateContext, params: dict, _event: str) -> GateResult:
+def _kind_test_integrity(ctx: GateContext, params: dict, event: str) -> GateResult:
     """Block a change that wins green CI by weakening the tests rather than fixing the code."""
     path_re = re.compile(params["test_path_regex"])
     assertion_re = re.compile(params["assertion_pattern"])
     dummy_pattern = params.get("dummy_assertion_pattern")
     dummy_re = re.compile(dummy_pattern) if dummy_pattern else None
-    pragma = params.get("allowlist_pragma")
-    pragma_re = re.compile(pragma) if pragma else None
+    pragma_re = _waiver_re(params, event) if event != AGENT_COMMIT_EVENT else None
 
     matches: list[str] = []
     added = removed = 0
@@ -522,6 +560,14 @@ def _context(
     return WriteContext(repo_root=repo_root, writes=writes or {}, scope=spec.get("paths"), added=added, own=own)
 
 
+def _report_refusal(result: GateResult, spec: dict, judged: str) -> None:
+    print(result.message or spec.get("message", ""), file=sys.stderr)
+    for m in result.matches:
+        print(f"  - {m}", file=sys.stderr)
+    if judged == AGENT_COMMIT_EVENT:
+        print(_AGENT_COMMIT_NOTE, file=sys.stderr)
+
+
 def run(
     gate_path: Path,
     event: str,
@@ -566,12 +612,11 @@ def run(
             file=sys.stderr,
         )
         return 2
-    result = kind(ctx, _params(gate_path, spec), name)
-    _log_outcome(gate_path, name, spec, result)
+    judged = _judged_event(name)
+    result = kind(ctx, _params(gate_path, spec), judged)
+    _log_outcome(gate_path, judged, spec, result)
     if not result.allowed:
-        print(result.message or spec.get("message", ""), file=sys.stderr)
-        for m in result.matches:
-            print(f"  - {m}", file=sys.stderr)
+        _report_refusal(result, spec, judged)
         return 1
     return 0
 

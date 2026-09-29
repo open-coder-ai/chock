@@ -1,5 +1,17 @@
 # Chock changelog
 
+## Unreleased
+
+- **An agent's commit cannot waive its own refusal.** A `// chock: allow <rule>` waiver is a
+  reviewer's decision, but at commit the gate honoured every waiver in the staged text, so an
+  agent that ran `git commit` itself could add the waiver after a refusal and pass (seen with
+  Copilot in VS Code). With `CHOCK_AGENT_COMMIT` set in the committing shell, the pre-commit gate
+  now judges the commit at the event `agent-commit`, outside the waivable events: a waiver the
+  commit adds is ignored, one already in HEAD still counts, and the refusal says so. Script
+  gates receive `agent-commit` as `event`. Human commits are unchanged. No vendor environment
+  variable is detected automatically, as none is verified to reach a git hook. Push and CI are
+  unchanged. Vendored runner resynced.
+
 ## 0.12.1 — Plugin hooks that start on Windows
 
 - **A plugin's hook starts on Windows.** Every plugin package (claude, cursor, codex, copilot,
