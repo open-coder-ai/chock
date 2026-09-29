@@ -178,7 +178,15 @@ A hook that must stop a command targets `git-hook` + `ci-gate` (the universal fl
 available, `pre-tool-use` + `managed-setting`. A hook whose `on:` includes `tool_use` is compiled to
 the `pre-tool-use` surface on agents that support it (nine of them, Claude Code and Cursor
 among them; Copilot
-CLI and VS Code get the same guard via `agent-hooks`, and a content gate's write check as a `PreToolUse` entry over `Edit|Write` there). A best-practice rule with
+CLI and VS Code get the same guard via `agent-hooks`, and a content gate's write check as a `PreToolUse` entry over `Edit|Write` there). A hook whose `on:` includes
+`tool_call` (a `content_regex` or `script` gate with `params.tools`, globs over tool names such as
+`mcp__Firecrawl__*` or `WebFetch`) gates PreToolUse for any tool by name, on the five agents whose
+vendor facts record a tool vocabulary (Claude Code, Codex CLI, Cursor, Gemini CLI, and Copilot
+via `agent-hooks`); the others get no `tool_call` entry and are credited nothing for it. A gate's
+`outside_repo` globs let its PreToolUse write check see declared files outside the repository (the
+turn-end check cannot). A `script` gate on `tool_call` also keeps a local per-session tool-call log
+under `.chock/state/` that its script can read; see
+[`spec/session-log.md`](../spec/session-log.md). A best-practice rule with
 no deterministic check compiles only to `ambient-rule`. The compiler always pairs a control with the
 **strongest available backstop** — e.g. a git hook plus a CI gate, because a git hook alone can be
 skipped with `--no-verify`.

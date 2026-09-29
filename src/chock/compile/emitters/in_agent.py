@@ -8,8 +8,15 @@ from typing import Any
 
 from chock import vendors
 from chock.compile.emitters import GUARD_SUFFIXES, policy_rel_path
+from chock.compile.emitters import in_agent_tool_call as tool_call
 from chock.compile.emitters.advisory import repo_root_from_output
-from chock.compile.emitters.in_agent_hooks import TIMEOUT_SECONDS, cursor_entry, generic_hooks_file, hook_entry
+from chock.compile.emitters.in_agent_hooks import adapter_rel as _adapter_rel
+from chock.compile.emitters.in_agent_hooks import (
+    copilot_entry,
+    cursor_entry,
+    generic_hooks_file,
+    hook_entry,
+)
 from chock.emit import write_generated_json
 from chock.gate.build import build_gate_json
 from chock.gate.runner import WRITE_PATH_KINDS
@@ -43,9 +50,6 @@ assert MATCHER is not None  # noqa: S101 -- import-time upstream-data invariant,
 # stay here until upstream ingests the witnessed shape; tests/test_vendor_wire_facts.py
 # pins the disagreement so its resolution surfaces loudly.
 AGENT_HOOKS_EVENT = "preToolUse"
-#: `exit $LASTEXITCODE` alone exits 0 when no native command ran (git or sh not on PATH):
-#: $LASTEXITCODE is $null then, and 0 is an allow; nothing judged the call, so refuse (2).
-POWERSHELL_KEEP_EXIT = "; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
 AGENT_HOOKS_ENVELOPE = {"version": 1}
 SHELL_MATCHER = "bash|powershell|pwsh|sh|shell"
 #: The file-writing tool names witnessed in VS Code Copilot Chat agent mode (2026-09-28): an edit
@@ -57,11 +61,6 @@ GATE_HOOKS_FILE = "gate-hooks.json"
 #: The content fragment claude_code's installer merges, named apart from the shell one so a
 #: policy carrying both never has one overwrite the other.
 WRITE_FRAGMENT = "pretooluse-write.json"
-
-
-def _adapter_rel(vendor: str) -> str:
-    """Where the vendored runtime lives in a consumer repo: chock's convention + agent id."""
-    return f".chock/bin/{vendor}.py"
 
 
 def _compiled_rel(policy_id: str) -> str:
@@ -174,29 +173,6 @@ def _stop_rel(policy_id: str) -> str:
     return f".chock/compiled/{policy_id}/stop"
 
 
-def copilot_entry(bash: str, *, matcher: str | None = None) -> dict[str, Any]:
-    """One entry of chock's own Copilot hooks file: witnessed keys, both shells' spellings.
-
-    The launcher form reads the same under bash and PowerShell; PowerShell also needs its exit
-    code kept (`pwsh -Command` reports any failure as 1), as agentseam's own Windows form does.
-    """
-    powershell = f"& {bash}{POWERSHELL_KEEP_EXIT}"
-    entry: dict[str, Any] = {"type": "command"}
-    if matcher is not None:
-        entry["matcher"] = matcher
-    entry.update(
-        {
-            "timeout": TIMEOUT_SECONDS,
-            "timeoutSec": TIMEOUT_SECONDS,
-            "bash": bash,
-            "command": bash,
-            "powershell": powershell,
-            "windows": powershell,
-        }
-    )
-    return entry
-
-
 def _stop_fragments(policy_id: str, spec: dict[str, Any], output_dir: Path) -> list[Path]:
     """One fragment per stop vendor, plus the gate they all run.
 
@@ -245,13 +221,16 @@ def emit_pre_tool_use(policy_dir: Path, output_dir: Path, manifest: dict[str, An
     policy_id = manifest.get("id", policy_dir.name)
     script = _guard_script(policy_dir, policy_id)
     spec = _tool_use_gate(policy_dir, output_dir)
-    if not script and spec is None:
+    call = tool_call.spec_for(policy_dir, output_dir)
+    if not script and spec is None and call is None:
         return []
 
     output_dir.mkdir(parents=True, exist_ok=True)
     written = _guard_fragments(policy_dir, script, output_dir) if script else []
     if spec is not None:
         written += _gate_fragments(str(policy_id), spec, output_dir)
+    if call is not None:
+        written += tool_call.emit_pre_tool_use(str(policy_id), call, output_dir)
     return written
 
 
@@ -278,7 +257,8 @@ def emit_agent_hooks(policy_dir: Path, output_dir: Path, manifest: dict[str, Any
     """Write the per-policy entries; the installer aggregates them into .github/hooks/chock.json."""
     entry = build_entry(policy_dir, manifest)
     spec = _tool_use_gate(policy_dir, output_dir)
-    if entry is None and spec is None:
+    call = tool_call.spec_for(policy_dir, output_dir)
+    if entry is None and spec is None and call is None:
         return []
     output_dir.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
@@ -290,6 +270,8 @@ def emit_agent_hooks(policy_dir: Path, output_dir: Path, manifest: dict[str, Any
         write_generated_json(gate, spec)
         write_generated_json(dest, build_gate_entries(str(manifest.get("id", policy_dir.name))))
         written += [gate, dest]
+    if call is not None:
+        written += tool_call.emit_agent_hooks(str(manifest.get("id", policy_dir.name)), call, output_dir)
     return written
 
 

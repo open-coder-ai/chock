@@ -8,6 +8,38 @@ from chock import vendors
 
 TIMEOUT_SECONDS = 30
 
+#: `exit $LASTEXITCODE` alone exits 0 when no native command ran (git or sh not on PATH):
+#: $LASTEXITCODE is $null then, and 0 is an allow; nothing judged the call, so refuse (2).
+POWERSHELL_KEEP_EXIT = "; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
+
+
+def adapter_rel(vendor: str) -> str:
+    """Where the vendored runtime lives in a consumer repo: chock's convention + agent id."""
+    return f".chock/bin/{vendor}.py"
+
+
+def copilot_entry(bash: str, *, matcher: str | None = None) -> dict[str, Any]:
+    """One entry of chock's own Copilot hooks file: witnessed keys, both shells' spellings.
+
+    The launcher form reads the same under bash and PowerShell; PowerShell also needs its exit
+    code kept (`pwsh -Command` reports any failure as 1), as agentseam's own Windows form does.
+    """
+    powershell = f"& {bash}{POWERSHELL_KEEP_EXIT}"
+    entry: dict[str, Any] = {"type": "command"}
+    if matcher is not None:
+        entry["matcher"] = matcher
+    entry.update(
+        {
+            "timeout": TIMEOUT_SECONDS,
+            "timeoutSec": TIMEOUT_SECONDS,
+            "bash": bash,
+            "command": bash,
+            "powershell": powershell,
+            "windows": powershell,
+        }
+    )
+    return entry
+
 
 def generic_hooks_file(vendor: str, command: str) -> dict[str, Any]:
     """`vendor`'s full hook-config document for one guard command, agentseam's rendering.
