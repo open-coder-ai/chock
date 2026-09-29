@@ -28,7 +28,7 @@ def _payload(command: str) -> str:
 
 
 def _guard_body() -> str:
-    return '#!/usr/bin/env bash\nset -eu\ncase "$*" in *rm*-rf*) exit 1;; esac\nexit 0\n'
+    return '#!/usr/bin/env bash\nset -eu\ncase "$*" in *rm*-rf*) echo "BLOCKED: rm -rf" >&2; exit 1;; esac\nexit 0\n'
 
 
 def _synced_repo(tmp_path: Path) -> tuple[Path, dict]:

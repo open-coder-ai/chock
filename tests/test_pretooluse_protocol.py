@@ -33,8 +33,8 @@ def _run(runtimes: dict[str, Path], agent: str, payload: bytes, guard: Path = GU
     )
 
 
-def test_a_silent_guard_still_gives_a_deny_reason(tmp_path: Path, runtimes) -> None:
-    """A guard that denies with empty output must not become a silent ALLOW."""
+def test_a_silent_guard_asks_with_a_reason(tmp_path: Path, runtimes) -> None:
+    """Exit 1 with no output is a crash, not a refusal: it asks, explained, never a silent ALLOW."""
     silent = tmp_path / "silent-guard.sh"
     silent.write_text("#!/usr/bin/env bash\nexit 1\n", encoding="utf-8")
 
@@ -52,11 +52,11 @@ def test_a_silent_guard_still_gives_a_deny_reason(tmp_path: Path, runtimes) -> N
 
     assert result.returncode == 0
     stderr = result.stderr.decode("utf-8", "replace")
-    assert stderr.strip(), "a deny with no reason must still be explained on stderr"
-    assert "silent-guard.sh" in stderr, "the reason names the guard that denied"
+    assert stderr.strip(), "an unchecked command must still be explained on stderr"
+    assert "silent-guard.sh" in stderr, "the reason names the guard that failed"
     decision = json.loads(result.stdout.decode("utf-8"))
-    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
-    assert decision["hookSpecificOutput"]["permissionDecisionReason"], "a deny with no reason is a Codex FAILED hook"
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "ask"
+    assert decision["hookSpecificOutput"]["permissionDecisionReason"], "an ask with no reason is a Codex FAILED hook"
 
 
 def test_a_utf8_bom_payload_is_still_checked(runtimes) -> None:

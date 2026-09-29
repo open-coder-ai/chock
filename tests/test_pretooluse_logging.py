@@ -18,7 +18,7 @@ def enable_gate_log(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv(GATE_LOG_ENV, raising=False)
 
 
-BLOCKING_GUARD = "#!/usr/bin/env bash\nexit 1\n"
+BLOCKING_GUARD = "#!/usr/bin/env bash\necho refused >&2\nexit 1\n"
 CLEAN_GUARD = "#!/usr/bin/env bash\nexit 0\n"
 BROKEN_GUARD = "#!/usr/bin/env bash\nexit 42\n"
 
@@ -146,13 +146,12 @@ def test_guard_outside_an_chock_repo_is_not_recorded(tmp_path: Path, monkeypatch
     assert read_log(tmp_path) == []
 
 
-def test_unparseable_command_asks_and_is_unrecorded(tmp_path: Path, monkeypatch) -> None:
-    """Real run_guard, no stubbing: a parse failure must not masquerade as a clean check."""
+def test_unparseable_command_still_runs_the_guard(tmp_path: Path) -> None:
+    """Real run_guard, no stubbing: a parse failure hands the guard the raw command, not an ask."""
     guard = make_guard(tmp_path, CLEAN_GUARD)
 
-    assert guard_runner.run_guard(guard, 'echo "unbalanced') == guard_runner.GUARD_ERRORED
-    assert evaluate(guard, 'echo "unbalanced')[0] == guard_runner.VERDICT_ESCALATE
-    assert read_log(tmp_path) == []
+    assert guard_runner.run_guard(guard, 'echo "unbalanced') == guard_runner.GUARD_CLEAN
+    assert evaluate(guard, 'echo "unbalanced') is None
 
 
 HANGING_GUARD = "#!/usr/bin/env bash\nsleep 30\n"

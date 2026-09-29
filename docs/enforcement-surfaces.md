@@ -192,11 +192,11 @@ distinguishes six such causes and answers only one of them with an allow.
 
 | Cause | What chock returns | Why |
 | :--- | :--- | :--- |
-| The command will not tokenize (unbalanced quotes) | **ask** | No guard read it. `rm -rf / #'` is valid bash and invalid shlex, so an allow here was a bypass. |
+| The command will not tokenize (unbalanced quotes, trailing backslash, PowerShell quoting) | the guard's own verdict | The guard still runs: argv is a whitespace split (`CHOCK_ARGV_FALLBACK=1`) and `CHOCK_RAW_COMMAND` carries the exact string. `rm -rf / #'` is valid bash and invalid shlex, so a guard that reads the raw command must get the chance to refuse it. |
 | The command is empty after tokenizing | allow | There is nothing to check. |
 | No bash on the machine can resolve the guard | **ask** | No guard ran. The prompt names the fix: install Git for Windows (it ships bash), or put bash on PATH. |
 | The guard the hook names is not on disk | **deny** | The hook config names it, so its absence is a broken install, not nothing to check. The reason says to run `chock sync --repo .`. |
-| The guard crashed, or exited a code that is none of 0, 1 or 3 | **ask** | The control was installed, reachable and runnable, and still produced no answer. (Exit 3 is not this: it is the guard asking on purpose, and its own first line is the prompt.) |
+| The guard crashed, exited a code that is none of 0, 1 or 3, or exited 1 with no reason or a traceback / syntax error | **ask** | The control was installed, reachable and runnable, and still produced no answer. (Exit 3 is not this: it is the guard asking on purpose, and its own first line is the prompt. Exit 1 blocks only with a reason on stderr, as `spec/script-backed-gates.md` states.) |
 | The guard hit its 30-second timeout | **ask** | Same: the control ran and did not decide. |
 
 A guard that fails refuses or asks; it never reports an allow it never established.

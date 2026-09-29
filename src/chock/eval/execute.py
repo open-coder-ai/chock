@@ -6,7 +6,6 @@ import contextlib
 import io
 import json
 import os
-import shlex
 import shutil
 import subprocess
 import tempfile
@@ -17,7 +16,14 @@ from chock.compile.compiler import _load_manifest
 from chock.eval.model import Case, CaseResult
 from chock.gate import runner as gate_runner
 from chock.gate.build import build_gate_json
-from chock.gate.guard_runner import GUARD_ASK_EXIT, GUARD_VIOLATION, find_bash, interpreter_env
+from chock.gate.guard_runner import (
+    GUARD_ASK_EXIT,
+    GUARD_VIOLATION,
+    find_bash,
+    interpreter_env,
+    is_guard_crash,
+    split_command,
+)
 from chock.gate.runner import GATE_LOG_ENV
 
 BLOCK = "block"
@@ -134,10 +140,7 @@ def _run_guard(repo: Path, guard: Path, command: str) -> tuple[str, str]:
     bash = find_bash(guard)
     if bash is None:
         return ERROR, "no bash could resolve the guard path"
-    try:
-        args = shlex.split(command)
-    except ValueError:
-        return ERROR, f"case command has unbalanced quotes: {command}"
+    args, _ = split_command(command)
 
     try:
         env = {**interpreter_env(bash), "CHOCK_RAW_COMMAND": command}
@@ -157,6 +160,8 @@ def _run_guard(repo: Path, guard: Path, command: str) -> tuple[str, str]:
     detail = (proc.stderr or proc.stdout).strip().splitlines()
     first = detail[0] if detail else f"guard exit {proc.returncode}"
     if proc.returncode == GUARD_VIOLATION:
+        if is_guard_crash((proc.stderr or "") + (proc.stdout or "")):
+            return ERROR, f"guard exited 1 without a reason, so nothing was checked: {first}"
         return BLOCK, first
     if proc.returncode == GUARD_ASK_EXIT:
         return ASK, first

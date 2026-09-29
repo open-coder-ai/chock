@@ -576,6 +576,12 @@ GUARD_ASK_EXIT = 3
 
 PYTHON_SUFFIX = '.py'
 
+_CRASH_MARKERS = ('traceback (most recent call last)', 'syntax error', 'syntaxerror', 'unexpected eof')
+
+TOOL_UNKNOWN = 'unknown'
+
+ARGV_FALLBACK_ENV = 'CHOCK_ARGV_FALLBACK'
+
 _POSIX_BASH = ('bash', '/bin/bash', '/usr/bin/bash')
 
 _GIT_FOR_WINDOWS = ('C:\\Program Files\\Git', 'C:\\Program Files (x86)\\Git')
@@ -667,18 +673,36 @@ def find_interpreter(guard: _chock_Path) -> str | None:
         return sys.executable or None
     return find_bash(guard)
 
-def run_guard(guard: _chock_Path, command: str) -> str:
-    """`GUARD_BLOCKED` / `GUARD_ASKED` / `GUARD_CLEAN` when the guard ran, otherwise why it did not."""
-    return run_guard_detailed(guard, command)[0]
+def normalize_tool(tool: str | None) -> str:
+    """The hook payload's tool name as `bash` | `powershell` | `shell` | `unknown`."""
+    name = (tool or '').lower()
+    if name in ('powershell', 'pwsh'):
+        return 'powershell'
+    if name == 'bash':
+        return 'bash'
+    if name == 'sh' or 'shell' in name:
+        return 'shell'
+    return TOOL_UNKNOWN
 
-def run_guard_detailed(guard: _chock_Path, command: str) -> tuple[str, str]:
-    """`run_guard`'s verdict plus the guard's own first line, which an ask carries to the user."""
+def is_guard_crash(output: str) -> bool:
+    """True when a guard's exit-1 output is empty or shows an interpreter crash, not a refusal."""
+    lowered = output.lower()
+    return not lowered or any((marker in lowered for marker in _CRASH_MARKERS))
+
+def split_command(command: str) -> tuple[list[str], bool]:
+    """POSIX `shlex.split` argv, else a whitespace split; the flag is True on the fallback."""
     try:
-        args = _chock_shlex.split(command)
+        return (_chock_shlex.split(command), False)
     except ValueError:
-        reason = 'the command could not be parsed (unbalanced quotes), so no guard could read it'
-        print(f'chock: {reason}', file=sys.stderr)
-        return (GUARD_ERRORED, reason)
+        return (command.split(), True)
+
+def run_guard(guard: _chock_Path, command: str, tool: str='') -> str:
+    """`GUARD_BLOCKED` / `GUARD_ASKED` / `GUARD_CLEAN` when the guard ran, otherwise why it did not."""
+    return run_guard_detailed(guard, command, tool)[0]
+
+def run_guard_detailed(guard: _chock_Path, command: str, tool: str='') -> tuple[str, str]:
+    """`run_guard`'s verdict plus the guard's own first line, which an ask carries to the user."""
+    args, fallback = split_command(command)
     if not args:
         return (GUARD_UNCHECKED, '')
     interpreter = find_interpreter(guard)
@@ -687,7 +711,9 @@ def run_guard_detailed(guard: _chock_Path, command: str) -> tuple[str, str]:
         print(f'chock: {reason}', file=sys.stderr)
         return (GUARD_ERRORED, reason)
     try:
-        env = {**interpreter_env(interpreter), 'CHOCK_RAW_COMMAND': command}
+        env = {**interpreter_env(interpreter), 'CHOCK_RAW_COMMAND': command, 'CHOCK_TOOL': normalize_tool(tool)}
+        if fallback:
+            env[ARGV_FALLBACK_ENV] = '1'
         proc = _chock_subprocess.run([interpreter, str(guard), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=_GUARD_TIMEOUT_SECONDS, check=False)
     except _chock_subprocess.TimeoutExpired:
         print(f'chock: guard timed out after {_GUARD_TIMEOUT_SECONDS}s, not checked', file=sys.stderr)
@@ -698,10 +724,11 @@ def run_guard_detailed(guard: _chock_Path, command: str) -> tuple[str, str]:
     output = ((proc.stderr or '') + (proc.stdout or '')).strip()
     first_line = output.splitlines()[0].strip() if output else ''
     if proc.returncode == GUARD_VIOLATION:
+        if is_guard_crash(output):
+            print(f'chock: guard {_chock_Path(guard).name} exited 1 without a reason (crash?), not checked', file=sys.stderr)
+            return (GUARD_ERRORED, '')
         sys.stderr.write(proc.stdout or '')
         sys.stderr.write(proc.stderr or '')
-        if not output:
-            print(f'chock: blocked by {_chock_Path(guard).name} (guard gave no reason)', file=sys.stderr)
         return (GUARD_BLOCKED, first_line)
     if proc.returncode == GUARD_ASK_EXIT:
         sys.stderr.write(proc.stdout or '')
@@ -745,7 +772,7 @@ def evaluate(argv: list[str], command: str, tool: str='') -> tuple[str, str] | N
         return None
     if not guard.exists():
         return (VERDICT_DENY, f"chock guard {guard} is missing, so this command cannot be checked. Run `chock sync --repo .` to reinstall the policy's guards.")
-    verdict, message = run_guard_detailed(guard, command)
+    verdict, message = run_guard_detailed(guard, command, tool)
     logged = {GUARD_BLOCKED: 'block', GUARD_ASKED: 'ask', GUARD_CLEAN: 'allow'}
     if verdict in logged:
         log_outcome(guard, tool, verdict=logged[verdict])

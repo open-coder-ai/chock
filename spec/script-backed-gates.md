@@ -58,4 +58,24 @@ event-named scripts (`-pre-commit`, `-pre-push`, `-commit-msg`), because handing
 never gave; a policy backed only by an event script stays tier 3 in `chock check --only
 evals` until the runner can stage a tree for it.
 
+## Command guard contract
+
+`implementations/<id>.sh|.py` runs under the in-agent hooks (`gate/guard_runner.py`) and the
+eval runner, always, whether or not the command parses.
+
+- **argv.** `shlex.split` (POSIX) when it succeeds -- unchanged. When it raises (trailing
+  backslash, unbalanced quote, PowerShell quoting), argv is `command.split()` on whitespace and
+  `CHOCK_ARGV_FALLBACK=1` is set. Not `shlex(posix=False)`: it raises on the same inputs. The
+  fallback keeps quotes and backslashes in tokens (`C:\x` stays `C:\x`), so a guard that must
+  see quoting reads `CHOCK_RAW_COMMAND`, the exact string, set on every run.
+- **`CHOCK_TOOL`.** The tool that ran the command, from the hook payload's tool name:
+  `bash` (Bash), `powershell` (PowerShell, pwsh), `shell` (sh, shell, run_shell_command,
+  Cursor's beforeShellExecution, any other name containing "shell"), else `unknown`.
+- **Exit codes.** `0` allows. `3` asks; the first output line is the prompt. `1` blocks only
+  when the guard gave a reason: non-empty stderr (stdout also read) that is not a crash
+  signature (`Traceback (most recent call last)`, `syntax error`, `SyntaxError`, `unexpected
+  EOF`). Exit `1` with empty output or a crash signature is an interpreter failure and asks
+  like any other non-zero exit. Existing guards that print a reason and `exit 1` are unchanged.
+  A guard that means to block prints why.
+
 Prose, examples and the authoring path: `docs/script-backed-gates.md`.
