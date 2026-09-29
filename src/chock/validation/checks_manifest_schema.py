@@ -32,23 +32,17 @@ def _check_manifest_id_folder(artifact_dir: Path, manifest: dict[str, Any], repo
         report.add(Finding(str(_manifest_ref(artifact_dir)), "manifest_id_folder", "error", str(exc)))
 
 
-def _script_only_hook(manifest: dict[str, Any]) -> bool:
-    """True when the hook payload declares a script and no declarative gate."""
-    hook = manifest.get("hook") or {}
-    return bool(hook.get("script")) and not hook.get("gate")
-
-
 def _check_manifest_payload(artifact_dir: Path, manifest: dict[str, Any], report: Report) -> None:
     artifact = manifest.get("artifact")
     allowed = _PAYLOADS.get(artifact)
     if allowed is None:
         return
 
-    # A rule may also declare the script that enforces it. The script is not a second
+    # A rule may also declare the script or gate that enforces it. That is not a second
     # artifact: it is the same control on a second surface, and the rule text is what the
-    # agent reads, which a hook artifact has no payload for. A declarative gate is still
-    # artifact: hook -- a rule carrying one would have two answers to what enforces it.
-    if artifact == "rule" and _script_only_hook(manifest):
+    # agent reads, which a hook artifact has no payload for. The hook schema already pins
+    # the payload to exactly one of gate or script.
+    if artifact == "rule" and manifest.get("hook"):
         allowed = allowed | {"hook"}
 
     present = {k for k in manifest if k in _ALL_PAYLOAD_KEYS}
@@ -64,7 +58,7 @@ def _check_manifest_payload(artifact_dir: Path, manifest: dict[str, Any], report
         )
         return
 
-    # The script declaration rides along; it is not the artifact's own payload, so it does
+    # The hook declaration rides along; it is not the artifact's own payload, so it does
     # not count toward the one-payload rule it was just admitted past.
     own = (present & allowed) - ({"hook"} if artifact == "rule" else set())
     if len(own) != 1:

@@ -6,7 +6,7 @@ import contextlib
 from pathlib import Path
 from typing import Any
 
-from chock.compile.emitters import DATA_DIR, GUARD_SUFFIXES, SCRIPT_EVENTS, policy_rel_path
+from chock.compile.emitters import ARGV_EVENTS, DATA_DIR, GUARD_SUFFIXES, SCRIPT_EVENTS, policy_rel_path
 from chock.compile.emitters.advisory import repo_root_from_output, template_message
 from chock.emit import write_generated, write_generated_json
 from chock.gate.build import build_gate_json, vendor_runner
@@ -52,7 +52,7 @@ def declared_script_events(manifest: dict[str, Any]) -> list[str]:
 
 
 def _emit_script_shims(policy_dir: Path, output_dir: Path, policy_id: str, events: list[str]) -> list[Path]:
-    """Emit one shim per declared event. The guard reads the change from git itself."""
+    """Emit one shim per declared event. The guard reads the change from git; commit-msg also gets argv[1]."""
     rel = policy_rel_path(policy_dir)
     emitted: list[Path] = []
     for event in events:
@@ -62,8 +62,10 @@ def _emit_script_shims(policy_dir: Path, output_dir: Path, policy_id: str, event
         if (script := _script_name(policy_dir, policy_id, segment)) is None:
             continue
         shim = output_dir / f"git-{segment}.sh"
-        rendered = SCRIPT_SHIM_TEMPLATE.replace("__POLICY_ID__", policy_id).replace(
-            "__GUARD_REL__", f"{rel}/implementations/{script}"
+        rendered = (
+            SCRIPT_SHIM_TEMPLATE.replace("__POLICY_ID__", policy_id)
+            .replace("__GUARD_REL__", f"{rel}/implementations/{script}")
+            .replace("__ARGV__", ' "$@"' if event in ARGV_EVENTS else "")
         )
         write_generated(shim, rendered)
         with contextlib.suppress(OSError):

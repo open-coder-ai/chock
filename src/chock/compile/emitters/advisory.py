@@ -106,12 +106,16 @@ def substitute_policy_vars(text: str, policy_dir: Path) -> str:
 
 def advisory_lines(policy_dir: Path, manifest: dict[str, Any], repo_root: Path) -> list[str]:
     """The <=2 lines describing this policy to an agent, or [] if the policy declares nothing."""
+    rule_text = substitute_policy_vars(str((manifest.get("rule") or {}).get("text", "")), policy_dir)
+    rule_lines = [line.strip() for line in rule_text.splitlines() if line.strip()]
+    # A rule carrying a gate keeps its own words as the ambient surface; the gate is the same
+    # control on another surface, not a replacement for what the rule tells the agent.
+    if rule_lines and manifest.get("artifact") == "rule":
+        return rule_lines[:2]
+
     spec = build_gate_json(policy_dir, repo_root)
     if spec is not None:
         return _gate_lines(spec)[:2]
-
-    rule_text = substitute_policy_vars(str((manifest.get("rule") or {}).get("text", "")), policy_dir)
-    rule_lines = [line.strip() for line in rule_text.splitlines() if line.strip()]
     if rule_lines:
         return rule_lines[:2]
 

@@ -144,10 +144,13 @@ def installed_generic_ids(repo_root: Path, vendor: str) -> set[str]:
         return set()
     present: dict[str, dict] = {}
     _collect_ours(settings if isinstance(settings, dict) else {}, marker, present)
-    installed: set[str] = set()
+    wanted_by: set[str] = set()
+    missing: set[str] = set()
     for policy_id, fragment in _fragments(repo_root, vendor):
         wanted: dict[str, dict] = {}
         _collect_ours(fragment, marker, wanted)
-        if wanted and set(wanted) <= set(present):
-            installed.add(policy_id)
-    return installed
+        if wanted:
+            wanted_by.add(policy_id)
+        if not set(wanted) <= set(present):
+            missing.add(policy_id)
+    return wanted_by - missing
