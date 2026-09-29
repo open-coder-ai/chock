@@ -1,6 +1,6 @@
 # Chock changelog
 
-## Unreleased
+## 0.14.0 — Guards that run on any command, gates that judge only what changed, and a guard and a gate on one policy
 
 - **In-agent gates judge what changed, and honour committed waivers.** At `tool_use` (PreToolUse
   and Stop) a waiver already in HEAD is now honoured, so a line a human waived and committed no
