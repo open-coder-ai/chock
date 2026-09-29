@@ -10,6 +10,7 @@ from chock.vendors import in_agent_vendors
 
 VENDORED_RUNTIMES = {
     "gate.py": ("static", ("chock.gate", "runner.py")),
+    "chock_session.py": ("static", ("chock.gate", "session_reader.py")),
     **{f"{agent}.py": ("bundle", agent) for agent in in_agent_vendors()},
 }
 

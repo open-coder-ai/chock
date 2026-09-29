@@ -59,6 +59,20 @@ MERGED = {
                 flat=False,
                 report_key="matcher",
             ),
+            # The session-log recorders of a `tool_call` script gate: after a call, and instead
+            # of that when the call failed (Claude fires PostToolUseFailure, not PostToolUse).
+            Wiring(
+                event=vendors.wire_event("claude_code", "post_tool"),
+                fragment_glob="*/pre-tool-use/posttooluse.json",
+                flat=False,
+                report_key="matcher",
+            ),
+            Wiring(
+                event=str(vendors.tool_failure_event("claude_code")),
+                fragment_glob="*/pre-tool-use/posttoolusefailure.json",
+                flat=False,
+                report_key="matcher",
+            ),
         ),
         unlink_runtime_when_empty=True,
         write_when_absent=True,
@@ -76,13 +90,26 @@ MERGED = {
             # gate judges the file a Write would leave, the shell guard judges a command.
             Wiring(
                 event=vendors.pre_tool_event("cursor"),
-                fragment_glob="*/pre-tool-use/cursor-write-hooks.json",
+                # cursor-write-hooks.json and cursor-tool-call-hooks.json: both land under preToolUse.
+                fragment_glob="*/pre-tool-use/cursor-[wt]*-hooks.json",
                 flat=True,
                 report_key="command",
             ),
             Wiring(
                 event=vendors.stop_event("cursor"),
                 fragment_glob="*/stop/cursor-hooks.json",
+                flat=True,
+                report_key="command",
+            ),
+            Wiring(
+                event=vendors.wire_event("cursor", "post_tool"),
+                fragment_glob="*/pre-tool-use/cursor-post-hooks.json",
+                flat=True,
+                report_key="command",
+            ),
+            Wiring(
+                event=str(vendors.tool_failure_event("cursor")),
+                fragment_glob="*/pre-tool-use/cursor-postfailure-hooks.json",
                 flat=True,
                 report_key="command",
             ),

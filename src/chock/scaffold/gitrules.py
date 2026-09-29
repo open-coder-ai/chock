@@ -18,6 +18,8 @@ from pathlib import Path
 from chock.emit import write_generated
 
 GATE_LOG_IGNORE = ".chock/log/"
+#: The per-session tool-call log: per machine, a record per tool call, pruned after a week.
+SESSION_STATE_IGNORE = ".chock/state/"
 #: Re-included whatever a global excludes file says: the directories (against a `bin/` rule) and
 #: everything under them (against a rule that names the files, a `*.json`, say).
 TRACKED_RUNTIME = ("!.chock/bin/", "!.chock/bin/**", "!.chock/compiled/", "!.chock/compiled/**")
@@ -30,6 +32,7 @@ POLICY_BYTECODE_IGNORE = (".agents/policies/**/__pycache__/", ".agents/policies/
 
 _BLOCKS = (
     ((GATE_LOG_IGNORE,), "# chock: the gate outcome log is per machine and grows on every commit"),
+    ((SESSION_STATE_IGNORE,), "# chock: the per-session tool-call log is per machine and never shared"),
     (
         TRACKED_RUNTIME,
         "# chock: the gate runtime and compiled gates are what every hook runs -- tracked even where\n"

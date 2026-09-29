@@ -69,9 +69,18 @@ Two different files, two different contracts, and confusing them is silent:
 | `implementations/<id>.sh` | in-agent PreToolUse hooks, the eval runner | a command's argv | exit code |
 | `implementations/<id>-pre-commit.py` | the installed git hook | nothing | exit code |
 
-The eval runner excludes the event-named scripts, because handing one an eval case's command
-would score a verdict it never gave. A policy backed only by an event script therefore stays
-tier 3 in `chock check --only evals` until the runner can stage a tree for it.
+The eval runner resolves the guard strictly as `implementations/<id>.sh|.py`, so an event script,
+a gate script or a helper module is never taken for it. To eval an event script, write an
+`execute` case with `event: pre-commit | pre-push | commit-msg`: the runner stages `files` over
+`head_files` in a throwaway repo and runs the script (`message` for commit-msg, `stdin` lines for
+pre-push). Exit 0 is `allow`, a refusal is `block`, and a crash is an error, never a block.
+
+```yaml
+execute: {event: pre-commit, head_files: {page.html: "<a id=x>"}, files: {page.html: "<a>"}, expect: block}
+```
+
+A hook may also carry both `gate` and `script`: keep the pre-commit script and add a gate at
+`tool_use`. They may not both run at the same git event.
 
 ## See also
 

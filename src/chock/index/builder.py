@@ -28,7 +28,7 @@ class IndexEntry:
     description: str
     rule_text: str = ""
     manifest_path: str = ""
-    #: The gate is also compiled for the agent's own hooks (`on: tool_use`), not only for git.
+    #: The gate is also compiled for the agent's own hooks (`on: tool_use` or `tool_call`), not only for git.
     in_agent: bool = False
 
     def priority(self) -> int:
@@ -87,7 +87,7 @@ def _entry_from_manifest(artifact_dir: Path, manifest: dict[str, Any], rel_path:
     if artifact == "hook":
         description = _summarize_hook(manifest, artifact_dir, root)
         gate = (manifest.get("hook") or {}).get("gate") or {}
-        in_agent = "tool_use" in (gate.get("on") or [])
+        in_agent = bool({"tool_use", "tool_call"} & set(gate.get("on") or []))
 
     return IndexEntry(
         id=pid,

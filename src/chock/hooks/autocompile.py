@@ -35,8 +35,11 @@ def compile_one_dropin(
     if Surface.GIT_HOOK.value not in status.get("targets", []):
         return False
 
-    expected = compiled_root / policy_id / "git-hook"
-    if expected.is_dir() and any(expected.iterdir()):
+    # Any compiled surface means `chock sync` already owns this policy. A guard-only or
+    # tool_use-only policy has no git-hook output by design; compiling that one surface
+    # here would overwrite its coverage entry with a git-hook-only view.
+    compiled = compiled_root / policy_id
+    if compiled.is_dir() and any(any(d.iterdir()) for d in compiled.iterdir() if d.is_dir()):
         return False
 
     # Tests patch chock.compile.compiler.compile_policy directly (test_engine_scan.py,
@@ -55,7 +58,7 @@ def compile_one_dropin(
 
 
 def auto_compile(repo_root: Path) -> None:
-    """Compile any policy that has a hook gate but no compiled git-hook output yet."""
+    """Compile any policy that has a hook gate but no compiled output yet."""
     try:
         config = load_config(repo_root)
         agents = agents_from_config(repo_root)

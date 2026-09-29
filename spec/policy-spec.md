@@ -40,7 +40,7 @@ wiring:
 
 ```
 .agents/policies/<id>/
-├── manifest.yaml          # contains hook.gate
+├── manifest.yaml          # contains hook.gate, hook.script, or both
 ├── implementations/       # optional: only if the hook needs scripts
 └── evals/suite.yaml       # + skill/ (optional): body.md joins SKILL.md, other files ship beside it
 ```
@@ -53,7 +53,7 @@ wiring:
 └── evals/suite.yaml
 ```
 
-plus ≤2-line rule in ambient file's marked section; a rule's optional hook (`gate` xor `script`) is the same control on a second surface.
+plus ≤2-line rule in ambient file's marked section; a rule's optional hook (`gate`, `script`, or both; not both at one git event) is the same control on a second surface.
 
 require(hook with action:block): wiring MUST include git hook.
 

@@ -1,5 +1,12 @@
 
 
+def _spoken(verdict):
+    outcome, reason = verdict
+    if outcome == VERDICT_WARN:
+        return Decision.warn(reason)
+    return Decision.escalate(reason) if outcome == ESCALATE else Decision.deny(reason)
+
+
 def _judge(event):
     if event.event == "pre_tool" and event.command:
         verdict = evaluate(sys.argv[1:], event.command, event.tool or "")
@@ -8,10 +15,10 @@ def _judge(event):
             return Decision.escalate(reason) if outcome == ESCALATE else Decision.deny(reason)
     gated = evaluate_gate(sys.argv[1:], event)
     if gated is not None:
-        outcome, reason = gated
-        if outcome == VERDICT_WARN:
-            return Decision.warn(reason)
-        return Decision.escalate(reason) if outcome == ESCALATE else Decision.deny(reason)
+        return _spoken(gated)
+    called = evaluate_tool_call(sys.argv[1:], event)
+    if called is not None:
+        return _spoken(called)
 # __SESSION_START_BRANCH__
     return None
 

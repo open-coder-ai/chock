@@ -12,6 +12,7 @@ from chock.compile.emitters.in_agent import (
     GATE_HOOKS_FILE,
     GENERIC_VENDORS,
 )
+from chock.compile.emitters.in_agent_tool_call import COPILOT_FILE
 from chock.emit import write_generated_json
 from chock.hooks.in_agent_generic import install_generic, installed_generic_ids
 from chock.hooks.in_agent_merged import MERGED, install_merged, installed_merged_ids
@@ -31,7 +32,11 @@ _OWNED_FILE_VENDOR = "vscode_copilot"
 _OWNED_FILE_LABEL = "agent hook(s) in .github/hooks/chock.json"
 _AGENT_HOOKS_GLOB = "*/agent-hooks/agent-hooks.json"
 #: Compiled event maps for a content gate: its write gate, and its end-of-turn gate beside the stop gate.
-_EVENT_MAP_GLOBS = (f"*/agent-hooks/{GATE_HOOKS_FILE}", f"*/stop/{_OWNED_FILE_VENDOR}-hooks.json")
+_EVENT_MAP_GLOBS = (
+    f"*/agent-hooks/{GATE_HOOKS_FILE}",
+    f"*/agent-hooks/{COPILOT_FILE}",
+    f"*/stop/{_OWNED_FILE_VENDOR}-hooks.json",
+)
 
 #: Vendors wired through chock's owned agent-hooks file rather than the vendor's config.
 #: Defined in `chock.vendors` because it caps what the stop surface may install too, and a

@@ -12,7 +12,17 @@ from agentseam import bundler
 from chock.resources import package_data_dir
 from chock.vendors import in_agent_vendors
 
-from . import edit_image, gate_outcome, guard_runner, patch_image, sessionstart, write_gate
+from . import (
+    edit_image,
+    gate_outcome,
+    guard_runner,
+    outside_repo,
+    patch_image,
+    session_log,
+    sessionstart,
+    tool_call_gate,
+    write_gate,
+)
 
 BEGIN = "# >>> agentseam handler >>>"
 END = "# <<< agentseam handler <<<"
@@ -25,6 +35,8 @@ _DATA_DIR = package_data_dir("chock.gate", "data")
 _IMPORTS = _DATA_DIR.joinpath("imports.py.tmpl").read_text(encoding="utf-8")
 
 _RENAME = {
+    "fnmatch": "_chock_fnmatch",
+    "re": "_chock_re",
     "os": "_chock_os",
     "shlex": "_chock_shlex",
     "shutil": "_chock_shutil",
@@ -102,7 +114,13 @@ def _handler_source(agent: str) -> str:
         "\n",
         _extract(gate_outcome),
         "\n",
+        _extract(outside_repo),
+        "\n",
+        _extract(session_log),
+        "\n",
         _extract(write_gate),
+        "\n",
+        _extract(tool_call_gate),
     ]
     if agent in _SESSION_START_AGENTS:
         parts.append("\n")

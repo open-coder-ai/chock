@@ -19,7 +19,9 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from .edit_image import added_from_event, edited_text
 from .gate_outcome import GATE_ERRORED, gate_decision, runner_outcome
+from .outside_repo import judged_files, outside_globs
 from .patch_image import patch_added, patched_files
+from .session_log import session_for
 
 GATE_FLAG = "--gate"
 
@@ -182,12 +184,11 @@ def writes_from_worktree(repo_root):
     return writes
 
 
-def run_gate(gate, writes, event, root=None, added=None):
+def run_gate(gate, writes, event, root=None, extra=None):
     """Ask the vendored runner. Returns (outcome, message) and never decides for itself.
 
-    `added` carries, per edited path, only the text the edit introduces: a kind that reads
-    added lines judges that, while a kind that reads the file judges `writes`. A runner that
-    predates the key ignores it and judges the whole file for both, which only ever refuses more.
+    `extra` adds stdin keys: `added` (per edited path, only the text the edit introduces; a runner
+    that predates it judges the whole file, which only ever refuses more) and the script `session`.
     """
     runner = runner_for(gate)
     if runner is None:
@@ -195,7 +196,7 @@ def run_gate(gate, writes, event, root=None, added=None):
     try:
         proc = subprocess.run(  # noqa: S603 -- invoking the vendored runner is this function's job
             [sys.executable, str(runner), "run", "--gate", str(gate), "--event", event],
-            input=json.dumps({"writes": writes, **({"added": added} if added else {})}),
+            input=json.dumps({"writes": writes, **(extra or {})}),
             capture_output=True,
             text=True,
             encoding=_UTF8,
@@ -272,11 +273,13 @@ def evaluate_gate(argv, event):
     if not gate.exists():
         return _missing_gate(gate, event)
     root = repo_root_for(event, gate)
-    writes = {rel: text for path, text in writes_for(event, gate).items() for rel in repo_paths(path, root)}
+    outside = outside_globs(gate)
+    writes = judged_files(writes_for(event, gate), root, outside, lambda path: repo_paths(path, root))
     if not writes:
         return None
     added = {**patch_added(event), **added_from_event(event)} if event.event == PRE_TOOL else {}
-    added = {rel: text for path, text in added.items() for rel in repo_paths(path, root)}
+    added = judged_files(added, root, outside, lambda path: repo_paths(path, root))
     added = {path: text for path, text in added.items() if path in writes}
-    outcome, message = run_gate(gate, writes, name, root, added)
+    extra = {**({"added": added} if added else {}), "session": session_for(event, root)}
+    outcome, message = run_gate(gate, writes, name, root, extra)
     return gate_decision(outcome, message, gate)
