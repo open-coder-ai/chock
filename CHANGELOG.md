@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Installing hooks no longer erases a guard's coverage.** `chock install-hooks` auto-compiled
+  any hook policy without git-hook output, but a guard-only or `tool_use`-only policy has none by
+  design, so the recompile rewrote its coverage as a git-hook-only view and every agent read
+  `none`. A policy with any compiled surface is now left alone; a true drop-in still compiles.
 - **A hook can carry both a `gate` and a `script`.** `hook` was exactly one of the two, so a
   policy with a pre-commit script could not also gate the write path. The schema now takes at
   least one; the git-hook emitter compiles both (the script's event shims plus the gate's

@@ -86,6 +86,21 @@ class TestAutoCompile:
         mtime_after = gate_path.stat().st_mtime
         assert mtime_after == mtime_before, "Second auto-compile should not touch already-compiled gate.json"
 
+    def test_policy_compiled_for_other_surfaces_keeps_its_coverage(self, tmp_path: Path) -> None:
+        """A policy with no git-hook output by design (a guard, a tool_use gate) is left alone."""
+        repo = _init_repo(tmp_path)
+        _make_hook_policy(repo, "my-guard")
+        surface = repo / ".chock" / "compiled" / "my-guard" / "pre-tool-use"
+        surface.mkdir(parents=True)
+        (surface / "hooks.json").write_text("{}", encoding="utf-8")
+        coverage = repo / ".chock" / "coverage.json"
+        coverage.write_text('{"my-guard": {"claude_code": {"level": "enforced"}}}', encoding="utf-8")
+
+        auto_compile(repo)
+
+        assert not (repo / ".chock" / "compiled" / "my-guard" / "git-hook").exists()
+        assert "enforced" in coverage.read_text(encoding="utf-8")
+
     def test_rule_policy_not_compiled_as_hook(self, tmp_path: Path) -> None:
         """Rule policies are not artifact: hook so auto-compile must skip them."""
         repo = _init_repo(tmp_path)
