@@ -1,0 +1,18 @@
+{
+  "kind": "content_regex",
+  "on": [
+    "commit",
+    "tool_use"
+  ],
+  "action": "block",
+  "message": "Unpinned GitHub Action detected: a workflow references an action by a tag or branch (owner/repo at a movable ref) rather than a full 40-character commit SHA. Pin it to the SHA -- keep the version in a trailing comment for readability -- so a re-tagged or compromised release cannot change what runs. At commit, 'pragma: allowlist unpinned-action' on the same line marks a deliberate exception; the pragma is NOT honored at tool-use, where the scanned text is a live tool argument an appended token could neutralize.",
+  "params": {
+    "scan": "added_lines",
+    "allowlist_pragma": "pragma:\\s*allowlist\\s+unpinned-action",
+    "content_pattern": "use[s]:\\s*[\"']?[A-Za-z0-9._/-]+@(?![0-9a-fA-F]{40}(?:[\"'\\s#]|$))[A-Za-z0-9._/-]+"
+  },
+  "paths": [
+    ".github/workflows/*",
+    ".github/actions/*"
+  ]
+}

@@ -25,7 +25,7 @@ supports**, across up to nine [enforcement surfaces](enforcement-surfaces.md):
 - `ambient-rule` — the compiled `AGENTS.md` block (advisory)
 - `pre-tool-use` (nine agents, Claude Code and Cursor among them) and `agent-hooks`
   (Copilot CLI, VS Code) — agent-native hard controls
-- `stop` — the end-of-turn backstop that reads what the turn wrote (seven agents)
+- `stop` — the end-of-turn backstop that reads what the turn wrote (nine agent names)
 - `managed-setting` — compiled, not yet installed
 - `gateway` — modeled for budgets/egress (future)
 

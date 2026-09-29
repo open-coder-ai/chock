@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="760" height="640" viewBox="0 0 760 640" role="img" aria-labelledby="t d">
   <title id="t">One policy, 9 surfaces</title>
-  <desc id="d">A fan-out diagram: one chock policy compiles into 9 enforcement surfaces. All 15 supported agent names get the advisory ambient rule and the two commit-time gates, git hook and CI gate. 9 also get a native pre-tool-use hook, enforced live in the agent, and 2 (vscode, copilot -- one underlying vendor) get chock's own agent-hooks file, also enforced in-agent. 7 get an end-of-turn hook that reads what the turn wrote: a backstop for what a pre-tool hook cannot see, carrying no coverage grade of its own. Three surfaces are named for honesty though no agent reaches them yet: managed-setting is compiled for Claude but not installed, gateway is modelled but not emitted, and mcp-gateway emits but is not yet credited to any agent.</desc>
+  <desc id="d">A fan-out diagram: one chock policy compiles into 9 enforcement surfaces. All 15 supported agent names get the advisory ambient rule and the two commit-time gates, git hook and CI gate. 9 also get a native pre-tool-use hook, enforced live in the agent, and 2 (vscode, copilot -- one underlying vendor) get chock's own agent-hooks file, also enforced in-agent. 9 get an end-of-turn hook that reads what the turn wrote: a backstop for what a pre-tool hook cannot see, carrying no coverage grade of its own. Three surfaces are named for honesty though no agent reaches them yet: managed-setting is compiled for Claude but not installed, gateway is modelled but not emitted, and mcp-gateway emits but is not yet credited to any agent.</desc>
   <rect width="760" height="640" fill="#fcfcfb"/>
   <rect x="20" y="20" width="720" height="70" rx="4" fill="#fcfcfb" stroke="#2a78d6" stroke-width="2"/>
   <text x="36" y="48" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="15" font-weight="600" fill="#0b0b0b" text-anchor="start">one policy</text>
@@ -40,7 +40,7 @@
   <rect x="268" y="290" width="224" height="100" rx="4" fill="#fcfcfb" stroke="#104281" stroke-width="2"/>
   <rect x="268" y="290" width="224" height="5" rx="0" fill="#104281"/>
   <text x="280" y="316" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="13" font-weight="600" fill="#0b0b0b" text-anchor="start">stop</text>
-  <text x="280" y="336" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#52514e" text-anchor="start">7 agents</text>
+  <text x="280" y="336" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#52514e" text-anchor="start">9 agents</text>
   <text x="280" y="356" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#104281" text-anchor="start">backstop, no grade</text>
   <line x1="380" y1="270" x2="380" y2="290" stroke="#104281" stroke-width="2" stroke-linecap="round"/>
   <polygon points="380,290 374,284 386,284" fill="#104281"/>

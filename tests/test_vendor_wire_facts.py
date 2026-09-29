@@ -10,6 +10,7 @@ ingests the witnessed shape, they fail and say "delete the override and derive".
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from agentseam import adapters
 from agentseam.vendor_config import VENDOR_CONFIG
@@ -67,8 +68,9 @@ def test_shell_vocabulary_is_derived_per_vendor_not_borrowed() -> None:
 def test_agent_hooks_shape_is_a_witnessed_override_until_upstream_ingests_it() -> None:
     """M.5(4): chock speaks `preToolUse` + bash/powershell/timeoutSec keys, witnessed live;
 
-    agentseam 0.2.0 records `PreToolUse` + {type, command, windows}. The override may only
-    exist while both halves hold: the witness row backs it, and upstream still disagrees.
+    agentseam 0.2.0 recorded `PreToolUse` + {type, command, windows}; 0.3.5 adds `bash` and
+    `powershell` but still no `timeoutSec`. The override may only exist while both halves hold:
+    the witness row backs it, and upstream still disagrees.
     """
     assert evidence.witness("vscode_copilot", "agent-hooks") is not None, (
         "the agent-hooks witness row is gone; chock's override of agentseam's vscode_copilot "
@@ -81,10 +83,16 @@ def test_agent_hooks_shape_is_a_witnessed_override_until_upstream_ingests_it() -
         "and derive it from wire_events (derivation map M.5(4) is settled upstream)"
     )
     entry_extra = VENDOR_CONFIG["vscode_copilot"]["hook_entry"].get("entry_extra") or {}
-    assert "bash" not in entry_extra and "timeoutSec" not in entry_extra, (
+    assert "timeoutSec" not in entry_extra, (
         "agentseam now records chock's witnessed entry keys: derive the agent-hooks entry "
         "shape from hook_entry instead of build_entry's hand-written keys"
     )
+    # What upstream does record, chock's hand-written entry must carry too.
+    guard = in_agent.build_entry(
+        Path(".agents/policies/block-destructive-commands"), {"id": "block-destructive-commands"}
+    )
+    assert guard is not None
+    assert set(entry_extra) <= set(guard), sorted(set(entry_extra) - set(guard))
 
 
 def test_no_emitted_hook_command_uses_a_repo_root_token() -> None:

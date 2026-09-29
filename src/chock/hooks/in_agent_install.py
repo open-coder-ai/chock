@@ -6,7 +6,12 @@ import json
 from pathlib import Path
 
 from chock import vendors
-from chock.compile.emitters.in_agent import AGENT_HOOKS_ENVELOPE, AGENT_HOOKS_EVENT, GENERIC_VENDORS
+from chock.compile.emitters.in_agent import (
+    AGENT_HOOKS_ENVELOPE,
+    AGENT_HOOKS_EVENT,
+    GATE_HOOKS_FILE,
+    GENERIC_VENDORS,
+)
 from chock.emit import write_generated_json
 from chock.hooks.in_agent_generic import install_generic, installed_generic_ids
 from chock.hooks.in_agent_merged import MERGED, install_merged, installed_merged_ids
@@ -25,6 +30,8 @@ __all__ = [
 _OWNED_FILE_VENDOR = "vscode_copilot"
 _OWNED_FILE_LABEL = "agent hook(s) in .github/hooks/chock.json"
 _AGENT_HOOKS_GLOB = "*/agent-hooks/agent-hooks.json"
+#: Compiled event maps for a content gate: its write gate, and its end-of-turn gate beside the stop gate.
+_EVENT_MAP_GLOBS = (f"*/agent-hooks/{GATE_HOOKS_FILE}", f"*/stop/{_OWNED_FILE_VENDOR}-hooks.json")
 
 #: Vendors wired through chock's owned agent-hooks file rather than the vendor's config.
 #: Defined in `chock.vendors` because it caps what the stop surface may install too, and a
@@ -48,21 +55,45 @@ def agent_hooks_rel(vendor: str = _OWNED_FILE_VENDOR) -> Path:
     return Path(vendors.config_path(vendor)).parent / "chock.json"
 
 
-def _compiled_agent_hooks(repo_root: Path) -> dict[str, dict]:
-    """Map policy id -> its compiled agent-hooks entry, ordered by policy id."""
+def _read_entries(path: Path) -> list[dict]:
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
+    return [doc] if isinstance(doc, dict) else []
+
+
+def _event_entries(doc: dict) -> dict[str, list[dict]]:
+    """`{event: [entry, ...]}` from a compiled event map, keeping only well-formed command entries."""
+    found: dict[str, list[dict]] = {}
+    for event, entries in doc.items():
+        if isinstance(entries, list):
+            kept = [e for e in entries if isinstance(e, dict) and e.get("type") == "command"]
+            if kept:
+                found[event] = kept
+    return found
+
+
+def _compiled_agent_hooks(repo_root: Path) -> dict[str, dict[str, list[dict]]]:
+    """Map policy id -> its compiled entries by event, ordered by policy id.
+
+    A guard policy compiles one bare entry (registered under the witnessed shell event); a content
+    gate compiles event maps: the write gate under agent-hooks, the end-of-turn gate under stop.
+    """
     compiled = Path(repo_root) / ".chock" / "compiled"
-    entries: dict[str, dict] = {}
+    entries: dict[str, dict[str, list[dict]]] = {}
     if not compiled.exists():
         return entries
     for path in sorted(compiled.glob(_AGENT_HOOKS_GLOB)):
-        policy_id = path.parent.parent.name
-        try:
-            entry = json.loads(path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            continue
-        if isinstance(entry, dict) and entry.get("type") == "command":
-            entries[policy_id] = entry
-    return entries
+        for entry in _read_entries(path):
+            if entry.get("type") == "command":
+                entries.setdefault(path.parent.parent.name, {}).setdefault(AGENT_HOOKS_EVENT, []).append(entry)
+    for pattern in _EVENT_MAP_GLOBS:
+        for path in sorted(compiled.glob(pattern)):
+            for doc in _read_entries(path):
+                for event, kept in _event_entries(doc).items():
+                    entries.setdefault(path.parent.parent.name, {}).setdefault(event, []).extend(kept)
+    return dict(sorted(entries.items()))
 
 
 def _install_agent_hooks(repo_root: Path, *, uninstall: bool = False) -> list[str]:
@@ -75,7 +106,11 @@ def _install_agent_hooks(repo_root: Path, *, uninstall: bool = False) -> list[st
             dest.unlink()
         return []
     vendor_runtime(repo_root, _OWNED_FILE_VENDOR)
-    doc = {**AGENT_HOOKS_ENVELOPE, "hooks": {AGENT_HOOKS_EVENT: [entries[pid] for pid in sorted(entries)]}}
+    events: dict[str, list[dict]] = {}
+    for by_event in entries.values():
+        for event, kept in by_event.items():
+            events.setdefault(event, []).extend(kept)
+    doc = {**AGENT_HOOKS_ENVELOPE, "hooks": dict(sorted(events.items()))}
     dest.parent.mkdir(parents=True, exist_ok=True)
     write_generated_json(dest, doc)
     return sorted(entries)
@@ -111,17 +146,16 @@ def uninstall_hooks(repo_root: Path, vendor: str) -> None:
         raise ValueError(msg)
 
 
-def _installed_agent_hooks_entries(repo_root: Path) -> list[dict]:
+def _installed_agent_hooks_entries(repo_root: Path) -> dict[str, list[dict]]:
     dest = Path(repo_root) / agent_hooks_rel()
     if not dest.exists():
-        return []
+        return {}
     try:
         doc = json.loads(dest.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
-        return []
+        return {}
     hooks = doc.get("hooks") if isinstance(doc, dict) else None
-    pre = hooks.get(AGENT_HOOKS_EVENT) if isinstance(hooks, dict) else None
-    return [e for e in pre if isinstance(e, dict)] if isinstance(pre, list) else []
+    return _event_entries(hooks) if isinstance(hooks, dict) else {}
 
 
 def installed_policy_ids(repo_root: Path, vendor: str) -> set[str]:
@@ -131,5 +165,9 @@ def installed_policy_ids(repo_root: Path, vendor: str) -> set[str]:
         return installed_generic_ids(repo_root, vendor)
     if vendor == _OWNED_FILE_VENDOR:
         installed = _installed_agent_hooks_entries(repo_root)
-        return {pid for pid, entry in _compiled_agent_hooks(repo_root).items() if entry in installed}
+        return {
+            pid
+            for pid, by_event in _compiled_agent_hooks(repo_root).items()
+            if all(entry in installed.get(event, []) for event, kept in by_event.items() for entry in kept)
+        }
     return installed_merged_ids(repo_root, vendor)

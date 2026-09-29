@@ -13,7 +13,7 @@ each guarantee holds.
 | `ambient-rule` | Advisory | Yes | Compiled `AGENTS.md` block the agent is asked to follow |
 | `pre-tool-use` | Hard, pre-execution | No | Blocks a command **before** the agent runs it, in each client's own deny dialect — every matrix-blocking vendor with a repo-level config (see the Cursor caveat) |
 | `stop` | Hard, **post-execution** | No, but it fires after the tool calls it judges | Reads what the turn left in the worktree and refuses to end the turn. Credited with **no coverage word** -- see the backstop note below |
-| `agent-hooks` | Hard, pre-execution | No | The same exit-2 deny for Copilot CLI + VS Code agent mode, from `.github/hooks/chock.json` (witnessed blocking on both, 2026-08-23) |
+| `agent-hooks` | Hard, pre-execution | No | The same exit-2 deny for Copilot CLI + VS Code agent mode, from `.github/hooks/chock.json` (witnessed blocking on both, 2026-08-23). A content gate also gets a `PreToolUse` entry over `Edit\|Write` there (a top-level `permissionDecision` deny stopped an `Edit` in VS Code agent mode, 2026-09-28), and its turn-end gate is a `Stop` entry in the same file |
 | `managed-setting` | Hard, org-level | No | Admin-deployed allow/ask/deny rules |
 | `gateway` | Hard, un-circumventable | No | Budget/egress backstop — *modeled now, emitted later* |
 | `mcp-gateway` | Hard, **MCP-routed tools only** | Yes (P3c) | A stdio proxy the client launches instead of the real MCP server; refuses matching `tools/call` payloads. Emitted today; **credits no agent** until the per-client config witness ships |
@@ -22,7 +22,7 @@ each guarantee holds.
 > `pre-tool-use` structurally *cannot* see: a pre-tool hook is handed the tool call, so it
 > matches only a recorded write vocabulary, and a heredoc or a redirect carries no file argument
 > at all. A turn-end hook is handed nothing and reads the worktree, so it sees those bytes
-> however they got there -- and it takes no matcher, so it wires **seven vendors** where the
+> however they got there -- and it takes no matcher, so it wires **eight vendors** where the
 > write path wires three.
 >
 > What it does not buy is coverage, and `coverage_cell` refuses it any (`UNCREDITED_SURFACES`).
@@ -134,7 +134,7 @@ Which surfaces each agent supports today (from `src/chock/compile/surfaces.py`):
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **Claude Code** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — |
 | **Cursor** | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| Copilot | ✅ | ✅ | ✅ | — | — | — | ✅ |
+| Copilot | ✅ | ✅ | ✅ | — | ✅ | — | ✅ |
 | Codex | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
 | Gemini | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
 | Windsurf | ✅ | ✅ | ✅ | ✅ | — | — | — |
@@ -145,7 +145,7 @@ Which surfaces each agent supports today (from `src/chock/compile/surfaces.py`):
 | Kimi Code | ✅ | ✅ | ✅ | — | — | — | — |
 | Replit | ✅ | ✅ | ✅ | — | — | — | — |
 | Tabnine | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| VS Code | ✅ | ✅ | ✅ | — | — | — | ✅ |
+| VS Code | ✅ | ✅ | ✅ | — | ✅ | — | ✅ |
 | Antigravity CLI | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
 
 In-agent membership derives from agentseam's matrix: every adapted vendor whose row can block
@@ -155,10 +155,11 @@ is a different question with a different answer: Grok and Windsurf can observe a
 but not refuse one, so they are `detect` and get no column mark. Cursor cannot hold a turn either,
 but its `stop` hook hands a refusal back to the agent as a `followup_message` (witnessed live on
 3.21.18), which is `best-effort` and worth a mark: the agent is sent back to what the turn left
-behind rather than the user being told after the fact. Copilot and VS Code *can*
-refuse one and are still held back -- their hooks live in chock's own file in a shape witnessed
-live, that witness covers the pre-tool key alone, and a guessed turn-end key installs a hook that
-silently never runs while the table claims it does. Junie and Kimi Code block only via home-level configs (Kimi
+behind rather than the user being told after the fact. Copilot and VS Code refuse one too: their
+`Stop` key in chock's own file was witnessed firing in VS Code agent mode (2026-09-28), and a block
+answer made the agent carry on with the turn. It is registered under `Stop` alone, since `agentStop` fires
+beside it and would run the gate twice; which of the top-level or nested block answers Copilot reads is
+not isolated, so chock writes both. Junie and Kimi Code block only via home-level configs (Kimi
 Code's in TOML), outside what `chock sync --repo` may write; Aider and Replit cannot block. A
 checkmark is a wiring claim: new-vendor cells stay `witnessed: false` until a real client run is recorded.
 
@@ -174,7 +175,7 @@ A hook that must stop a command targets `git-hook` + `ci-gate` (the universal fl
 available, `pre-tool-use` + `managed-setting`. A hook whose `on:` includes `tool_use` is compiled to
 the `pre-tool-use` surface on agents that support it (nine of them, Claude Code and Cursor
 among them; Copilot
-CLI and VS Code get the same guard via `agent-hooks`). A best-practice rule with
+CLI and VS Code get the same guard via `agent-hooks`, and a content gate's write check as a `PreToolUse` entry over `Edit|Write` there). A best-practice rule with
 no deterministic check compiles only to `ambient-rule`. The compiler always pairs a control with the
 **strongest available backstop** — e.g. a git hook plus a CI gate, because a git hook alone can be
 skipped with `--no-verify`.

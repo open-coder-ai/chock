@@ -76,6 +76,14 @@ _SESSION_START_BRANCH = _DATA_DIR.joinpath("session_start_branch.py.tmpl").read_
 
 _SESSION_START_ORCHESTRATION = _DATA_DIR.joinpath("session_start_orchestration.py.tmpl").read_text(encoding="utf-8")
 
+#: Vendors whose refusal also carries the top-level answer their runtime was witnessed honouring.
+_COPILOT_RESPOND_AGENTS = frozenset({"vscode_copilot"})
+#: agentseam's own call, in `_decide`, that the Copilot answer is routed through instead: a rebind of
+#: `respond` would shadow its name in the one flat namespace, which test_runtime_goldens forbids.
+_RESPOND_CALL = "return respond(degrade(decision, event), event)"
+_COPILOT_RESPOND_CALL = "return _chock_copilot_respond(degrade(decision, event), event)"
+_COPILOT_RESPOND = _DATA_DIR.joinpath("copilot_respond.py.tmpl").read_text(encoding="utf-8")
+
 
 def _handler_source(agent: str) -> str:
     """The full handler-block body for `agent`: extracted guard logic, optionally extracted"""
@@ -94,6 +102,8 @@ def _handler_source(agent: str) -> str:
         parts.append(_SESSION_START_ORCHESTRATION)
     branch = _SESSION_START_BRANCH if agent in _SESSION_START_AGENTS else ""
     parts.append(_DISPATCH.replace(_DISPATCH_BRANCH_TOKEN, branch))
+    if agent in _COPILOT_RESPOND_AGENTS:
+        parts.append(_COPILOT_RESPOND)
     return "".join(parts)
 
 
@@ -147,4 +157,8 @@ def render(agent: str) -> str:
     _, sep2, tail = rest.partition(END)
     if not sep2:
         raise ValueError("%s: bundle() output has no %r marker" % (agent, END))
+    if agent in _COPILOT_RESPOND_AGENTS:
+        if _RESPOND_CALL not in tail:
+            raise ValueError("%s: bundle() output has no %r call to route" % (agent, _RESPOND_CALL))
+        tail = tail.replace(_RESPOND_CALL, _COPILOT_RESPOND_CALL)
     return "%s%s\n%s%s%s" % (head, BEGIN, handler, END, tail)
