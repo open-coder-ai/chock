@@ -1,6 +1,6 @@
 # Chock changelog
 
-## 0.14.0 — Guards that run on any command, gates that judge only what changed, and a guard and a gate on one policy
+## 0.14.0 — Gates on any tool call that can ask or warn, agent commits detected, and guards that run on any command
 
 - **A `tool_call` script asks and warns too.** Exit `3` asks the person and exit `4` warns, as at
   every other event, and the gate's declared `action` caps the verdict and any refusal: a warn
