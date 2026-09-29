@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **In-agent gates judge what changed, and honour committed waivers.** At `tool_use` (PreToolUse
+  and Stop) a waiver already in HEAD is now honoured, so a line a human waived and committed no
+  longer blocks the agent forever; a waiver the edit or turn adds is still ignored. At Stop the
+  added lines are the diff of the file on disk against HEAD (a new file is all added), and a
+  whole-file Write is diffed against the current disk file, so an old violation in a touched
+  file no longer blocks every turn end. The baseline is the disk at PreToolUse and HEAD at Stop.
+  `dependency_allowlist` and `test_integrity` now run at `tool_use` too, so a policy declaring
+  `"on": [commit, tool_use]` for them gets in-agent gates. Commit, push and ci are unchanged.
+  Vendored runner resynced.
 - **A policy can carry a shell guard and a content gate together.** A policy with an
   `implementations/<id>.sh|.py` guard and a `hook.gate` whose `"on"` includes `tool_use` used to get
   only the guard at the write path; the gate was dropped. Both now compile, on the pre-tool-use

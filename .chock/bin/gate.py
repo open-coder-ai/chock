@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import fnmatch
 import json
 import os
@@ -109,6 +110,14 @@ class GateContext:
         """Content before the change, or "" when the path is new in it."""
         return self._git("show", f"{self.base or 'HEAD'}:{path}")
 
+    def committed_blob(self, path: str) -> str:
+        """The file as HEAD has it, or "" when HEAD does not."""
+        return self._git("show", f"HEAD:{path}")
+
+    def net_added_lines(self, path: str) -> list[str]:
+        """The lines this change introduces; at a commit that is what `added_lines` already says."""
+        return self.added_lines(path)
+
     def current_branch(self) -> str:
         branch = self._git("symbolic-ref", "--short", "HEAD").strip()
         if branch:
@@ -124,13 +133,27 @@ class GateContext:
         return refs
 
 
+def _line_diff(old: str, new: str) -> tuple[list[str], list[str]]:
+    """(added, removed) lines turning `old` into `new`, by sequence like a `-U0` diff."""
+    old_lines, new_lines = old.splitlines(), new.splitlines()
+    added: list[str] = []
+    removed: list[str] = []
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, old_lines, new_lines, autojunk=False).get_opcodes():
+        if tag != "equal":
+            removed.extend(old_lines[i1:i2])
+            added.extend(new_lines[j1:j2])
+    return added, removed
+
+
 class WriteContext(GateContext):
     """Files an agent is about to write, or has just written, shaped like a staged diff.
 
     The gate kinds are untouched and cannot tell the difference: only the material changes.
-    A whole-file write is entirely added lines. An edit is judged as the file it would leave
-    (`writes`), but its added lines are only the text it introduces (`added`), so "added_lines"
-    means at this surface what it has always meant while a kind reading the file sees all of it.
+    `writes` is each file as it would be (pre-tool) or is (stop). The baseline it changed from
+    is the file on disk before the write at pre-tool, and HEAD at the turn's end, where the
+    disk already holds the writes. `added_lines` is an edit's own text when it carries one
+    (`added`), else the diff against that baseline, so a whole-file write or a dirty file is
+    judged on what changed and never on lines that were already there.
 
     It still subclasses GateContext so repo_root and the git-backed accessors a kind may
     reach for keep working -- an allowlist file still lives in the repository even when the
@@ -144,29 +167,43 @@ class WriteContext(GateContext):
         scope: Sequence[str] | None = None,
         added: Mapping[str, str] | None = None,
         own: Sequence[str] = (),
+        *,
+        stop: bool = False,
     ) -> None:
         super().__init__(repo_root=repo_root, scope=scope, own=own)
         self._writes = dict(writes)
         self._added = dict(added or {})
+        self._stop = stop
 
-    def staged_paths(self, diff_filter: str = "ACMRT") -> list[str]:  # noqa: ARG002 -- no diff to filter
+    def staged_paths(self, diff_filter: str = "ACMRT") -> list[str]:
+        """Every write is a present file, so a filter asking only for deletions finds none."""
+        if not set(diff_filter) & set("ACMRT"):
+            return []
         return [path for path in self._writes if self.in_scope(path)]
 
     def staged_blob(self, path: str) -> str:
         return self._writes.get(path, "")
 
-    def added_lines(self, path: str) -> list[str]:
-        return self._added.get(path, self._writes.get(path, "")).splitlines()
+    def _diff(self, path: str) -> tuple[list[str], list[str]]:
+        return _line_diff(self.head_blob(path), self._writes.get(path, ""))
 
-    def removed_lines(self, path: str) -> list[str]:  # noqa: ARG002 -- a write removes nothing yet
-        """Nothing is removed by a write that has not landed, so a kind reading this sees none."""
-        return []
+    def added_lines(self, path: str) -> list[str]:
+        if path in self._added:
+            return self._added[path].splitlines()
+        return self._diff(path)[0]
+
+    def net_added_lines(self, path: str) -> list[str]:
+        return self._diff(path)[0]
+
+    def removed_lines(self, path: str) -> list[str]:
+        return self._diff(path)[1]
 
     def head_blob(self, path: str) -> str:
-        """What is on disk now, which is what this write would replace."""
-        target = self.repo_root / path
+        """The baseline: HEAD at the turn's end, else what is on disk now, which this write would replace."""
+        if self._stop:
+            return self.committed_blob(path)
         try:
-            return target.read_text(encoding="utf-8")
+            return (self.repo_root / path).read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             return ""
 
@@ -174,7 +211,8 @@ class WriteContext(GateContext):
 #: Kinds whose question a write can answer. A branch name is not in a tool call, so
 #: forbidden_ref has nothing to read here; saying so beats passing it empty and calling
 #: that an allow.
-WRITE_PATH_KINDS = frozenset({"content_regex", "script"})
+_DEPENDENCY_KIND = "dependency_allowlist"
+WRITE_PATH_KINDS = frozenset({"content_regex", "script", _DEPENDENCY_KIND, "test_integrity"})
 
 
 #: Events at which a line-level waiver is honoured: the ones where a human staged the text. At
@@ -183,6 +221,9 @@ WRITE_PATH_KINDS = frozenset({"content_regex", "script"})
 #: evaluator never read it for that reason, and the published policy message says so.
 WAIVABLE_EVENTS = frozenset({"commit", "push", "ci"})
 
+#: The event of both agent surfaces (pre-tool-use and stop), by the name policies declare.
+TOOL_USE_EVENT = "tool_use"
+
 #: Env var marking the commit as a coding agent's. No repo file or agentseam data records a vendor
 #: env marker verified to reach a git hook, so this explicit opt-in is the only trigger.
 AGENT_COMMIT_ENV = "CHOCK_AGENT_COMMIT"
@@ -190,6 +231,9 @@ AGENT_COMMIT_ENV = "CHOCK_AGENT_COMMIT"
 #: The event an agent-made commit is judged at: outside WAIVABLE_EVENTS, so a waiver the commit
 #: adds is not honoured. Coverage (`on: [commit]`) is still decided by the name `commit`.
 AGENT_COMMIT_EVENT = "agent-commit"
+
+#: Events where the actor may be the refused agent: a waiver counts only when HEAD already has that line.
+HEAD_WAIVER_EVENTS = frozenset({AGENT_COMMIT_EVENT, TOOL_USE_EVENT})
 
 _FALSY_ENV = frozenset({"", "0", "false", "no", "off"})
 
@@ -212,7 +256,7 @@ def _judged_event(name: str) -> str:
 
 def _waiver_re(params: dict, event: str) -> re.Pattern[str] | None:
     """The waiver regex for events that honour a waiver at all, else None."""
-    pragma = params.get("allowlist_pragma") if event in WAIVABLE_EVENTS or event == AGENT_COMMIT_EVENT else None
+    pragma = params.get("allowlist_pragma") if event in WAIVABLE_EVENTS | HEAD_WAIVER_EVENTS else None
     return re.compile(pragma) if pragma else None
 
 
@@ -226,13 +270,13 @@ def _kind_content_regex(ctx: GateContext, params: dict, event: str) -> GateResul
     forbidden_path_regex = params.get("forbidden_path_regex")
     path_re = re.compile(forbidden_path_regex) if forbidden_path_regex else None
     pragma_re = _waiver_re(params, event)
-    agent = event == AGENT_COMMIT_EVENT
+    agent = event in HEAD_WAIVER_EVENTS
     scan = params.get("scan", "added_lines")
     diff_filter = params.get("diff_filter", "ACMRT")
 
     matches: list[str] = []
     for path in ctx.staged_paths(diff_filter):
-        head_text = ctx.head_blob(path) if agent else ""
+        head_text = ctx.committed_blob(path) if agent else ""
         head = frozenset(head_text.splitlines()) if agent else None
         if path_re and path_re.search(path):
             blob = head_text if agent else ctx.staged_blob(path)
@@ -369,7 +413,7 @@ def _kind_test_integrity(ctx: GateContext, params: dict, event: str) -> GateResu
     assertion_re = re.compile(params["assertion_pattern"])
     dummy_pattern = params.get("dummy_assertion_pattern")
     dummy_re = re.compile(dummy_pattern) if dummy_pattern else None
-    pragma_re = _waiver_re(params, event) if event != AGENT_COMMIT_EVENT else None
+    pragma_re = _waiver_re(params, event) if event not in HEAD_WAIVER_EVENTS else None
 
     matches: list[str] = []
     added = removed = 0
@@ -379,7 +423,7 @@ def _kind_test_integrity(ctx: GateContext, params: dict, event: str) -> GateResu
     for path in ctx.staged_paths("ACMRT"):
         if not path_re.search(path):
             continue
-        added_lines = ctx.added_lines(path)
+        added_lines = ctx.net_added_lines(path)
         if pragma_re and any(pragma_re.search(line) for line in added_lines):
             continue
         added += _count(assertion_re, added_lines, pragma_re)
@@ -450,7 +494,7 @@ def _kind_script(ctx: GateContext, params: dict, event: str) -> GateResult:
 KINDS = {
     "content_regex": _kind_content_regex,
     "forbidden_ref": _kind_forbidden_ref,
-    "dependency_allowlist": _kind_dependency_allowlist,
+    _DEPENDENCY_KIND: _kind_dependency_allowlist,
     "test_integrity": _kind_test_integrity,
     "script": _kind_script,
 }
@@ -504,7 +548,9 @@ def _log_outcome(gate_path: Path, event: str, spec: dict, result: GateResult) ->
 #: has to change for it to get them.
 _EVENT_NAME = {"pre-commit": "commit", "pre-push": "push", "pre-tool-use": "tool_use", "stop": "tool_use"}
 
-AGENT_EVENTS = ("pre-tool-use", "stop")
+STOP_EVENT = "stop"
+
+AGENT_EVENTS = ("pre-tool-use", STOP_EVENT)
 
 #: `script_base` value naming the gate file's own directory as where `params.script` lives.
 SCRIPT_BASE_GATE = "gate"
@@ -557,7 +603,14 @@ def _context(
             file=sys.stderr,
         )
         return None
-    return WriteContext(repo_root=repo_root, writes=writes or {}, scope=spec.get("paths"), added=added, own=own)
+    return WriteContext(
+        repo_root=repo_root,
+        writes=writes or {},
+        scope=spec.get("paths"),
+        added=added,
+        own=own,
+        stop=event == STOP_EVENT,
+    )
 
 
 def _report_refusal(result: GateResult, spec: dict, judged: str) -> None:
