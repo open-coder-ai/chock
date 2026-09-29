@@ -1,6 +1,6 @@
 # Chock changelog
 
-## Unreleased
+## 0.13.0 — Copilot gates the content an agent writes, and a policy reaches every clone
 
 - **An agent's commit cannot waive its own refusal.** A `// chock: allow <rule>` waiver is a
   reviewer's decision, but at commit the gate honoured every waiver in the staged text, so an
