@@ -27,10 +27,28 @@ def shipped_events(policy_dir: Path, policy_id: str) -> set[str]:
     return {event for event in SCRIPT_EVENTS if script_path(policy_dir, policy_id, event)}
 
 
+def _check_gate_overlap(artifact_dir: Path, hook: dict[str, Any], declared: set[str], report: Report) -> None:
+    """A gate and a script on one git event would both claim that event's single shim."""
+    gate_events = set((hook.get("gate") or {}).get("on") or [])
+    ref = str(resolve_manifest_path(artifact_dir) or (artifact_dir / CANONICAL_MANIFEST))
+    for event in sorted(gate_events & declared & {"commit", "push"}):
+        report.add(
+            Finding(
+                ref,
+                _CATEGORY,
+                "error",
+                f"hook.gate and hook.script both run at '{event}'; give each its own event "
+                "(a gate may add tool_use, which a script cannot)",
+            )
+        )
+
+
 def check_script_events(artifact_dir: Path, manifest: dict[str, Any], _artifact_type: str, report: Report) -> None:
     """Pin `hook.script.on` to the scripts on disk, in both directions."""
     policy_id = str(manifest.get("id") or Path(artifact_dir).name)
-    declared = set((manifest.get("hook") or {}).get("script", {}).get("on") or [])
+    hook = manifest.get("hook") or {}
+    declared = set((hook.get("script") or {}).get("on") or [])
+    _check_gate_overlap(artifact_dir, hook, declared, report)
     shipped = shipped_events(artifact_dir, policy_id)
     if not declared and not shipped:
         return

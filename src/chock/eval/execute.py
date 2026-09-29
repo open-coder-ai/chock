@@ -13,13 +13,15 @@ from pathlib import Path
 from typing import Any
 
 from chock.compile.compiler import _load_manifest
+from chock.eval.fixture import init_repo, prepare
 from chock.eval.model import Case, CaseResult
+from chock.eval.replay import AGENT_CASE_EVENTS, SCRIPT_CASE_EVENTS, prepare_agent, run_script_event
 from chock.gate import runner as gate_runner
 from chock.gate.build import build_gate_json
 from chock.gate.guard_runner import (
     GUARD_ASK_EXIT,
     GUARD_VIOLATION,
-    find_bash,
+    find_interpreter,
     interpreter_env,
     is_guard_crash,
     split_command,
@@ -33,59 +35,6 @@ ERROR = "error"
 
 #: gate_runner.run()'s process-exit convention: 0 allow, 1 block, 2 spec error.
 _GATE_EXIT_SPEC_ERROR = 2
-_GIT = shutil.which("git") or "git"
-
-
-def _git(repo: Path, *args: str, stdin: str | None = None) -> subprocess.CompletedProcess:
-    return subprocess.run(  # noqa: S603 -- fixture harness: replays a case's own git commands
-        [_GIT, *args],
-        cwd=str(repo),
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        input=stdin,
-        check=False,
-    )
-
-
-def _init_repo(repo: Path) -> None:
-    """A repo with one commit, so HEAD resolves and added lines diff against something."""
-    _git(repo, "init", "--quiet", "--initial-branch=main", ".")
-    _git(repo, "config", "user.email", "eval@chock.invalid")
-    _git(repo, "config", "user.name", "Chock Eval")
-    _git(repo, "config", "commit.gpgsign", "false")
-
-
-def _write(repo: Path, files: dict[str, Any]) -> list[str]:
-    written: list[str] = []
-    for rel, content in (files or {}).items():
-        path = repo / rel
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(str(content), encoding="utf-8", newline="\n")
-        written.append(rel)
-    return written
-
-
-def _prepare(repo: Path, spec: dict[str, Any]) -> None:
-    """Build the repository state the case describes, up to but not including the gate run."""
-    _init_repo(repo)
-
-    head_files = spec.get("head_files") or {}
-    if head_files:
-        _write(repo, head_files)
-        _git(repo, "add", *sorted(head_files))
-    _git(repo, "commit", "--allow-empty", "-m", "baseline")
-
-    branch = spec.get("branch")
-    if branch and branch != "main":
-        _git(repo, "checkout", "-q", "-b", str(branch))
-
-    _write(repo, spec.get("repo_files") or {})
-
-    staged = _write(repo, spec.get("files") or {})
-    if staged:
-        _git(repo, "add", *sorted(staged))
 
 
 def _install_script(repo: Path, policy_dir: Path, gate_spec: dict[str, Any]) -> None:
@@ -106,12 +55,19 @@ def _install_script(repo: Path, policy_dir: Path, gate_spec: dict[str, Any]) -> 
     shutil.copytree(source, repo / Path(named).parent, dirs_exist_ok=True)
 
 
-def _run_gate(repo: Path, gate_spec: dict[str, Any], spec: dict[str, Any]) -> tuple[str, str]:
+def _run_gate(
+    repo: Path,
+    gate_spec: dict[str, Any],
+    spec: dict[str, Any],
+    writes: dict[str, str] | None = None,
+    added: dict[str, str] | None = None,
+) -> tuple[str, str]:
     """Return (verdict, detail) by running the compiled gate as a git hook would."""
     gate_path = repo / "gate.json"
     gate_path.write_text(json.dumps(gate_spec), encoding="utf-8", newline="\n")
 
-    event = "pre-push" if str(spec.get("event", "commit")) == "push" else "pre-commit"
+    case_event = str(spec.get("event", "commit"))
+    event = AGENT_CASE_EVENTS.get(case_event) or ("pre-push" if case_event == "push" else "pre-commit")
     push_stdin = None
     if event == "pre-push":
         refs = [str(r) for r in (spec.get("push_refs") or [])]
@@ -122,7 +78,7 @@ def _run_gate(repo: Path, gate_spec: dict[str, Any], spec: dict[str, Any]) -> tu
     os.environ[GATE_LOG_ENV] = "0"
     try:
         with contextlib.redirect_stderr(captured):
-            code = gate_runner.run(gate_path, event, push_stdin, repo)
+            code = gate_runner.run(gate_path, event, push_stdin, repo, writes=writes, added=added)
     finally:
         if prior_log is None:
             os.environ.pop(GATE_LOG_ENV, None)
@@ -137,9 +93,9 @@ def _run_gate(repo: Path, gate_spec: dict[str, Any], spec: dict[str, Any]) -> tu
 
 def _run_guard(repo: Path, guard: Path, command: str) -> tuple[str, str]:
     """Return (verdict, detail) by invoking a guard script with the argv it guards."""
-    bash = find_bash(guard)
+    bash = find_interpreter(guard)
     if bash is None:
-        return ERROR, "no bash could resolve the guard path"
+        return ERROR, "no interpreter could resolve the guard path"
     args, _ = split_command(command)
 
     try:
@@ -182,6 +138,36 @@ def resolve_gate(policy_dir: Path, repo_root: Path) -> tuple[dict[str, Any] | No
     return build_gate_json(policy_dir, repo_root), "manifest"
 
 
+def _replay(case: Case, spec: dict[str, Any], env: tuple[Path, Path, Path, list[Path]]) -> tuple[str, str]:
+    """Return (verdict, detail) for one executable case, in the throwaway repo `env` names."""
+    repo, policy_dir, repo_root, guards = env
+    event = str(spec.get("event", "commit"))
+    if "command" in spec:
+        if not guards:
+            return ERROR, "case declares a command but the policy ships no guard"
+        init_repo(repo)
+        return _run_guard(repo, guards[0], str(spec["command"]))
+    if event in AGENT_CASE_EVENTS and not (spec.get("writes") or spec.get("files")):
+        return ERROR, f"case runs at {event} but declares no writes, so the gate would judge nothing"
+    if event in SCRIPT_CASE_EVENTS:
+        return run_script_event(repo, policy_dir, case.policy_id, spec)
+
+    gate_spec, source = resolve_gate(policy_dir, repo_root)
+    if gate_spec is None:
+        return ERROR, {
+            "unreadable": "the compiled gate exists but could not be parsed; nothing is enforcing this policy",
+            "manifest": "case describes a gate but the policy declares none",
+        }[source]
+    writes, added = prepare_agent(repo, spec) if event in AGENT_CASE_EVENTS else (None, None)
+    if writes is None:
+        prepare(repo, spec)
+    _install_script(repo, policy_dir, gate_spec)
+    verdict, detail = _run_gate(repo, gate_spec, spec, writes, added)
+    if source == "manifest":
+        detail = f"{detail} [gate derived from manifest; policy not compiled]"
+    return verdict, detail
+
+
 def run_case(case: Case, policy_dir: Path, repo_root: Path, guards: list[Path]) -> CaseResult:
     """Execute one case and report what was observed, never what was expected."""
     if case.status == "pending":
@@ -196,25 +182,7 @@ def run_case(case: Case, policy_dir: Path, repo_root: Path, guards: list[Path]) 
         repo = Path(tmp) / "repo"
         repo.mkdir()
         try:
-            if "command" in spec:
-                if not guards:
-                    return CaseResult(case, "error", detail="case declares a command but the policy ships no guard")
-                _init_repo(repo)
-                verdict, detail = _run_guard(repo, guards[0], str(spec["command"]))
-            else:
-                gate_spec, source = resolve_gate(policy_dir, repo_root)
-                if gate_spec is None:
-                    reason = {
-                        "unreadable": "the compiled gate exists but could not be parsed; "
-                        "nothing is enforcing this policy",
-                        "manifest": "case describes a gate but the policy declares none",
-                    }[source]
-                    return CaseResult(case, "error", detail=reason)
-                _prepare(repo, spec)
-                _install_script(repo, policy_dir, gate_spec)
-                verdict, detail = _run_gate(repo, gate_spec, spec)
-                if source == "manifest":
-                    detail = f"{detail} [gate derived from manifest; policy not compiled]"
+            verdict, detail = _replay(case, spec, (repo, policy_dir, repo_root, guards))
         except OSError as exc:
             return CaseResult(case, "error", detail=f"{type(exc).__name__}: {exc}")
 

@@ -1,7 +1,8 @@
 # Gate DSL Reference
 
 For `artifact: hook` policies, and for `artifact: rule` policies that keep their rule text, the gate
-is declared under `hook.gate` in `manifest.yaml`.
+is declared under `hook.gate` in `manifest.yaml`. A hook may also carry a `hook.script`
+(`spec/script-backed-gates.md`) beside it, provided the two do not both run at one git event.
 `chock compile` flattens it into `.chock/compiled/<id>/git-hook/gate.json`.
 
 ## `hook.gate` object
@@ -102,7 +103,7 @@ Extracted names are lowercased and compared against a lowercased allowlist.
 | `test_path_regex` | yes | string | regex matched against staged paths to identify test files |
 | `assertion_pattern` | yes | string | regex matched against a line to count it as an assertion |
 | `dummy_assertion_pattern` | no | string | regex for a vacuous assertion (`assert True`, `expect(true)`); matched only on added lines |
-| `allowlist_pragma` | no | string | regex matched on a line; a match on an added line skips that file's counting entirely; not honoured with `CHOCK_AGENT_COMMIT` set or at `tool_use` |
+| `allowlist_pragma` | no | string | regex matched on a line; a match on an added line skips that file's counting entirely; with `CHOCK_AGENT_COMMIT` set, and at `tool_use`, only a waiver already in HEAD is honoured |
 
 Blocks three shapes of a change that wins green CI by weakening the tests rather than
 fixing the code: a deleted test file, a **net** loss of assertions across the whole
