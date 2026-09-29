@@ -1,6 +1,7 @@
 # Gate DSL Reference
 
-For `artifact: hook` policies, the gate is declared under `hook.gate` in `manifest.yaml`.
+For `artifact: hook` policies, and for `artifact: rule` policies that keep their rule text, the gate
+is declared under `hook.gate` in `manifest.yaml`.
 `chock compile` flattens it into `.chock/compiled/<id>/git-hook/gate.json`.
 
 ## `hook.gate` object

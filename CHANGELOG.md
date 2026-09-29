@@ -1,5 +1,24 @@
 # Chock changelog
 
+## Unreleased
+
+- **A policy can carry a shell guard and a content gate together.** A policy with an
+  `implementations/<id>.sh|.py` guard and a `hook.gate` whose `"on"` includes `tool_use` used to get
+  only the guard at the write path; the gate was dropped. Both now compile, on the pre-tool-use
+  surface for claude_code, cursor, codex and the other vendors with a recorded write vocabulary,
+  and in the Copilot hooks file, each in its own fragment so neither overwrites the other. A policy
+  reads as installed for an agent only when every compiled entry is present, so a missing gate entry
+  no longer earns the credit the guard's entry alone used to. Run `chock sync` to pick it up.
+- **A `rule` can carry a `hook.gate`.** The gate is the same control on a second surface, as
+  `hook.script` already was: the rule text stays the ambient line and the INDEX entry, and the gate
+  compiles to the git-hook, pre-tool-use, stop and ci surfaces as an `artifact: hook` gate does.
+  A rule with a payload other than `rule` and one hook is still a `manifest_payload` error.
+- **Script-backed hooks can run at `commit-msg`.** `hook.script.on` accepts `commit-msg`, backed by
+  `implementations/<id>-commit-msg.{sh,py}`. `chock sync` installs a `commit-msg` dispatcher beside
+  `pre-commit` and `pre-push`; git's message-file path arrives as `argv[1]` and the exit code is the
+  verdict. `chock check` pins the declaration to the script both ways (DET-5), and the eval runner
+  does not treat the script as a command guard.
+
 ## 0.13.0 — Copilot gates the content an agent writes, and a policy reaches every clone
 
 - **An agent's commit cannot waive its own refusal.** A `// chock: allow <rule>` waiver is a

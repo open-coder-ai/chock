@@ -132,14 +132,16 @@ def test_a_policy_with_neither_a_script_nor_a_gate_emits_nothing(tmp_path: Path)
 # --- the shell path is untouched -----------------------------------------------------------------------
 
 
-def test_a_guard_script_still_emits_exactly_what_it_did(tmp_path: Path) -> None:
+def test_a_guard_script_still_emits_what_it_did(tmp_path: Path) -> None:
     """The shell half must not move: it is what every enforcing policy ships today."""
     policy, manifest = _policy(tmp_path, on=("commit", "tool_use"), script=True)
     emitted = _emit(tmp_path, policy, manifest)
     assert "pretooluse.json" in emitted
     assert emitted["pretooluse.json"]["matcher"] == vendors.shell_matcher("claude_code")
     assert "--guard" in emitted["pretooluse.json"]["hooks"][0]["command"]
-    assert GATE_FILE not in emitted, "a guard script takes precedence; nothing is emitted twice"
+    assert GATE_FILE in emitted, "the gate rides beside the guard"
+    assert emitted[WRITE_FRAGMENT]["matcher"] == vendors.write_matcher("claude_code")
+    assert "--gate" in emitted[WRITE_FRAGMENT]["hooks"][0]["command"]
 
 
 def test_the_installer_looks_for_both_fragments(tmp_path: Path) -> None:

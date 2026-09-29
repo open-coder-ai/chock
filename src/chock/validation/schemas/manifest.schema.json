@@ -177,7 +177,7 @@
           ]
         }
       ],
-      "$comment": "At least one artifact payload. Exclusivity is checked in code by _check_manifest_payload (manifest_payload), which admits exactly one exception: a rule may carry a hook holding only a script."
+      "$comment": "At least one artifact payload. Exclusivity is checked in code by _check_manifest_payload (manifest_payload), which admits exactly one exception: a rule may carry a hook holding a script or a gate."
     },
     {
       "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.artifact-conditionals.json"

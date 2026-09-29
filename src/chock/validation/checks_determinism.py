@@ -98,7 +98,7 @@ def check_script_integrity(
     artifact_dir: Path, manifest: dict[str, Any], artifact_type: str, root: Path, report: Report
 ) -> None:
     """Check DET-2: deterministic scripts for production/verified+ artifacts must match registry hashes."""
-    if artifact_type not in {"skill", "hook"}:
+    if artifact_type not in {"skill", "hook"} and not manifest.get("hook"):
         return
 
     provenance = manifest.get("provenance", {})
@@ -237,7 +237,7 @@ def _compute_script_hashes(artifact_dir: Path, manifest: dict[str, Any]) -> dict
                     hashes[rel] = _hash_file(path)
         return hashes
 
-    if artifact_type == "hook":
+    if artifact_type == "hook" or manifest.get("hook"):
         impl_dir = artifact_dir / "implementations"
         if impl_dir.exists():
             for path in impl_dir.rglob("*"):

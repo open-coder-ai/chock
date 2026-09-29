@@ -13,7 +13,10 @@ GUARD_SUFFIXES = (".sh", ".py")
 #: Git events a policy may back with its own script, each mapped to the filename segment
 #: that names it: `implementations/<policy_id>-<segment>.{sh,py}`. The manifest's
 #: `hook.script.on` speaks the keys; the files on disk speak the values.
-SCRIPT_EVENTS = {"commit": "pre-commit", "push": "pre-push"}
+SCRIPT_EVENTS = {"commit": "pre-commit", "push": "pre-push", "commit-msg": "commit-msg"}
+
+#: Events whose git hook hands the script an argument: commit-msg gets the message file's path.
+ARGV_EVENTS = frozenset({"commit-msg"})
 
 
 def policy_rel_path(policy_dir: Path) -> str:
