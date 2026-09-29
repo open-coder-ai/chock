@@ -51,7 +51,7 @@ del _agent, _surface
 #: answer: grok and windsurf can observe a finished turn but not refuse one, and four of the
 #: agents here (antigravity, codex_cli, devin, tabnine) have no write vocabulary recorded, so
 #: neither set contains the other. `stop` takes no matcher, so no vendor is held back for want of a tool vocabulary;
-#: vscode_copilot is held back for want of a witnessed key (chock.vendors.stop_vendors).
+#: vscode_copilot's `Stop` key in chock's own hooks file is witnessed (chock.vendors.stop_vendors).
 for _agent in STOP_TODAY:
     if not _stop_can_block(_agent):  # pragma: no cover - membership already derives from can_block
         _msg = (

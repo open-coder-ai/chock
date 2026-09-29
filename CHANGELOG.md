@@ -1,5 +1,24 @@
 # Chock changelog
 
+## Unreleased
+
+- **Copilot and VS Code get in-editor enforcement for content gates.** A policy whose gate judges
+  the files a write leaves behind (the catalog's `java-security`, `pin-github-actions`) used to
+  read `enforced-at-commit` for `copilot` and `vscode`, because chock's own `.github/hooks/chock.json`
+  only carried shell-command guards. It now also carries, per content gate, a `PreToolUse` entry over
+  `Edit|Write` (the tool names seen live: `Edit {path, old_str, new_str}`, `Write {path, file_text}`)
+  and a `Stop` entry that re-reads what the turn left on disk, both in the same entry shape as the
+  guard entries (`bash`, `command`, `powershell`, `windows`, `timeout`, `timeoutSec`) and both running
+  the vendored `vscode_copilot` runtime in `--gate` mode. `chock sync` reports the grade the matrix earns
+  once they are installed, and `enforced-at-commit` until then. `Stop` is registered alone: Copilot fires
+  `agentStop` beside it, and registering both would run the gate twice.
+- **The Copilot runtime answers in the top-level dialect it was seen honouring.** A `PreToolUse` deny
+  now carries top-level `permissionDecision`/`permissionDecisionReason` (a top-level deny stopped an
+  `Edit` in VS Code agent mode, 2026-09-28) beside agentseam's nested `hookSpecificOutput`, and a `Stop` block carries
+  top-level `decision`/`reason` beside its nested one. Which of the two Stop forms Copilot reads is not
+  yet isolated, so both are written; no other vendor's answer changes. A `Write` call's `file_text` is
+  now judged as the file it creates. Every vendored runtime is re-rendered, so the next `chock sync` rewrites `.chock/bin`.
+
 ## 0.12.1 — Plugin hooks that start on Windows
 
 - **A plugin's hook starts on Windows.** Every plugin package (claude, cursor, codex, copilot,

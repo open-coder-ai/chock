@@ -1,0 +1,12 @@
+{
+  "kind": "script",
+  "on": [
+    "commit",
+    "tool_use"
+  ],
+  "action": "block",
+  "message": "Refused by the fixture's own script.",
+  "params": {
+    "script": "tests/fixtures/emitter_stability/policies/stability-script/implementations/stability-script-gate.py"
+  }
+}

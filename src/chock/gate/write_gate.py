@@ -17,10 +17,13 @@ import subprocess
 import sys
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
-from .edit_image import added_from_event, edited_text
+from .edit_image import _edit_call_input, added_from_event, edited_text
 from .patch_image import patch_added, patched_files
 
 GATE_FLAG = "--gate"
+
+#: A create call's whole file where the adapter reads none (Copilot's `Write {path, file_text}`).
+_FILE_TEXT = "file_text"
 
 _GATE_TIMEOUT_SECONDS = 30
 
@@ -91,6 +94,8 @@ def writes_from_event(event, root=None):
     edited = edited_text(event, root)
     if path and edited is not None:
         return {str(path): edited}
+    if not isinstance(content, str):
+        content = _edit_call_input(event).get(_FILE_TEXT)
     if not path or not isinstance(content, str):
         return {}
     return {str(path): content}

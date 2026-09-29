@@ -931,6 +931,8 @@ def patch_added(event):
 
 GATE_FLAG = '--gate'
 
+_FILE_TEXT = 'file_text'
+
 _GATE_TIMEOUT_SECONDS = 30
 
 _GATE_DEPTH_TO_CHOCK = 3
@@ -999,6 +1001,8 @@ def writes_from_event(event, root=None):
     edited = edited_text(event, root)
     if path and edited is not None:
         return {str(path): edited}
+    if not isinstance(content, str):
+        content = _edit_call_input(event).get(_FILE_TEXT)
     if not path or not isinstance(content, str):
         return {}
     return {str(path): content}
@@ -1185,6 +1189,27 @@ def handle(event):
             "chock could not check this call (%s: %s). Refusing rather than reporting an "
             "allow it never established." % (type(exc).__name__, exc)
         )
+
+
+def _chock_copilot_respond(decision, event):
+    # Copilot's own runtime answered a top-level deny and a top-level Stop block in live probes
+    # (VS Code agent mode, 2026-09-28); which of the top-level and nested Stop blocks it reads was
+    # never isolated. The nested answer agentseam writes stays, and the witnessed top-level one
+    # is added beside it, so either reading refuses.
+    text, code = respond(decision, event)
+    if not text:
+        return text, code
+    body = json.loads(text)
+    nested = body.get("hookSpecificOutput")
+    if not isinstance(nested, dict):
+        return text, code
+    if event.event == PRE_TOOL and nested.get("permissionDecision") == "deny":
+        body["permissionDecision"] = nested["permissionDecision"]
+        body["permissionDecisionReason"] = nested.get("permissionDecisionReason")
+    elif event.event == STOP and nested.get("decision") == "block":
+        body["decision"] = nested["decision"]
+        body["reason"] = nested.get("reason")
+    return json.dumps(body), code
 # <<< agentseam handler <<<
 
 
@@ -1302,7 +1327,7 @@ def _decide(raw):
             "policy handler failed (%s); refusing rather than allowing what it could not judge"
             % sys.exc_info()[0].__name__
         )
-    return respond(degrade(decision, event), event)
+    return _chock_copilot_respond(degrade(decision, event), event)
 
 
 def main(stdin=None, stdout=None, exit=True):

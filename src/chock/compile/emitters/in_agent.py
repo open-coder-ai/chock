@@ -48,6 +48,11 @@ AGENT_HOOKS_EVENT = "preToolUse"
 POWERSHELL_KEEP_EXIT = "; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
 AGENT_HOOKS_ENVELOPE = {"version": 1}
 SHELL_MATCHER = "bash|powershell|pwsh|sh|shell"
+#: The file-writing tool names witnessed in VS Code Copilot Chat agent mode (2026-09-28): an edit
+#: of an existing file is `Edit`, creating one is `Write`. agentseam records no write vocabulary.
+COPILOT_WRITE_MATCHER = "Edit|Write"
+#: A content gate's write-gate entries, by Copilot event, beside its gate.
+GATE_HOOKS_FILE = "gate-hooks.json"
 
 #: The content fragment claude_code's installer merges, named apart from the shell one so a
 #: policy could one day carry both without either overwriting the other.
@@ -159,9 +164,37 @@ def _gate_fragments(policy_id: str, spec: dict[str, Any], output_dir: Path) -> l
 STOP_FRAGMENT = "stop.json"
 
 
+def _agent_hooks_rel(policy_id: str) -> str:
+    """Where this policy's agent-hooks artifacts land, from chock's own compiled layout."""
+    return f".chock/compiled/{policy_id}/agent-hooks"
+
+
 def _stop_rel(policy_id: str) -> str:
     """Where this policy's stop artifacts land, from chock's own compiled layout."""
     return f".chock/compiled/{policy_id}/stop"
+
+
+def copilot_entry(bash: str, *, matcher: str | None = None) -> dict[str, Any]:
+    """One entry of chock's own Copilot hooks file: witnessed keys, both shells' spellings.
+
+    The launcher form reads the same under bash and PowerShell; PowerShell also needs its exit
+    code kept (`pwsh -Command` reports any failure as 1), as agentseam's own Windows form does.
+    """
+    powershell = f"& {bash}{POWERSHELL_KEEP_EXIT}"
+    entry: dict[str, Any] = {"type": "command"}
+    if matcher is not None:
+        entry["matcher"] = matcher
+    entry.update(
+        {
+            "timeout": TIMEOUT_SECONDS,
+            "timeoutSec": TIMEOUT_SECONDS,
+            "bash": bash,
+            "command": bash,
+            "powershell": powershell,
+            "windows": powershell,
+        }
+    )
+    return entry
 
 
 def _stop_fragments(policy_id: str, spec: dict[str, Any], output_dir: Path) -> list[Path]:
@@ -182,6 +215,9 @@ def _stop_fragments(policy_id: str, spec: dict[str, Any], output_dir: Path) -> l
         elif vendors.hook_entry_flat(vendor):
             # Cursor's fragment is the event's entry list, the shape its merged installer reads.
             dest, doc = output_dir / f"{vendor}-hooks.json", {vendors.stop_event(vendor): [cursor_entry(command)]}
+        elif vendor in vendors.AGENT_HOOKS_VENDORS:
+            # chock's own hooks file: the same witnessed entry keys its guard entries carry.
+            dest, doc = output_dir / f"{vendor}-hooks.json", {vendors.stop_event(vendor): [copilot_entry(command)]}
         else:
             dest, doc = output_dir / f"{vendor}-hooks.json", vendors.stop_hook_config(vendor, command)
         write_generated_json(dest, doc)
@@ -224,33 +260,35 @@ def build_entry(policy_dir: Path, manifest: dict[str, Any]) -> dict[str, Any] | 
     script = _guard_script(policy_dir, policy_id)
     if not script:
         return None
-    # The launcher form reads the same under bash and PowerShell; PowerShell also needs its exit
-    # code kept (`pwsh -Command` reports any failure as 1), as agentseam's own Windows form does.
     bash = hook_command(
         _adapter_rel("vscode_copilot"), "--guard", f"{policy_rel_path(policy_dir)}/implementations/{script}"
     )
-    powershell = f"& {bash}{POWERSHELL_KEEP_EXIT}"
-    return {
-        "type": "command",
-        "matcher": SHELL_MATCHER,
-        "timeout": TIMEOUT_SECONDS,
-        "timeoutSec": TIMEOUT_SECONDS,
-        "bash": bash,
-        "command": bash,
-        "powershell": powershell,
-        "windows": powershell,
-    }
+    return copilot_entry(bash, matcher=SHELL_MATCHER)
+
+
+def build_gate_entries(policy_id: str) -> dict[str, list[dict[str, Any]]]:
+    """A content gate's write-gate entries by Copilot event; its end-of-turn entry is the stop surface's."""
+    reference = f"{_agent_hooks_rel(policy_id)}/{GATE_FILE}"
+    command = hook_command(_adapter_rel("vscode_copilot"), "--gate", reference)
+    return {vendors.pre_tool_event("vscode_copilot"): [copilot_entry(command, matcher=COPILOT_WRITE_MATCHER)]}
 
 
 def emit_agent_hooks(policy_dir: Path, output_dir: Path, manifest: dict[str, Any]) -> list[Path]:
-    """Write the per-policy entry; the installer aggregates them into .github/hooks/chock.json."""
+    """Write the per-policy entries; the installer aggregates them into .github/hooks/chock.json."""
     entry = build_entry(policy_dir, manifest)
-    if entry is None:
+    spec = None if entry else _tool_use_gate(policy_dir, output_dir)
+    if entry is None and spec is None:
         return []
     output_dir.mkdir(parents=True, exist_ok=True)
-    dest = output_dir / "agent-hooks.json"
-    write_generated_json(dest, entry)
-    return [dest]
+    if entry is not None:
+        dest = output_dir / "agent-hooks.json"
+        write_generated_json(dest, entry)
+        return [dest]
+    gate = output_dir / GATE_FILE
+    write_generated_json(gate, spec)
+    dest = output_dir / GATE_HOOKS_FILE
+    write_generated_json(dest, build_gate_entries(str(manifest.get("id", policy_dir.name))))
+    return [gate, dest]
 
 
 pre_tool_use = SimpleNamespace(emit=emit_pre_tool_use)

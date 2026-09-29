@@ -63,9 +63,7 @@ def test_membership_is_the_matrix_answer_for_the_turn_end_event() -> None:
     expected = sorted(
         agent
         for agent, vendor in CHOCK_AGENT.items()
-        if matrix.can_block(vendor, contract.STOP)
-        and vendors.repo_wirable(vendor)
-        and vendor not in vendors.AGENT_HOOKS_VENDORS
+        if matrix.can_block(vendor, contract.STOP) and vendors.repo_wirable(vendor)
     )
     assert sorted(STOP_TODAY) == expected
     assert sorted(a for a, s in SURFACE_AGENTS.items() if Surface.STOP in s) == expected
@@ -88,19 +86,14 @@ def test_cursor_s_turn_end_is_a_follow_up_and_counts_as_a_stop_surface() -> None
 
 
 @pytest.mark.parametrize("agent", ["copilot", "vscode"])
-def test_the_owned_hooks_file_vendors_are_held_back_for_want_of_a_witness(agent: str) -> None:
-    """They CAN refuse a finished turn. chock still cannot say which key to write.
-
-    Their pre-tool wiring lives in chock's own `.github/hooks/chock.json`, in an entry shape
-    seen working in the real client. That witness covers the pre-tool key alone, so the
-    file's turn-end spelling would be a guess -- and a guessed key installs a hook that
-    silently never runs while the table says it does.
-    """
+def test_the_owned_hooks_file_vendors_are_admitted_now_their_stop_key_is_witnessed(agent: str) -> None:
+    """Their `Stop` key in chock's own `.github/hooks/chock.json` fired in VS Code agent mode (2026-09-28)."""
     vendor = CHOCK_AGENT[agent]
-    assert matrix.can_block(vendor, contract.STOP), "capability is not what holds these back"
+    assert matrix.can_block(vendor, contract.STOP)
     assert vendor in vendors.AGENT_HOOKS_VENDORS
-    assert vendor not in vendors.stop_vendors()
-    assert Surface.STOP not in SURFACE_AGENTS[agent]
+    assert vendor in vendors.stop_vendors()
+    assert vendors.stop_event(vendor) == "Stop", "registered under Stop alone: agentStop fires beside it"
+    assert Surface.STOP in SURFACE_AGENTS[agent]
 
 
 # --- what it emits, and for whom -----------------------------------------------------------------

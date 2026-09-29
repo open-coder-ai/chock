@@ -45,9 +45,11 @@ def repo_wirable(vendor: str) -> bool:
 
 
 #: Vendors chock wires through its OWN hooks file (.github/hooks/chock.json) instead of the
-#: vendor's config, in an entry shape witnessed live rather than read from agentseam. That
-#: witness covers the pre-tool key alone, so the file's turn-end spelling is unknown --
-#: which is an install cap, like repo_wirable, not a claim about what the vendor can do.
+#: vendor's config, in an entry shape witnessed live rather than read from agentseam. Witnessed
+#: in VS Code Copilot Chat agent mode (2026-09-28): `PreToolUse` and `Stop` keys in that file
+#: both fire, and a `Stop` answer that blocks makes Copilot continue the turn. Not isolated:
+#: whether Copilot reads the top-level or the nested (`hookSpecificOutput`) block answer, so
+#: the vendored runtime writes both for Stop.
 AGENT_HOOKS_VENDORS = ("vscode_copilot",)
 
 
@@ -66,16 +68,11 @@ def stop_vendors() -> tuple[str, ...]:
     A different set from `in_agent_vendors` in both directions, which is the point of
     deriving each one rather than inheriting: grok and windsurf can only observe a finished
     turn, while three vendors here can refuse one without recording any write vocabulary
-    (cursor hands a refusal back as a follow-up message, witnessed live). vscode_copilot can refuse one too and is still held back -- see
-    AGENT_HOOKS_VENDORS for the file chock would have to guess a key in.
+    (cursor hands a refusal back as a follow-up message, witnessed live). vscode_copilot is
+    admitted now that its `Stop` key in chock's own hooks file is witnessed (see
+    AGENT_HOOKS_VENDORS); it registers under `Stop` only, since `agentStop` would run the gate twice.
     """
-    return tuple(
-        sorted(
-            v
-            for v in VENDOR_CONFIG
-            if _matrix.can_block(v, _contract.STOP) and repo_wirable(v) and v not in AGENT_HOOKS_VENDORS
-        )
-    )
+    return tuple(sorted(v for v in VENDOR_CONFIG if _matrix.can_block(v, _contract.STOP) and repo_wirable(v)))
 
 
 def config_path(vendor: str) -> str:

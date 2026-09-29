@@ -753,9 +753,9 @@
       "witnessed": false
     },
     "copilot": {
-      "level": "enforced-at-commit",
-      "basis": null,
-      "witnessed": false
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
     },
     "cursor": {
       "level": "enforceable",
@@ -793,9 +793,9 @@
       "witnessed": false
     },
     "vscode": {
-      "level": "enforced-at-commit",
-      "basis": null,
-      "witnessed": false
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
     },
     "windsurf": {
       "level": "enforced-at-commit",

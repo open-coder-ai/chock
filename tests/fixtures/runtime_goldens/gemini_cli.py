@@ -1066,6 +1066,8 @@ def patch_added(event):
 
 GATE_FLAG = '--gate'
 
+_FILE_TEXT = 'file_text'
+
 _GATE_TIMEOUT_SECONDS = 30
 
 _GATE_DEPTH_TO_CHOCK = 3
@@ -1134,6 +1136,8 @@ def writes_from_event(event, root=None):
     edited = edited_text(event, root)
     if path and edited is not None:
         return {str(path): edited}
+    if not isinstance(content, str):
+        content = _edit_call_input(event).get(_FILE_TEXT)
     if not path or not isinstance(content, str):
         return {}
     return {str(path): content}
