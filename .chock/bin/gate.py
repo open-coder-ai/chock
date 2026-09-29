@@ -414,8 +414,10 @@ def _kind_dependency_allowlist(ctx: GateContext, params: dict, _event: str) -> G
     return GateResult(allowed=not matches, matches=matches)
 
 
-def _count(pattern: "re.Pattern[str]", lines: list[str], pragma: re.Pattern[str] | None) -> int:
-    return sum(1 for line in lines if pattern.search(line) and not (pragma and pragma.search(line)))
+def _count(
+    pattern: "re.Pattern[str]", lines: list[str], pragma: re.Pattern[str] | None, head: frozenset[str] | None = None
+) -> int:
+    return sum(1 for line in lines if pattern.search(line) and not _honoured(pragma, line, head))
 
 
 def _kind_test_integrity(ctx: GateContext, params: dict, event: str) -> GateResult:
@@ -424,7 +426,8 @@ def _kind_test_integrity(ctx: GateContext, params: dict, event: str) -> GateResu
     assertion_re = re.compile(params["assertion_pattern"])
     dummy_pattern = params.get("dummy_assertion_pattern")
     dummy_re = re.compile(dummy_pattern) if dummy_pattern else None
-    pragma_re = _waiver_re(params, event) if event not in HEAD_WAIVER_EVENTS else None
+    pragma_re = _waiver_re(params, event)
+    agent = event in HEAD_WAIVER_EVENTS
 
     matches: list[str] = []
     added = removed = 0
@@ -435,10 +438,11 @@ def _kind_test_integrity(ctx: GateContext, params: dict, event: str) -> GateResu
         if not path_re.search(path):
             continue
         added_lines = ctx.net_added_lines(path)
-        if pragma_re and any(pragma_re.search(line) for line in added_lines):
+        head = frozenset(ctx.committed_blob(path).splitlines()) if agent else None
+        if any(_honoured(pragma_re, line, head) for line in added_lines):
             continue
-        added += _count(assertion_re, added_lines, pragma_re)
-        removed += _count(assertion_re, ctx.removed_lines(path), pragma_re)
+        added += _count(assertion_re, added_lines, pragma_re, head)
+        removed += _count(assertion_re, ctx.removed_lines(path), pragma_re, head)
         if dummy_re and any(dummy_re.search(line) for line in added_lines):
             matches.append(f"{path}: vacuous assertion added")
     if removed > added:
