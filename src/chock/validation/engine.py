@@ -112,7 +112,6 @@ def validate_artifact(
     check_security_baseline(artifact_dir, manifest, artifact_type, report)
     check_effects_and_approval(artifact_dir, manifest, artifact_type, report)
     check_scripts_shipped(artifact_dir, manifest, artifact_type, report)
-    check_script_integrity(artifact_dir, manifest, artifact_type, root, report)
     check_determinization_heuristic(artifact_dir, manifest, artifact_type, report)
     check_description_parity(artifact_dir, manifest, artifact_type, report)
     check_composition_contract(artifact_dir, manifest, artifact_type, report)
@@ -127,6 +126,7 @@ def validate_artifact(
     check_script_events(artifact_dir, manifest, artifact_type, report)
 
     if registry_check:
+        check_script_integrity(artifact_dir, manifest, artifact_type, root, report)
         check_registry_freshness(artifact_dir, manifest, artifact_type, root, report)
 
     if mode.startswith("frontier-"):
