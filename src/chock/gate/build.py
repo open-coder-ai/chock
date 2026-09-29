@@ -48,6 +48,10 @@ def build_gate_json(policy_dir: Path, repo_root: Path) -> dict[str, Any] | None:
     if scope:
         spec["paths"] = [str(p) for p in scope]
 
+    outside = gate.get("outside_repo")
+    if outside:
+        spec["outside_repo"] = [str(g) for g in outside]
+
     config = load_config(repo_root)
 
     if "config_key" in spec["params"]:

@@ -75,27 +75,29 @@ def _emit_script_shims(policy_dir: Path, output_dir: Path, policy_id: str, event
 
 
 def emit(policy_dir: Path, output_dir: Path, manifest: dict[str, Any]) -> list[Path]:
-    """Emit git hooks from the manifest hook.gate as gate.json + shims."""
+    """Emit git hooks: hook.gate as gate.json + shims, hook.script as event shims."""
     policy_dir = Path(policy_dir).resolve()
     output_dir = Path(output_dir).resolve()
     policy_id = manifest.get("id") or policy_dir.name
 
     repo_root = repo_root_from_output(output_dir)
     spec = build_gate_json(policy_dir, repo_root)
+    # A policy whose check needs more than a regex over the diff ships its own script and
+    # declares the events it runs at; the shim runs that. A hook may carry both: the gate
+    # owns its commit/push events, the script the others.
+    emitted = _emit_script_shims(policy_dir, output_dir, policy_id, declared_script_events(manifest))
     if spec is None:
-        # No declarative gate. A policy whose check needs more than a regex over the diff
-        # ships its own script and declares the events it runs at; the shim runs that.
-        return _emit_script_shims(policy_dir, output_dir, policy_id, declared_script_events(manifest))
+        return emitted
 
     hook_events = [e for e in spec.get("on", []) if e in ("commit", "push")]
     if not hook_events:
-        return []
+        return emitted
 
     spec["message"] = template_message(spec["message"], spec["params"])
 
     gate_json = output_dir / "gate.json"
     write_generated_json(gate_json, spec)
-    emitted: list[Path] = [gate_json]
+    emitted.append(gate_json)
 
     emitted.append(vendor_runner(output_dir.parents[2]))
     emitted.extend(_emit_shims(output_dir, policy_id, hook_events))

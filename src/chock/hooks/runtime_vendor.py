@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+from importlib import resources
 from pathlib import Path
 
 from chock.emit import write_generated
@@ -34,6 +35,29 @@ def owned_markers(agent: str) -> tuple[str, ...]:
     return (f"/{rel}", f" {rel}", *legacy)
 
 
+#: The stdlib reader a policy script imports to ask the session log questions.
+SESSION_HELPER = "chock_session.py"
+
+
+def _session_gates(repo_root: Path) -> bool:
+    """Whether any compiled tool_call gate is a script, the one kind that is handed the session log."""
+    for gate in (Path(repo_root) / ".chock" / "compiled").glob("*/*/tool-call-gate.json"):
+        with contextlib.suppress(OSError, ValueError):
+            if json.loads(gate.read_text(encoding="utf-8")).get("kind") == "script":
+                return True
+    return False
+
+
+def sync_session_helper(repo_root: Path) -> None:
+    """Vendor `chock.gate.session_reader` beside the runtimes while a script gate can use it, else drop it."""
+    dest = Path(repo_root) / ".chock" / "bin" / SESSION_HELPER
+    if not _session_gates(repo_root):
+        dest.unlink(missing_ok=True)
+        return
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    write_generated(dest, resources.files("chock.gate").joinpath("session_reader.py").read_text(encoding="utf-8"))
+
+
 def vendor_runtime(repo_root: Path, agent: str) -> Path:
     """Write `agent`'s self-contained runtime into `.chock/bin/`. Returns the path written."""
     dest = Path(repo_root) / runtime_rel(agent)
@@ -44,4 +68,5 @@ def vendor_runtime(repo_root: Path, agent: str) -> Path:
     with contextlib.suppress(OSError):
         dest.chmod(0o755)
     write_launcher(repo_root)
+    sync_session_helper(repo_root)
     return dest

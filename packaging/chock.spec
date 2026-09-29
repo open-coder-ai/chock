@@ -30,6 +30,8 @@ datas += [("../pyproject.toml", ".")]
 # binary. collect_data_files() skips .py by design, so add it explicitly or `chock
 # init` fails with FileNotFoundError from vendor_runner().
 datas += [("../src/chock/gate/runner.py", "chock/gate")]
+# `gate/session_reader.py` is vendored the same way, as .chock/bin/chock_session.py.
+datas += [("../src/chock/gate/session_reader.py", "chock/gate")]
 
 # The CLI imports subcommand modules by string; make sure PyInstaller includes them.
 hiddenimports = collect_submodules("chock")

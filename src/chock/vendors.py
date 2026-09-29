@@ -143,6 +143,30 @@ def write_matcher(vendor: str) -> str | None:
     return "|".join(tools) if tools else None
 
 
+def tool_call_vendors() -> tuple[str, ...]:
+    """Vendors whose PreToolUse can be gated by tool name: a recorded tool vocabulary, or a witnessed one.
+
+    A vendor that records shell or write tool names is one whose pre-tool hook is known to carry a
+    `tool_name` for tools other than the shell, which is what a name match needs. Antigravity, devin,
+    grok, tabnine and windsurf record none, so they get no `tool_call` entry rather than an invented one.
+    """
+    return tuple(
+        v for v in in_agent_vendors() if _adapters.shell_tools(v) or write_tools(v) or v in AGENT_HOOKS_VENDORS
+    )
+
+
+def post_tool_hook_config(vendor: str, command: str) -> dict[str, Any]:
+    """The vendor's hook-config document running `command` after a tool call, with no matcher."""
+    return _adapters.get(vendor).hook_config((_contract.POST_TOOL,), command, None)
+
+
+def tool_failure_event(vendor: str) -> str | None:
+    """The vendor's wire event for a failed tool call (Claude fires it INSTEAD of PostToolUse), else None."""
+    mapping = getattr(_adapters.get(vendor), "REVERSE_EVENT_MAP", {})
+    wire = mapping.get(_contract.TOOL_FAILURE)
+    return str(wire) if wire else None
+
+
 def hook_entry_bare(vendor: str) -> bool:
     """Whether `vendor`'s own hook_config is the bare event map, with no top-level `hooks` key.
 

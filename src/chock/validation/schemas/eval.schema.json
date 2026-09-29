@@ -269,11 +269,15 @@
                 "properties": {
                   "expect": {"type": "string", "enum": ["block", "allow", "ask"]},
                   "command": {"type": "string", "description": "argv passed to the policy's guard script. Mutually exclusive with the gate fields."},
-                  "files": {"type": "object", "description": "Paths staged for the commit under test, as path -> content.", "additionalProperties": {"type": "string"}},
+                  "files": {"type": "object", "description": "Paths staged for the commit under test (or the pre-commit, pre-push and commit-msg script), as path -> content.", "additionalProperties": {"type": "string"}},
                   "head_files": {"type": "object", "description": "Paths committed before staging, so a case can distinguish a dependency this commit ADDS from one already present.", "additionalProperties": {"type": "string"}},
                   "repo_files": {"type": "object", "description": "Untracked files the gate reads but the commit does not contain, e.g. an allowlist.", "additionalProperties": {"type": "string"}},
                   "branch": {"type": "string"},
-                  "event": {"type": "string", "enum": ["commit", "push"]},
+                  "event": {"type": "string", "enum": ["commit", "push", "tool_use", "pre-tool-use", "stop", "pre-commit", "pre-push", "commit-msg"], "description": "commit and push replay the policy's gate as the git hook would. tool_use (alias pre-tool-use) and stop replay it through the gate runner at that agent event. pre-commit, pre-push and commit-msg run the policy's own event script in the staged throwaway repo."},
+                  "writes": {"type": "object", "description": "tool_use and stop only: each file as the agent would leave it, path -> content; not staged. `files` is read the same way when `writes` is absent. head_files are committed first, so a waiver can be tested against HEAD.", "additionalProperties": {"type": "string"}},
+                  "added": {"type": "object", "description": "tool_use and stop only: the text an edit introduces, path -> text, for a gate that judges an edit's own lines.", "additionalProperties": {"type": "string"}},
+                  "message": {"type": "string", "description": "commit-msg only: the commit message text, handed to the script as the message file."},
+                  "stdin": {"type": "array", "items": {"type": "string"}, "description": "pre-push script only: the stdin lines git feeds the hook, one `<local ref> <local sha> <remote ref> <remote sha>` each."},
                   "push_refs": {"type": "array", "items": {"type": "string"}}
                 }
               }

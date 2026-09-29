@@ -1,7 +1,10 @@
 # Hooks
 
 Hooks are block or verify gates. They compile to a git hook and a CI gate at commit time, and,
-where the gate declares `tool_use`, to a native in-agent hook and the turn's end as well.
+where the gate declares `tool_use`, to a native in-agent hook and the turn's end as well. A gate
+declaring `tool_call` runs at PreToolUse for any tool matching its `params.tools` globs, and a
+gate's `outside_repo` globs bring declared files outside the repository into its write check
+(see the [Gate DSL](../../spec/gate-dsl.md) and the [session log](../../spec/session-log.md)).
 
 ## Where hooks live
 

@@ -6,6 +6,40 @@
   any hook policy without git-hook output, but a guard-only or `tool_use`-only policy has none by
   design, so the recompile rewrote its coverage as a git-hook-only view and every agent read
   `none`. A policy with any compiled surface is now left alone; a true drop-in still compiles.
+- **A hook can carry both a `gate` and a `script`.** `hook` was exactly one of the two, so a
+  policy with a pre-commit script could not also gate the write path. The schema now takes at
+  least one; the git-hook emitter compiles both (the script's event shims plus the gate's
+  `gate.json` and shims), the tool_use surfaces compile the gate, and coverage is credited per
+  surface as before. DET-5 still pins `hook.script.on` to the scripts on disk. A gate and a script
+  may not both run at the same git event (`manifest_script_events`): they would share one shim.
+- **`test_integrity` honours its waiver at agent events the way `content_regex` does.** At
+  `tool_use` and an agent's commit the `allowlist_pragma` was ignored outright; now a waiver counts
+  only when that line is already in HEAD, and a waiver the agent adds still does not.
+- **The eval runner resolves the command guard by name and replays more than commit and push.**
+  The guard is `implementations/<id>.sh|.py` (else the legacy map), so helper modules and gate
+  scripts are never taken for it, and a `.py` guard runs under Python. An `execute` case may set
+  `event: tool_use` (`pre-tool-use`) or `stop` with `writes` (and `head_files`, `added`), replayed
+  through the real gate runner at that event. It may also set `event: pre-commit`, `pre-push` or
+  `commit-msg` to run the policy's event script in a staged throwaway repo (`files`, `message`,
+  `stdin`); exit 0 allows, a refusal blocks, a crash is an error. These cases count as executable,
+  not tier 3. Vendored runner resynced.
+- **A gate can judge any tool call by its name.** `"on": [tool_call]` with `params.tools` (globs such
+  as `mcp__Firecrawl__*`, `WebFetch`, `mcp__*`) runs a `content_regex` (over the JSON-serialised tool
+  input) or `script` gate at PreToolUse; a script gets `{"event": "tool_call", "repo_root", "tool",
+  "input", "session"}` and answers by exit code, allow or block. It is emitted for Claude Code, Codex
+  CLI, Cursor, Gemini CLI and Copilot, the vendors whose vendor facts record a tool vocabulary;
+  Antigravity, Devin, Grok, Tabnine and Windsurf get no entry and coverage credits them nothing for it.
+  Run `chock sync` to pick it up; vendored runtimes resynced.
+- **A gate can guard writes outside the repository.** A gate declaring `outside_repo: [<glob>]`
+  (absolute, or starting with `~`, expanded per machine; Windows paths compare the Windows way)
+  receives writes to matching absolute paths, e.g. `~/.claude/memory/*`; every other outside write is
+  still ignored. Judged at PreToolUse only: Stop reads the worktree through git and cannot see them.
+- **Script gates can ask what happened earlier in the session.** Hooks for a `tool_call` script gate
+  append a record per tool call (tool, a path, command first line or URL without query, outcome) to
+  `.chock/state/<session_id>.jsonl`, last 500 kept, files older than 7 days pruned, never file
+  contents or environment values. Scripts receive `"session": {"id", "log_path", "tool_use_id"}` and can
+  import the vendored stdlib helper `chock_session.py`. `chock sync` adds `.chock/state/` to
+  `.gitignore`. Nothing leaves the machine; the format is in `spec/session-log.md`.
 
 - **In-agent gates judge what changed, and honour committed waivers.** At `tool_use` (PreToolUse
   and Stop) a waiver already in HEAD is now honoured, so a line a human waived and committed no

@@ -1,7 +1,8 @@
 # Gate DSL Reference
 
 For `artifact: hook` policies, and for `artifact: rule` policies that keep their rule text, the gate
-is declared under `hook.gate` in `manifest.yaml`.
+is declared under `hook.gate` in `manifest.yaml`. A hook may also carry a `hook.script`
+(`spec/script-backed-gates.md`) beside it, provided the two do not both run at one git event.
 `chock compile` flattens it into `.chock/compiled/<id>/git-hook/gate.json`.
 
 ## `hook.gate` object
@@ -9,10 +10,11 @@ is declared under `hook.gate` in `manifest.yaml`.
 | field | required | type | notes |
 |-------|----------|------|-------|
 | `kind` | yes | string | `content_regex`, `forbidden_ref`, `dependency_allowlist`, `test_integrity`, `script`, or `egress_allowlist` (gateway-only) |
-| `on` | yes | list | events: `commit`, `push`, `tool_use`. The key must be quoted `"on"` in YAML. |
+| `on` | yes | list | events: `commit`, `push`, `tool_use`, `tool_call`. The key must be quoted `"on"` in YAML. |
 | `action` | yes | string | `block`, `verify`, or `warn` |
 | `message` | yes | string | printed to stderr when the gate blocks |
 | `params` | yes | object | kind-specific parameters |
+| `outside_repo` | no | list | globs of files outside the repository whose writes this gate may judge (see [Writes outside the repository](#writes-outside-the-repository)); needs `tool_use` in `on` |
 
 ### `kind: content_regex`
 
@@ -39,6 +41,49 @@ edit's own text, else the diff against that baseline, so lines already there -- 
 Write's unchanged lines, an old violation in a touched file -- are never scanned (`scan:
 staged_blob` still reads the whole file). `allowlist_pragma` is honoured at `tool_use` only on a
 line already in HEAD; a waiver the write or turn adds is not.
+
+### Event `tool_call`: a gate by tool name
+
+`"on": [tool_call]` runs the gate at **PreToolUse for any tool**, chosen by tool name. It needs
+`params.tools`: a list of globs over the tool's name (`*` any run, `?` one character, names
+case-sensitive and matched whole): `mcp__Firecrawl__*`, `WebFetch`, `mcp__*`. Only `content_regex`
+and `script` can judge a call (a call carries no file and no branch); `chock check` refuses the
+others, a `tool_call` gate with no `tools`, and `tools` without `tool_call`. Verdicts today are allow
+and block; the runtime maps a script's exit code to a verdict in one table, so a further verdict
+(warn, ask) is one more row.
+
+| kind | reads | verdict |
+|------|-------|---------|
+| `content_regex` | `content_pattern` searched in the tool input serialised as JSON (sorted keys, non-ASCII kept). `scan`, `forbidden_path_regex` and `allowlist_pragma` do not apply, and no waiver is honoured: the input is live text | a match blocks, with the gate's `message` |
+| `script` | JSON on stdin: `{"event": "tool_call", "repo_root": "...", "tool": "<name>", "input": {<tool input>}, "session": {"id", "log_path", "tool_use_id"}}` | exit `0` allows, `1` blocks with the script's stderr; anything else (crash, timeout, missing script) blocks |
+
+`session` is the handle to the per-session log ([`session-log.md`](session-log.md)); the helper
+the vendored helper `chock_session.py` reads it. A `script` gate's hook is installed with no matcher, so it
+sees every tool call and the log is complete; the runtime applies the tool globs.
+
+The gate runs in the agent only, on the vendors that record a tool vocabulary in their vendor
+facts: Claude Code, Codex CLI, Cursor, Gemini CLI, and VS Code Copilot Chat / Copilot CLI (chock's
+own hooks file, whose `PreToolUse` was witnessed). Claude Code, Codex and Gemini get a matcher
+(`^(?:glob|glob)$`) for a `content_regex` gate; Cursor and Copilot record no matcher semantics, so
+their entry has none and the runtime filters. Antigravity, Devin, Grok, Tabnine and Windsurf record
+no tool vocabulary and get no `tool_call` entry; a policy reads as installed there only through its
+other surfaces, so coverage never credits `tool_call` where it is not emitted. It is not evaluated
+at the mcp-gateway, at commit, or at Stop.
+
+### Writes outside the repository
+
+A write gate judges repo-relative paths. A gate that declares `outside_repo` also receives writes
+whose path lies outside the repository, but only those matching one of its globs; every other
+outside write stays ignored. Globs are absolute or start with `~` (`~/.claude/memory/*`,
+`C:\Users\*\.claude\memory\*`), `~` is expanded when the hook runs, and on Windows backslashes,
+drive letters and letter case compare the way Windows does. A matching write reaches the gate under
+its absolute, slash-separated path (a `script` gate finds it as a key of `writes`; `applies_to.paths`
+does not filter it, as those globs are repo-relative), judged against the file on disk as its
+baseline.
+
+**PreToolUse only.** The Stop hook reads the worktree through git, which cannot see a file outside
+the repository, so an outside write is judged before it happens or not at all. A write made by a
+shell command (`echo > ~/x`) carries no file argument and is not seen.
 
 ### `kind: forbidden_ref`
 
@@ -102,7 +147,7 @@ Extracted names are lowercased and compared against a lowercased allowlist.
 | `test_path_regex` | yes | string | regex matched against staged paths to identify test files |
 | `assertion_pattern` | yes | string | regex matched against a line to count it as an assertion |
 | `dummy_assertion_pattern` | no | string | regex for a vacuous assertion (`assert True`, `expect(true)`); matched only on added lines |
-| `allowlist_pragma` | no | string | regex matched on a line; a match on an added line skips that file's counting entirely; not honoured with `CHOCK_AGENT_COMMIT` set or at `tool_use` |
+| `allowlist_pragma` | no | string | regex matched on a line; a match on an added line skips that file's counting entirely; with `CHOCK_AGENT_COMMIT` set, and at `tool_use`, only a waiver already in HEAD is honoured |
 
 Blocks three shapes of a change that wins green CI by weakening the tests rather than
 fixing the code: a deleted test file, a **net** loss of assertions across the whole
@@ -122,7 +167,7 @@ method body, or read a rule table too large for `params`. The runner hands the p
 program the same material every kind above reads, as JSON on stdin:
 
 ```json
-{"event": "tool_use", "repo_root": "/path/to/repo", "writes": {"src/App.java": "<file text>"}}
+{"event": "tool_use", "repo_root": "/path/to/repo", "writes": {"src/App.java": "<file text>"}, "session": {"id": "s1", "log_path": "/path/to/repo/.chock/state/s1.jsonl", "tool_use_id": null}}
 ```
 
 A compiled gate may carry `script_base: gate` beside `params`, which the runner reads as "the
@@ -130,7 +175,7 @@ script lives beside this gate file" instead of "under the repository root". Only
 plugin writes it: there the gate, the runner and the script travel together and no repository
 holds them.
 
-`event` is `commit`, `push` or `tool_use`. `writes` is the staged blobs at `commit` and
+`event` is `commit`, `push`, `tool_use` or (see above) `tool_call`. `session` is present only at the agent events. `writes` is the staged blobs at `commit` and
 `push`, and the write itself at `tool_use` -- the file a tool call is about to write, or what
 the turn left on disk at its end -- so one script serves every surface, and it reaches the
 write path and the turn's end exactly as `content_regex` does. The script answers with its

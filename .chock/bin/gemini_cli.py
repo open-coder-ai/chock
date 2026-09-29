@@ -16,6 +16,8 @@ _json = json
 import os
 import sys
 
+import fnmatch as _chock_fnmatch
+import re as _chock_re
 import os as _chock_os
 import shlex as _chock_shlex
 import shutil as _chock_shutil
@@ -1091,6 +1093,238 @@ def patch_added(event):
             added[moved_to or path] = '\n'.join((line[1:] for _, hunk, _ in body for line in hunk if line[:1] == '+'))
     return added
 
+OUTSIDE_KEY = 'outside_repo'
+
+_UP = '..'
+
+_DRIVE_AT = 1
+
+_SEPARATORS = ('/', '\\')
+
+def _slashed(path):
+    return str(path).replace('\\', '/')
+
+def is_outside(path):
+    """Whether a path as the runtime names it lies outside the repository: absolute, or climbing out."""
+    text = _slashed(path)
+    return text.startswith(('/', _UP + '/')) or text[_DRIVE_AT:_DRIVE_AT + 1] == ':' or text == _UP
+
+def expand_home(pattern):
+    """`~` (alone or before a separator) as this machine's home directory; anything else as given."""
+    text = str(pattern)
+    if text[:1] == '~' and (len(text) == 1 or text[1] in _SEPARATORS):
+        return _chock_os.path.expanduser('~') + text[1:]
+    return text
+
+def _outside_fold(path):
+    """`path` with `.` and `..` folded lexically and doubled slashes dropped; a root's leading slash kept."""
+    parts = []
+    for part in _slashed(path).split('/'):
+        if part == _UP and parts and (parts[-1] not in ('', _UP)):
+            parts.pop()
+        elif part != '.' and (part or not parts):
+            parts.append(part)
+    return '/'.join(parts)
+
+def declared_outside(path, root, patterns, *, windows=None):
+    """The absolute, slash-separated path when it is outside `root` and matches a declared glob; else None."""
+    windows = _chock_os.name == 'nt' if windows is None else windows
+    text = _slashed(path)
+    if not is_outside(text) or not patterns:
+        return None
+    absolute = text if not text.startswith(_UP) else _slashed(root) + '/' + text
+    absolute = _outside_fold(absolute)
+    subject = absolute.lower() if windows else absolute
+    for pattern in patterns:
+        wanted = _outside_fold(expand_home(pattern))
+        if _chock_fnmatch.fnmatchcase(subject, wanted.lower() if windows else wanted):
+            return absolute
+    return None
+
+def outside_globs(gate):
+    """The `outside_repo` globs the compiled gate declares; none when it declares none or cannot be read."""
+    try:
+        declared = json.loads(gate.read_text(encoding='utf-8')).get(OUTSIDE_KEY)
+    except (OSError, ValueError, AttributeError):
+        return []
+    return [g for g in declared if isinstance(g, str)] if isinstance(declared, list) else []
+
+def judged_files(files, root, patterns, repo_names):
+    """`files` ({path: text}) keyed the way a gate judges them.
+
+    A path inside the repository is named by `repo_names(path)`; one outside is kept, under its
+    absolute path, only when a declared glob matches it.
+    """
+    kept = {}
+    for path, text in files.items():
+        for name in repo_names(path):
+            if not is_outside(name):
+                kept[name] = text
+                continue
+            found = declared_outside(name, root, patterns)
+            if found is not None:
+                kept[found] = text
+    return kept
+
+SESSION_MAX_ENTRIES = 500
+
+SESSION_PRUNE_SECONDS = 7 * 24 * 3600
+
+SESSION_FIELD_CAP = 300
+
+SESSION_TRIM_BYTES = 131072
+
+SESSION_DEDUPE_TAIL = 8
+
+SESSION_STATE_PARTS = ('.chock', 'state')
+
+SESSION_INPUT_KEYS = ('tool_input', 'toolInput', 'toolArgs', 'input')
+
+SESSION_PATH_KEYS = ('file_path', 'filePath', 'path', 'notebook_path', 'target_file', 'TargetFile')
+
+SESSION_URL_KEYS = ('url', 'uri')
+
+SESSION_RESPONSE_KEYS = ('tool_response', 'toolResponse', 'tool_result', 'toolResult')
+
+SESSION_UNKNOWN_ID = 'unknown'
+
+SESSION_ID_MAX = 128
+
+SESSION_MASK = '***'
+
+def tool_call_input(event):
+    """The tool's arguments as a dict, decoding the JSON-string form some vendors send; {} when absent."""
+    raw = getattr(event, 'raw', None)
+    if not isinstance(raw, dict):
+        return {}
+    for key in SESSION_INPUT_KEYS:
+        value = raw.get(key)
+        if isinstance(value, str) and value[:1] == '{':
+            try:
+                value = json.loads(value)
+            except ValueError:
+                continue
+        if isinstance(value, dict):
+            return value
+    return {}
+
+def session_id_of(event):
+    """The session id as a safe file stem: separators and leading dots removed, never empty."""
+    raw = getattr(event, 'raw', None) or {}
+    given = getattr(event, 'session_id', None) or (raw.get('session_id') if isinstance(raw, dict) else None)
+    stem = ''.join((c for c in str(given or '') if c.isalnum() or c in '._-')).lstrip('.')
+    return stem[:SESSION_ID_MAX] or SESSION_UNKNOWN_ID
+
+def session_log_path(root, session_id):
+    return _chock_Path(root).joinpath(*SESSION_STATE_PARTS, session_id + '.jsonl')
+
+def session_for(event, root):
+    """What a script gate receives as `session`: the id, the log's absolute path, this call's id."""
+    session_id = session_id_of(event)
+    return {'id': session_id, 'log_path': session_log_path(root, session_id).as_posix(), 'tool_use_id': getattr(event, 'tool_use_id', None)}
+
+def _mask_assignments(command):
+    """`command` with the value of every `NAME=value` word masked: an env prefix is a secret's usual home."""
+    words = []
+    for word in command.split(' '):
+        name, eq, _ = word.partition('=')
+        words.append(name + eq + SESSION_MASK if eq and name.isidentifier() else word)
+    return ' '.join(words)
+
+def _bare_url(url):
+    """`url` without userinfo, query and fragment: where a token or a secret is usually carried."""
+    url = url.split('#', 1)[0].split('?', 1)[0]
+    scheme, sep, rest = url.partition('://')
+    if not sep:
+        return url
+    authority, slash, tail = rest.partition('/')
+    return scheme + sep + authority.rsplit('@', 1)[-1] + slash + tail
+
+def _first_str(mapping, keys):
+    for key in keys:
+        value = mapping.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+def session_summary(event):
+    """The input of a tool call as {path?, command?, url?}: what a policy asks about, nothing else."""
+    tool_input = tool_call_input(event)
+    path = getattr(event, 'path', None) or _first_str(tool_input, SESSION_PATH_KEYS)
+    command = getattr(event, 'command', None) or _first_str(tool_input, ('command',))
+    url = _first_str(tool_input, SESSION_URL_KEYS)
+    summary = {}
+    if isinstance(path, str) and path:
+        summary['path'] = path[:SESSION_FIELD_CAP]
+    if isinstance(command, str) and command:
+        summary['command'] = _mask_assignments(command.splitlines()[0] if command.strip() else '')[:SESSION_FIELD_CAP]
+    if url:
+        summary['url'] = _bare_url(url)[:SESSION_FIELD_CAP]
+    return summary
+
+def _response_failed(response):
+    if not isinstance(response, dict):
+        return False
+    if response.get('is_error') is True or response.get('isError') is True or response.get('success') is False:
+        return True
+    code = response.get('exit_code', response.get('exitCode'))
+    return bool(response.get('error')) or (isinstance(code, int) and code != 0)
+
+def session_outcome(event):
+    """`ok` or `error` for a finished call, from what the payload says; None before it ran."""
+    if event.event == 'tool_failure':
+        return 'error'
+    if event.event != 'post_tool':
+        return None
+    raw = getattr(event, 'raw', None) or {}
+    failed = any((_response_failed(raw.get(key)) for key in SESSION_RESPONSE_KEYS)) if isinstance(raw, dict) else False
+    return 'error' if failed else 'ok'
+
+def _same_call(line, record):
+    """Whether `line` is `record` already logged: same call id, or, with none, the same second and input."""
+    try:
+        seen = json.loads(line)
+    except ValueError:
+        return False
+    if seen.get('phase') != record['phase']:
+        return False
+    if record['tool_use_id']:
+        return seen.get('tool_use_id') == record['tool_use_id']
+    return not seen.get('tool_use_id') and all((seen.get(key) == record[key] for key in ('ts', 'tool', 'input', 'outcome')))
+
+def _prune_old(directory):
+    cutoff = _chock_datetime.now(_chock_timezone.utc).timestamp() - SESSION_PRUNE_SECONDS
+    for old in directory.glob('*.jsonl'):
+        try:
+            if old.stat().st_mtime < cutoff:
+                old.unlink()
+        except OSError:
+            continue
+
+def _append_bounded(path, line, record):
+    lines = path.read_text(encoding='utf-8', errors='replace').splitlines() if path.exists() else []
+    if any((_same_call(seen, record) for seen in lines[-SESSION_DEDUPE_TAIL:])):
+        return
+    if len(lines) < SESSION_MAX_ENTRIES and path.exists() and (path.stat().st_size < SESSION_TRIM_BYTES):
+        with path.open('a', encoding='utf-8') as fh:
+            fh.write(line + '\n')
+        return
+    kept = [*lines, line][-SESSION_MAX_ENTRIES:]
+    scratch = path.with_suffix('.tmp')
+    scratch.write_text('\n'.join(kept) + '\n', encoding='utf-8')
+    scratch.replace(path)
+
+def session_record(root, event, phase, outcome=None):
+    """Append one record for this call to its session's log. Best effort: never raises."""
+    try:
+        path = session_log_path(root, session_id_of(event))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        record = {'ts': _chock_datetime.now(_chock_timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), 'session_id': path.stem, 'phase': phase, 'tool': str(getattr(event, 'tool', None) or ''), 'input': session_summary(event), 'outcome': outcome, 'tool_use_id': getattr(event, 'tool_use_id', None)}
+        _append_bounded(path, json.dumps(record, ensure_ascii=False, sort_keys=True), record)
+        _prune_old(path.parent)
+    except Exception:
+        return
+
 GATE_FLAG = '--gate'
 
 _GATE_TIMEOUT_SECONDS = 30
@@ -1241,18 +1475,17 @@ def writes_from_worktree(repo_root):
             continue
     return writes
 
-def run_gate(gate, writes, event, root=None, added=None):
+def run_gate(gate, writes, event, root=None, extra=None):
     """Ask the vendored runner. Returns (outcome, message) and never decides for itself.
 
-    `added` carries, per edited path, only the text the edit introduces: a kind that reads
-    added lines judges that, while a kind that reads the file judges `writes`. A runner that
-    predates the key ignores it and judges the whole file for both, which only ever refuses more.
+    `extra` adds stdin keys: `added` (per edited path, only the text the edit introduces; a runner
+    that predates it judges the whole file, which only ever refuses more) and the script `session`.
     """
     runner = runner_for(gate)
     if runner is None:
         return (GATE_ERRORED, 'the vendored gate runner is not installed beside this gate')
     try:
-        proc = _chock_subprocess.run([sys.executable, str(runner), 'run', '--gate', str(gate), '--event', event], input=json.dumps({'writes': writes, **({'added': added} if added else {})}), capture_output=True, text=True, encoding=_UTF8, errors='replace', timeout=_GATE_TIMEOUT_SECONDS, check=False, cwd=str(root) if root is not None else None)
+        proc = _chock_subprocess.run([sys.executable, str(runner), 'run', '--gate', str(gate), '--event', event], input=json.dumps({'writes': writes, **(extra or {})}), capture_output=True, text=True, encoding=_UTF8, errors='replace', timeout=_GATE_TIMEOUT_SECONDS, check=False, cwd=str(root) if root is not None else None)
     except (OSError, _chock_subprocess.SubprocessError) as exc:
         return (GATE_ERRORED, str(exc))
     if proc.returncode == 0:
@@ -1310,18 +1543,132 @@ def evaluate_gate(argv, event):
     if not gate.exists():
         return _missing_gate(gate, event)
     root = repo_root_for(event, gate)
-    writes = {rel: text for path, text in writes_for(event, gate).items() for rel in repo_paths(path, root)}
+    outside = outside_globs(gate)
+    writes = judged_files(writes_for(event, gate), root, outside, lambda path: repo_paths(path, root))
     if not writes:
         return None
     added = {**patch_added(event), **added_from_event(event)} if event.event == PRE_TOOL else {}
-    added = {rel: text for path, text in added.items() for rel in repo_paths(path, root)}
+    added = judged_files(added, root, outside, lambda path: repo_paths(path, root))
     added = {path: text for path, text in added.items() if path in writes}
-    outcome, message = run_gate(gate, writes, name, root, added)
+    extra = {**({'added': added} if added else {}), 'session': session_for(event, root)}
+    outcome, message = run_gate(gate, writes, name, root, extra)
     if outcome == GATE_BLOCKED:
         return (VERDICT_DENY, message or f'Blocked by chock policy: {gate.parent.parent.name}')
     if outcome == GATE_ERRORED:
         return (VERDICT_DENY, f'chock could not check this write: {message}. Refusing rather than reporting an allow it never established.')
     return None
+
+TOOL_CALL_FLAG = '--tool-call'
+
+RECORD_FLAG = '--record'
+
+TOOL_CALL_EVENT = 'tool_call'
+
+_TOOL_CALL_PRE = 'pre_tool'
+
+_TOOL_CALL_POST = ('post_tool', 'tool_failure')
+
+_TOOL_CALL_TIMEOUT_SECONDS = 30
+
+_TOOL_CALL_SCRIPT_KIND = 'script'
+
+_TOOL_CALL_REGEX_KIND = 'content_regex'
+
+_TOOL_CALL_BLOCKED = 'blocked'
+
+_TOOL_CALL_NEEDS_SESSION = frozenset({_TOOL_CALL_SCRIPT_KIND})
+
+_TOOL_CALL_EXIT_VERDICTS = {0: None, 1: 'deny'}
+
+_TOOL_CALL_UNDECIDED = ' -- refusing rather than allowing what it never judged'
+
+def _flag_path(argv, flag):
+    if flag in argv:
+        index = argv.index(flag)
+        if index + 1 < len(argv):
+            return _chock_Path(argv[index + 1])
+    return None
+
+def tool_call_matches(globs, tool):
+    """Whether `tool` (a tool name, exact case) matches any glob; no globs match nothing."""
+    return any((_chock_fnmatch.fnmatchcase(tool, str(glob)) for glob in globs))
+
+def _tool_call_refusal(spec, spoken):
+    return spoken or str(spec.get('message') or '').strip() or 'blocked by a chock tool_call gate'
+
+def _tool_call_regex(spec, tool_input):
+    """`deny` verdict when the input, as JSON text, matches the gate's `content_pattern`."""
+    text = json.dumps(tool_input, sort_keys=True, ensure_ascii=False)
+    if _chock_re.search(str((spec.get('params') or {}).get('content_pattern', '')), text):
+        return ('deny', _tool_call_refusal(spec, ''))
+    return None
+
+def _tool_call_script(spec, root, payload):
+    """Run the policy's script on `payload`; a missing script, crash or timeout refuses."""
+    named = str((spec.get('params') or {}).get('script', ''))
+    script = _chock_Path(root) / named
+    if not script.is_file():
+        return ('deny', f'script gate: {named!r} is not installed{_TOOL_CALL_UNDECIDED}')
+    try:
+        proc = _chock_subprocess.run([sys.executable, str(script)], input=json.dumps(payload), capture_output=True, text=True, encoding='utf-8', errors='replace', cwd=str(root), timeout=_TOOL_CALL_TIMEOUT_SECONDS, check=False)
+    except _chock_subprocess.TimeoutExpired:
+        budget = f'gave no verdict within {_TOOL_CALL_TIMEOUT_SECONDS}s'
+        return ('deny', f'script gate: {script.name} {budget}{_TOOL_CALL_UNDECIDED}')
+    except OSError as exc:
+        return ('deny', f'script gate: {script.name} could not run ({exc}){_TOOL_CALL_UNDECIDED}')
+    spoken = ((proc.stderr or '') + (proc.stdout or '')).strip()
+    if proc.returncode in _TOOL_CALL_EXIT_VERDICTS:
+        verdict = _TOOL_CALL_EXIT_VERDICTS[proc.returncode]
+        return None if verdict is None else (verdict, spoken or f'blocked by {script.name}')
+    first = spoken.splitlines()[0] if spoken else ''
+    detail = f': {first}' if first else ''
+    return ('deny', f'script gate: {script.name} exited {proc.returncode}{detail}{_TOOL_CALL_UNDECIDED}')
+
+def _tool_call_verdict(spec, root, event):
+    """None to allow, else (verdict, message) for this call; a kind a tool call cannot answer refuses."""
+    tool, tool_input = (str(event.tool or ''), tool_call_input(event))
+    kind = spec.get('kind')
+    if kind == _TOOL_CALL_REGEX_KIND:
+        return _tool_call_regex(spec, tool_input)
+    if kind == _TOOL_CALL_SCRIPT_KIND:
+        payload = {'event': TOOL_CALL_EVENT, 'repo_root': str(root), 'tool': tool, 'input': tool_input, 'session': session_for(event, root)}
+        return _tool_call_script(spec, root, payload)
+    return ('deny', f'chock tool_call gate: kind {kind!r} cannot judge a tool call{_TOOL_CALL_UNDECIDED}')
+
+def _tool_call_spec(gate):
+    """The compiled gate as a dict, or (None, refusal) when the install is broken."""
+    if not gate.exists():
+        return (None, f'chock gate {gate} is missing, so this tool call cannot be checked. Run `chock sync --repo .` to rebuild the compiled gates.')
+    try:
+        return (json.loads(gate.read_text(encoding='utf-8')), None)
+    except (OSError, ValueError) as exc:
+        return (None, f'chock could not read {gate}: {exc}. Refusing rather than reporting an allow it never established.')
+
+def evaluate_tool_call(argv, event):
+    """The decision a tool_call gate earns this call, or None; also logs the call for the session.
+
+    `--tool-call <gate>` judges a PreToolUse call and, for a gate whose check reads the session,
+    logs it after the verdict, so the script reads prior calls only. `--record <gate>` logs what
+    a call came to, after it ran (a vendor's PostToolUse and failure events).
+    """
+    recording = _flag_path(argv, RECORD_FLAG)
+    if recording is not None:
+        if event.event in _TOOL_CALL_POST:
+            session_record(repo_root_for(event, recording), event, 'post', session_outcome(event))
+        return None
+    gate = _flag_path(argv, TOOL_CALL_FLAG)
+    if gate is None or event.event != _TOOL_CALL_PRE:
+        return None
+    spec, broken = _tool_call_spec(gate)
+    if spec is None:
+        return ('deny', broken)
+    root = repo_root_for(event, gate)
+    verdict = None
+    if TOOL_CALL_EVENT in spec.get('on', []) and tool_call_matches((spec.get('params') or {}).get('tools', []), str(event.tool or '')):
+        verdict = _tool_call_verdict(spec, root, event)
+    if spec.get('kind') in _TOOL_CALL_NEEDS_SESSION:
+        session_record(root, event, 'pre', _TOOL_CALL_BLOCKED if verdict else None)
+    return verdict
 
 
 def _judge(event):
@@ -1333,6 +1680,9 @@ def _judge(event):
     gated = evaluate_gate(sys.argv[1:], event)
     if gated is not None:
         return Decision.deny(gated[1])
+    called = evaluate_tool_call(sys.argv[1:], event)
+    if called is not None:
+        return Decision.deny(called[1])
     return None
 
 

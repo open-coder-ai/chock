@@ -79,13 +79,11 @@ def _check_manifest_block_needs_gate(artifact_dir: Path, manifest: dict[str, Any
 
     hook = manifest.get("hook") or {}
 
+    ref = str(_manifest_ref(artifact_dir))
     if hook.get("gate"):
-        _validate_gate(
-            hook["gate"], str(_manifest_ref(artifact_dir)), report, tool_use_allowed=True, artifact_dir=artifact_dir
-        )
-        return
-    if hook.get("script"):
-        return  # the script refuses at the declared event; checks_script_events pins it to disk
+        _validate_gate(hook["gate"], ref, report, tool_use_allowed=True, artifact_dir=artifact_dir)
+    if hook.get("gate") or hook.get("script"):
+        return  # a script refuses at its declared event; checks_script_events pins it to disk
 
     report.add(
         Finding(
