@@ -4,9 +4,9 @@
 #
 #    pip-compile --generate-hashes --no-index --output-file=requirements/brand-assets.txt --strip-extras requirements/brand-assets.in
 #
-agentseam==0.3.4 \
-    --hash=sha256:1f3f3cb31f8aa88056e7c28011a9ffe776206babce134d55747db5f9dbd35d72 \
-    --hash=sha256:55bc3ab58f60d90083964cfab0e35d85bb8b9b6c2a41e4247e7ad4259a537d2e
+agentseam==0.3.5 \
+    --hash=sha256:429bc5d55930fdad9a6c102a19f516cab9e84a1ed43fdecb1ac02b52060ac51d \
+    --hash=sha256:7a34880b81fc2b6f125874f7b05da35a754d03ed8ecc35947df7c22108d9f87e
     # via -r requirements/brand-assets.in
 attrs==26.1.0 \
     --hash=sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309 \

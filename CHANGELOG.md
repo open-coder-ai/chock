@@ -28,6 +28,11 @@
   yet isolated, so both are written; no other vendor's answer changes. A `Write` call's `file_text` is
   now judged as the file it creates. Every vendored runtime is re-rendered, so the next `chock sync` rewrites `.chock/bin`.
 
+- **agentseam 0.3.5.** Its Copilot adapter reads a `Write` call's `file_text` as the file's
+  content, parses the camelCase `agentStop` payload as a turn end rather than a tool call, and
+  writes `bash` and `powershell` keys in the hook entries it generates. Vendored runtimes and
+  their goldens are re-rendered; the next `chock sync` rewrites `.chock/bin`.
+
 ## 0.12.1 — Plugin hooks that start on Windows
 
 - **A plugin's hook starts on Windows.** Every plugin package (claude, cursor, codex, copilot,

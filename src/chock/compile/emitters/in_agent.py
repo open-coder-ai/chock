@@ -39,7 +39,7 @@ assert MATCHER is not None  # noqa: S101 -- import-time upstream-data invariant,
 
 # Witnessed overrides: chock's agent-hooks file speaks `preToolUse` with bash/powershell/
 # timeoutSec entry keys (live deny, data/witnesses.json: vscode_copilot x agent-hooks);
-# agentseam 0.2.0 records `PreToolUse` with {type, command, windows} instead. The facts
+# agentseam records `PreToolUse`, and since 0.3.5 bash/powershell but no timeoutSec. The facts
 # stay here until upstream ingests the witnessed shape; tests/test_vendor_wire_facts.py
 # pins the disagreement so its resolution surfaces loudly.
 AGENT_HOOKS_EVENT = "preToolUse"
