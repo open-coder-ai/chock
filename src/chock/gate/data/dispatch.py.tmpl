@@ -9,6 +9,9 @@ def _judge(event):
     gated = evaluate_gate(sys.argv[1:], event)
     if gated is not None:
         return Decision.deny(gated[1])
+    called = evaluate_tool_call(sys.argv[1:], event)
+    if called is not None:
+        return Decision.deny(called[1])
 # __SESSION_START_BRANCH__
     return None
 

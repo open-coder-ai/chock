@@ -10,6 +10,20 @@ SUPPORTED_MANIFESTS = sorted(EXTRACTORS)
 #: module's sibling (the vendored, stdlib-only gate/runner.py duplicates it independently).
 DEPENDENCY_ALLOWLIST_KIND = "dependency_allowlist"
 
+#: The in-agent event that gates a tool call by name (`params.tools`), and the kinds able to judge one:
+#: a call carries no file and no branch, only a tool name and its input.
+TOOL_CALL_EVENT = "tool_call"
+TOOL_CALL_KINDS = ("content_regex", "script")
+#: Kinds handed the session log; their hook logs every tool call, so the log is complete.
+TOOL_CALL_SESSION_KINDS = ("script",)
+
+#: `params.tools`: globs over tool names, `*` and `?` only, so a vendor matcher can say the same thing.
+TOOLS_PARAM = {
+    "type": "array",
+    "minItems": 1,
+    "items": {"type": "string", "pattern": r"^[A-Za-z0-9_.:/@*?-]+$"},
+}
+
 #: Every param schema below is a closed object -- no undeclared keys.
 _CLOSED_OBJECT = {"type": "object", "additionalProperties": False}
 
@@ -23,6 +37,7 @@ KIND_PARAM_SCHEMAS: dict[str, dict] = {
             "forbidden_path_regex": {"type": "string"},
             "allowlist_pragma": {"type": "string"},
             "diff_filter": {"type": "string"},
+            "tools": TOOLS_PARAM,
         },
     },
     "forbidden_ref": {
@@ -62,6 +77,7 @@ KIND_PARAM_SCHEMAS: dict[str, dict] = {
             # A bare file name under the policy's own implementations/: no separator, so no
             # way out of that directory, and .py only, which the runner's own interpreter runs.
             "script": {"type": "string", "pattern": r"^[A-Za-z0-9._-]+\.py$"},
+            "tools": TOOLS_PARAM,
         },
     },
     "egress_allowlist": {

@@ -62,3 +62,5 @@ dist-test/
 # chock: bytecode under the policies is per machine (must stay after the rules above)
 .agents/policies/**/__pycache__/
 .agents/policies/**/*.pyc
+# chock: the per-session tool-call log is per machine and never shared
+.chock/state/

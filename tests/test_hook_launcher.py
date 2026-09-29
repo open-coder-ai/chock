@@ -14,7 +14,7 @@ import pytest
 from conftest import FRAMEWORK_ROOT, baseline_policy, bash_executable, init_repo
 
 from chock.compile.compiler import compile_policy
-from chock.compile.emitters.in_agent import POWERSHELL_KEEP_EXIT
+from chock.compile.emitters.in_agent_hooks import POWERSHELL_KEEP_EXIT
 from chock.compile.surfaces import Surface
 from chock.hooks import launch
 from chock.hooks.launch import LAUNCHER_REL, PYTHON_CONFIG_KEY, hook_command, record_interpreter, write_launcher
