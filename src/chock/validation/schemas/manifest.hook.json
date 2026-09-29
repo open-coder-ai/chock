@@ -35,8 +35,19 @@
             "enum": [
               "commit",
               "push",
-              "tool_use"
+              "tool_use",
+              "tool_call"
             ]
+          }
+        },
+        "outside_repo": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Globs (absolute or starting with ~) of files outside the repository whose writes this gate may judge, at PreToolUse only. Needs tool_use in 'on'.",
+          "items": {
+            "type": "string",
+            "minLength": 1
           }
         },
         "action": {

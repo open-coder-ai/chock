@@ -28,6 +28,11 @@ class GateResult:
     matches: list[str] = field(default_factory=list)
 
 
+def _is_outside(path: str) -> bool:
+    """An absolute path: only a write the gate declared in `outside_repo` reaches the runner as one."""
+    return path.startswith("/") or path[1:2] == ":"
+
+
 class GateContext:
     """Read-only git facts. Every accessor swallows git errors and returns empty."""
 
@@ -39,8 +44,11 @@ class GateContext:
         head_ref: str | None = None,
         scope: Sequence[str] | None = None,
         own: Sequence[str] = (),
+        session: Mapping[str, object] | None = None,
     ) -> None:
         self.repo_root = Path(repo_root)
+        #: The session-log handle a script gate receives; None when the hook named no session.
+        self.session = dict(session) if session else None
         self._push_stdin = push_stdin or ""
         self.base = base
         self.head_ref = head_ref
@@ -58,6 +66,8 @@ class GateContext:
         """
         if path.startswith(self.own):
             return False
+        if _is_outside(path):
+            return True
         return not self.scope or any(fnmatch.fnmatchcase(path, g) for g in self.scope)
 
     def _range(self) -> list[str]:
@@ -169,8 +179,9 @@ class WriteContext(GateContext):
         own: Sequence[str] = (),
         *,
         stop: bool = False,
+        session: Mapping[str, object] | None = None,
     ) -> None:
-        super().__init__(repo_root=repo_root, scope=scope, own=own)
+        super().__init__(repo_root=repo_root, scope=scope, own=own, session=session)
         self._writes = dict(writes)
         self._added = dict(added or {})
         self._stop = stop
@@ -467,7 +478,8 @@ def _kind_script(ctx: GateContext, params: dict, event: str) -> GateResult:
     writes = {path: ctx.staged_blob(path) for path in ctx.staged_paths()}
     if not writes:
         return GateResult(allowed=True)
-    payload = json.dumps({"event": event, "repo_root": str(ctx.repo_root), "writes": writes})
+    material = {"event": event, "repo_root": str(ctx.repo_root), "writes": writes}
+    payload = json.dumps({**material, "session": ctx.session} if ctx.session else material)
     try:
         proc = subprocess.run(  # noqa: S603 -- the script is the policy's own, named in its manifest
             [sys.executable, str(script)],
@@ -593,6 +605,7 @@ def _context(
     writes: Mapping[str, str] | None,
     added: Mapping[str, str] | None = None,
     own: Sequence[str] = (),
+    session: Mapping[str, object] | None = None,
 ) -> GateContext | None:
     """The material this event puts under judgement, or None when the kind cannot read it."""
     if event not in AGENT_EVENTS:
@@ -614,6 +627,7 @@ def _context(
         added=added,
         own=own,
         stop=event == STOP_EVENT,
+        session=session,
     )
 
 
@@ -634,6 +648,7 @@ def run(
     head_ref: str | None = None,
     writes: Mapping[str, str] | None = None,
     added: Mapping[str, str] | None = None,
+    session: Mapping[str, object] | None = None,
 ) -> int:
     gate_path = Path(gate_path)
     if not gate_path.exists():
@@ -659,7 +674,7 @@ def run(
     if kind is None:
         print(f"gate: unknown kind {spec.get('kind')!r}", file=sys.stderr)
         return 2
-    ctx = _context(event, spec, repo_root, push_stdin, base, head_ref, writes, added, own_paths(gate_path))
+    ctx = _context(event, spec, repo_root, push_stdin, base, head_ref, writes, added, own_paths(gate_path), session)
     if ctx is None:
         return 2
     if event == "ci" and base and not ctx.rev_exists(base):
@@ -700,6 +715,16 @@ def _texts(raw: str, key: str) -> dict[str, str]:
     return {str(path): str(text) for path, text in texts.items() if isinstance(text, str)}
 
 
+def _session(raw: str) -> dict | None:
+    """The session-log handle the hook handler put on stdin, if any."""
+    try:
+        payload = json.loads(raw or "{}")
+    except json.JSONDecodeError:
+        return None
+    session = payload.get("session") if isinstance(payload, dict) else None
+    return session if isinstance(session, dict) else None
+
+
 def _writes(raw: str) -> dict[str, str]:
     """The files this event puts under judgement, whole."""
     return _texts(raw, "writes")
@@ -731,7 +756,15 @@ def main(argv: list[str] | None = None) -> int:
         # cannot be read back from it. {"writes": {"<path>": "<text>"}, "added": {"<path>": "<text>"}},
         # `added` present only for an edit, carrying the text it introduces.
         raw = sys.stdin.read()
-        return run(Path(args.gate), args.event, None, _repo_root(), writes=_writes(raw), added=_texts(raw, "added"))
+        return run(
+            Path(args.gate),
+            args.event,
+            None,
+            _repo_root(),
+            writes=_writes(raw),
+            added=_texts(raw, "added"),
+            session=_session(raw),
+        )
 
     push_stdin = sys.stdin.read() if args.event == "pre-push" and not sys.stdin.isatty() else None
     return run(Path(args.gate), args.event, push_stdin, _repo_root(), base=args.base, head_ref=args.head_ref)
