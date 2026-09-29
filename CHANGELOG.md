@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+<<<<<<< HEAD
 - **A command guard now runs even when the command will not parse, and a crash is no longer read as a block.**
   A trailing backslash, an unbalanced quote or PowerShell quoting (`Remove-Item -Recurse C:\`) made
   `shlex.split` raise, which asked the user for every guard and never let a guard's raw-string branch
@@ -12,6 +13,17 @@
   traceback or a shell syntax error is a crash and asks, like any other non-zero exit. Guards that print
   a reason and `exit 1` still block. Vendored runtimes resynced; the contract is in
   `spec/script-backed-gates.md`.
+=======
+- **In-agent gates judge what changed, and honour committed waivers.** At `tool_use` (PreToolUse
+  and Stop) a waiver already in HEAD is now honoured, so a line a human waived and committed no
+  longer blocks the agent forever; a waiver the edit or turn adds is still ignored. At Stop the
+  added lines are the diff of the file on disk against HEAD (a new file is all added), and a
+  whole-file Write is diffed against the current disk file, so an old violation in a touched
+  file no longer blocks every turn end. The baseline is the disk at PreToolUse and HEAD at Stop.
+  `dependency_allowlist` and `test_integrity` now run at `tool_use` too, so a policy declaring
+  `"on": [commit, tool_use]` for them gets in-agent gates. Commit, push and ci are unchanged.
+  Vendored runner resynced.
+>>>>>>> origin/main
 
 ## 0.13.0 — Copilot gates the content an agent writes, and a policy reaches every clone
 
