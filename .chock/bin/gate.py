@@ -17,6 +17,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 _GIT = shutil.which("git") or "git"
 
@@ -738,6 +739,9 @@ _ACTION_RANK = {ACTION_WARN: 0, ACTION_ASK: 1, ACTION_BLOCK: 2}
 #: command-guard contract's own, so the vendored runtimes read a gate as they read a guard.
 EXIT_ASK, EXIT_WARN = 3, 4
 
+#: The verdict of a run that could not judge, beside the actions a gate can take.
+VERDICT_ERROR = "error"
+
 _GIT_EVENTS = ("pre-commit", "pre-push", "commit-msg")
 
 
@@ -847,7 +851,7 @@ def script_verdict(policy_id: str, event: str, code: int, repo_root: Path) -> in
     return 1
 
 
-def run(
+def judge(
     gate_path: Path,
     event: str,
     push_stdin: str | None,
@@ -857,7 +861,8 @@ def run(
     writes: Mapping[str, str] | None = None,
     added: Mapping[str, str] | None = None,
     session: Mapping[str, object] | None = None,
-) -> int:
+) -> tuple[int, str]:
+    """Run a compiled gate: (exit code, verdict), the verdict being allow, block, ask, warn or error."""
     gate_path = Path(gate_path)
     if not gate_path.exists():
         print(
@@ -865,60 +870,67 @@ def run(
             "Run `chock sync --repo .` to rebuild the compiled gates.",
             file=sys.stderr,
         )
-        return 2
+        return 2, VERDICT_ERROR
     try:
         spec = json.loads(gate_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:
         print(f"gate: cannot read {gate_path}: {exc}", file=sys.stderr)
-        return 2
+        return 2, VERDICT_ERROR
     if event == "ci":
         name, covered = "ci", "commit" in spec.get("on", [])
     else:
         name = _EVENT_NAME.get(event, event)
         covered = name in spec.get("on", [])
     if not covered:
-        return 0
+        return 0, "allow"
     kind = KINDS.get(spec.get("kind"))
     if kind is None:
         print(f"gate: unknown kind {spec.get('kind')!r}", file=sys.stderr)
-        return 2
+        return 2, VERDICT_ERROR
     declared = spec.get("action", ACTION_BLOCK)
     if declared not in _ACTION_RANK:
         print(f"gate: unknown action {declared!r} (block, ask or warn)", file=sys.stderr)
-        return 2
+        return 2, VERDICT_ERROR
     ctx = _context(event, spec, repo_root, push_stdin, base, head_ref, writes, added, own_paths(gate_path), session)
     if ctx is None:
-        return 2
+        return 2, VERDICT_ERROR
     if event == "ci" and base and not ctx.rev_exists(base):
         print(
             f"gate: base ref {base!r} does not resolve -- refusing to scan an empty range. "
             "Fetch it (e.g. actions/checkout with fetch-depth: 0) or pass a base that exists.",
             file=sys.stderr,
         )
-        return 2
+        return 2, VERDICT_ERROR
     signal = agent_signal(repo_root)
     judged = _judged_event(name, agent=signal is not None)
     result = kind(ctx, _params(gate_path, spec), judged)
     return _conclude(gate_path, spec, event, judged, result, signal)
 
 
-def _conclude(gate_path: Path, spec: dict, event: str, judged: str, result: GateResult, signal: str | None) -> int:
-    """Log the outcome and act on it: the exit code, and the words in the channel this event has."""
+def run(gate_path: Path, event: str, push_stdin: str | None, repo_root: Path, **options: Any) -> int:
+    """Run a compiled gate and return its process exit code: 0 allow, 1 block, 2 cannot judge, 3 ask, 4 warn."""
+    return judge(gate_path, event, push_stdin, repo_root, **options)[0]
+
+
+def _conclude(
+    gate_path: Path, spec: dict, event: str, judged: str, result: GateResult, signal: str | None
+) -> tuple[int, str]:
+    """Log the outcome and act on it: (exit code, verdict), and the words in the channel this event has."""
     verdict = _verdict(result, spec.get("action", ACTION_BLOCK))
     policy_id = _policy_id(gate_path)
     answered = verdict == ACTION_ASK and event in _GIT_EVENTS and _ask_answered(policy_id, signal)
     _log_outcome(gate_path, judged, spec, result, "allow" if answered else verdict, override=answered)
     if answered:
         print(f"gate: {policy_id} asked; allowed by {ALLOW_ENV}.", file=sys.stderr)
-        return 0
+        return 0, "allow"
     if verdict == ACTION_BLOCK:
         _report_refusal(result, spec, judged, signal)
-        return 1
+        return 1, verdict
     if verdict == ACTION_ASK and event in _GIT_EVENTS:
         print(_reason(result, spec), file=sys.stderr)
         print(_ask_refusal(policy_id, signal), file=sys.stderr)
-        return 1
-    return 0 if verdict == "allow" else _deliver(verdict, result, spec, event, policy_id)
+        return 1, verdict
+    return (0 if verdict == "allow" else _deliver(verdict, result, spec, event, policy_id)), verdict
 
 
 def _repo_root() -> Path:

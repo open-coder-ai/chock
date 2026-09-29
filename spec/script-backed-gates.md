@@ -77,8 +77,9 @@ An `execute` case with `event: pre-commit | pre-push | commit-msg` runs the poli
 that event in a staged throwaway repo: `head_files` committed, `files` staged, then the script
 runs at the repo root as the shim would. `commit-msg` takes `message` (the text of the message
 file passed as `argv[1]`); `pre-push` takes `stdin`, the lines git feeds the hook. Exit 0 is
-`allow`, a refusal is `block`, a crash (exit 1 with no reason) is an error, so a broken script
-never scores a block. Such cases are executable, not tier 3.
+`allow`, 3 is `ask`, 4 is `warn` (a hook declares no action, so nothing caps them), any other
+refusal is `block`, and a crash (exit 1 with no reason) is an error, so a broken script never
+scores a block. Such cases are executable, not tier 3.
 
 ```yaml
 execute: {event: commit-msg, message: "WIP\n", expect: block}
@@ -86,7 +87,9 @@ execute: {event: commit-msg, message: "WIP\n", expect: block}
 
 Gate cases may likewise run at the agent events: `event: tool_use | stop` with `writes` (the
 files as the agent leaves them, not staged) and optional `head_files` and `added`, replayed
-through the gate runner at that event.
+through the gate runner at that event. `expect` is `allow | block | ask | warn`: at the agent
+events the runner's exit 3 is `ask` and 4 is `warn` (a Stop `ask` warns); at `commit` and `push`
+an `ask` gate's refusal is `ask` and a `warn` gate's printed allow is `warn`.
 
 ## Command guard contract
 

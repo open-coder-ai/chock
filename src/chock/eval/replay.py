@@ -13,7 +13,12 @@ from chock.validation.checks_script_events import script_path
 
 BLOCK = "block"
 ALLOW = "allow"
+ASK = "ask"
+WARN = "warn"
 ERROR = "error"
+
+#: A script's exit code -> the verdict it speaks. A hook has no declared action, so nothing caps it.
+_SCRIPT_EXIT_VERDICT = {0: ALLOW, 3: ASK, 4: WARN}
 
 #: Case `event` -> the runner event it replays at. `stop` reads the turn's end from disk.
 AGENT_CASE_EVENTS = {"tool_use": "pre-tool-use", "pre-tool-use": "pre-tool-use", "stop": "stop"}
@@ -40,12 +45,12 @@ def prepare_agent(repo: Path, spec: dict[str, Any]) -> tuple[dict[str, str], dic
 
 
 def _verdict(proc: subprocess.CompletedProcess) -> tuple[str, str]:
-    """Exit 0 allows, anything else refuses -- except a crash, which judged nothing."""
+    """Exit 0 allows, 3 asks, 4 warns, anything else refuses -- except a crash, which judged nothing."""
     output = (proc.stderr or "") + (proc.stdout or "")
     lines = output.strip().splitlines()
     first = lines[0] if lines else f"script exit {proc.returncode}"
-    if proc.returncode == 0:
-        return ALLOW, first
+    if proc.returncode in _SCRIPT_EXIT_VERDICT:
+        return _SCRIPT_EXIT_VERDICT[proc.returncode], first
     if proc.returncode == 1 and is_guard_crash(output):
         return ERROR, f"script exited 1 without a reason, so nothing was checked: {first}"
     return BLOCK, first
