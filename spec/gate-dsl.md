@@ -20,7 +20,7 @@ For `artifact: hook` policies, the gate is declared under `hook.gate` in `manife
 | `content_pattern` | yes | string | regex matched against each line or the blob |
 | `scan` | no | string | `added_lines` (default) or `staged_blob` |
 | `forbidden_path_regex` | no | string | regex applied to staged file paths |
-| `allowlist_pragma` | no | string | regex matched on lines/blobs; matching content is ignored at commit, push and ci. With `CHOCK_AGENT_COMMIT` set, only a waiver already in HEAD is honoured |
+| `allowlist_pragma` | no | string | regex matched on lines/blobs; matching content is ignored at commit, push and ci. With `CHOCK_AGENT_COMMIT` set, and at `tool_use`, only a waiver already in HEAD is honoured |
 
 **At the mcp-gateway** (when `"on"` includes `tool_use`): the gate is emitted to the
 `mcp-gateway` surface and evaluated against each `tools/call` argument string. Only
@@ -28,6 +28,16 @@ For `artifact: hook` policies, the gate is declared under `hook.gate` in `manife
 are git-diff concepts and are **not** honored by the gateway (the argument is live,
 attacker-controlled text with no reviewer, so a match always blocks). A gate with no
 `tool_use` in `"on"` is not emitted to the gateway at all.
+
+**In the agent** (`"on"` includes `tool_use`): the gate runs at PreToolUse on a write (the
+file as it would be after it) and at Stop (what the turn left on disk). `content_regex`,
+`script`, `dependency_allowlist` and `test_integrity` run there; `forbidden_ref` cannot (no branch
+in a tool call) and refuses. Each kind reads the change against a baseline: at PreToolUse the file
+on disk before the write, at Stop `HEAD` (absent in HEAD: every line is new). `added_lines` is an
+edit's own text, else the diff against that baseline, so lines already there -- a whole-file
+Write's unchanged lines, an old violation in a touched file -- are never scanned (`scan:
+staged_blob` still reads the whole file). `allowlist_pragma` is honoured at `tool_use` only on a
+line already in HEAD; a waiver the write or turn adds is not.
 
 ### `kind: forbidden_ref`
 
@@ -91,7 +101,7 @@ Extracted names are lowercased and compared against a lowercased allowlist.
 | `test_path_regex` | yes | string | regex matched against staged paths to identify test files |
 | `assertion_pattern` | yes | string | regex matched against a line to count it as an assertion |
 | `dummy_assertion_pattern` | no | string | regex for a vacuous assertion (`assert True`, `expect(true)`); matched only on added lines |
-| `allowlist_pragma` | no | string | regex matched on a line; a match on an added line skips that file's counting entirely; not honoured with `CHOCK_AGENT_COMMIT` set |
+| `allowlist_pragma` | no | string | regex matched on a line; a match on an added line skips that file's counting entirely; not honoured with `CHOCK_AGENT_COMMIT` set or at `tool_use` |
 
 Blocks three shapes of a change that wins green CI by weakening the tests rather than
 fixing the code: a deleted test file, a **net** loss of assertions across the whole
