@@ -11,6 +11,15 @@
   gates receive `agent-commit` as `event`. Human commits are unchanged. No vendor environment
   variable is detected automatically, as none is verified to reach a git hook. Push and CI are
   unchanged. Vendored runner resynced.
+- **A policy's `build/` folder now reaches every clone.** Policies install under
+  `.agents/policies/`, and a policy can ship a Python package with a `build/` sub-package (the
+  java-security policy does). Java and Gradle repos, and many global gitignores, ignore `build/`,
+  so that folder was never committed and a fresh clone, CI checkout or Codex worktree crashed the
+  gate with `ImportError: cannot import name 'build'` -- after which the hook refused every edit.
+  `chock init` and `chock sync` now append `!.agents/policies/` and `!.agents/policies/**` to
+  `.gitignore`, the same way they already keep `.chock/bin/` tracked. `__pycache__/` and `*.pyc`
+  under the policies stay ignored, and your own top-level `build/` stays ignored too. Run
+  `chock sync` once and commit the missing folder.
 - **Copilot and VS Code get in-editor enforcement for content gates.** A policy whose gate judges
   the files a write leaves behind (the catalog's `java-security`, `pin-github-actions`) used to
   read `enforced-at-commit` for `copilot` and `vscode`, because chock's own `.github/hooks/chock.json`
@@ -25,9 +34,7 @@
   now carries top-level `permissionDecision`/`permissionDecisionReason` (a top-level deny stopped an
   `Edit` in VS Code agent mode, 2026-09-28) beside agentseam's nested `hookSpecificOutput`, and a `Stop` block carries
   top-level `decision`/`reason` beside its nested one. Which of the two Stop forms Copilot reads is not
-  yet isolated, so both are written; no other vendor's answer changes. A `Write` call's `file_text` is
-  now judged as the file it creates. Every vendored runtime is re-rendered, so the next `chock sync` rewrites `.chock/bin`.
-
+  yet isolated, so both are written; no other vendor's answer changes.
 - **agentseam 0.3.5.** Its Copilot adapter reads a `Write` call's `file_text` as the file's
   content, parses the camelCase `agentStop` payload as a turn end rather than a tool call, and
   writes `bash` and `powershell` keys in the hook entries it generates. Vendored runtimes and

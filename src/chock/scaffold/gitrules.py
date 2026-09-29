@@ -22,12 +22,27 @@ GATE_LOG_IGNORE = ".chock/log/"
 #: everything under them (against a rule that names the files, a `*.json`, say).
 TRACKED_RUNTIME = ("!.chock/bin/", "!.chock/bin/**", "!.chock/compiled/", "!.chock/compiled/**")
 
+#: The installed policy trees, re-included the same way: a policy's Python package can hold a `build/`
+#: sub-package that a `build/` rule elsewhere would drop. Bytecode stays out, so those two ignores come
+#: after the negations -- within one .gitignore the last matching rule wins.
+TRACKED_POLICIES = ("!.agents/policies/", "!.agents/policies/**")
+POLICY_BYTECODE_IGNORE = (".agents/policies/**/__pycache__/", ".agents/policies/**/*.pyc")
+
 _BLOCKS = (
     ((GATE_LOG_IGNORE,), "# chock: the gate outcome log is per machine and grows on every commit"),
     (
         TRACKED_RUNTIME,
         "# chock: the gate runtime and compiled gates are what every hook runs -- tracked even where\n"
         "# a global rule (a `bin/` from a Visual Studio or Java template) would ignore them",
+    ),
+    (
+        TRACKED_POLICIES,
+        "# chock: installed policies are tracked whole -- a policy's `build/` sub-package must reach every\n"
+        "# clone, whatever a `build/`, `out/` or `target/` rule elsewhere says",
+    ),
+    (
+        (*POLICY_BYTECODE_IGNORE,),
+        "# chock: bytecode under the policies is per machine (must stay after the rules above)",
     ),
 )
 
