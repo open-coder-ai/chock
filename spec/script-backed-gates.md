@@ -20,8 +20,17 @@ arguments (but commit-msg's, below), cwd at the repo root, exit code is the verd
 pre-commit the script already has both revisions (`git show :path` and `git show HEAD:path`).
 
 `commit-msg` is the one event with an argument: git's contract, `argv[1]` is the path of the
-message file. It exits 0 to allow, anything else to refuse.
+message file.
 The pre-commit and pre-push scripts still take none.
+
+**Exit codes**, at every event: `0` allows; `4` warns (the script's own words on stderr are the
+warning, the hook exits 0); `3` asks (a hook cannot prompt, so it refuses unless a person set
+`CHOCK_ALLOW=<policy-id>[,<policy-id>...]` for that command and the command is not an agent's, see
+`spec/gate-dsl.md` "Agent commits"); anything else refuses, `1` with the script's reason and any
+other code or a missing script as a broken install. The generated shim runs the script and hands a
+`3` or `4` to `gate.py script-verdict`, which is why a script-only policy also vendors the runner.
+A warn or an ask is a record in the gate log (`verdict: warn|ask`). A script-backed hook has no
+declared action, so it is graded as enforcing; only a `hook.gate` with `action: warn` is not.
 
 `on` is authoritative. The compiler wires exactly the events it names, never what the
 directory happens to contain.
@@ -92,7 +101,8 @@ eval runner, always, whether or not the command parses.
 - **`CHOCK_TOOL`.** The tool that ran the command, from the hook payload's tool name:
   `bash` (Bash), `powershell` (PowerShell, pwsh), `shell` (sh, shell, run_shell_command,
   Cursor's beforeShellExecution, any other name containing "shell"), else `unknown`.
-- **Exit codes.** `0` allows. `3` asks; the first output line is the prompt. `1` blocks only
+- **Exit codes.** `0` allows. `3` asks; the first output line is the prompt. (`4` warns only for a
+  `script` gate and a script-backed git hook, above; a command guard exiting 4 is not checked.) `1` blocks only
   when the guard gave a reason: non-empty stderr (stdout also read) that is not a crash
   signature (`Traceback (most recent call last)`, `syntax error`, `SyntaxError`, `unexpected
   EOF`). Exit `1` with empty output or a crash signature is an interpreter failure and asks

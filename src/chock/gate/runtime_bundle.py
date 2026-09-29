@@ -14,6 +14,7 @@ from chock.vendors import in_agent_vendors
 
 from . import (
     edit_image,
+    gate_outcome,
     guard_runner,
     outside_repo,
     patch_image,
@@ -96,6 +97,12 @@ _COPILOT_RESPOND_CALL = "return _chock_copilot_respond(degrade(decision, event),
 _COPILOT_RESPOND = _DATA_DIR.joinpath("copilot_respond.py.tmpl").read_text(encoding="utf-8")
 
 
+#: Vendors whose warn also reaches the agent or the user: only where the reply channel is documented.
+_WARN_RESPOND_AGENTS = frozenset({"claude_code"})
+_WARN_RESPOND_CALL = "return _chock_warn_respond(degrade(decision, event), event)"
+_WARN_RESPOND = _DATA_DIR.joinpath("warn_respond.py.tmpl").read_text(encoding="utf-8")
+
+
 def _handler_source(agent: str) -> str:
     """The full handler-block body for `agent`: extracted guard logic, optionally extracted"""
     parts = [
@@ -104,6 +111,8 @@ def _handler_source(agent: str) -> str:
         _extract(edit_image),
         "\n",
         _extract(patch_image),
+        "\n",
+        _extract(gate_outcome),
         "\n",
         _extract(outside_repo),
         "\n",
@@ -121,6 +130,8 @@ def _handler_source(agent: str) -> str:
     parts.append(_DISPATCH.replace(_DISPATCH_BRANCH_TOKEN, branch))
     if agent in _COPILOT_RESPOND_AGENTS:
         parts.append(_COPILOT_RESPOND)
+    if agent in _WARN_RESPOND_AGENTS:
+        parts.append(_WARN_RESPOND)
     return "".join(parts)
 
 
@@ -178,4 +189,8 @@ def render(agent: str) -> str:
         if _RESPOND_CALL not in tail:
             raise ValueError("%s: bundle() output has no %r call to route" % (agent, _RESPOND_CALL))
         tail = tail.replace(_RESPOND_CALL, _COPILOT_RESPOND_CALL)
+    if agent in _WARN_RESPOND_AGENTS:
+        if _RESPOND_CALL not in tail:
+            raise ValueError("%s: bundle() output has no %r call to route" % (agent, _RESPOND_CALL))
+        tail = tail.replace(_RESPOND_CALL, _WARN_RESPOND_CALL)
     return "%s%s\n%s%s%s" % (head, BEGIN, handler, END, tail)

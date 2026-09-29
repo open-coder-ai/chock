@@ -87,7 +87,7 @@ Rules for guard design:
 - **Prefer the declarative gate** — the compiler vendors the runner, so a `hook.gate` needs no
   script of yours. A check no `kind` can express declares `hook.script` instead, which a `rule`
   may also carry: see [Script-Backed Gates](script-backed-gates.md).
-- Keep `message` actionable; the runner prints it to stderr on block.
+- Keep `message` actionable; it is printed on block, ask and warn. `action` is `block`, `ask` or `warn`: see `spec/gate-dsl.md`.
 
 ### `skill` — an on-demand procedure
 

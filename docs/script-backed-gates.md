@@ -39,7 +39,10 @@ policy enforcing less than its directory suggests.
 - **No arguments.** At pre-commit the guard already has both revisions: `git show :path` is the
   staged blob and `git show HEAD:path` its predecessor. Nothing is passed in.
 - **The working directory is the repo root.**
-- **The exit code is the verdict** — 0 allows, anything else refuses. A shim whose script has
+- **The exit code is the verdict** — 0 allows, 4 warns (the script's own words on stderr, the
+  commit goes ahead), 3 asks (refused unless a person runs that command with
+  `CHOCK_ALLOW=<policy-id>` and it is not an agent's commit, see
+  [Enforcement Surfaces](enforcement-surfaces.md)), anything else refuses. A shim whose script has
   gone missing exits 2 rather than 0: a gate that cannot find its own guard must refuse.
 - **Stdlib only**, like the vendored runner. The script is copied into every adopting repo, so
   it may not import anything that repo does not already have.

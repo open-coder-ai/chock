@@ -65,6 +65,7 @@ def _emit_script_shims(policy_dir: Path, output_dir: Path, policy_id: str, event
         rendered = (
             SCRIPT_SHIM_TEMPLATE.replace("__POLICY_ID__", policy_id)
             .replace("__GUARD_REL__", f"{rel}/implementations/{script}")
+            .replace("__EVENT__", segment)
             .replace("__ARGV__", ' "$@"' if event in ARGV_EVENTS else "")
         )
         write_generated(shim, rendered)
@@ -87,7 +88,8 @@ def emit(policy_dir: Path, output_dir: Path, manifest: dict[str, Any]) -> list[P
     # owns its commit/push events, the script the others.
     emitted = _emit_script_shims(policy_dir, output_dir, policy_id, declared_script_events(manifest))
     if spec is None:
-        return emitted
+        # The shim hands a script's ask or warn to the runner, so a script hook ships it too.
+        return [*emitted, vendor_runner(output_dir.parents[2])] if emitted else emitted
 
     hook_events = [e for e in spec.get("on", []) if e in ("commit", "push")]
     if not hook_events:

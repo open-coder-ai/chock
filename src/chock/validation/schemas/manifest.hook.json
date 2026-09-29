@@ -52,7 +52,11 @@
         },
         "action": {
           "type": "string",
-          "const": "block"
+          "enum": [
+            "block",
+            "ask",
+            "warn"
+          ]
         },
         "message": {
           "type": "string",

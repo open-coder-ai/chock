@@ -23,6 +23,13 @@ def no_gate_log(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CHOCK_GATE_LOG", "0")
 
 
+@pytest.fixture(autouse=True)
+def human_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run as a person's shell: the suite may itself be run by an agent that sets these markers."""
+    for name in ("CHOCK_AGENT_COMMIT", "CLAUDECODE", "AI_AGENT", "CHOCK_ALLOW"):
+        monkeypatch.delenv(name, raising=False)
+
+
 def bash_executable() -> str:
     """The bash that runs chock's shell shims: Git Bash on Windows, never the WSL stub.
 

@@ -273,3 +273,18 @@ def test_manifest_artifact_enum_is_pinned() -> None:
 def test_code_derives_artifact_types_from_the_schema() -> None:
     """Code must read the taxonomy from the schema, never restate it."""
     assert ARTIFACT_TYPES == frozenset(EXPECTED_ARTIFACTS)
+
+
+@pytest.mark.parametrize("action", ["block", "ask", "warn"])
+def test_a_gate_action_may_be_block_ask_or_warn(action: str) -> None:
+    manifest = _hook()
+    manifest["hook"]["gate"]["action"] = action
+    assert not list(VALIDATOR.iter_errors(manifest))
+
+
+@pytest.mark.parametrize("action", ["verify", "allow", "", "Block"])
+def test_any_other_gate_action_is_refused(action: str) -> None:
+    """`verify` is a value of `enforcement`, not of `gate.action`; the runner would have ignored it."""
+    manifest = _hook()
+    manifest["hook"]["gate"]["action"] = action
+    assert list(VALIDATOR.iter_errors(manifest))

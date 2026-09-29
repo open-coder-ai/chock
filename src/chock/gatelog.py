@@ -53,10 +53,22 @@ def summarize(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         key = (str(record.get("policy_id")), str(record.get("surface") or "unknown"))
         entry = totals.setdefault(
             key,
-            {"policy_id": key[0], "surface": key[1], "events": 0, "allow": 0, "block": 0, "last_block": None},
+            {
+                "policy_id": key[0],
+                "surface": key[1],
+                "events": 0,
+                "allow": 0,
+                "block": 0,
+                "ask": 0,
+                "warn": 0,
+                "last_block": None,
+            },
         )
         entry["events"] += 1
-        if record.get("verdict") == "block":
+        verdict = record.get("verdict")
+        if verdict in ("ask", "warn"):
+            entry[verdict] += 1
+        elif verdict == "block":
             entry["block"] += 1
             ts = str(record.get("ts") or "")
             if ts > (entry["last_block"] or ""):
@@ -82,12 +94,14 @@ def render_text(summary: list[dict[str, Any]], silent: list[str]) -> str:
         lines = ["No gate outcomes recorded yet."]
     else:
         width = max(len(str(e["policy_id"])) for e in summary)
-        lines = [f"{'policy'.ljust(width)}  {'surface':<13} {'events':>6} {'allow':>6} {'block':>6}  last block"]
+        lines = [
+            f"{'policy'.ljust(width)}  {'surface':<13} {'events':>6} {'allow':>6} {'block':>6} {'ask':>4} {'warn':>5}  last block"
+        ]
         for entry in summary:
             last = entry["last_block"] or "never"
             lines.append(
                 f"{str(entry['policy_id']).ljust(width)}  {entry['surface']:<13} "
-                f"{entry['events']:>6} {entry['allow']:>6} {entry['block']:>6}  {last}"
+                f"{entry['events']:>6} {entry['allow']:>6} {entry['block']:>6} {entry['ask']:>4} {entry['warn']:>5}  {last}"
             )
     if silent:
         lines.append("")

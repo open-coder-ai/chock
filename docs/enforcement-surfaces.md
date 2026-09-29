@@ -38,13 +38,29 @@ each guarantee holds.
 > the pen. Only lines the turn changed against HEAD are judged, so an old violation in a touched
 > file does not block the turn.
 >
-> **An agent's commit is not a human's.** The commit hook cannot tell who ran `git commit`, and an
-> agent that can run it could add the waiver itself. Set `CHOCK_AGENT_COMMIT=1` in the
-> environment of an agent's shell (any value but empty, `0`, `false`, `no`, `off`) and the
-> pre-commit gate judges the commit at the event `agent-commit`: a waiver the commit adds is not
-> honoured, one already in HEAD still is, and a refusal says so. A person commits from their own
-> shell with it unset. Chock detects no vendor variable on its own: none is verified to reach a
-> git hook. Pre-push and CI are unchanged, and CI honours a waiver in the range it reads.
+> **An agent's commit is not a human's.** The commit hook cannot ask who ran `git commit`, and an
+> agent that can run it could add the waiver itself, so chock reads the environment the hook
+> inherits from git. A commit is an agent's when `CHOCK_AGENT_COMMIT` is truthy (any value but
+> empty, `0`, `false`, `no`, `off`), or `CLAUDECODE=1`, or `AI_AGENT` is non-empty, or a variable
+> named under `agent_commit_env:` in `.chock/config.yaml` is set. The pre-commit gate then judges
+> the commit at the event `agent-commit`: a waiver the commit adds is not honoured, one already in
+> HEAD still is, and a refusal says which marker it saw. `CHOCK_AGENT_COMMIT=0` says "a person" and
+> wins over every marker, for a person running git inside an agent's terminal; an agent could set
+> it too, so it is a default and not an identity, and the guards on an agent's own commands are the
+> separate backstop. Claude Code's two variables are witnessed reaching a git hook (a probe from
+> the Bash tool, 2026-09-29); Codex, Cursor and Copilot markers are unverified, so add them once
+> captured: `agent_commit_env: [CODEX_SANDBOX]`. Pre-push and CI are unchanged, and CI honours a
+> waiver in the range it reads.
+>
+> **`action: warn | ask`.** A gate's `action` picks what a violation does (full table:
+> `spec/gate-dsl.md`). `warn` never blocks: at commit, push and ci the reason is printed (a
+> `::warning::` annotation in CI) and the exit is 0; in the agent it reaches Claude as PreToolUse
+> `additionalContext` (other vendors have no verified channel, so they get stderr and the gate log),
+> and at Stop it is a message to the user, never a block. `ask` puts the decision to a person: in
+> the agent it is a `permissionDecision: ask` where the vendor honours one (the others deny); at
+> commit and push, where no prompt is possible, it refuses unless a person runs that one command with
+> `CHOCK_ALLOW=<policy-id>[,<policy-id>...]` and it is not an agent commit; in CI it is a warning. A
+> policy whose only mechanism warns is not credited as enforcing in the coverage report; an ask is.
 
 > **`agent-hooks` shell caveat, stated rather than glossed.** The surface genuinely
 > enforces: it runs the guard before the tool call and honours exit 2 as deny (witnessed on

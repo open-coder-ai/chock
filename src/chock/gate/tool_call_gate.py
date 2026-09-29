@@ -34,8 +34,12 @@ _TOOL_CALL_SCRIPT_KIND = "script"
 _TOOL_CALL_REGEX_KIND = "content_regex"
 _TOOL_CALL_BLOCKED = "blocked"
 _TOOL_CALL_NEEDS_SESSION = frozenset({_TOOL_CALL_SCRIPT_KIND})
-#: A script's exit code -> the verdict it speaks. The one place a further verdict (warn, ask) is added.
-_TOOL_CALL_EXIT_VERDICTS = {0: None, 1: "deny"}
+#: A script's exit code -> the verdict it speaks, the same codes a script speaks at every event.
+_TOOL_CALL_EXIT_VERDICTS = {0: None, 1: "deny", 3: "escalate", 4: "warn"}
+#: The gate's declared `action` is a ceiling: a verdict (or a refusal it could not decide) never
+#: goes past it, so a warn gate never blocks and an ask gate never denies outright.
+_TOOL_CALL_CEILING = {"block": "deny", "ask": "escalate", "warn": "warn"}
+_TOOL_CALL_RANK = {"warn": 0, "escalate": 1, "deny": 2}
 _TOOL_CALL_UNDECIDED = " -- refusing rather than allowing what it never judged"
 
 
@@ -114,6 +118,14 @@ def _tool_call_verdict(spec, root, event):
     return ("deny", f"chock tool_call gate: kind {kind!r} cannot judge a tool call{_TOOL_CALL_UNDECIDED}")
 
 
+def _tool_call_capped(spec, verdict):
+    """`verdict` held to the gate's declared action; an unknown action keeps the verdict as spoken."""
+    ceiling = _TOOL_CALL_CEILING.get(spec.get("action", "block"))
+    if verdict is None or ceiling is None:
+        return verdict
+    return (min(verdict[0], ceiling, key=_TOOL_CALL_RANK.__getitem__), verdict[1])
+
+
 def _tool_call_spec(gate):
     """The compiled gate as a dict, or (None, refusal) when the install is broken."""
     if not gate.exists():
@@ -153,7 +165,7 @@ def evaluate_tool_call(argv, event):
     if TOOL_CALL_EVENT in spec.get("on", []) and tool_call_matches(
         (spec.get("params") or {}).get("tools", []), str(event.tool or "")
     ):
-        verdict = _tool_call_verdict(spec, root, event)
+        verdict = _tool_call_capped(spec, _tool_call_verdict(spec, root, event))
     if spec.get("kind") in _TOOL_CALL_NEEDS_SESSION:
-        session_record(root, event, "pre", _TOOL_CALL_BLOCKED if verdict else None)
+        session_record(root, event, "pre", _TOOL_CALL_BLOCKED if verdict and verdict[0] == "deny" else None)
     return verdict

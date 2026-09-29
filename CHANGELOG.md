@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+- **A `tool_call` script asks and warns too.** Exit `3` asks the person and exit `4` warns, as at
+  every other event, and the gate's declared `action` caps the verdict and any refusal: a warn
+  gate never denies a tool call, an ask gate never denies outright.
+- **A gate can warn or ask instead of blocking.** `hook.gate.action` was documented as
+  `block | verify | warn`, the schema accepted only `block`, and the runner ignored it. It is now
+  `block` (default), `ask` or `warn`, and `verify` (a value of `enforcement`) is refused. `warn`
+  never blocks: at commit, push and ci the reason is printed (a `::warning::` annotation in CI) and
+  the exit is 0; in the agent Claude Code gets it as PreToolUse `additionalContext` (no
+  `permissionDecision`, so its permission prompt is untouched), other vendors get stderr and the gate
+  log, and at Stop it is a message, never a block. `ask` asks the person in the agent
+  (`permissionDecision: ask` where the vendor honours one, a deny elsewhere); at commit and push it
+  refuses unless `CHOCK_ALLOW=<policy-id>[,...]` is set on that command and it is not an agent commit;
+  in CI and at Stop it is a warning; the mcp-gateway blocks it. A `script` gate chooses its own
+  verdict by exit code (0 allow, 1 block, 3 ask, 4 warn) under its declared action; an exit 1 with no
+  words or a crash signature is undecided and takes the declared action. Script-backed hooks read
+  exit 3 as ask and 4 as warn, through the runner, which a script-only policy now vendors. The gate
+  log records `warn` and `ask`, and `chock status --only log` counts them. A policy whose only
+  mechanism warns is no longer credited as enforcing. Vendored runtimes and runner resynced; run
+  `chock sync`.
+- **An agent's commit is detected without opt-in.** `CLAUDECODE=1`, a non-empty `AI_AGENT` (both set
+  by Claude Code's Bash tool and witnessed reaching a git hook), or any variable named under
+  `agent_commit_env:` in `.chock/config.yaml` now marks a commit as an agent's, as `CHOCK_AGENT_COMMIT`
+  always did. `CHOCK_AGENT_COMMIT=0` wins over every marker, for a person's git in an agent's
+  terminal. Codex, Cursor and Copilot markers stay unverified. A person whose shell exports
+  `CLAUDECODE` or `AI_AGENT` now sees their own waivers ignored until they set `CHOCK_AGENT_COMMIT=0`.
+  Eval cases are judged as a person's commit whoever runs them.
 - **Installing hooks no longer erases a guard's coverage.** `chock install-hooks` auto-compiled
   any hook policy without git-hook output, but a guard-only or `tool_use`-only policy has none by
   design, so the recompile rewrote its coverage as a git-hook-only view and every agent read

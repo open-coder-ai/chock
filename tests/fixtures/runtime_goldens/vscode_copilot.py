@@ -972,6 +972,31 @@ def patch_added(event):
             added[moved_to or path] = '\n'.join((line[1:] for _, hunk, _ in body for line in hunk if line[:1] == '+'))
     return added
 
+GATE_BLOCKED = 'blocked'
+
+GATE_CLEAN = 'clean'
+
+GATE_ERRORED = 'errored'
+
+GATE_ASKED = 'asked'
+
+GATE_WARNED = 'warned'
+
+VERDICT_WARN = 'warn'
+
+_EXIT_OUTCOME = {0: GATE_CLEAN, 1: GATE_BLOCKED, 3: GATE_ASKED, 4: GATE_WARNED}
+
+def runner_outcome(returncode, stderr):
+    """(outcome, message) for the runner's exit code and stderr: its words, only when it refused or spoke."""
+    outcome = _EXIT_OUTCOME.get(returncode, GATE_ERRORED)
+    return (outcome, '' if outcome == GATE_CLEAN else (stderr or '').strip())
+
+def gate_decision(outcome, message, gate):
+    """The decision an outcome earns, or None when the gate allowed: deny, escalate (ask) or warn."""
+    policy = gate.parent.parent.name
+    spoken = {GATE_BLOCKED: (VERDICT_DENY, message or f'Blocked by chock policy: {policy}'), GATE_ASKED: (VERDICT_ESCALATE, message or f'Chock policy {policy} asks before this write.'), GATE_WARNED: (VERDICT_WARN, message or f'Chock policy {policy} warns about this write.'), GATE_ERRORED: (VERDICT_DENY, f'chock could not check this write: {message}. Refusing rather than reporting an allow it never established.')}
+    return spoken.get(outcome)
+
 OUTSIDE_KEY = 'outside_repo'
 
 _UP = '..'
@@ -1228,12 +1253,6 @@ _DELETED = 'D'
 
 _RENAMED = 'R'
 
-GATE_BLOCKED = 'blocked'
-
-GATE_CLEAN = 'clean'
-
-GATE_ERRORED = 'errored'
-
 VERDICT_DENY = 'deny'
 
 def gate_path_from_argv(argv):
@@ -1367,11 +1386,7 @@ def run_gate(gate, writes, event, root=None, extra=None):
         proc = _chock_subprocess.run([sys.executable, str(runner), 'run', '--gate', str(gate), '--event', event], input=json.dumps({'writes': writes, **(extra or {})}), capture_output=True, text=True, encoding=_UTF8, errors='replace', timeout=_GATE_TIMEOUT_SECONDS, check=False, cwd=str(root) if root is not None else None)
     except (OSError, _chock_subprocess.SubprocessError) as exc:
         return (GATE_ERRORED, str(exc))
-    if proc.returncode == 0:
-        return (GATE_CLEAN, '')
-    if proc.returncode == 1:
-        return (GATE_BLOCKED, (proc.stderr or '').strip())
-    return (GATE_ERRORED, (proc.stderr or '').strip())
+    return runner_outcome(proc.returncode, proc.stderr)
 
 _EVENT_ARG = {'pre_tool': 'pre-tool-use', 'stop': 'stop'}
 
@@ -1431,11 +1446,7 @@ def evaluate_gate(argv, event):
     added = {path: text for path, text in added.items() if path in writes}
     extra = {**({'added': added} if added else {}), 'session': session_for(event, root)}
     outcome, message = run_gate(gate, writes, name, root, extra)
-    if outcome == GATE_BLOCKED:
-        return (VERDICT_DENY, message or f'Blocked by chock policy: {gate.parent.parent.name}')
-    if outcome == GATE_ERRORED:
-        return (VERDICT_DENY, f'chock could not check this write: {message}. Refusing rather than reporting an allow it never established.')
-    return None
+    return gate_decision(outcome, message, gate)
 
 TOOL_CALL_FLAG = '--tool-call'
 
@@ -1457,7 +1468,11 @@ _TOOL_CALL_BLOCKED = 'blocked'
 
 _TOOL_CALL_NEEDS_SESSION = frozenset({_TOOL_CALL_SCRIPT_KIND})
 
-_TOOL_CALL_EXIT_VERDICTS = {0: None, 1: 'deny'}
+_TOOL_CALL_EXIT_VERDICTS = {0: None, 1: 'deny', 3: 'escalate', 4: 'warn'}
+
+_TOOL_CALL_CEILING = {'block': 'deny', 'ask': 'escalate', 'warn': 'warn'}
+
+_TOOL_CALL_RANK = {'warn': 0, 'escalate': 1, 'deny': 2}
 
 _TOOL_CALL_UNDECIDED = ' -- refusing rather than allowing what it never judged'
 
@@ -1514,6 +1529,13 @@ def _tool_call_verdict(spec, root, event):
         return _tool_call_script(spec, root, payload)
     return ('deny', f'chock tool_call gate: kind {kind!r} cannot judge a tool call{_TOOL_CALL_UNDECIDED}')
 
+def _tool_call_capped(spec, verdict):
+    """`verdict` held to the gate's declared action; an unknown action keeps the verdict as spoken."""
+    ceiling = _TOOL_CALL_CEILING.get(spec.get('action', 'block'))
+    if verdict is None or ceiling is None:
+        return verdict
+    return (min(verdict[0], ceiling, key=_TOOL_CALL_RANK.__getitem__), verdict[1])
+
 def _tool_call_spec(gate):
     """The compiled gate as a dict, or (None, refusal) when the install is broken."""
     if not gate.exists():
@@ -1544,10 +1566,17 @@ def evaluate_tool_call(argv, event):
     root = repo_root_for(event, gate)
     verdict = None
     if TOOL_CALL_EVENT in spec.get('on', []) and tool_call_matches((spec.get('params') or {}).get('tools', []), str(event.tool or '')):
-        verdict = _tool_call_verdict(spec, root, event)
+        verdict = _tool_call_capped(spec, _tool_call_verdict(spec, root, event))
     if spec.get('kind') in _TOOL_CALL_NEEDS_SESSION:
-        session_record(root, event, 'pre', _TOOL_CALL_BLOCKED if verdict else None)
+        session_record(root, event, 'pre', _TOOL_CALL_BLOCKED if verdict and verdict[0] == 'deny' else None)
     return verdict
+
+
+def _spoken(verdict):
+    outcome, reason = verdict
+    if outcome == VERDICT_WARN:
+        return Decision.warn(reason)
+    return Decision.escalate(reason) if outcome == ESCALATE else Decision.deny(reason)
 
 
 def _judge(event):
@@ -1558,10 +1587,10 @@ def _judge(event):
             return Decision.escalate(reason) if outcome == ESCALATE else Decision.deny(reason)
     gated = evaluate_gate(sys.argv[1:], event)
     if gated is not None:
-        return Decision.deny(gated[1])
+        return _spoken(gated)
     called = evaluate_tool_call(sys.argv[1:], event)
     if called is not None:
-        return Decision.deny(called[1])
+        return _spoken(called)
     return None
 
 
