@@ -22,7 +22,10 @@ WITNESSES_PATH = DATA_DIR / "witnesses.json"
 CLAIMS_PATH = DATA_DIR / "claims.json"
 
 PLUGIN_HOOK = "plugin-hook"
-WITNESS_SURFACES = ("pre-tool-use", "agent-hooks", PLUGIN_HOOK)
+#: Not a place chock blocks: the environment a vendor's shell hands a git hook, which is how an
+#: agent's commit is recognised. A row here witnesses a marker, never a capability.
+GIT_HOOK_ENV = "git-hook-env"
+WITNESS_SURFACES = ("pre-tool-use", "agent-hooks", PLUGIN_HOOK, GIT_HOOK_ENV)
 
 HONOURS_ASK = "honours_ask"
 CLAIM_NAMES = (HONOURS_ASK,)

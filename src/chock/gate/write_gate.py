@@ -18,6 +18,7 @@ import sys
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from .edit_image import added_from_event, edited_text
+from .gate_outcome import GATE_ERRORED, gate_decision, runner_outcome
 from .patch_image import patch_added, patched_files
 
 GATE_FLAG = "--gate"
@@ -43,10 +44,6 @@ _DRIVE_COLON = ":"
 #: git status codes: a deletion leaves no content to judge, a rename is followed by its old path.
 _DELETED = "D"
 _RENAMED = "R"
-
-GATE_BLOCKED = "blocked"
-GATE_CLEAN = "clean"
-GATE_ERRORED = "errored"
 
 VERDICT_DENY = "deny"
 
@@ -209,11 +206,7 @@ def run_gate(gate, writes, event, root=None, added=None):
         )
     except (OSError, subprocess.SubprocessError) as exc:
         return GATE_ERRORED, str(exc)
-    if proc.returncode == 0:
-        return GATE_CLEAN, ""
-    if proc.returncode == 1:
-        return GATE_BLOCKED, (proc.stderr or "").strip()
-    return GATE_ERRORED, (proc.stderr or "").strip()
+    return runner_outcome(proc.returncode, proc.stderr)
 
 
 #: The canonical event names agentseam's contract uses, mapped to the runner's own spelling.
@@ -286,12 +279,4 @@ def evaluate_gate(argv, event):
     added = {rel: text for path, text in added.items() for rel in repo_paths(path, root)}
     added = {path: text for path, text in added.items() if path in writes}
     outcome, message = run_gate(gate, writes, name, root, added)
-    if outcome == GATE_BLOCKED:
-        return (VERDICT_DENY, message or f"Blocked by chock policy: {gate.parent.parent.name}")
-    if outcome == GATE_ERRORED:
-        return (
-            VERDICT_DENY,
-            f"chock could not check this write: {message}. Refusing rather than reporting an "
-            "allow it never established.",
-        )
-    return None
+    return gate_decision(outcome, message, gate)

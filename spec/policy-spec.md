@@ -123,7 +123,7 @@ default metric: pass_rate
 gate:
   kind: content_regex
   "on": [commit]       # commit | push | tool_use
-  action: block        # block | verify | warn
+  action: block        # block (default) | ask | warn; see spec/gate-dsl.md#actions
   message: <actionable: rule + compliant alternative>
   params:
     content_pattern: <regex>
@@ -167,7 +167,7 @@ optimize_playbook: MAY NOT raise tier
 - warning-level for justified network calls with a `network` effect declared under `verify`/`block` enforcement and approval wiring
 
 > Invariant: **SEC-3** — Gate failures present an actionable message naming the compliant alternative.
-- required in `gate.message` for every hook that declares a `gate` -- unconditional, not per action: the schema lists `message` in `gate.required` under `additionalProperties: false`. `gate.action` is a `const: block`; the `advise`/`verify`/`block` distinction belongs to `enforcement`, a different field (EFF-1)
+- required in `gate.message` for every hook that declares a `gate` -- unconditional, not per action: the schema lists `message` in `gate.required` under `additionalProperties: false`. `gate.action` is `block`, `ask` or `warn`; the `advise`/`verify`/`block` distinction belongs to `enforcement`, a different field (EFF-1), and `verify` is not an action
 
 > Invariant: **SEC-4** — All artifact text surfaces are scanned for prompt-injection tripwires.
 - scan covers: `SKILL.md`, `references/`, `examples/`, `evals/`, templates, manifest string fields (`name`, `description`, `rule.text`, `hook.gate.message`), and eval prompts/expectations

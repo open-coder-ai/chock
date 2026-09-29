@@ -8,7 +8,10 @@ def _judge(event):
             return Decision.escalate(reason) if outcome == ESCALATE else Decision.deny(reason)
     gated = evaluate_gate(sys.argv[1:], event)
     if gated is not None:
-        return Decision.deny(gated[1])
+        outcome, reason = gated
+        if outcome == VERDICT_WARN:
+            return Decision.warn(reason)
+        return Decision.escalate(reason) if outcome == ESCALATE else Decision.deny(reason)
 # __SESSION_START_BRANCH__
     return None
 

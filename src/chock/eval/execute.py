@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 from chock.compile.compiler import _load_manifest
 from chock.eval.model import Case, CaseResult
@@ -106,6 +106,17 @@ def _install_script(repo: Path, policy_dir: Path, gate_spec: dict[str, Any]) -> 
     shutil.copytree(source, repo / Path(named).parent, dirs_exist_ok=True)
 
 
+@contextlib.contextmanager
+def _person_env() -> Iterator[None]:
+    """Judge a case as a person's commit: the agent running the eval must not change its verdict."""
+    names = (gate_runner.AGENT_COMMIT_ENV, gate_runner.CLAUDECODE_ENV, gate_runner.AI_AGENT_ENV, gate_runner.ALLOW_ENV)
+    saved = {name: os.environ.pop(name) for name in names if name in os.environ}
+    try:
+        yield
+    finally:
+        os.environ.update(saved)
+
+
 def _run_gate(repo: Path, gate_spec: dict[str, Any], spec: dict[str, Any]) -> tuple[str, str]:
     """Return (verdict, detail) by running the compiled gate as a git hook would."""
     gate_path = repo / "gate.json"
@@ -121,7 +132,7 @@ def _run_gate(repo: Path, gate_spec: dict[str, Any], spec: dict[str, Any]) -> tu
     prior_log = os.environ.get(GATE_LOG_ENV)
     os.environ[GATE_LOG_ENV] = "0"
     try:
-        with contextlib.redirect_stderr(captured):
+        with contextlib.redirect_stderr(captured), _person_env():
             code = gate_runner.run(gate_path, event, push_stdin, repo)
     finally:
         if prior_log is None:

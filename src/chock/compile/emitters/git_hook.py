@@ -65,6 +65,7 @@ def _emit_script_shims(policy_dir: Path, output_dir: Path, policy_id: str, event
         rendered = (
             SCRIPT_SHIM_TEMPLATE.replace("__POLICY_ID__", policy_id)
             .replace("__GUARD_REL__", f"{rel}/implementations/{script}")
+            .replace("__EVENT__", segment)
             .replace("__ARGV__", ' "$@"' if event in ARGV_EVENTS else "")
         )
         write_generated(shim, rendered)
@@ -85,7 +86,9 @@ def emit(policy_dir: Path, output_dir: Path, manifest: dict[str, Any]) -> list[P
     if spec is None:
         # No declarative gate. A policy whose check needs more than a regex over the diff
         # ships its own script and declares the events it runs at; the shim runs that.
-        return _emit_script_shims(policy_dir, output_dir, policy_id, declared_script_events(manifest))
+        shims = _emit_script_shims(policy_dir, output_dir, policy_id, declared_script_events(manifest))
+        # The shim hands a script's ask or warn to the runner, so a script hook ships it too.
+        return [*shims, vendor_runner(output_dir.parents[2])] if shims else shims
 
     hook_events = [e for e in spec.get("on", []) if e in ("commit", "push")]
     if not hook_events:
