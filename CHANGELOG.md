@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Installing hooks no longer erases a guard's coverage.** `chock install-hooks` auto-compiled
+  any hook policy without git-hook output, but a guard-only or `tool_use`-only policy has none by
+  design, so the recompile rewrote its coverage as a git-hook-only view and every agent read
+  `none`. A policy with any compiled surface is now left alone; a true drop-in still compiles.
+
 - **In-agent gates judge what changed, and honour committed waivers.** At `tool_use` (PreToolUse
   and Stop) a waiver already in HEAD is now honoured, so a line a human waived and committed no
   longer blocks the agent forever; a waiver the edit or turn adds is still ignored. At Stop the
