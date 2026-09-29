@@ -37,6 +37,11 @@
   traceback or a shell syntax error is a crash and asks, like any other non-zero exit. Guards that print
   a reason and `exit 1` still block. Vendored runtimes resynced; the contract is in
   `spec/script-backed-gates.md`.
+- **`--no-registry-check` also skips script integrity.** DET-2 compares a policy's script hashes
+  with the registry, so it is a registry check, but it ran even when the caller asked for none.
+  That was already true of hook artifacts; since a rule's hook is now hashed too, a catalog
+  validating its own source policies (which have no registry entry) was refused. The default
+  still runs DET-2.
 
 ## 0.13.0 — Copilot gates the content an agent writes, and a policy reaches every clone
 
