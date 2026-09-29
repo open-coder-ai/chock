@@ -1,5 +1,17 @@
 # Chock changelog
 
+## Unreleased
+
+- **A policy's `build/` folder now reaches every clone.** Policies install under
+  `.agents/policies/`, and a policy can ship a Python package with a `build/` sub-package (the
+  java-security policy does). Java and Gradle repos, and many global gitignores, ignore `build/`,
+  so that folder was never committed and a fresh clone, CI checkout or Codex worktree crashed the
+  gate with `ImportError: cannot import name 'build'` -- after which the hook refused every edit.
+  `chock init` and `chock sync` now append `!.agents/policies/` and `!.agents/policies/**` to
+  `.gitignore`, the same way they already keep `.chock/bin/` tracked. `__pycache__/` and `*.pyc`
+  under the policies stay ignored, and your own top-level `build/` stays ignored too. Run
+  `chock sync` once and commit the missing folder.
+
 ## 0.12.1 — Plugin hooks that start on Windows
 
 - **A plugin's hook starts on Windows.** Every plugin package (claude, cursor, codex, copilot,

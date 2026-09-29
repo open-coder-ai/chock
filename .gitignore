@@ -55,3 +55,10 @@ dist-test/
 !.chock/bin/**
 !.chock/compiled/
 !.chock/compiled/**
+# chock: installed policies are tracked whole -- a policy's `build/` sub-package must reach every
+# clone, whatever a `build/`, `out/` or `target/` rule elsewhere says
+!.agents/policies/
+!.agents/policies/**
+# chock: bytecode under the policies is per machine (must stay after the rules above)
+.agents/policies/**/__pycache__/
+.agents/policies/**/*.pyc
