@@ -191,14 +191,13 @@ def test_the_ask_does_not_fire_on_a_clean_or_a_violating_guard(agent: str, tmp_p
 
 
 @pytest.mark.parametrize("agent", sorted(ASK_ON_THE_WIRE))
-def test_an_unparseable_command_asks(agent: str, tmp_path: Path, runtimes) -> None:
-    """`rm -rf / #'` is valid bash but not valid shlex: no guard read it, so it is not an allow."""
-    guard = make_guard(tmp_path, "clean.sh", "exit 0")
+def test_an_unparseable_command_still_reaches_the_guard(agent: str, tmp_path: Path, runtimes) -> None:
+    """`rm -rf / #'` is valid bash but not valid shlex: the guard reads the raw command and refuses it."""
+    guard = make_guard(tmp_path, "raw.sh", 'case "$CHOCK_RAW_COMMAND" in *"rm -rf /"*) echo NOPE >&2; exit 1;; esac')
 
     verdict = decision(run(runtimes, agent, guard, "rm -rf / #'"))
 
-    assert verdict.get("decision") == ASK_ON_THE_WIRE[agent], "an unparsed command must not pass unchecked"
-    assert "could not be parsed" in verdict.get("reason", "")
+    assert verdict.get("decision") == DENY_ON_THE_WIRE[agent], "an unparsed command must still be checked"
 
 
 def test_a_missing_bash_asks_and_names_what_to_install(tmp_path: Path, monkeypatch) -> None:

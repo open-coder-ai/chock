@@ -1,5 +1,18 @@
 # Chock changelog
 
+## Unreleased
+
+- **A command guard now runs even when the command will not parse, and a crash is no longer read as a block.**
+  A trailing backslash, an unbalanced quote or PowerShell quoting (`Remove-Item -Recurse C:\`) made
+  `shlex.split` raise, which asked the user for every guard and never let a guard's raw-string branch
+  run. The guard now always runs: argv is a whitespace split when `shlex` fails (`CHOCK_ARGV_FALLBACK=1`
+  says so; the POSIX split is unchanged when it succeeds) and `CHOCK_RAW_COMMAND` is the exact command.
+  Guards also get `CHOCK_TOOL` (`bash`, `powershell`, `shell` or `unknown`) from the hook payload's tool
+  name. An exit 1 is a block only when the guard printed a reason: exit 1 with empty output, a Python
+  traceback or a shell syntax error is a crash and asks, like any other non-zero exit. Guards that print
+  a reason and `exit 1` still block. Vendored runtimes resynced; the contract is in
+  `spec/script-backed-gates.md`.
+
 ## 0.13.0 — Copilot gates the content an agent writes, and a policy reaches every clone
 
 - **An agent's commit cannot waive its own refusal.** A `// chock: allow <rule>` waiver is a
