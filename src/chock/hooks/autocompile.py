@@ -24,7 +24,7 @@ def compile_one_dropin(
         return False
     manifest = yamlio.safe_load(mf_path.read_text(encoding="utf-8")) or {}
 
-    if manifest.get("artifact") != "hook":
+    if manifest.get("artifact") != "hook" and not manifest.get("hook"):
         return False
 
     policy_id = manifest.get("id") or pack_dir.name

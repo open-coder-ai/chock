@@ -200,7 +200,7 @@ def _runtime_referenced(hooks: dict, vendor: str) -> bool:
 
 
 def installed_merged_ids(repo_root: Path, vendor: str) -> set[str]:
-    """Policy ids whose compiled entries are present under any event key chock wires here."""
+    """Policy ids whose compiled entries are all present, under every event key chock wires here."""
     repo_root = Path(repo_root)
     config_path = repo_root / vendors.config_path(vendor)
     if not config_path.exists():
@@ -214,18 +214,20 @@ def installed_merged_ids(repo_root: Path, vendor: str) -> set[str]:
         return set()
 
     compiled = repo_root / ".chock" / "compiled"
-    installed: set[str] = set()
+    wanted_by: set[str] = set()
+    missing: set[str] = set()
     for wiring in MERGED[vendor].wirings:
         entries = hooks.get(wiring.event)
-        if not isinstance(entries, list):
-            continue
+        entries = entries if isinstance(entries, list) else []
         for path in sorted(compiled.glob(wiring.fragment_glob)):
             try:
                 fragment = json.loads(path.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, OSError):
                 continue
+            policy_id = path.parent.parent.name
             wanted = list(fragment.get(wiring.event, []) or []) if wiring.flat else [fragment]
             for candidate in wanted:
-                if any(e == candidate for e in entries if isinstance(e, dict)):
-                    installed.add(path.parent.parent.name)
-    return installed
+                wanted_by.add(policy_id)
+                if not any(e == candidate for e in entries if isinstance(e, dict)):
+                    missing.add(policy_id)
+    return wanted_by - missing

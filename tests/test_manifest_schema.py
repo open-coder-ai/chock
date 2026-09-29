@@ -115,9 +115,14 @@ def test_wrong_payload_for_artifact_errors() -> None:
 
 
 def test_the_schema_admits_a_rule_that_declares_its_script() -> None:
-    """A rule may carry a hook holding only a script: one control, two surfaces."""
+    """A rule may carry a hook holding a script: one control, two surfaces."""
     manifest = {**_rule(), "enforcement": "block", "hook": {"script": {"on": ["commit"]}}}
     VALIDATOR.validate(instance=manifest)
+
+
+def test_the_schema_admits_a_rule_that_declares_its_gate() -> None:
+    gate = {"kind": "forbidden_ref", "on": ["push"], "action": "block", "message": "m", "params": {"refs": ["main"]}}
+    VALIDATOR.validate(instance={**_rule(), "enforcement": "block", "hook": {"gate": gate}})
 
 
 def test_two_payloads_are_rejected_in_code_not_by_the_schema() -> None:
@@ -131,20 +136,12 @@ def test_two_payloads_are_rejected_in_code_not_by_the_schema() -> None:
     from chock.validation.report import Report
 
     manifest = _rule()
-    manifest["hook"] = {
-        "gate": {
-            "kind": "forbidden_ref",
-            "on": ["push"],
-            "action": "block",
-            "message": "blocked",
-            "params": {"refs": ["main"]},
-        }
-    }
+    manifest["workflow"] = _workflow()["workflow"]
     VALIDATOR.validate(instance=manifest)  # the schema no longer objects
 
     report = Report()
     _check_manifest_payload(Path("policies/demo-policy"), manifest, report)
-    assert [f for f in report.errors if f.check == "manifest_payload"], "a rule carrying a gate"
+    assert [f for f in report.errors if f.check == "manifest_payload"], "a rule carrying a workflow"
 
 
 def test_unknown_top_level_key_errors() -> None:

@@ -149,7 +149,7 @@ def _discover_policy_hooks(repo_root: Path, script_name: str) -> list[Path]:
 
 
 def install_policy_hooks(repo_root: Path, hooks_dir: Path) -> None:
-    """Discover compiler-generated git-pre-commit.sh and git-pre-push.sh and register them."""
+    """Discover compiler-generated git-<event>.sh shims and register them under each event dispatcher."""
     if not is_git_repo(repo_root):
         warn(NOT_A_GIT_REPO.format(root=repo_root))
         return
@@ -160,6 +160,7 @@ def install_policy_hooks(repo_root: Path, hooks_dir: Path) -> None:
         "pre-commit": "git-pre-commit.sh",
         "pre-merge-commit": "git-pre-commit.sh",
         "pre-push": "git-pre-push.sh",
+        "commit-msg": "git-commit-msg.sh",
     }
 
     for event, script_name in events.items():

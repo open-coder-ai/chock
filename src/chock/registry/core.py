@@ -131,7 +131,7 @@ def compute_script_hashes(artifact_dir: Path, manifest: dict[str, Any]) -> dict[
                     hashes[rel] = _hash_file(path)
         return hashes
 
-    if artifact == "hook":
+    if artifact == "hook" or manifest.get("hook"):
         impl_dir = artifact_dir / "implementations"
         if impl_dir.exists():
             for path in sorted(impl_dir.rglob("*")):

@@ -70,7 +70,8 @@
             "type": "string",
             "enum": [
               "commit",
-              "push"
+              "push",
+              "commit-msg"
             ]
           }
         }

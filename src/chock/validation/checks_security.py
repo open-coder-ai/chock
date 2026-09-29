@@ -105,7 +105,7 @@ def check_security_baseline(artifact_dir: Path, manifest: dict[str, Any], artifa
     script_dirs: list[Path] = []
     if artifact_type == "skill" and skill_type in {"code", "hybrid"}:
         script_dirs.append(artifact_dir / "scripts")
-    if artifact_type == "hook":
+    if artifact_type == "hook" or manifest.get("hook"):
         script_dirs.append(artifact_dir / "implementations")
 
     for scripts_dir in (d for d in script_dirs if d.exists()):

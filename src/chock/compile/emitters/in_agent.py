@@ -55,7 +55,7 @@ COPILOT_WRITE_MATCHER = "Edit|Write"
 GATE_HOOKS_FILE = "gate-hooks.json"
 
 #: The content fragment claude_code's installer merges, named apart from the shell one so a
-#: policy could one day carry both without either overwriting the other.
+#: policy carrying both never has one overwrite the other.
 WRITE_FRAGMENT = "pretooluse-write.json"
 
 
@@ -241,17 +241,18 @@ def emit_stop(policy_dir: Path, output_dir: Path, manifest: dict[str, Any]) -> l
 
 
 def emit_pre_tool_use(policy_dir: Path, output_dir: Path, manifest: dict[str, Any]) -> list[Path]:
-    """Write the pre-tool-use fragments: a shell guard's, a content gate's, or neither."""
+    """Write the pre-tool-use fragments: a shell guard's, a content gate's, or both."""
     policy_id = manifest.get("id", policy_dir.name)
     script = _guard_script(policy_dir, policy_id)
-    spec = None if script else _tool_use_gate(policy_dir, output_dir)
+    spec = _tool_use_gate(policy_dir, output_dir)
     if not script and spec is None:
         return []
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    if script:
-        return _guard_fragments(policy_dir, script, output_dir)
-    return _gate_fragments(str(policy_id), spec or {}, output_dir)
+    written = _guard_fragments(policy_dir, script, output_dir) if script else []
+    if spec is not None:
+        written += _gate_fragments(str(policy_id), spec, output_dir)
+    return written
 
 
 def build_entry(policy_dir: Path, manifest: dict[str, Any]) -> dict[str, Any] | None:
@@ -276,19 +277,20 @@ def build_gate_entries(policy_id: str) -> dict[str, list[dict[str, Any]]]:
 def emit_agent_hooks(policy_dir: Path, output_dir: Path, manifest: dict[str, Any]) -> list[Path]:
     """Write the per-policy entries; the installer aggregates them into .github/hooks/chock.json."""
     entry = build_entry(policy_dir, manifest)
-    spec = None if entry else _tool_use_gate(policy_dir, output_dir)
+    spec = _tool_use_gate(policy_dir, output_dir)
     if entry is None and spec is None:
         return []
     output_dir.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
     if entry is not None:
-        dest = output_dir / "agent-hooks.json"
-        write_generated_json(dest, entry)
-        return [dest]
-    gate = output_dir / GATE_FILE
-    write_generated_json(gate, spec)
-    dest = output_dir / GATE_HOOKS_FILE
-    write_generated_json(dest, build_gate_entries(str(manifest.get("id", policy_dir.name))))
-    return [gate, dest]
+        written.append(output_dir / "agent-hooks.json")
+        write_generated_json(written[-1], entry)
+    if spec is not None:
+        gate, dest = output_dir / GATE_FILE, output_dir / GATE_HOOKS_FILE
+        write_generated_json(gate, spec)
+        write_generated_json(dest, build_gate_entries(str(manifest.get("id", policy_dir.name))))
+        written += [gate, dest]
+    return written
 
 
 pre_tool_use = SimpleNamespace(emit=emit_pre_tool_use)

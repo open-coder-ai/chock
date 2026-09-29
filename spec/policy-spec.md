@@ -49,11 +49,11 @@ wiring:
 
 ```
 .agents/policies/<id>/
-├── manifest.yaml          # + implementations/ when it declares hook.script
+├── manifest.yaml          # + hook.gate or hook.script; implementations/ when it ships scripts
 └── evals/suite.yaml
 ```
 
-plus ≤2-line rule in ambient file's marked section.
+plus ≤2-line rule in ambient file's marked section; a rule's optional hook (`gate` xor `script`) is the same control on a second surface.
 
 require(hook with action:block): wiring MUST include git hook.
 

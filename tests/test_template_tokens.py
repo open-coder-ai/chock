@@ -41,7 +41,11 @@ def test_git_hook_shim_template_tokens() -> None:
 def test_git_hook_script_shim_template_tokens() -> None:
     rendered = _assert_round_trips(
         git_hook.SCRIPT_SHIM_TEMPLATE,
-        {"__POLICY_ID__": "demo-policy", "__GUARD_REL__": "policies/demo/implementations/demo-pre-commit.py"},
+        {
+            "__POLICY_ID__": "demo-policy",
+            "__GUARD_REL__": "policies/demo/implementations/demo-pre-commit.py",
+            "__ARGV__": "",
+        },
     )
     assert "demo-policy" in rendered
     assert "demo-pre-commit.py" in rendered

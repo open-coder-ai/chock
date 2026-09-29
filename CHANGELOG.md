@@ -2,7 +2,31 @@
 
 ## Unreleased
 
-<<<<<<< HEAD
+- **In-agent gates judge what changed, and honour committed waivers.** At `tool_use` (PreToolUse
+  and Stop) a waiver already in HEAD is now honoured, so a line a human waived and committed no
+  longer blocks the agent forever; a waiver the edit or turn adds is still ignored. At Stop the
+  added lines are the diff of the file on disk against HEAD (a new file is all added), and a
+  whole-file Write is diffed against the current disk file, so an old violation in a touched
+  file no longer blocks every turn end. The baseline is the disk at PreToolUse and HEAD at Stop.
+  `dependency_allowlist` and `test_integrity` now run at `tool_use` too, so a policy declaring
+  `"on": [commit, tool_use]` for them gets in-agent gates. Commit, push and ci are unchanged.
+  Vendored runner resynced.
+- **A policy can carry a shell guard and a content gate together.** A policy with an
+  `implementations/<id>.sh|.py` guard and a `hook.gate` whose `"on"` includes `tool_use` used to get
+  only the guard at the write path; the gate was dropped. Both now compile, on the pre-tool-use
+  surface for claude_code, cursor, codex and the other vendors with a recorded write vocabulary,
+  and in the Copilot hooks file, each in its own fragment so neither overwrites the other. A policy
+  reads as installed for an agent only when every compiled entry is present, so a missing gate entry
+  no longer earns the credit the guard's entry alone used to. Run `chock sync` to pick it up.
+- **A `rule` can carry a `hook.gate`.** The gate is the same control on a second surface, as
+  `hook.script` already was: the rule text stays the ambient line and the INDEX entry, and the gate
+  compiles to the git-hook, pre-tool-use, stop and ci surfaces as an `artifact: hook` gate does.
+  A rule with a payload other than `rule` and one hook is still a `manifest_payload` error.
+- **Script-backed hooks can run at `commit-msg`.** `hook.script.on` accepts `commit-msg`, backed by
+  `implementations/<id>-commit-msg.{sh,py}`. `chock sync` installs a `commit-msg` dispatcher beside
+  `pre-commit` and `pre-push`; git's message-file path arrives as `argv[1]` and the exit code is the
+  verdict. `chock check` pins the declaration to the script both ways (DET-5), and the eval runner
+  does not treat the script as a command guard.
 - **A command guard now runs even when the command will not parse, and a crash is no longer read as a block.**
   A trailing backslash, an unbalanced quote or PowerShell quoting (`Remove-Item -Recurse C:\`) made
   `shlex.split` raise, which asked the user for every guard and never let a guard's raw-string branch
@@ -13,17 +37,6 @@
   traceback or a shell syntax error is a crash and asks, like any other non-zero exit. Guards that print
   a reason and `exit 1` still block. Vendored runtimes resynced; the contract is in
   `spec/script-backed-gates.md`.
-=======
-- **In-agent gates judge what changed, and honour committed waivers.** At `tool_use` (PreToolUse
-  and Stop) a waiver already in HEAD is now honoured, so a line a human waived and committed no
-  longer blocks the agent forever; a waiver the edit or turn adds is still ignored. At Stop the
-  added lines are the diff of the file on disk against HEAD (a new file is all added), and a
-  whole-file Write is diffed against the current disk file, so an old violation in a touched
-  file no longer blocks every turn end. The baseline is the disk at PreToolUse and HEAD at Stop.
-  `dependency_allowlist` and `test_integrity` now run at `tool_use` too, so a policy declaring
-  `"on": [commit, tool_use]` for them gets in-agent gates. Commit, push and ci are unchanged.
-  Vendored runner resynced.
->>>>>>> origin/main
 
 ## 0.13.0 — Copilot gates the content an agent writes, and a policy reaches every clone
 
