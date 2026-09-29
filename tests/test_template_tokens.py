@@ -45,6 +45,7 @@ def test_git_hook_script_shim_template_tokens() -> None:
             "__POLICY_ID__": "demo-policy",
             "__GUARD_REL__": "policies/demo/implementations/demo-pre-commit.py",
             "__ARGV__": "",
+            "__EVENT__": "pre-commit",
         },
     )
     assert "demo-policy" in rendered

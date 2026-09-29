@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.hook.json",
   "title": "ChockHookPayload",
-  "description": "V3 hook payload: exactly one of the compiled gate DSL under 'hook.gate' or, for a check no declarative kind can express, the event declaration under 'hook.script'.",
+  "description": "V3 hook payload: the compiled gate DSL under 'hook.gate', the event declaration under 'hook.script' for a check no declarative kind can express, or both -- the same control on its git events and its tool_use surface.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -35,13 +35,28 @@
             "enum": [
               "commit",
               "push",
-              "tool_use"
+              "tool_use",
+              "tool_call"
             ]
+          }
+        },
+        "outside_repo": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Globs (absolute or starting with ~) of files outside the repository whose writes this gate may judge, at PreToolUse only. Needs tool_use in 'on'.",
+          "items": {
+            "type": "string",
+            "minLength": 1
           }
         },
         "action": {
           "type": "string",
-          "const": "block"
+          "enum": [
+            "block",
+            "ask",
+            "warn"
+          ]
         },
         "message": {
           "type": "string",
@@ -78,7 +93,7 @@
       }
     }
   },
-  "oneOf": [
+  "anyOf": [
     {
       "required": [
         "gate"

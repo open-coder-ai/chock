@@ -20,8 +20,17 @@ arguments (but commit-msg's, below), cwd at the repo root, exit code is the verd
 pre-commit the script already has both revisions (`git show :path` and `git show HEAD:path`).
 
 `commit-msg` is the one event with an argument: git's contract, `argv[1]` is the path of the
-message file. It exits 0 to allow, anything else to refuse.
+message file.
 The pre-commit and pre-push scripts still take none.
+
+**Exit codes**, at every event: `0` allows; `4` warns (the script's own words on stderr are the
+warning, the hook exits 0); `3` asks (a hook cannot prompt, so it refuses unless a person set
+`CHOCK_ALLOW=<policy-id>[,<policy-id>...]` for that command and the command is not an agent's, see
+`spec/gate-dsl.md` "Agent commits"); anything else refuses, `1` with the script's reason and any
+other code or a missing script as a broken install. The generated shim runs the script and hands a
+`3` or `4` to `gate.py script-verdict`, which is why a script-only policy also vendors the runner.
+A warn or an ask is a record in the gate log (`verdict: warn|ask`). A script-backed hook has no
+declared action, so it is graded as enforcing; only a `hook.gate` with `action: warn` is not.
 
 `on` is authoritative. The compiler wires exactly the events it names, never what the
 directory happens to contain.
@@ -36,9 +45,13 @@ its directory suggests.
 Either a `hook` or a `rule`. `artifact: hook` has no payload for rule text and its ambient
 surface is a machine rendering of the gate spec; a script-backed check has no spec to render,
 so requiring `artifact: hook` would trade the rule an agent reads for a near-empty stub. A
-`rule` may therefore carry a `hook` holding a `script` or a `gate` -- neither is a second
-artifact but the same control on a second surface. The hook still holds exactly one of the
-two (`hook.gate` and `hook.script` together are a schema error).
+`rule` may therefore carry a `hook` holding a `script`, a `gate`, or both -- neither is a second
+artifact but the same control on more surfaces. A hook with both keeps its event script (say
+`pre-commit`) and adds a gate at `tool_use`: the compiler emits the script's git shims and the
+gate's surfaces, DET-5 still binds the script, and coverage is credited per surface (the script
+backs the git event only). One git event has one shim, so a gate and a script may not both run at
+`commit` or both at `push` (`manifest_script_events`); a gate may add `tool_use`, which a script
+cannot.
 
 A rule carrying a `hook.gate` keeps its own text as the ambient surface; the gate compiles to
 the git-hook, pre-tool-use, stop and ci surfaces exactly as an `artifact: hook` gate does, and
@@ -55,8 +68,25 @@ reads as installed only when all of its compiled entries are present.
 `implementations/<id>.sh` is invoked with a command's argv by the in-agent PreToolUse hooks
 and the eval runner. An event script is invoked with nothing. The eval runner excludes the
 event-named scripts (`-pre-commit`, `-pre-push`, `-commit-msg`), because handing one an eval case's command would score a verdict it
-never gave; a policy backed only by an event script stays tier 3 in `chock check --only
-evals` until the runner can stage a tree for it.
+never gave. The guard is resolved strictly as `implementations/<id>.{sh,py}` (else the legacy
+map); no other file in the directory is ever taken for it.
+
+## Eval cases for event scripts
+
+An `execute` case with `event: pre-commit | pre-push | commit-msg` runs the policy's script for
+that event in a staged throwaway repo: `head_files` committed, `files` staged, then the script
+runs at the repo root as the shim would. `commit-msg` takes `message` (the text of the message
+file passed as `argv[1]`); `pre-push` takes `stdin`, the lines git feeds the hook. Exit 0 is
+`allow`, a refusal is `block`, a crash (exit 1 with no reason) is an error, so a broken script
+never scores a block. Such cases are executable, not tier 3.
+
+```yaml
+execute: {event: commit-msg, message: "WIP\n", expect: block}
+```
+
+Gate cases may likewise run at the agent events: `event: tool_use | stop` with `writes` (the
+files as the agent leaves them, not staged) and optional `head_files` and `added`, replayed
+through the gate runner at that event.
 
 ## Command guard contract
 
@@ -71,7 +101,8 @@ eval runner, always, whether or not the command parses.
 - **`CHOCK_TOOL`.** The tool that ran the command, from the hook payload's tool name:
   `bash` (Bash), `powershell` (PowerShell, pwsh), `shell` (sh, shell, run_shell_command,
   Cursor's beforeShellExecution, any other name containing "shell"), else `unknown`.
-- **Exit codes.** `0` allows. `3` asks; the first output line is the prompt. `1` blocks only
+- **Exit codes.** `0` allows. `3` asks; the first output line is the prompt. (`4` warns only for a
+  `script` gate and a script-backed git hook, above; a command guard exiting 4 is not checked.) `1` blocks only
   when the guard gave a reason: non-empty stderr (stdout also read) that is not a crash
   signature (`Traceback (most recent call last)`, `syntax error`, `SyntaxError`, `unexpected
   EOF`). Exit `1` with empty output or a crash signature is an interpreter failure and asks

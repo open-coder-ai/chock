@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import stat
 from pathlib import Path
 
@@ -11,7 +12,7 @@ import yaml
 
 from chock.eval.cli import main, run_deterministic
 from chock.eval.derive import derive_cases
-from chock.eval.execute import run_case
+from chock.eval.execute import _person_env, run_case
 from chock.eval.model import Case, CaseResult, PolicyResult
 from chock.eval.suites import discover_policies
 
@@ -236,3 +237,13 @@ def test_an_unreadable_compiled_gate_errors_rather_than_using_the_manifest(tmp_p
 
     spec, source = resolve_gate(repo / ".agents" / "policies" / "scan-secrets", repo)
     assert spec is None and source == "unreadable"
+
+
+def test_a_gate_case_is_judged_as_a_persons_commit_whoever_runs_the_eval(monkeypatch) -> None:
+    """An agent running the suite sets markers that would flip a waiver case; the case must not notice."""
+    for name, value in (("CLAUDECODE", "1"), ("AI_AGENT", "x"), ("CHOCK_ALLOW", "p"), ("CHOCK_AGENT_COMMIT", "1")):
+        monkeypatch.setenv(name, value)
+    with _person_env():
+        assert not any(k in os.environ for k in ("CLAUDECODE", "AI_AGENT", "CHOCK_ALLOW", "CHOCK_AGENT_COMMIT"))
+    assert os.environ["CLAUDECODE"] == "1"
+    assert os.environ["CHOCK_ALLOW"] == "p"

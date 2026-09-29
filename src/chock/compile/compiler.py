@@ -12,6 +12,7 @@ from typing import Any, NoReturn
 
 import yaml
 
+from chock.compile.actions import credited_surfaces
 from chock.compile.emitters import (
     ambient,
     ci,
@@ -129,7 +130,10 @@ def compile_policy(
         if not emitted and surface_dir.exists():
             shutil.rmtree(surface_dir, ignore_errors=True)
 
-    selected_set = {Surface(t) for t, paths in artifacts.items() if paths}
+    has_guard = in_agent._guard_script(policy_dir, policy_id) is not None
+    selected_set = credited_surfaces(
+        {Surface(t) for t, paths in artifacts.items() if paths}, manifest, has_guard=has_guard
+    )
     agent_list = agents or sorted(SURFACE_AGENTS)
     root = Path(repo_root) if repo_root else output_root.parent.parent
     vendor_installed = {vendor: installed_policy_ids(root, vendor) for vendor in WIRED_VENDORS}

@@ -39,7 +39,7 @@ GATE_SCRIPT = textwrap.dedent(
     payload = json.load(sys.stdin)
     texts = payload["writes"]
     if any("CRASH" in t for t in texts.values()):
-        sys.exit(3)
+        sys.exit(7)
     if any("HANG" in t for t in texts.values()):
         time.sleep(5)
     hits = sorted(p for p, t in texts.items() if "FORBIDDEN" in t)
@@ -148,7 +148,7 @@ def test_a_script_that_crashes_refuses(tmp_path: Path, capsys: pytest.CaptureFix
     gate = _gate(tmp_path)
     assert run(gate, "pre-tool-use", None, tmp_path, writes={"App.java": "CRASH"}) == 1
     err = capsys.readouterr().err
-    assert "exited 3" in err
+    assert "exited 7" in err
     assert "refusing" in err
 
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from chock import gatelog
 from chock.gatelog import installed_policies, main, read_events, summarize
 
 RECORDS = [
@@ -110,3 +111,12 @@ def test_json_output_is_machine_readable(tmp_path: Path, capsys) -> None:
     payload = json.loads(capsys.readouterr().out)
     assert payload["events"] == 4
     assert {"summary", "silent", "events"} == set(payload)
+
+
+def test_warn_and_ask_are_counted_apart_from_allow_and_block() -> None:
+    rows = [
+        {"ts": "2026-08-01T00:00:00Z", "policy_id": "p", "surface": "git-hook", "verdict": verdict}
+        for verdict in ("allow", "warn", "warn", "ask", "block")
+    ]
+    (entry,) = gatelog.summarize(rows)
+    assert (entry["events"], entry["allow"], entry["warn"], entry["ask"], entry["block"]) == (5, 1, 2, 1, 1)

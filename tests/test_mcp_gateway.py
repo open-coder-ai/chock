@@ -253,3 +253,31 @@ def test_egress_matches_an_international_host_by_its_dns_name():
     gates = [_gate("egress_allowlist", {"allowed_hosts": ["xn--r8jz45g.jp"]})]
     assert gateway_gates.evaluate(gates, "fetch", {"url": "https://例え.jp/"}) is None
     assert gateway_gates.evaluate(gates, "fetch", {"url": "https://例え.jp.evil.io/"}) is not None
+
+
+def _content_gate(action: str) -> dict:
+    return {
+        "policy_id": "gw",
+        "kind": "content_regex",
+        "action": action,
+        "message": "no BAD",
+        "params": {"content_pattern": "BAD"},
+    }
+
+
+def test_the_gateway_blocks_a_block_and_an_ask():
+    """A proxy on a pipe has no person to ask, so an ask is a block that says why."""
+    blocked = gateway_gates.evaluate([_content_gate("block")], "t", {"x": "BAD"})
+    asked = gateway_gates.evaluate([_content_gate("ask")], "t", {"x": "BAD"})
+    assert blocked and "no BAD" in blocked
+    assert asked and asked.startswith(blocked) and "cannot prompt" in asked
+
+
+def test_the_gateway_lets_a_warn_through_and_says_so_on_stderr(capsys):
+    assert gateway_gates.evaluate([_content_gate("warn")], "t", {"x": "BAD"}) is None
+    assert "warning: [gw] no BAD" in capsys.readouterr().err
+
+
+def test_a_warn_does_not_hide_a_later_block():
+    gates = [_content_gate("warn"), {**_content_gate("block"), "policy_id": "other"}]
+    assert "[other]" in gateway_gates.evaluate(gates, "t", {"x": "BAD"})

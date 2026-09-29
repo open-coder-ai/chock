@@ -8,14 +8,10 @@ from typing import Any
 import yaml
 
 from chock import yamlio
-from chock.compile.emitters import GUARD_SUFFIXES, SCRIPT_EVENTS
+from chock.compile.emitters.in_agent import _guard_script as guard_script
 from chock.eval.model import Case
 from chock.manifest import load_manifest
 from chock.validation.loading import discover_artifacts
-
-#: A script named for a git event runs at that event with no argv and reads the change
-#: from git itself. Handing it an eval case's command would score a verdict it never gave.
-_EVENT_STEMS = tuple(f"-{segment}" for segment in SCRIPT_EVENTS.values())
 
 
 def _suite_doc(policy_dir: Path) -> dict[str, Any]:
@@ -71,11 +67,13 @@ class Policy:
 
     @property
     def guards(self) -> list[Path]:
-        """Command guards shipped with the policy: argv in, exit code out."""
-        impl = self.dir / "implementations"
-        if not impl.is_dir():
-            return []
-        return sorted(p for p in impl.iterdir() if p.suffix in GUARD_SUFFIXES and not p.stem.endswith(_EVENT_STEMS))
+        """The command guard, resolved strictly by name: argv in, exit code out.
+
+        `implementations/<id>.{sh,py}`, else the legacy map. Never "any script there": helper
+        modules, gate programs and git-event scripts are not command guards.
+        """
+        name = guard_script(self.dir, self.id)
+        return [self.dir / "implementations" / name] if name else []
 
     @property
     def deterministic(self) -> bool:

@@ -39,6 +39,13 @@ from policy_fixtures import FIXTURE_MANIFEST, FIXTURE_SUITE, FIXTURE_TOKEN, GUAR
 FRAMEWORK_ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.fixture(autouse=True)
+def human_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run as a person's shell: an agent running this suite sets markers that make every commit an agent's."""
+    for name in ("CHOCK_AGENT_COMMIT", "CLAUDECODE", "AI_AGENT", "CHOCK_ALLOW"):
+        monkeypatch.delenv(name, raising=False)
+
+
 @dataclass
 class Result:
     """What an adopter observes from running a command."""

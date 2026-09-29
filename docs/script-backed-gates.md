@@ -39,7 +39,10 @@ policy enforcing less than its directory suggests.
 - **No arguments.** At pre-commit the guard already has both revisions: `git show :path` is the
   staged blob and `git show HEAD:path` its predecessor. Nothing is passed in.
 - **The working directory is the repo root.**
-- **The exit code is the verdict** — 0 allows, anything else refuses. A shim whose script has
+- **The exit code is the verdict** — 0 allows, 4 warns (the script's own words on stderr, the
+  commit goes ahead), 3 asks (refused unless a person runs that command with
+  `CHOCK_ALLOW=<policy-id>` and it is not an agent's commit, see
+  [Enforcement Surfaces](enforcement-surfaces.md)), anything else refuses. A shim whose script has
   gone missing exits 2 rather than 0: a gate that cannot find its own guard must refuse.
 - **Stdlib only**, like the vendored runner. The script is copied into every adopting repo, so
   it may not import anything that repo does not already have.
@@ -66,9 +69,18 @@ Two different files, two different contracts, and confusing them is silent:
 | `implementations/<id>.sh` | in-agent PreToolUse hooks, the eval runner | a command's argv | exit code |
 | `implementations/<id>-pre-commit.py` | the installed git hook | nothing | exit code |
 
-The eval runner excludes the event-named scripts, because handing one an eval case's command
-would score a verdict it never gave. A policy backed only by an event script therefore stays
-tier 3 in `chock check --only evals` until the runner can stage a tree for it.
+The eval runner resolves the guard strictly as `implementations/<id>.sh|.py`, so an event script,
+a gate script or a helper module is never taken for it. To eval an event script, write an
+`execute` case with `event: pre-commit | pre-push | commit-msg`: the runner stages `files` over
+`head_files` in a throwaway repo and runs the script (`message` for commit-msg, `stdin` lines for
+pre-push). Exit 0 is `allow`, a refusal is `block`, and a crash is an error, never a block.
+
+```yaml
+execute: {event: pre-commit, head_files: {page.html: "<a id=x>"}, files: {page.html: "<a>"}, expect: block}
+```
+
+A hook may also carry both `gate` and `script`: keep the pre-commit script and add a gate at
+`tool_use`. They may not both run at the same git event.
 
 ## See also
 

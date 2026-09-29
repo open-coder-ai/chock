@@ -65,7 +65,7 @@ def test_the_opt_in_var_forces_agent_treatment(tmp_path: Path, monkeypatch: pyte
 
 
 @pytest.mark.parametrize(
-    "env", [{AGENT_COMMIT_ENV: "0"}, {AGENT_COMMIT_ENV: ""}, {"TERM_PROGRAM": "vscode"}, {"CLAUDECODE": "1"}]
+    "env", [{AGENT_COMMIT_ENV: "0"}, {AGENT_COMMIT_ENV: ""}, {"TERM_PROGRAM": "vscode"}, {"CLAUDECODE": "0"}]
 )
 def test_unrelated_or_off_env_is_a_human_commit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, env: dict) -> None:
     repo = _repo(tmp_path)

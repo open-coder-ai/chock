@@ -19,5 +19,12 @@
     "client": "Copilot CLI and VS Code agent mode",
     "date": "2026-08-23",
     "method": "live probe: an exit-2 deny blocked a matched command on both (chock 5d78831)"
+  },
+  {
+    "agent": "claude_code",
+    "surface": "git-hook-env",
+    "client": "Claude Code, Bash tool (CLAUDECODE=1, AI_AGENT=claude-code_<version>_agent)",
+    "date": "2026-09-29",
+    "method": "live probe: both variables were in the environment of a pre-commit hook run by `git commit` from the Bash tool (chock 1b0bcdd)"
   }
 ]

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Any, Iterator
 from urllib.parse import unquote
@@ -143,6 +144,15 @@ def evaluate(gates: list[dict[str, Any]], _tool_name: str, arguments: Any) -> st
         if evaluator is None:
             return f"[{spec.get('policy_id', '?')}] unevaluable gateway gate kind {kind!r}; refusing (fail closed)"
         message = evaluator(spec, arguments)
-        if message:
-            return f"[{spec.get('policy_id', '?')}] {message}"
+        if not message:
+            continue
+        text = f"[{spec.get('policy_id', '?')}] {message}"
+        if spec.get("action") == "warn":
+            # A warning never blocks: the call goes through and the operator's stderr has the words.
+            sys.stderr.write(f"chock: warning: {text}\n")
+            continue
+        # `ask` blocks: a proxy on a pipe has no person to ask.
+        return (
+            f"{text} (asks a person; the gateway cannot prompt, so it blocks)" if spec.get("action") == "ask" else text
+        )
     return None

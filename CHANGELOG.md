@@ -2,6 +2,71 @@
 
 ## 0.14.0 — Guards that run on any command, gates that judge only what changed, and a guard and a gate on one policy
 
+- **A `tool_call` script asks and warns too.** Exit `3` asks the person and exit `4` warns, as at
+  every other event, and the gate's declared `action` caps the verdict and any refusal: a warn
+  gate never denies a tool call, an ask gate never denies outright.
+- **A gate can warn or ask instead of blocking.** `hook.gate.action` was documented as
+  `block | verify | warn`, the schema accepted only `block`, and the runner ignored it. It is now
+  `block` (default), `ask` or `warn`, and `verify` (a value of `enforcement`) is refused. `warn`
+  never blocks: at commit, push and ci the reason is printed (a `::warning::` annotation in CI) and
+  the exit is 0; in the agent Claude Code gets it as PreToolUse `additionalContext` (no
+  `permissionDecision`, so its permission prompt is untouched), other vendors get stderr and the gate
+  log, and at Stop it is a message, never a block. `ask` asks the person in the agent
+  (`permissionDecision: ask` where the vendor honours one, a deny elsewhere); at commit and push it
+  refuses unless `CHOCK_ALLOW=<policy-id>[,...]` is set on that command and it is not an agent commit;
+  in CI and at Stop it is a warning; the mcp-gateway blocks it. A `script` gate chooses its own
+  verdict by exit code (0 allow, 1 block, 3 ask, 4 warn) under its declared action; an exit 1 with no
+  words or a crash signature is undecided and takes the declared action. Script-backed hooks read
+  exit 3 as ask and 4 as warn, through the runner, which a script-only policy now vendors. The gate
+  log records `warn` and `ask`, and `chock status --only log` counts them. A policy whose only
+  mechanism warns is no longer credited as enforcing. Vendored runtimes and runner resynced; run
+  `chock sync`.
+- **An agent's commit is detected without opt-in.** `CLAUDECODE=1`, a non-empty `AI_AGENT` (both set
+  by Claude Code's Bash tool and witnessed reaching a git hook), or any variable named under
+  `agent_commit_env:` in `.chock/config.yaml` now marks a commit as an agent's, as `CHOCK_AGENT_COMMIT`
+  always did. `CHOCK_AGENT_COMMIT=0` wins over every marker, for a person's git in an agent's
+  terminal. Codex, Cursor and Copilot markers stay unverified. A person whose shell exports
+  `CLAUDECODE` or `AI_AGENT` now sees their own waivers ignored until they set `CHOCK_AGENT_COMMIT=0`.
+  Eval cases are judged as a person's commit whoever runs them.
+- **Installing hooks no longer erases a guard's coverage.** `chock install-hooks` auto-compiled
+  any hook policy without git-hook output, but a guard-only or `tool_use`-only policy has none by
+  design, so the recompile rewrote its coverage as a git-hook-only view and every agent read
+  `none`. A policy with any compiled surface is now left alone; a true drop-in still compiles.
+- **A hook can carry both a `gate` and a `script`.** `hook` was exactly one of the two, so a
+  policy with a pre-commit script could not also gate the write path. The schema now takes at
+  least one; the git-hook emitter compiles both (the script's event shims plus the gate's
+  `gate.json` and shims), the tool_use surfaces compile the gate, and coverage is credited per
+  surface as before. DET-5 still pins `hook.script.on` to the scripts on disk. A gate and a script
+  may not both run at the same git event (`manifest_script_events`): they would share one shim.
+- **`test_integrity` honours its waiver at agent events the way `content_regex` does.** At
+  `tool_use` and an agent's commit the `allowlist_pragma` was ignored outright; now a waiver counts
+  only when that line is already in HEAD, and a waiver the agent adds still does not.
+- **The eval runner resolves the command guard by name and replays more than commit and push.**
+  The guard is `implementations/<id>.sh|.py` (else the legacy map), so helper modules and gate
+  scripts are never taken for it, and a `.py` guard runs under Python. An `execute` case may set
+  `event: tool_use` (`pre-tool-use`) or `stop` with `writes` (and `head_files`, `added`), replayed
+  through the real gate runner at that event. It may also set `event: pre-commit`, `pre-push` or
+  `commit-msg` to run the policy's event script in a staged throwaway repo (`files`, `message`,
+  `stdin`); exit 0 allows, a refusal blocks, a crash is an error. These cases count as executable,
+  not tier 3. Vendored runner resynced.
+- **A gate can judge any tool call by its name.** `"on": [tool_call]` with `params.tools` (globs such
+  as `mcp__Firecrawl__*`, `WebFetch`, `mcp__*`) runs a `content_regex` (over the JSON-serialised tool
+  input) or `script` gate at PreToolUse; a script gets `{"event": "tool_call", "repo_root", "tool",
+  "input", "session"}` and answers by exit code, allow or block. It is emitted for Claude Code, Codex
+  CLI, Cursor, Gemini CLI and Copilot, the vendors whose vendor facts record a tool vocabulary;
+  Antigravity, Devin, Grok, Tabnine and Windsurf get no entry and coverage credits them nothing for it.
+  Run `chock sync` to pick it up; vendored runtimes resynced.
+- **A gate can guard writes outside the repository.** A gate declaring `outside_repo: [<glob>]`
+  (absolute, or starting with `~`, expanded per machine; Windows paths compare the Windows way)
+  receives writes to matching absolute paths, e.g. `~/.claude/memory/*`; every other outside write is
+  still ignored. Judged at PreToolUse only: Stop reads the worktree through git and cannot see them.
+- **Script gates can ask what happened earlier in the session.** Hooks for a `tool_call` script gate
+  append a record per tool call (tool, a path, command first line or URL without query, outcome) to
+  `.chock/state/<session_id>.jsonl`, last 500 kept, files older than 7 days pruned, never file
+  contents or environment values. Scripts receive `"session": {"id", "log_path", "tool_use_id"}` and can
+  import the vendored stdlib helper `chock_session.py`. `chock sync` adds `.chock/state/` to
+  `.gitignore`. Nothing leaves the machine; the format is in `spec/session-log.md`.
+
 - **In-agent gates judge what changed, and honour committed waivers.** At `tool_use` (PreToolUse
   and Stop) a waiver already in HEAD is now honoured, so a line a human waived and committed no
   longer blocks the agent forever; a waiver the edit or turn adds is still ignored. At Stop the
