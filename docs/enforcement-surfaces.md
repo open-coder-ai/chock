@@ -32,8 +32,11 @@ each guarantee holds.
 > CI, never a substitute -- and a policy reads the same word whether or not `stop` is wired.
 > Because it reads the worktree, `applies_to.paths` is what keeps it off files the policy was
 > never about; a pattern broad enough to hit documentation needs that bound first. A per-line
-> `allowlist_pragma` is **not** honoured here or at the write path -- only where a human staged
-> the text (`WAIVABLE_EVENTS`). The agent that was refused is the one holding the pen.
+> `allowlist_pragma` is honoured here and at the write path only on a line already in HEAD: a
+> human's committed waiver still counts, one the agent adds this turn does not (`WAIVABLE_EVENTS`
+> are the staged events where any waiver counts). The agent that was refused is the one holding
+> the pen. Only lines the turn changed against HEAD are judged, so an old violation in a touched
+> file does not block the turn.
 >
 > **An agent's commit is not a human's.** The commit hook cannot tell who ran `git commit`, and an
 > agent that can run it could add the waiver itself. Set `CHOCK_AGENT_COMMIT=1` in the

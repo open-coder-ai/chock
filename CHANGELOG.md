@@ -1,5 +1,17 @@
 # Chock changelog
 
+## Unreleased
+
+- **In-agent gates judge what changed, and honour committed waivers.** At `tool_use` (PreToolUse
+  and Stop) a waiver already in HEAD is now honoured, so a line a human waived and committed no
+  longer blocks the agent forever; a waiver the edit or turn adds is still ignored. At Stop the
+  added lines are the diff of the file on disk against HEAD (a new file is all added), and a
+  whole-file Write is diffed against the current disk file, so an old violation in a touched
+  file no longer blocks every turn end. The baseline is the disk at PreToolUse and HEAD at Stop.
+  `dependency_allowlist` and `test_integrity` now run at `tool_use` too, so a policy declaring
+  `"on": [commit, tool_use]` for them gets in-agent gates. Commit, push and ci are unchanged.
+  Vendored runner resynced.
+
 ## 0.13.0 — Copilot gates the content an agent writes, and a policy reaches every clone
 
 - **An agent's commit cannot waive its own refusal.** A `// chock: allow <rule>` waiver is a
