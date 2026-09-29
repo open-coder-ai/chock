@@ -34,6 +34,14 @@ each guarantee holds.
 > never about; a pattern broad enough to hit documentation needs that bound first. A per-line
 > `allowlist_pragma` is **not** honoured here or at the write path -- only where a human staged
 > the text (`WAIVABLE_EVENTS`). The agent that was refused is the one holding the pen.
+>
+> **An agent's commit is not a human's.** The commit hook cannot tell who ran `git commit`, and an
+> agent that can run it could add the waiver itself. Set `CHOCK_AGENT_COMMIT=1` in the
+> environment of an agent's shell (any value but empty, `0`, `false`, `no`, `off`) and the
+> pre-commit gate judges the commit at the event `agent-commit`: a waiver the commit adds is not
+> honoured, one already in HEAD still is, and a refusal says so. A person commits from their own
+> shell with it unset. Chock detects no vendor variable on its own: none is verified to reach a
+> git hook. Pre-push and CI are unchanged, and CI honours a waiver in the range it reads.
 
 > **`agent-hooks` shell caveat, stated rather than glossed.** The surface genuinely
 > enforces: it runs the guard before the tool call and honours exit 2 as deny (witnessed on

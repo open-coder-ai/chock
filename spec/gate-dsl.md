@@ -20,7 +20,7 @@ For `artifact: hook` policies, the gate is declared under `hook.gate` in `manife
 | `content_pattern` | yes | string | regex matched against each line or the blob |
 | `scan` | no | string | `added_lines` (default) or `staged_blob` |
 | `forbidden_path_regex` | no | string | regex applied to staged file paths |
-| `allowlist_pragma` | no | string | regex matched on lines/blobs; matching content is ignored |
+| `allowlist_pragma` | no | string | regex matched on lines/blobs; matching content is ignored at commit, push and ci. With `CHOCK_AGENT_COMMIT` set, only a waiver already in HEAD is honoured |
 
 **At the mcp-gateway** (when `"on"` includes `tool_use`): the gate is emitted to the
 `mcp-gateway` surface and evaluated against each `tools/call` argument string. Only
@@ -91,7 +91,7 @@ Extracted names are lowercased and compared against a lowercased allowlist.
 | `test_path_regex` | yes | string | regex matched against staged paths to identify test files |
 | `assertion_pattern` | yes | string | regex matched against a line to count it as an assertion |
 | `dummy_assertion_pattern` | no | string | regex for a vacuous assertion (`assert True`, `expect(true)`); matched only on added lines |
-| `allowlist_pragma` | no | string | regex matched on a line; a match on an added line skips that file's counting entirely |
+| `allowlist_pragma` | no | string | regex matched on a line; a match on an added line skips that file's counting entirely; not honoured with `CHOCK_AGENT_COMMIT` set |
 
 Blocks three shapes of a change that wins green CI by weakening the tests rather than
 fixing the code: a deleted test file, a **net** loss of assertions across the whole
