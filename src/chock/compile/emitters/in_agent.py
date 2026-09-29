@@ -18,7 +18,7 @@ from chock.compile.emitters.in_agent_hooks import (
     hook_entry,
 )
 from chock.emit import write_generated_json
-from chock.gate.build import build_gate_json
+from chock.gate.build import build_gate_json, vendor_runner
 from chock.gate.runner import WRITE_PATH_KINDS
 from chock.hooks.launch import hook_command
 
@@ -124,6 +124,14 @@ def _guard_fragments(policy_dir: Path, script: str, output_dir: Path) -> list[Pa
     return written
 
 
+def _write_gate(spec: dict[str, Any], output_dir: Path) -> Path:
+    """Write the gate file and vendor the runner it needs: a tool_use-only gate has no git hook to do it."""
+    gate = output_dir / GATE_FILE
+    write_generated_json(gate, spec)
+    vendor_runner(output_dir.parents[2])
+    return gate
+
+
 def _gate_fragments(policy_id: str, spec: dict[str, Any], output_dir: Path) -> list[Path]:
     """The content fragments, for the vendors whose write vocabulary is actually recorded.
 
@@ -131,9 +139,7 @@ def _gate_fragments(policy_id: str, spec: dict[str, Any], output_dir: Path) -> l
     would gate a tool name nobody verified the vendor uses, so those vendors get no fragment
     and the coverage they are credited with stays exactly what it was.
     """
-    gate = output_dir / GATE_FILE
-    write_generated_json(gate, spec)
-    written: list[Path] = [gate]
+    written: list[Path] = [_write_gate(spec, output_dir)]
 
     reference = f"{_compiled_rel(policy_id)}/{GATE_FILE}"
     for vendor in sorted(vendors.in_agent_vendors()):
@@ -180,9 +186,7 @@ def _stop_fragments(policy_id: str, spec: dict[str, Any], output_dir: Path) -> l
     on, so nothing here depends on a write vocabulary -- the reason this surface reaches
     seven vendors where the write path reaches three.
     """
-    gate = output_dir / GATE_FILE
-    write_generated_json(gate, spec)
-    written: list[Path] = [gate]
+    written: list[Path] = [_write_gate(spec, output_dir)]
 
     for vendor in vendors.stop_vendors():
         command = hook_command(_adapter_rel(vendor), "--gate", f"{_stop_rel(policy_id)}/{GATE_FILE}")
