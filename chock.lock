@@ -38,9 +38,9 @@
       "id": "block-wildcard-agent-permissions",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "84f1abd22069e058c86daaff175d57f8cd1a0b74e028903327f342f055992971",
+      "sha256": "123c2f3a5c286c2677f00e0ac93cef75c4604e84a1af2464fb89c91b0575aed4",
       "source": "local",
-      "artifacts_sha256": "393f17ade534f8d7116c6156fc20041d8a514f72f657465ea095359d88d1290d"
+      "artifacts_sha256": "cb2ef666328377d02d295fb8a5febfc10269c4d31888e31a8ca97b15cda6a7e7"
     },
     {
       "id": "code-safety",
@@ -94,9 +94,9 @@
       "id": "pin-github-actions",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "4835ac4f1fc2bd4c0b13a1d9f99d40265135c0abe315f4b49378fd89befc415e",
+      "sha256": "53677765d84916220ac717424bbdf9dce4089257bfc873a3ed354cdb38f7865c",
       "source": "local",
-      "artifacts_sha256": "a33f59a73ab35f1f0eea61f83b20aedd01992e740dbc3fdc539a844bd7289a35"
+      "artifacts_sha256": "d06407114c835bf72632fd2258992c8fb2880c02611f067d24c194536d236b8d"
     },
     {
       "id": "pre-generated-scripts",
@@ -142,9 +142,9 @@
       "id": "scan-secrets",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "f4183f6f5d24f9ccfe0a5823a6ceaaff1fb2a7ad4da1db67dcd0ba596f2c0c90",
+      "sha256": "ac98dc12772df80b1133d262996d7e52b279281c1f1df2095693aceba58952ec",
       "source": "local",
-      "artifacts_sha256": "5166c048549ad13fd6b63ef7a65bcf1a1975cc5154a872b242c9fdfaef3b09b4"
+      "artifacts_sha256": "03d7151bae8c6343fb090375426b8d99e65b62728663db9a590bdc876b776fc4"
     },
     {
       "id": "test-integrity",
@@ -152,7 +152,7 @@
       "managed": false,
       "sha256": "c140c5ca23c3e9dde10712b889840ee9a4a1976f7cb328d088f8f781e03c274e",
       "source": "local",
-      "artifacts_sha256": "c5e8de5994b7c5a044203babbca3db334500cab99e66ac409ba07daa5baf51a6"
+      "artifacts_sha256": "c5d2e1f614b609c98c3da3c2e33beb9196beeacec4e3f7c7541f3bd1b08c1db4"
     },
     {
       "id": "token-efficiency",

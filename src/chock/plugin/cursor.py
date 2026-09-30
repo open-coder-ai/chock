@@ -66,7 +66,6 @@ POSTURE_GATE_CURSOR = gate_package.gate_posture(
     "In Cursor the turn's end is not held: a refusal there is handed back to the agent as a "
     "follow-up message, once, and a hook that fails to answer lets the turn end.",
 )
-_GATE_NOTE_CURSOR = gate_package.gate_skill_note("cursor")
 
 
 def _gate_command() -> str:
@@ -122,7 +121,7 @@ def cursor_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
     if script:
         skill = skill.replace(generic, _ENFORCED_NOTE_CURSOR)
     elif gate:
-        skill = skill.replace(generic, _GATE_NOTE_CURSOR)
+        skill = skill.replace(generic, gate_package.gate_skill_note("cursor", gate.get("action")))
 
     files: dict[Path, str] = {
         Path(_LAYOUT["manifest"]): json.dumps(

@@ -66,7 +66,6 @@ POSTURE_GATE_COPILOT = gate_package.gate_posture(
     "vscode_copilot",
     "Enforces only in a client that reads the com.github.copilot namespace and tells the hook where the package lives; a client that exports no plugin-root variable runs the hook, which then allows, so treat this package as advisory unless a deny has been witnessed in your own client.",
 )
-_GATE_NOTE_COPILOT = gate_package.gate_skill_note("vscode_copilot")
 
 
 def _gate_command() -> str:
@@ -112,7 +111,7 @@ def copilot_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: 
     if script:
         skill = skill.replace(generic, _COPILOT_ENFORCED_NOTE)
     elif gate:
-        skill = skill.replace(generic, _GATE_NOTE_COPILOT)
+        skill = skill.replace(generic, gate_package.gate_skill_note("vscode_copilot", gate.get("action")))
 
     files: dict[Path, str] = {
         Path(_LAYOUT["manifest"]): json.dumps(

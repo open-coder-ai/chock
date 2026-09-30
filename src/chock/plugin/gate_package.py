@@ -42,18 +42,23 @@ _WRITE_AND_STOP_POSTURE = (
     "judged. Enforcement at every commit and in CI still needs chock installed in the repo."
 )
 _STOP_ONLY_NOTE = (
-    "This policy is enforced in this client by the Stop hook installed with the plugin: the "
+    "This policy __LEAD__ the Stop hook installed with the plugin: the "
     "write itself is not judged here, because the client records no write-tool vocabulary, "
     "and what the turn left on disk is judged at its end instead. Subject to the fail "
     "conditions stated in the plugin description. Repo-wide enforcement across every commit "
     "and in CI still needs `chock sync`. See https://github.com/open-coder-ai/chock"
 )
 _WRITE_AND_STOP_NOTE = (
-    "This policy is enforced in this client by the PreToolUse and Stop hooks installed with "
+    "This policy __LEAD__ the PreToolUse and Stop hooks installed with "
     "the plugin, subject to the fail conditions stated in the plugin description. Repo-wide "
     "enforcement across every commit and in CI still needs `chock sync`. "
     "See https://github.com/open-coder-ai/chock"
 )
+_ACTION_LEAD = {
+    "block": "is enforced in this client by",
+    "ask": "asks the person before the action proceeds, through",
+    "warn": "warns, and does not block, through",
+}
 
 
 def gate_reach(vendor: str) -> tuple[str | None, bool]:
@@ -92,10 +97,11 @@ def gate_posture(vendor: str, caveat: str = "") -> str:
     return f"{text} {caveat}".strip()
 
 
-def gate_skill_note(vendor: str) -> str:
-    """The note the packaged skill ends with when it carries a gate."""
+def gate_skill_note(vendor: str, action: str | None = None) -> str:
+    """The note the packaged skill ends with when it carries a gate: block unless the gate asks or warns."""
     matcher, _ = gate_reach(vendor)
-    return _WRITE_AND_STOP_NOTE if matcher is not None else _STOP_ONLY_NOTE
+    note = _WRITE_AND_STOP_NOTE if matcher is not None else _STOP_ONLY_NOTE
+    return note.replace("__LEAD__", _ACTION_LEAD.get(action or "block", _ACTION_LEAD["block"]))
 
 
 def runner_source() -> str:

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **A packaged skill's gate note states the gate's action.** Every Claude, Codex, Copilot, Cursor
+  and Devin package with a tool-use gate said the policy "is enforced in this client", including a
+  gate that only asks or warns. The note now reads "asks the person before the action proceeds" or
+  "warns, and does not block" for those gates, and keeps "is enforced" for a gate that blocks.
 - **SKILL.md footers say what chock actually enforces.** The footer was picked by artifact type
   alone, so a rule with a command guard, a git script or a gate still read "stays advisory even
   when compiled", and a hook whose gate only warns, or binds only at tool use, still read "becomes
@@ -11,6 +15,18 @@
 - **Plugin keywords use a compliance entry's control id.** A dict-shaped `owasp_asi` entry such
   as `{control: ASI01, coverage: partial}` was stringified whole into `plugin.json` `keywords`.
   The keyword is now the control id, lowercased.
+- **The MCP gateway judges a `content_regex` gate inside its scope.** The gateway matched every
+  string argument of a tool call, so `pin-github-actions` (bounded to `.github/workflows/*` and
+  `.github/actions/*`) refused a README written through an MCP filesystem tool for quoting
+  `uses: a/b@v4`. The gateway spec now carries `applies_to.paths`. A call's write target is read
+  from the same argument keys the session log uses (`file_path`, `filePath`, `path`,
+  `notebook_path`, `target_file`, `TargetFile`). Content is judged only at an in-scope path,
+  `forbidden_path_regex` applies to that path, and a path-bounded gate does not judge a call that
+  names no path. Gates with no bound behave as before. `allowlist_pragma` stays unhonoured there:
+  a waiver the agent writes into its own call must never lift the block.
+- **The SKILL.md advisory line shows the gate's paths and no longer cuts a regex mid-pattern.**
+  `paths=<applies_to globs>` follows the gate kind; a regex param (`*_regex`, `*_pattern`,
+  `*_pragma`) longer than 60 characters renders as `<name>(regex)`, shorter ones in full.
 - **`chock sync --check` compares committed agent-hook configs.** It compared only the compiled
   tree, so a vendor hook config still naming a guard script a later sync had replaced passed the
   check while the gate failed closed and denied every shell command. It now runs the real

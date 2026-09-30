@@ -12,6 +12,8 @@ from chock.gate.build import build_gate_json
 
 _VALUE_CHARS = 48
 _PARAMS_CHARS = 120
+_REGEX_SHORT = 60
+_REGEX_SUFFIXES = ("_regex", "_pattern", "_pragma")
 _GIT = shutil.which("git") or "git"
 
 _PLACEHOLDER = re.compile(r"\{(\w+)\}")
@@ -56,6 +58,14 @@ def _clip(text: str) -> str:
     return text if len(text) <= _VALUE_CHARS else text[: _VALUE_CHARS - 3] + "..."
 
 
+def _item(key: str, value: Any) -> str:
+    """`k=v`; a regex past `_REGEX_SHORT` becomes `k(regex)`, never a pattern cut mid-way."""
+    text = _scalar(value)
+    if key.endswith(_REGEX_SUFFIXES) and len(text) > _REGEX_SHORT:
+        return f"{key}(regex)"
+    return f"{key}={_clip(text)}"
+
+
 def _render_params(params: dict[str, Any]) -> str:
     """`k=v` pairs in manifest order, clipped to keep the line readable."""
     rendered: list[str] = []
@@ -66,7 +76,7 @@ def _render_params(params: dict[str, Any]) -> str:
         # before). The line an agent reads, and the packaged SKILL.md that carries it, must not
         # change with the address: the bare name is what the manifest declared.
         shown = Path(str(value)).name if key == "script" else value
-        item = f"{key}={_clip(_scalar(shown))}"
+        item = _item(key, shown)
         if rendered and used + len(item) > _PARAMS_CHARS:
             rendered.append("...")
             break
@@ -83,7 +93,9 @@ def _gate_lines(spec: dict[str, Any]) -> list[str]:
     """`on(events): action(kind) params` plus the resolved block message."""
     events = "|".join(str(e) for e in spec.get("on") or []) or "any"
     head = f"on({events}): {spec.get('action') or 'block'}({spec.get('kind')})"
-    params = _render_params(spec.get("params") or {})
+    # The bound comes first: it is what tells an agent which files the gate reaches.
+    scope = f"paths={_scalar(spec['paths'])}" if spec.get("paths") else ""
+    params = " ".join(part for part in (scope, _render_params(spec.get("params") or {})) if part)
     if params:
         head = f"{head} {params}"
     message = _first_line(template_message(str(spec.get("message") or ""), spec.get("params") or {}))

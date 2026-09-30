@@ -1,1 +1,3 @@
-{}
+{
+  "forbidden_path_regex": "manifest param name read by the vendored stdlib-only runner (cannot import chock), the gate schema and the gateway evaluator"
+}

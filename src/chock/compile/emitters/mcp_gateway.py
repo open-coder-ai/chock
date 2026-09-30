@@ -33,6 +33,10 @@ def emit(_policy_dir: Path, output_dir: Path, manifest: dict[str, Any]) -> list[
         "message": template_message(str(gate.get("message", "")).strip(), params),
         "params": params,
     }
+    # The gate's reach travels with it: the gateway judges content only inside applies_to.paths.
+    scope = (manifest.get("applies_to") or {}).get("paths")
+    if scope:
+        spec["paths"] = [str(p) for p in scope]
     dest = Path(output_dir) / "gateway-gate.json"
     write_generated_json(dest, spec)
     return [dest]

@@ -64,7 +64,6 @@ POSTURE_GATE_CODEX = gate_package.gate_posture(
     "codex_cli",
     "Codex requires a one-time trust review per hook -- the plugin is ADVISORY until you approve its hook, and a plugin update voids that trust until re-approved.",
 )
-_GATE_NOTE_CODEX = gate_package.gate_skill_note("codex_cli")
 
 
 def _gate_command() -> str:
@@ -123,7 +122,7 @@ def codex_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
     if script:
         skill = skill.replace(generic, _ENFORCED_NOTE_CODEX)
     elif gate:
-        skill = skill.replace(generic, _GATE_NOTE_CODEX)
+        skill = skill.replace(generic, gate_package.gate_skill_note("codex_cli", gate.get("action")))
 
     files: dict[Path, str] = {
         Path(_LAYOUT["manifest"]): json.dumps(

@@ -262,3 +262,37 @@ def test_the_packaged_runner_is_invoked_the_way_the_hook_would(policy, tmp_path:
         check=False,
     )
     assert proc.returncode == 1 and "forbidden marker" in proc.stderr
+
+
+@pytest.mark.parametrize("vendor", ["claude_code", "codex_cli", "cursor", "devin", "vscode_copilot"])
+def test_gate_skill_note_states_the_gates_real_action(vendor: str) -> None:
+    from chock.plugin.gate_package import gate_skill_note
+
+    assert "is enforced in this client by" in gate_skill_note(vendor)
+    assert gate_skill_note(vendor, "block") == gate_skill_note(vendor)
+    assert "asks the person before the action proceeds" in gate_skill_note(vendor, "ask")
+    assert "is enforced" not in gate_skill_note(vendor, "ask")
+    assert "warns, and does not block" in gate_skill_note(vendor, "warn")
+    assert "is enforced" not in gate_skill_note(vendor, "warn")
+
+
+@pytest.mark.parametrize(
+    ("module", "func"),
+    [
+        ("claude", "claude_plugin_files"),
+        ("codex", "codex_plugin_files"),
+        ("copilot", "copilot_plugin_files"),
+        ("cursor", "cursor_plugin_files"),
+        ("devin", "devin_plugin_files"),
+    ],
+)
+@pytest.mark.parametrize(("action", "lead"), [("warn", "warns, and does not block"), ("ask", "asks the person before")])
+def test_every_packaged_skill_states_its_gates_action(policy, tmp_path: Path, module, func, action, lead) -> None:
+    import importlib
+
+    manifest = _manifest(kind="content_regex")
+    manifest["hook"]["gate"]["action"] = action
+    files = getattr(importlib.import_module(f"chock.plugin.{module}"), func)(policy(manifest), manifest, tmp_path)
+    skill = next(text for rel, text in files.items() if rel.name == "SKILL.md")
+    assert lead in skill
+    assert "is enforced in this client" not in skill
