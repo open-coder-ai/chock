@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- **A watch-only rollout mode.** `rollout: observe | ask | enforce` in `.chock/config.yaml` caps
+  how far compiled gates escalate: observe turns a block or ask into a warning, ask caps at ask
+  (and an ask does not fail CI), enforce (the default, and what an absent, repeated, unreadable,
+  unknown or symlinked value means) changes nothing. Not capped: command guards, `tool_call`
+  gates, the MCP gateway and a script hook's own exit 1, which still block. A gate the level
+  lowered logs `rollout`, `would_action` and `would_block` to `.chock/log/gate-events.jsonl`, even
+  with `CHOCK_GATE_LOG=0`, and `chock status --only log` counts them. Nothing the judged actor
+  can edit lowers the level: an agent (a tool call, the turn's end, an agent's commit) is held to
+  the stricter of HEAD's committed level and the working tree's; at CI the base's committed level
+  caps the head's, so a pull request cannot lower its own gates; `CHOCK_ROLLOUT` counts only for a
+  person's own commit or push. `chock check --only baseline --base <ref>` refuses a downgrade,
+  reading the level the way the runtime does (line by line, not as YAML), so a config the two
+  would read differently cannot hide one. `chock status` leads with `ROLLOUT:` and where the level
+  came from whenever it is below enforce. The catalog's protect-agent-config and block-no-verify
+  must also cover `.chock/config.yaml` and `CHOCK_ROLLOUT` / `CHOCK_GATE_LOG` for agents that set
+  no marker.
 - **A findings refusal leads with the finding.** A script gate's refusal put the policy's long
   message first and the findings last, so an agent read the boilerplate before the `path:line:`
   that mattered. Findings now come first, then a one-line summary, then the policy message. A

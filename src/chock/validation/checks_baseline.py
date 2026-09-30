@@ -12,6 +12,7 @@ import yaml
 
 from chock import yamlio
 from chock.config import policy_status
+from chock.gate.runner import ROLLOUT_RANK, committed_rollout, rollout_from_text
 from chock.validation.report import Finding, Report, emit
 
 CONFIG_REL = Path(".chock") / "config.yaml"
@@ -100,11 +101,30 @@ def weakenings(base: dict[str, Any] | None, head: dict[str, Any] | None) -> list
     return found
 
 
+def rollout_weakening(repo_root: Path, base: str) -> Weakening | None:
+    """A rollout level the head lowers below the base's, read the way the runtime reads it.
+
+    The runtime reads `rollout:` line by line, without YAML; comparing parsed YAML here would let a
+    config that the two read differently (a quoted multi-line value, a file that is not a mapping)
+    run at observe while this check saw enforce. A symlinked config counts at its target's level,
+    the looser reading, so a link can never hide a downgrade from this check.
+    """
+    path = Path(repo_root) / CONFIG_REL
+    try:
+        now = rollout_from_text(path.read_text(encoding="utf-8")) if path.is_file() else rollout_from_text("")
+    except (OSError, UnicodeDecodeError):
+        now = rollout_from_text("")
+    was = committed_rollout(Path(repo_root), base)
+    return Weakening("rollout", was, now) if ROLLOUT_RANK[now] < ROLLOUT_RANK[was] else None
+
+
 def check_baseline(repo_root: Path, base: str, report: Report) -> None:
-    """One error per policy `.chock/config.yaml` weakens relative to `base`."""
+    """One error per policy `.chock/config.yaml` weakens relative to `base`, and a lowered rollout level."""
     repo_root = Path(repo_root)
     try:
         found = weakenings(config_at(repo_root, base), config_in_worktree(repo_root))
+        lowered = rollout_weakening(repo_root, base)
+        found = [lowered, *found] if lowered else found
     except BaselineError as exc:
         report.add(Finding(str(repo_root / CONFIG_REL), _CATEGORY, "error", f"{exc} -- nothing was compared"))
         return

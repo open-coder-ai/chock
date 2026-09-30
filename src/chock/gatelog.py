@@ -70,10 +70,12 @@ def summarize(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "block": 0,
                 "ask": 0,
                 "warn": 0,
+                "would_block": 0,
                 "last_block": None,
             },
         )
         entry["events"] += 1
+        entry["would_block"] += record.get("would_block") is True
         verdict = record.get("verdict")
         if verdict in ("ask", "warn"):
             entry[verdict] += 1
@@ -169,22 +171,19 @@ def installed_policies(repo_root: Path) -> list[str]:
 
 
 def render_text(summary: list[dict[str, Any]], silent: list[str]) -> str:
-    if not summary:
-        lines = ["No gate outcomes recorded yet."]
-    else:
-        width = max(len(str(e["policy_id"])) for e in summary)
-        lines = [
-            f"{'policy'.ljust(width)}  {'surface':<13} {'events':>6} {'allow':>6} {'block':>6} {'ask':>4} {'warn':>5}  last block"
-        ]
-        for entry in summary:
-            last = entry["last_block"] or "never"
-            lines.append(
-                f"{str(entry['policy_id']).ljust(width)}  {entry['surface']:<13} "
-                f"{entry['events']:>6} {entry['allow']:>6} {entry['block']:>6} {entry['ask']:>4} {entry['warn']:>5}  {last}"
-            )
+    cols = ("events", "allow", "block", "ask", "warn") + (
+        ("would_block",) if any(e["would_block"] for e in summary) else ()
+    )
+    width = max((len(str(e["policy_id"])) for e in summary), default=0)
+    lines = [f"{'policy'.ljust(width)}  {'surface':<13} " + " ".join(f"{c:>6}" for c in cols) + "  last block"]
+    for entry in summary:
+        cells = " ".join(f"{entry[c]:>{max(len(c), 6)}}" for c in cols)
+        lines.append(
+            f"{str(entry['policy_id']).ljust(width)}  {entry['surface']:<13} {cells}  {entry['last_block'] or 'never'}"
+        )
+    lines = lines if summary else ["No gate outcomes recorded yet."]
     if silent:
-        lines.append("")
-        lines.append(f"Never recorded ({len(silent)}): {', '.join(silent)}")
+        lines += ["", f"Never recorded ({len(silent)}): {', '.join(silent)}"]
         lines.append("Advisory policies emit no runtime event, so absence here is not evidence of a gap.")
     return "\n".join(lines)
 

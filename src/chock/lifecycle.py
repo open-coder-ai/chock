@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -155,6 +156,24 @@ def _log_args(args: argparse.Namespace) -> list[str]:
     return given + (["--json"] if args.json else [])
 
 
+def _print_rollout(repo: Path) -> None:
+    """Lead with a level below enforce, where it came from, and what it does not reach."""
+    from chock.gate.runner import ROLLOUT_ENFORCE, ROLLOUT_ENV, agent_signal, rollout
+
+    signal = agent_signal(repo)
+    level = rollout(repo, "pre-commit", signal)
+    if level == ROLLOUT_ENFORCE:
+        return
+    from_env = signal is None and os.environ.get(ROLLOUT_ENV, "").strip() == level
+    source = f"{ROLLOUT_ENV}={level} in this shell" if from_env else "`rollout:` in .chock/config.yaml"
+    ceiling = "warn" if level == "observe" else "ask (and an ask does not fail CI)"
+    print(
+        f"ROLLOUT: {level}, from {source} -- compiled gates {ceiling} instead of blocking and record what "
+        "enforce would have stopped (`chock status --only log`); command guards, tool_call gates and the "
+        "MCP gateway still block. Remove it to enforce."
+    )
+
+
 def status_main(argv: list[str] | None) -> int:
     """Read-only picture of the repo: policy table, plus registry and gate log on request."""
     parser = argparse.ArgumentParser(prog="chock status")
@@ -178,6 +197,8 @@ def status_main(argv: list[str] | None) -> int:
     if "log" not in selected and _log_args(args):
         print("--policy, --since, --json, --by and --format apply to `--only log`", file=sys.stderr)
         return 2
+
+    _print_rollout(Path(args.repo).resolve())
 
     rc = 0
     if "policies" in selected:
