@@ -27,10 +27,12 @@ Set WaitPattern /❯/
 Set WaitTimeout 60s
 Set Theme { "name": "chock", "background": "#0D1626", "foreground": "#E8EEF6", "selection": "#1F3254", "cursor": "#D9B45C", "black": "#0A1220", "red": "#F29B8A", "green": "#9ED3A6", "yellow": "#D9B45C", "blue": "#7FB8F0", "magenta": "#C9A8F0", "cyan": "#86D3DB", "white": "#C9D4E2", "brightBlack": "#5A6B80", "brightRed": "#F7B3A6", "brightGreen": "#B8E3BE", "brightYellow": "#F0CF7D", "brightBlue": "#9ECBF5", "brightMagenta": "#DAC2F5", "brightCyan": "#A6E1E7", "brightWhite": "#FFFFFF" }
 
-# --- hidden setup: a throwaway repo on an (unborn) main branch at a fixed path, onboarded
-# with `chock init`, a gold prompt, and a person's shell rather than an agent's, so the
-# output reads the same wherever the tape is rendered. EXAMPLE_KEY is AWS's documented
-# example key, assembled here so this file carries no key-shaped literal. ---
+# --- hidden setup: a throwaway repo on an (unborn) main branch in a fresh temp directory,
+# onboarded with `chock init`. If that setup fails the shell exits and the render fails -- the
+# scenes must never run (and commit) inside the checkout rendering the tape. A gold prompt and a
+# person's shell rather than an agent's keep the output the same wherever the tape is rendered.
+# EXAMPLE_KEY is AWS's documented example key, assembled here so this file carries no
+# key-shaped literal. ---
 Hide
 Sleep 1s
 Type `G=$(printf '\342\235\257'); X=$(printf '\342\234\227')`
@@ -42,7 +44,7 @@ Sleep 500ms
 Type `export EXAMPLE_KEY="AKIA$(printf 'IOSFODNN7%s' EXAMPLE)"`
 Enter
 Sleep 300ms
-Type "unset CLAUDECODE AI_AGENT; rm -rf /work/demo && git -c init.defaultBranch=main init -q /work/demo && cd /work/demo"
+Type `unset CLAUDECODE AI_AGENT; D="$(mktemp -d)" && git -c init.defaultBranch=main init -q "$D" && cd "$D" || exit 1`
 Enter
 Wait
 Type "git config user.email demo@example.com && git config user.name Demo && chock init . >/dev/null"
