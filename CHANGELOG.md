@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **A packaged skill's gate note states the gate's action.** Every Claude, Codex, Copilot, Cursor
+  and Devin package with a tool-use gate said the policy "is enforced in this client", including a
+  gate that only asks or warns. The note now reads "asks the person before the action proceeds" or
+  "warns, and does not block" for those gates, and keeps "is enforced" for a gate that blocks.
 - **SKILL.md footers say what chock actually enforces.** The footer was picked by artifact type
   alone, so a rule with a command guard, a git script or a gate still read "stays advisory even
   when compiled", and a hook whose gate only warns, or binds only at tool use, still read "becomes

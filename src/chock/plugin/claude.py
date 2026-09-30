@@ -44,7 +44,6 @@ _ENFORCED_NOTE = (
     "enforcement across every commit and in CI still needs `chock sync`. "
     "See https://github.com/open-coder-ai/chock"
 )
-_ENFORCED_GATE_NOTE = gate_package.gate_skill_note("claude_code")
 
 _GATE_REL = _SCRIPTS_TEMPLATE.format(name=GATE_FILE)
 
@@ -123,7 +122,7 @@ def claude_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
     if script:
         skill = skill.replace(generic, _ENFORCED_NOTE)
     elif gate:
-        skill = skill.replace(generic, _ENFORCED_GATE_NOTE)
+        skill = skill.replace(generic, gate_package.gate_skill_note("claude_code", gate.get("action")))
 
     skill_rel = Path(packaging.supports("claude_code", packaging.SKILL).format(name=name))
     files: dict[Path, str] = {

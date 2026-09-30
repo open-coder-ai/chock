@@ -76,7 +76,6 @@ POSTURE_GATE_DEVIN = gate_package.gate_posture(
     "devin",
     "In the vendor's own words, plugin hooks are best effort and fail open, documented for local Devin sessions only.",
 )
-_GATE_NOTE_DEVIN = gate_package.gate_skill_note("devin")
 
 
 def _gate_command() -> str:
@@ -122,7 +121,7 @@ def devin_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
     if script:
         skill = skill.replace(generic, _BESTEFFORT_NOTE_DEVIN)
     elif gate:
-        skill = skill.replace(generic, _GATE_NOTE_DEVIN)
+        skill = skill.replace(generic, gate_package.gate_skill_note("devin", gate.get("action")))
 
     files: dict[Path, str] = {
         Path(_LAYOUT["manifest"]): json.dumps(
