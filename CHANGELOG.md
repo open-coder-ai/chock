@@ -19,6 +19,9 @@
   and sibling packages kept under `scripts/<member>/` and its hook commands re-pointed there. The
   bundle description states each member's enforcement, and its posture sentence is the weakest
   member's. `chock marketplace build` lists bundles first in the index and in `PLUGINS.md`.
+  A bundle writes its own `LICENSE`, and only when every member shares one licence and holder
+  (dated from the oldest member); a member's notice is never carried over to cover the others. A
+  `--bundles` file that does not exist fails the build instead of reading as "no bundles".
 - **Runtime bytecode stays out of git.** `.chock/bin/` holds Python the hooks import, so running a
   hook wrote `__pycache__` there, and the `!.chock/bin/**` rule that keeps the runtime tracked
   re-included it: every adopter saw untracked bytecode after the first hook ran. `chock sync` now

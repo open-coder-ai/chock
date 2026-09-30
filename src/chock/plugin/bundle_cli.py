@@ -94,6 +94,11 @@ def bundle_step(
     """Package the repo's bundles over its full policy set: (differences, bundle ids produced)."""
     formats, out_root = run_args
     path = Path(bundles_arg) if bundles_arg else repo_root / bundles.BUNDLES_FILE
+    if bundles_arg and not path.is_file():
+        # Only the default file is optional: a named one that is missing must not read as "no
+        # bundles", or the stale sweep would delete every bundle already built.
+        msg = f"{path}: no such bundles file"
+        raise bundles.BundleError(msg)
     bundle_list = bundles.load_bundles(path) if path.is_file() else []
     by_id = {}
     for policy_dir in policy_dirs:

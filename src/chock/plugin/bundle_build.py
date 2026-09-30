@@ -30,7 +30,7 @@ DEPENDS, MERGED = "dependencies", "merged"
 FilesFn = Callable[[Path, dict[str, Any], Path], dict[Path, str]]
 
 
-class MergeCollisionError(ValueError):
+class MergeCollisionError(bundles.BundleError):
     """Two members would write different bytes to one path of a merged bundle."""
 
 
@@ -97,6 +97,11 @@ def _synthetic_manifest(bundle: dict[str, Any], members: list[Member], descripti
         values = {str((m.manifest.get("provenance") or {}).get(key)) for m in members} - {"None", ""}
         if len(values) == 1:
             provenance[key] = values.pop()
+    if {"license", "author"} <= provenance.keys():
+        # One licence and one holder across the members: the bundle's notice dates from its oldest.
+        years = sorted(str((m.manifest.get("provenance") or {}).get("created_at") or "")[:4] for m in members)
+        if years and all(y.isdigit() for y in years):
+            provenance["created_at"] = years[0]
     return {
         "id": bundle["id"],
         "name": bundle.get("name") or bundle["id"],
@@ -163,6 +168,15 @@ def meta_plugin_files(
     manifest = _bundle_manifest(client, bundle, packages, carries_hooks=False, note=_META_NOTE)
     manifest["dependencies"] = [plugin_name(m.id) for m in members]
     files = {Path(packaging.layout(client.package_agent)["manifest"]): json.dumps(manifest, indent=2) + "\n"}
+    return _with_licence(files, bundle, members)
+
+
+def _with_licence(files: dict[Path, str], bundle: dict[str, Any], members: list[Member]) -> dict[Path, str]:
+    """The bundle's own LICENSE, written only when every member shares one licence and holder.
+
+    A member's LICENSE is never carried over: it would claim to cover the other members' files.
+    """
+    files.pop(LICENSE_REL, None)
     licence = license_text(_synthetic_manifest(bundle, members, "", bundle_grade.ADVISORY))
     if licence:
         files[LICENSE_REL] = licence
@@ -226,7 +240,7 @@ def merged_files(client_name: str, bundle: dict[str, Any], members: list[Member]
             if rel.as_posix().startswith(SCRIPTS_DIR) and rel not in shared
         }
         for rel, content in member_files.items():
-            if rel == manifest_rel:
+            if rel in (manifest_rel, LICENSE_REL):
                 continue
             if rel == hooks_rel:
                 _merge_docs(hooks, _repoint(json.loads(content), moved))
@@ -238,7 +252,7 @@ def merged_files(client_name: str, bundle: dict[str, Any], members: list[Member]
     files[manifest_rel] = json.dumps(manifest, indent=2) + "\n"
     if hooks:
         files[hooks_rel] = json.dumps(hooks, indent=2) + "\n"
-    return dict(sorted(files.items()))
+    return dict(sorted(_with_licence(files, bundle, members).items()))
 
 
 def agent_plugins_files(bundle: dict[str, Any], members: list[Member], repo_root: Path) -> dict[Path, str]:
@@ -246,12 +260,12 @@ def agent_plugins_files(bundle: dict[str, Any], members: list[Member], repo_root
     files: dict[Path, str] = {}
     for member in members:
         for rel, content in plugin_files(member.policy_dir, member.manifest, repo_root, packaged=True).items():
-            if rel != Path("plugin.json"):
+            if rel not in (Path("plugin.json"), LICENSE_REL):
                 _place(files, rel, content)
     text = bundles.bundle_description(bundle["description"], [(m.id, bundle_grade.ADVISORY_SAYS) for m in members])
     synthetic = _synthetic_manifest(bundle, members, text, bundle_grade.ADVISORY)
     files[Path("plugin.json")] = json.dumps(build_manifest(synthetic, Path(bundle["id"])), indent=2) + "\n"
-    return dict(sorted(files.items()))
+    return dict(sorted(_with_licence(files, bundle, members).items()))
 
 
 def bundle_files(fmt: str, bundle: dict[str, Any], members: list[Member], repo_root: Path) -> dict[Path, str]:
