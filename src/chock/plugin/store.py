@@ -9,6 +9,7 @@ from typing import Any, Callable
 from agentseam import packaging
 
 from chock.emit import write_generated
+from chock.plugin.gate_package import IMPLEMENTATIONS
 
 _DATA = Path(__file__).resolve().parent / "data" / "stores"
 
@@ -21,6 +22,20 @@ FilesFn = Callable[[Path, dict[str, Any], Path], dict[Path, str]]
 #: of repeating the literal.
 SCRIPTS_TEMPLATE = packaging.supports("claude_code", packaging.EXECUTABLE)
 assert packaging.supports("copilot", packaging.EXECUTABLE) == SCRIPTS_TEMPLATE  # noqa: S101 -- import-time cross-check of two upstream constants
+
+
+def guard_files(policy_dir: Path, script: str) -> dict[Path, str]:
+    """The guard script plus the sibling packages (dirs with __init__.py) it imports, by scripts path."""
+    root = Path(policy_dir) / IMPLEMENTATIONS
+    sources = {Path(script): root / script}
+    for init in sorted(root.glob("*/__init__.py")):
+        for path in sorted(init.parent.rglob("*.py")):
+            if "__pycache__" not in path.parts:
+                sources[path.relative_to(root)] = path
+    return {
+        Path(SCRIPTS_TEMPLATE.format(name=rel.as_posix())): path.read_text(encoding="utf-8")
+        for rel, path in sources.items()
+    }
 
 
 def owned_subtrees(store: str) -> tuple[str, ...]:
