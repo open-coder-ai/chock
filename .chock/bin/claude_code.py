@@ -876,6 +876,17 @@ def run_guard_detailed(guard: _chock_Path, command: str, tool: str='') -> tuple[
         return (GUARD_ERRORED, '')
     return (GUARD_CLEAN, '')
 
+def append_gate_log(chock_root: _chock_Path, record: dict) -> None:
+    """Append one record, stamped, to `<chock_root>/log/gate-events.jsonl`, rotating past the size cap."""
+    log_dir = chock_root / 'log'
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / 'gate-events.jsonl'
+    if log_path.exists() and log_path.stat().st_size > _LOG_MAX_BYTES:
+        log_path.replace(log_dir / 'gate-events.1.jsonl')
+    stamped = {'ts': _chock_datetime.now(_chock_timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), **record}
+    with log_path.open('a', encoding='utf-8') as fh:
+        fh.write(json.dumps(stamped, ensure_ascii=False) + '\n')
+
 def log_outcome(guard: _chock_Path, tool: str, *, verdict: str) -> None:
     """Append one outcome record. Best effort: never raises, never changes the verdict."""
     try:
@@ -891,14 +902,8 @@ def log_outcome(guard: _chock_Path, tool: str, *, verdict: str) -> None:
                 break
         if artifact_root is None:
             return
-        log_dir = artifact_root / 'log'
-        log_dir.mkdir(parents=True, exist_ok=True)
-        log_path = log_dir / 'gate-events.jsonl'
-        if log_path.exists() and log_path.stat().st_size > _LOG_MAX_BYTES:
-            log_path.replace(log_dir / 'gate-events.1.jsonl')
-        record = {'ts': _chock_datetime.now(_chock_timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), 'policy_id': guard.parent.parent.name, 'surface': 'pre-tool-use', 'event': 'tool_use', 'kind': guard.stem, 'tool': tool, 'verdict': verdict}
-        with log_path.open('a', encoding='utf-8') as fh:
-            fh.write(json.dumps(record, ensure_ascii=False) + '\n')
+        record = {'policy_id': guard.parent.parent.name, 'surface': 'pre-tool-use', 'event': 'tool_use', 'kind': guard.stem, 'tool': tool, 'verdict': verdict}
+        append_gate_log(artifact_root, record)
     except Exception:
         return
 
@@ -1384,124 +1389,196 @@ def session_record(root, event, phase, outcome=None):
 
 REENTRY_CAP = 3
 
+STOP_LEDGER_SUFFIX = '.stop.jsonl'
+
 STOP_PHASE = 'stop'
 
-STOP_DENY = 'deny'
+STOP_TURN_KEYS = ('turn_id', 'generation_id')
 
-_GATE_LOG_ENV = 'CHOCK_GATE_LOG'
+STOP_COUNT_KEY = 'loop_count'
 
-_GATE_LOG_PARTS = ('.chock', 'log', 'gate-events.jsonl')
+STOP_DIGEST_CHARS = 16
 
-_LOG_MAX_BYTES = 1048576
+REENTRY_CLEAN = 'clean'
 
-_FIRST = 0
+REENTRY_REFUSED = 'refused'
 
-VERDICT_CLEAN = 'clean'
+REENTRY_CAPPED = 'cap-reached'
 
-VERDICT_REFUSED = 'refused'
+REENTRY_UNTRACKED = 'untracked'
 
-VERDICT_REPORTED = 'already-reported'
+STOP_LOG_BLOCK = 'block'
 
-VERDICT_CAPPED = 'cap-reached'
+STOP_LOG_ALLOW = 'allow'
 
-VERDICT_UNTRACKED = 'untracked'
+STOP_LOG_WARN = 'warn'
 
-_PERSON = ' This turn was refused {cap} times: a person must review these findings before the work is accepted.'
+_STOP_LAST = "\nThis is refusal {cap} of {cap} for this turn's end: the next stop ends the turn with these findings still on disk, and a commit will refuse them. A person must review them."
+
+_STOP_WARNING = 'chock {policy}: this turn ended with findings still on disk{why}. The turn was allowed to end so the client does not loop; a commit will refuse these findings, and a person must review them.\n'
+
+_STOP_WHY = {REENTRY_CAPPED: ' after {cap} refused stops', REENTRY_UNTRACKED: ' (the stop record under .chock/state could not be written, so re-entries cannot be counted)'}
+
+_STOP_SINCE = {True: ' (changed since the last refusal)', False: ' (unchanged since the last refusal)'}
 
 def reentries(event):
     """How many times the client says this stop re-entered its hook: `loop_count`, else 1 for `stop_hook_active`."""
     raw = event.raw if isinstance(event.raw, dict) else {}
     try:
-        counted = int(raw.get('loop_count') or 0)
+        counted = int(raw.get(STOP_COUNT_KEY) or 0)
     except (TypeError, ValueError):
         counted = 1
     return max(counted, 1 if raw.get('stop_hook_active') else 0)
 
-def _fingerprint(message):
-    """The findings set as a digest of the refusal that named it: never the text itself."""
-    return _chock_hashlib.sha256(message.encode('utf-8', 'replace')).hexdigest()[:16]
+def _stop_turn(event):
+    """The vendor's turn id, when the payload carries one; None otherwise."""
+    raw = event.raw if isinstance(event.raw, dict) else {}
+    for key in STOP_TURN_KEYS:
+        value = raw.get(key)
+        if isinstance(value, str) and value:
+            return value[:SESSION_ID_MAX]
+    return None
 
-def _turn_records(path, policy):
-    """This policy's Stop records since its last first Stop of the session, oldest first."""
+def _stop_digest(*parts):
+    digest = _chock_hashlib.sha256()
+    for part in parts:
+        digest.update(str(part).encode('utf-8', 'replace') + b'\x00')
+    return digest.hexdigest()[:STOP_DIGEST_CHARS]
+
+def finding_digests(message, writes):
+    """One digest per flagged file, of its path and content: never the text itself, never the message's wording."""
+    if not message:
+        return []
+    lines = [line.strip().lstrip('-').strip() for line in message.splitlines()]
+    flagged = [p for p in writes if any((line.startswith(p + ':') for line in lines))] or list(writes)
+    if not flagged:
+        return [_stop_digest(message)]
+    return sorted({_stop_digest(p, writes[p]) for p in flagged})
+
+def stop_ledger_path(root, session_id):
+    return _chock_Path(root).joinpath(*SESSION_STATE_PARTS, session_id + STOP_LEDGER_SUFFIX)
+
+def _stop_lines(path):
+    """The ledger's lines; none when it is missing or cannot be read."""
     try:
-        lines = path.read_text(encoding='utf-8', errors='replace').splitlines()
+        return path.read_text(encoding='utf-8', errors='replace').splitlines()
     except OSError:
         return []
-    turn = []
+
+def _stop_parse(line):
+    try:
+        return json.loads(line)
+    except (ValueError, RecursionError):
+        return None
+
+def _stop_well_formed(seen, session_id):
+    stamp, index = (seen.get('ts'), seen.get('reentry'))
+    return isinstance(stamp, str) and bool(stamp) and (seen.get('session_id') == session_id) and (type(index) is int) and (index >= 0)
+
+def _stop_chain(lines, session_id, policy, turn):
+    """This turn's records, newest first, counting down without a gap to its first stop; None when broken."""
+    chain = []
     for line in reversed(lines):
-        try:
-            seen = json.loads(line)
-        except ValueError:
-            continue
+        seen = _stop_parse(line)
         if not isinstance(seen, dict) or seen.get('phase') != STOP_PHASE or seen.get('policy') != policy:
             continue
-        turn.append(seen)
-        if seen.get('reentry') == _FIRST:
-            break
-    return turn[::-1]
+        if turn is not None and seen.get('turn') != turn:
+            continue
+        if not _stop_well_formed(seen, session_id):
+            return None
+        if chain and seen['reentry'] != chain[-1]['reentry'] - 1:
+            return None
+        chain.append(seen)
+        if seen['reentry'] == 0 or seen.get('anchor') is True:
+            return chain
+    return None
 
-def _ledger(path, record):
-    """Append a Stop record; whether it landed."""
+def _stop_append(path, lines, record):
+    """Append one record, keeping the last `SESSION_MAX_ENTRIES`; whether it landed."""
+    line = json.dumps(record, sort_keys=True)
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open('a', encoding='utf-8') as fh:
-            fh.write(json.dumps(record, sort_keys=True) + '\n')
+        if len(lines) < SESSION_MAX_ENTRIES and (not path.exists() or path.stat().st_size < SESSION_TRIM_BYTES):
+            with path.open('a', encoding='utf-8') as fh:
+                fh.write(line + '\n')
+        else:
+            scratch = path.with_name('%s.%d.tmp' % (path.name, _chock_os.getpid()))
+            scratch.write_text('\n'.join([*lines[-(SESSION_MAX_ENTRIES - 1):], line]) + '\n', encoding='utf-8')
+            scratch.replace(path)
+        _prune_old(path.parent)
     except OSError:
         return False
     return True
 
-def _stamp():
-    return _chock_datetime.now(_chock_timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+def _stop_gate_log(root, policy, verdict, reentry, findings):
+    """One gate-log record per re-entry; a warn is held (`would_block`), so it is kept even with the log off.
 
-def _gate_log(root, policy, index, verdict):
-    """One gate-log record per re-entry verdict; best effort, and off with `CHOCK_GATE_LOG=0`."""
+    `reentry` is (index, reentry_verdict, findings_changed or None).
+    """
     try:
-        if _chock_os.environ.get(_GATE_LOG_ENV) == '0':
+        held = verdict == STOP_LOG_WARN
+        if _chock_os.environ.get(GATE_LOG_ENV) == '0' and (not held):
             return
-        path = _chock_Path(root).joinpath(*_GATE_LOG_PARTS)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        if path.exists() and path.stat().st_size > _LOG_MAX_BYTES:
-            path.replace(path.with_name('gate-events.1.jsonl'))
-        record = {'ts': _stamp(), 'policy_id': policy, 'surface': 'stop-reentry', 'event': 'stop', 'kind': 'reentry', 'reentry': index, 'verdict': verdict, 'match_count': 0, 'matches': []}
-        with path.open('a', encoding='utf-8') as fh:
-            fh.write(json.dumps(record, ensure_ascii=False) + '\n')
+        index, reentry_verdict, changed = reentry
+        record = {'policy_id': policy, 'surface': 'stop-reentry', 'event': 'stop', 'kind': 'reentry', 'reentry': index, 'verdict': verdict, 'reentry_verdict': reentry_verdict, 'match_count': len(findings), 'matches': []}
+        if held:
+            record.update({'would_action': STOP_LOG_BLOCK, 'would_block': True})
+        if changed is not None:
+            record['findings_changed'] = changed
+        append_gate_log(_chock_Path(root).joinpath(SESSION_STATE_PARTS[0]), record)
     except Exception:
         return
 
-def _record(path, policy, index, message, *, refused):
-    return {'ts': _stamp(), 'session_id': path.stem, 'phase': STOP_PHASE, 'policy': policy, 'reentry': index, 'fingerprint': _fingerprint(message) if message else '', 'verdict': STOP_DENY if refused else VERDICT_CLEAN}
+def _stop_warn(policy, why, changed, message):
+    """The warning a turn ends with: said on stderr for every client, and returned for a `systemMessage`."""
+    text = _STOP_WARNING.format(policy=policy, why=why.format(cap=REENTRY_CAP) + _STOP_SINCE.get(changed, ''))
+    text += message
+    with contextlib.suppress(Exception):
+        sys.stderr.write(text + '\n')
+        sys.stderr.flush()
+    return (VERDICT_WARN, text)
 
-def _reentry_verdict(index, turn, message):
-    """(verdict, refuse) for a re-entry: clean, or findings refused unless already reported or past the cap."""
-    if not message:
-        return (VERDICT_CLEAN, False)
-    if index > REENTRY_CAP:
-        return (VERDICT_CAPPED, False)
-    reported = next((r.get('fingerprint') for r in reversed(turn) if r.get('verdict') == STOP_DENY), None)
-    if _fingerprint(message) == reported:
-        return (VERDICT_REPORTED, False)
-    return (VERDICT_REFUSED, True)
+def _stop_changed(chain, findings):
+    """Whether the findings differ from the last refusal's; None when there is no refusal to compare with."""
+    refused = next((r for r in chain or () if r.get('verdict') == STOP_LOG_BLOCK), None)
+    if refused is None or not isinstance(refused.get('findings'), list):
+        return None
+    return sorted(refused['findings']) != findings
 
-def settle_stop(event, root, gate, decision):
+def settle_stop(event, root, gate, decision, writes=None):
     """The decision a Stop earns once this turn's earlier Stops are weighed against `decision`."""
-    if decision is not None and decision[0] != STOP_DENY:
+    if decision is not None and decision[0] != VERDICT_DENY:
         return decision
     policy = gate.parent.parent.name
-    path = session_log_path(root, session_id_of(event))
-    signalled = reentries(event)
+    session_id = session_id_of(event)
+    path = stop_ledger_path(root, session_id)
+    lines = _stop_lines(path)
     message = decision[1] if decision else ''
+    findings = finding_digests(message, writes or {})
+    record = {'ts': _chock_datetime.now(_chock_timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), 'session_id': session_id, 'phase': STOP_PHASE, 'policy': policy, 'turn': _stop_turn(event), 'findings': findings}
+    signalled = reentries(event)
     if not signalled:
-        _ledger(path, _record(path, policy, _FIRST, message, refused=decision is not None))
+        _stop_append(path, lines, {**record, 'reentry': 0, 'verdict': STOP_LOG_BLOCK if decision else STOP_LOG_ALLOW})
         return decision
-    turn = _turn_records(path, policy)
-    index = max(len(turn), signalled)
-    verdict, refuse = _reentry_verdict(index, turn, message)
-    if not _ledger(path, _record(path, policy, index, message, refused=refuse)) and refuse:
-        verdict, refuse = (VERDICT_UNTRACKED, False)
-    _gate_log(root, policy, index, verdict)
-    if not refuse:
+    chain = _stop_chain(lines, session_id, policy, record['turn'])
+    counted = isinstance(event.raw, dict) and STOP_COUNT_KEY in event.raw
+    index = signalled if counted else chain[0]['reentry'] + 1 if chain else 1
+    capped = index > REENTRY_CAP
+    verdict = STOP_LOG_ALLOW if not decision else STOP_LOG_WARN if capped else STOP_LOG_BLOCK
+    landed = _stop_append(path, lines, {**record, 'reentry': index, 'verdict': verdict, 'anchor': chain is None})
+    changed = _stop_changed(chain, findings)
+    if decision is None:
+        _stop_gate_log(root, policy, verdict, (index, REENTRY_CLEAN, None), findings)
         return None
-    return (STOP_DENY, message + (_PERSON.format(cap=REENTRY_CAP) if index == REENTRY_CAP else ''))
+    if capped:
+        _stop_gate_log(root, policy, verdict, (index, REENTRY_CAPPED, changed), findings)
+        return _stop_warn(policy, _STOP_WHY[REENTRY_CAPPED], changed, message)
+    if not landed and (not counted):
+        _stop_gate_log(root, policy, STOP_LOG_WARN, (index, REENTRY_UNTRACKED, None), findings)
+        return _stop_warn(policy, _STOP_WHY[REENTRY_UNTRACKED], None, message)
+    tracked = REENTRY_REFUSED if chain and landed else REENTRY_UNTRACKED
+    _stop_gate_log(root, policy, verdict, (index, tracked, changed), findings)
+    return (VERDICT_DENY, message + (_STOP_LAST.format(cap=REENTRY_CAP) if index == REENTRY_CAP else ''))
 
 GATE_FLAG = '--gate'
 
@@ -1694,20 +1771,20 @@ def _missing_gate(gate):
     return (VERDICT_DENY, f'chock gate {gate} is missing, so this write cannot be checked. Run `chock sync --repo .` to rebuild the compiled gates.')
 
 def _gate_says(gate, event, name):
-    """What the compiled gate says about this event, before a re-entered stop is weighed."""
+    """(decision, judged files): what the compiled gate says about this event, before a re-entered stop is weighed."""
     if not gate.exists():
-        return _missing_gate(gate)
+        return (_missing_gate(gate), {})
     root = repo_root_for(event, gate)
     outside = outside_globs(gate)
     writes = judged_files(writes_for(event, gate), root, outside, lambda path: repo_paths(path, root))
     if not writes:
-        return None
+        return (None, writes)
     added = {**patch_added(event), **added_from_event(event)} if event.event == PRE_TOOL else {}
     added = judged_files(added, root, outside, lambda path: repo_paths(path, root))
     added = {path: text for path, text in added.items() if path in writes}
     extra = {**({'added': added} if added else {}), 'session': session_for(event, root)}
     outcome, message = run_gate(gate, writes, name, root, extra)
-    return gate_decision(outcome, message, gate)
+    return (gate_decision(outcome, message, gate), writes)
 
 def evaluate_gate(argv, event):
     """The decision this event earns from a compiled gate, or None when it has nothing to say."""
@@ -1715,10 +1792,10 @@ def evaluate_gate(argv, event):
     name = _EVENT_ARG.get(getattr(event, 'event', ''))
     if gate is None or name is None:
         return None
-    decision = _gate_says(gate, event, name)
+    decision, judged = _gate_says(gate, event, name)
     if event.event == PRE_TOOL:
         return decision
-    return settle_stop(event, repo_root_for(event, gate), gate, decision)
+    return settle_stop(event, repo_root_for(event, gate), gate, decision, judged)
 
 TOOL_CALL_FLAG = '--tool-call'
 
@@ -1950,17 +2027,28 @@ def _chock_warn_respond(decision, event):
     # the reason, so the reason is added here in the one channel Claude Code documents for it:
     # PreToolUse `additionalContext` (Claude reads it beside the tool result; no permissionDecision
     # is sent, since `allow` would also skip the user's own permission prompt) and, at the turn's
-    # end, `systemMessage` (shown to the user; a Stop block would force the turn to continue).
+    # end, `systemMessage` (`_chock_stop_warning`).
     text, code = respond(decision, event)
     if text or degraded_from(decision) != WARN or not decision.reason:
         return text, code
     if event.event == PRE_TOOL:
         body = {"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": decision.reason}}
-    elif event.event == STOP:
-        body = {"systemMessage": decision.reason}
-    else:
-        return text, code
-    return json.dumps(body), code
+        return json.dumps(body), code
+    return _chock_stop_warning(decision, event) or text, code
+
+
+def _chock_stop_warning(decision, event):
+    # A warn at the turn's end never blocks: a Stop block would force the turn to continue. agentseam
+    # reduces WARN to a silent allow, which drops the reason, so it is added back as `systemMessage`,
+    # which Claude Code, Codex and VS Code Copilot each document as a warning shown to the user.
+    if event.event != STOP or degraded_from(decision) != WARN or not decision.reason:
+        return None
+    return json.dumps({"systemMessage": decision.reason})
+
+
+def _chock_stop_warn_respond(decision, event):
+    text, code = respond(decision, event)
+    return text or _chock_stop_warning(decision, event) or text, code
 # <<< agentseam handler <<<
 
 
