@@ -29,6 +29,14 @@ TRACKED_RUNTIME = ("!.chock/bin/", "!.chock/bin/**", "!.chock/compiled/", "!.cho
 #: after the negations -- within one .gitignore the last matching rule wins.
 TRACKED_POLICIES = ("!.agents/policies/", "!.agents/policies/**")
 POLICY_BYTECODE_IGNORE = (".agents/policies/**/__pycache__/", ".agents/policies/**/*.pyc")
+#: The runtime's own bytecode: `.chock/bin/` holds Python the hooks import (the gate runner, the
+#: session log), so running one writes `__pycache__` there, which `!.chock/bin/**` would re-include.
+RUNTIME_BYTECODE_IGNORE = (
+    ".chock/bin/**/__pycache__/",
+    ".chock/bin/**/*.pyc",
+    ".chock/compiled/**/__pycache__/",
+    ".chock/compiled/**/*.pyc",
+)
 
 _BLOCKS = (
     ((GATE_LOG_IGNORE,), "# chock: the gate outcome log is per machine and grows on every commit"),
@@ -46,6 +54,10 @@ _BLOCKS = (
     (
         (*POLICY_BYTECODE_IGNORE,),
         "# chock: bytecode under the policies is per machine (must stay after the rules above)",
+    ),
+    (
+        RUNTIME_BYTECODE_IGNORE,
+        "# chock: bytecode under the runtime and compiled gates is per machine (must stay after the rules above)",
     ),
 )
 

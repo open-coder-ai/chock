@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 from conftest import baseline_policy, init_repo
 
-from chock.scaffold.gitrules import GATE_LOG_IGNORE, TRACKED_RUNTIME, ensure_git_rules
+from chock.scaffold.gitrules import GATE_LOG_IGNORE, RUNTIME_BYTECODE_IGNORE, TRACKED_RUNTIME, ensure_git_rules
 from chock.scaffold.recompile import recompile
 from chock.validation.checks_hook_targets import check_dangling_hook_targets
 from chock.validation.report import Report
@@ -125,3 +125,25 @@ def test_a_path_a_negation_re_includes_is_not_reported_as_ignored(tmp_path: Path
     report = Report()
     check_dangling_hook_targets(repo, report)
     assert report.errors == []
+
+
+def test_runtime_bytecode_stays_out_though_the_runtime_is_tracked(tmp_path: Path) -> None:
+    """Running a hook writes `__pycache__` under `.chock/bin/`; `!.chock/bin/**` must not re-include it."""
+    repo = _wired(tmp_path)
+    cache = repo / ".chock" / "bin" / "__pycache__"
+    cache.mkdir(exist_ok=True)
+    (cache / "claude_code.cpython-312.pyc").write_bytes(b"\x00")
+    (repo / ".chock" / "compiled" / "stray.pyc").write_bytes(b"\x00")
+    assert _git(repo, "check-ignore", "-q", ".chock/bin/__pycache__/claude_code.cpython-312.pyc").returncode == 0
+    assert _git(repo, "check-ignore", "-q", ".chock/compiled/stray.pyc").returncode == 0
+    assert _git(repo, "check-ignore", "-q", RUNTIME).returncode == 1, "the runtime itself must stay tracked"
+
+
+def test_an_existing_gitignore_gains_the_runtime_bytecode_rules_once(tmp_path: Path) -> None:
+    (tmp_path / ".gitignore").write_text("node_modules/\n!.chock/bin/**\n", encoding="utf-8")
+    ensure_git_rules(tmp_path)
+    ensure_git_rules(tmp_path)
+    text = (tmp_path / ".gitignore").read_text(encoding="utf-8")
+    for rule in RUNTIME_BYTECODE_IGNORE:
+        assert text.count(rule) == 1
+    assert text.index(".chock/bin/**/__pycache__/") > text.index("!.chock/bin/**")
