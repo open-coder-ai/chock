@@ -8,7 +8,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from chock.scaffold.recompile import compiled_differences, recompile
+from chock.hooks.wiring_drift import wiring_differences
+from chock.scaffold.recompile import compiled_differences, recompile, wired_vendors
 
 ROOT = Path(__file__).resolve().parents[1]
 AGENTS = ["claude"]
@@ -195,3 +196,56 @@ def test_at_commit_time_touching_the_drifted_tree_still_blocks(drifted_git_repo:
     report = Report()
     check_compiled_drift(drifted_git_repo, report, event="commit")
     assert not report.is_clean(), "a commit touching policy source must answer for drift"
+
+
+CLAUDE_WIRING = Path(".claude") / ("settings" + ".json")
+
+
+@pytest.fixture
+def wired_repo(tmp_path: Path) -> Path:
+    """A repo with a shell guard compiled and its hooks installed into Claude's config."""
+    import shutil
+
+    from conftest import baseline_policy
+
+    policy = tmp_path / ".agents" / "policies" / "block-destructive-commands"
+    policy.parent.mkdir(parents=True)
+    shutil.copytree(baseline_policy("block-destructive-commands"), policy)
+    recompile(tmp_path, AGENTS)
+    assert not compiled_differences(tmp_path, AGENTS)
+    return tmp_path
+
+
+def test_a_freshly_synced_repo_has_no_wiring_drift(wired_repo: Path) -> None:
+    assert (wired_repo / CLAUDE_WIRING).exists()
+    assert not wiring_differences(wired_repo, wired_vendors(AGENTS))
+
+
+def test_wiring_naming_a_missing_guard_is_drift(wired_repo: Path) -> None:
+    """The defect as found: the config kept pointing at a guard script a later sync replaced."""
+    config = wired_repo / CLAUDE_WIRING
+    text = config.read_text(encoding="utf-8")
+    assert "block-destructive-commands.py" in text
+    config.write_text(text.replace("block-destructive-commands.py", "block-destructive.sh"), encoding="utf-8")
+
+    assert f"differs: {CLAUDE_WIRING.as_posix()}" in compiled_differences(wired_repo, AGENTS)
+
+
+def test_foreign_hook_entries_are_not_drift(wired_repo: Path) -> None:
+    config = wired_repo / CLAUDE_WIRING
+    doc = json.loads(config.read_text(encoding="utf-8"))
+    doc["hooks"]["PreToolUse"].append(
+        {"matcher": "Bash", "hooks": [{"type": "command", "command": "./my-own-linter.sh"}]}
+    )
+    doc["permissions"] = {"allow": ["Bash(ls:*)"]}
+    config.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+
+    assert not wiring_differences(wired_repo, wired_vendors(AGENTS))
+
+
+def test_the_wiring_check_writes_nothing(wired_repo: Path) -> None:
+    config = wired_repo / CLAUDE_WIRING
+    config.write_text("{}\n", encoding="utf-8")
+
+    wiring_differences(wired_repo, wired_vendors(AGENTS))
+    assert config.read_text(encoding="utf-8") == "{}\n"

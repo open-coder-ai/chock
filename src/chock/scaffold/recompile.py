@@ -24,6 +24,7 @@ from chock.hooks.in_agent_install import (
 from chock.hooks.installers import get_hooks_dir, install_policy_hooks
 from chock.hooks.runtime_vendor import owned_markers, runtime_rel
 from chock.hooks.sessionstart_install import install_sessionstart_hook
+from chock.hooks.wiring_drift import wiring_differences
 from chock.index.cli import cmd_refresh
 from chock.output import warn
 from chock.policies import discover_policy_dirs
@@ -147,6 +148,7 @@ def compiled_differences(repo_root: Path | str, agents: list[str]) -> list[str]:
         ]
 
     diffs += vendored_differences(repo_root)
+    diffs += wiring_differences(repo_root, wired_vendors(agents))
 
     coverage_path = repo_root / ".chock" / "coverage.json"
     committed = json.loads(coverage_path.read_text(encoding="utf-8")) if coverage_path.exists() else {}
