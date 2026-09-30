@@ -10,6 +10,14 @@
   telling the reader to write `chock: allow` is replaced by "ask a person to review it; an agent
   cannot add the waiver", since an agent's waiver is never honoured; a person's commit and CI
   keep the sentence.
+- **`chock status --only log` groups and reports.** `--by policy|rule|agent|event` counts blocked,
+  asked, warned, `would_block` (its own column once a record carries it), new against baseline
+  findings, agents and the top three files per group; `--format md` prints a paste-able markdown
+  summary. The log is read locally and only ids, counts and the paths in `matches` are shown, never
+  file contents. `chock status` now forwards `--policy`, `--since` and `--json` to the log, which
+  only `python -m chock.gatelog` accepted. The runner records `agent` (the `agent_signal` marker,
+  when one is set) on every git and script-hook outcome, and `rules` (rule id to count of new
+  findings) when a script finding names its optional `rule`; older records group under "unknown".
 - **Plugin bundles: install a set once.** `chock plugin build` reads an optional `bundles.yaml`
   (schema-checked: id, version, description, two or more member policies) and packages each bundle
   beside the policies in every format. Claude's manifest documents `dependencies`, so its bundle is a

@@ -34,6 +34,8 @@ class GateResult:
     verdict: str = ""
     #: Counts a gate log record carries beside the verdict (a script gate's new and baseline findings).
     detail: dict[str, int] = field(default_factory=dict)
+    #: Rule id (a script finding's optional `rule`) -> how many new findings carried it.
+    rules: dict[str, int] = field(default_factory=dict)
 
 
 def _is_outside(path: str) -> bool:
@@ -586,6 +588,16 @@ def _findings_document(stdout: str) -> list[dict] | None:
     return found
 
 
+#: A finding's optional `rule`: a short label, so a code fragment never reaches the log through it.
+_RULE_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9 ._:/-]{0,63}")
+
+
+def _rule_ids(findings: list[dict]) -> dict[str, int]:
+    """Findings per declared rule id; a finding with no valid `rule` is not counted."""
+    declared = (item.get("rule") for item in findings)
+    return dict(Counter(rule for rule in declared if isinstance(rule, str) and _RULE_ID_RE.fullmatch(rule)))
+
+
 def _new_findings(found: list[dict], baseline: list[dict]) -> list[dict]:
     """The findings the baseline does not account for: per path and key, each baseline copy absolves one."""
     unspent = Counter((item["path"], item["key"]) for item in baseline)
@@ -651,7 +663,7 @@ def _judge_findings(
         return GateResult(allowed=True, detail=counts)
     lines = [f"{item['path']}:{item['line']}: {item['message']}" for item in fresh]
     verdict = {_SCRIPT_ASK: "ask", _SCRIPT_WARN: "warn"}.get(proc.returncode, "")
-    return GateResult(allowed=False, matches=lines, verdict=verdict, detail=counts)
+    return GateResult(allowed=False, matches=lines, verdict=verdict, detail=counts, rules=_rule_ids(fresh))
 
 
 def _kind_script(ctx: GateContext, params: dict, event: str) -> GateResult:
@@ -729,7 +741,14 @@ def _write_log(chock_root: Path, record: dict) -> None:
 
 
 def _log_outcome(
-    gate_path: Path, event: str, spec: dict, result: GateResult, verdict: str, *, override: bool = False
+    gate_path: Path,
+    event: str,
+    spec: dict,
+    result: GateResult,
+    verdict: str,
+    *,
+    override: bool = False,
+    agent: str | None = None,
 ) -> None:
     """Append one outcome record. Best effort: never raises, never changes the verdict."""
     try:
@@ -750,6 +769,10 @@ def _log_outcome(
         }
         if override:
             record["override"] = ALLOW_ENV
+        if result.rules:
+            record["rules"] = result.rules
+        if agent:
+            record["agent"] = agent
         _write_log(parents[3], record)
     except Exception:  # noqa: BLE001 -- best effort logging: never raises, never changes the verdict
         return
@@ -950,7 +973,9 @@ def _deliver(verdict: str, result: GateResult, spec: dict, event: str, policy_id
     return 0
 
 
-def _log_script_hook(policy_id: str, event: str, verdict: str, repo_root: Path, *, override: bool = False) -> None:
+def _log_script_hook(
+    policy_id: str, event: str, verdict: str, repo_root: Path, *, override: bool = False, agent: str | None = None
+) -> None:
     """Record a script-backed hook's warn or ask; best effort like every gate log write."""
     try:
         if os.environ.get(GATE_LOG_ENV) == "0":
@@ -959,6 +984,8 @@ def _log_script_hook(policy_id: str, event: str, verdict: str, repo_root: Path, 
         record.update({"kind": "script-hook", "verdict": verdict, "match_count": 0, "matches": []})
         if override:
             record["override"] = ALLOW_ENV
+        if agent:
+            record["agent"] = agent
         _write_log(repo_root / _CONFIG_PATH[0], record)
     except Exception:  # noqa: BLE001 -- best effort logging: never raises, never changes the verdict
         return
@@ -972,14 +999,14 @@ def script_verdict(policy_id: str, event: str, code: int, repo_root: Path) -> in
     """
     signal = agent_signal(repo_root)
     if code == EXIT_WARN:
-        _log_script_hook(policy_id, event, ACTION_WARN, repo_root)
+        _log_script_hook(policy_id, event, ACTION_WARN, repo_root, agent=signal)
         return 0
     if _ask_answered(policy_id, signal):
         print(f"gate: {policy_id} asked; allowed by {ALLOW_ENV}.", file=sys.stderr)
-        _log_script_hook(policy_id, event, "allow", repo_root, override=True)
+        _log_script_hook(policy_id, event, "allow", repo_root, override=True, agent=signal)
         return 0
     print(_ask_refusal(policy_id, signal), file=sys.stderr)
-    _log_script_hook(policy_id, event, ACTION_ASK, repo_root)
+    _log_script_hook(policy_id, event, ACTION_ASK, repo_root, agent=signal)
     return 1
 
 
@@ -1051,7 +1078,7 @@ def _conclude(
     verdict = _verdict(result, spec.get("action", ACTION_BLOCK))
     policy_id = _policy_id(gate_path)
     answered = verdict == ACTION_ASK and event in _GIT_EVENTS and _ask_answered(policy_id, signal)
-    _log_outcome(gate_path, judged, spec, result, "allow" if answered else verdict, override=answered)
+    _log_outcome(gate_path, judged, spec, result, "allow" if answered else verdict, override=answered, agent=signal)
     if answered:
         print(f"gate: {policy_id} asked; allowed by {ALLOW_ENV}.", file=sys.stderr)
         return 0, "allow"

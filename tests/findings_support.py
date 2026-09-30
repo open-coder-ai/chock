@@ -41,6 +41,7 @@ TOY = textwrap.dedent(
             for rule, hit in (("bad", "BAD" in stmt), ("unsanitized", "query(" in stmt and not safe)):
                 if hit:
                     item = {"key": rule + ":" + stmt, "path": path, "line": number, "message": rule + " " + stmt}
+                    item["rule"] = os.environ.get("TOY_RULE", rule)
                     findings.append({**item, "new": True} if os.environ.get("TOY_NEW") else item)
     print(json.dumps({"findings": findings}))
     if findings:
