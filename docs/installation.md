@@ -94,10 +94,10 @@ chock init .
 Use the action in a workflow:
 
 ```yaml
-- uses: open-coder-ai/chock@v0.15.1
+- uses: open-coder-ai/chock@v0.15.2
   with:
     command: check
-    version: 0.15.1
+    version: 0.15.2
 ```
 
 The action installs the pinned version via `pipx` and runs the command. The `v1` major
