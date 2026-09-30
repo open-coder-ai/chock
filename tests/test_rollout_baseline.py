@@ -9,9 +9,9 @@ import pytest
 import yaml
 from conftest import init_repo
 
-from chock.gate.runner import ROLLOUT_ENV
+from chock.gate.runner import ROLLOUT_ENV, rollout_from_text
 from chock.lifecycle import status_main
-from chock.validation.checks_baseline import Weakening, weakenings
+from chock.validation.checks_baseline import Weakening, rollout_weakening
 from chock.validation.checks_baseline import main as baseline_main
 
 
@@ -32,18 +32,41 @@ def repo(tmp_path: Path) -> Path:
 # --- a downgrade is a weakening the baseline check refuses ----------------------------------------------
 
 
-def _with(level: str | None) -> dict:
-    return {} if level is None else {"rollout": level}
+def _text(level: str | None) -> str | None:
+    return None if level is None else f"rollout: {level}\n"
+
+
+def _base_repo(tmp_path: Path, config: dict | str | None) -> Path:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "t@e")
+    _git(repo, "config", "user.name", "t")
+    (repo / "README").write_text("r\n", encoding="utf-8")
+    if config is not None:
+        _config(repo, config if isinstance(config, str) else yaml.safe_dump(config))
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "base")
+    return repo
+
+
+def _lowered(tmp_path: Path, was: str | None, now: str | None) -> Weakening | None:
+    repo = _base_repo(tmp_path, _text(was))
+    path = repo / ".chock" / "config.yaml"
+    if now is None:
+        path.unlink(missing_ok=True)
+    else:
+        _config(repo, now)
+    return rollout_weakening(repo, "main")
 
 
 @pytest.mark.parametrize(
     ("was", "now"),
     [("enforce", "ask"), ("enforce", "observe"), ("ask", "observe"), (None, "observe"), (None, "ask")],
 )
-def test_lowering_the_level_is_a_weakening(was: str | None, now: str) -> None:
-    found = weakenings(_with(was), _with(now))
-    assert [w.policy_id for w in found] == ["rollout"]
-    assert found[0].now == now
+def test_lowering_the_level_is_a_weakening(tmp_path: Path, was: str | None, now: str) -> None:
+    found = _lowered(tmp_path, was, _text(now))
+    assert found is not None and (found.policy_id, found.now) == ("rollout", now)
 
 
 @pytest.mark.parametrize(
@@ -59,32 +82,28 @@ def test_lowering_the_level_is_a_weakening(was: str | None, now: str) -> None:
         ("enforce", None),
         ("observe", "bogus"),
         ("enforce", "bogus"),
+        ("observe", None),
     ],
 )
-def test_raising_or_keeping_the_level_is_not(was: str | None, now: str | None) -> None:
-    assert weakenings(_with(was), _with(now)) == []
+def test_raising_or_keeping_the_level_is_not(tmp_path: Path, was: str | None, now: str | None) -> None:
+    assert _lowered(tmp_path, was, _text(now)) is None
 
 
-def test_a_base_with_no_config_was_enforce() -> None:
-    assert weakenings(None, _with("observe")) == [Weakening("rollout", "enforce", "observe")]
-    assert weakenings(None, None) == []
+#: Configs the runtime reads as observe though a YAML parser sees no `rollout` key: the baseline
+#: check must read them as the runtime does, or a pull request lowers the level unseen.
+DISGUISED = [
+    'policies:\n  disabled: []\nnote: "a\nrollout: observe\nb"\n',
+    "note: 'a\nrollout: observe\nb'\n",
+    "rollout:observe\n",
+    "[\nrollout: observe\n]\n",
+]
 
 
-def test_a_head_that_deletes_the_config_is_not_a_downgrade() -> None:
-    """No config means enforce, so removing one that named observe only tightens."""
-    assert weakenings(_with("observe"), None) == []
-
-
-def _base_repo(tmp_path: Path, config: dict) -> Path:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    _git(repo, "init", "-q", "-b", "main")
-    _git(repo, "config", "user.email", "t@e")
-    _git(repo, "config", "user.name", "t")
-    _config(repo, yaml.safe_dump(config))
-    _git(repo, "add", "-A")
-    _git(repo, "commit", "-qm", "base")
-    return repo
+@pytest.mark.parametrize("config", DISGUISED)
+def test_a_downgrade_yaml_would_not_see_is_still_a_weakening(tmp_path: Path, config: str) -> None:
+    assert rollout_from_text(config) == "observe", "the runtime reads these as observe"
+    found = _lowered(tmp_path, None, config)
+    assert found is not None and found.now == "observe"
 
 
 def test_a_branch_that_lowers_the_level_fails_against_main(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:

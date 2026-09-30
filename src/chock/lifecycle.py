@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
+
+from chock.gatelog import FORMATS, GROUP_KEYS
 
 
 def _run(label: str, fn, argv: list[str]) -> int:
@@ -146,11 +149,42 @@ def _run_baseline(args: argparse.Namespace) -> int:
     return _run("policy baseline", baseline_main, ["--repo", args.repo, "--base", args.base])
 
 
+def _log_args(args: argparse.Namespace) -> list[str]:
+    """The `status` flags that belong to the gate log, in `chock.gatelog`'s own spelling."""
+    flags = [("--policy", args.policy), ("--since", args.since), ("--by", args.by), ("--format", args.format)]
+    given = [part for flag, value in flags if value is not None for part in (flag, str(value))]
+    return given + (["--json"] if args.json else [])
+
+
+def _print_rollout(repo: Path) -> None:
+    """Lead with a level below enforce, where it came from, and what it does not reach."""
+    from chock.gate.runner import ROLLOUT_ENFORCE, ROLLOUT_ENV, agent_signal, rollout
+
+    signal = agent_signal(repo)
+    level = rollout(repo, "pre-commit", signal)
+    if level == ROLLOUT_ENFORCE:
+        return
+    from_env = signal is None and os.environ.get(ROLLOUT_ENV, "").strip() == level
+    source = f"{ROLLOUT_ENV}={level} in this shell" if from_env else "`rollout:` in .chock/config.yaml"
+    ceiling = "warn" if level == "observe" else "ask (and an ask does not fail CI)"
+    print(
+        f"ROLLOUT: {level}, from {source} -- compiled gates {ceiling} instead of blocking and record what "
+        "enforce would have stopped (`chock status --only log`); command guards, tool_call gates and the "
+        "MCP gateway still block. Remove it to enforce."
+    )
+
+
 def status_main(argv: list[str] | None) -> int:
     """Read-only picture of the repo: policy table, plus registry and gate log on request."""
     parser = argparse.ArgumentParser(prog="chock status")
     parser.add_argument("--repo", default=".", help="Repo root")
     parser.add_argument("--only", default=None, help="Comma-separated subset of: policies, registry, log")
+    log_flags = parser.add_argument_group("log section")
+    log_flags.add_argument("--policy", help="Log: restrict to one policy id")
+    log_flags.add_argument("--since", type=int, metavar="DAYS", help="Log: only records from the last N days")
+    log_flags.add_argument("--json", action="store_true", help="Log: machine-readable output")
+    log_flags.add_argument("--by", choices=GROUP_KEYS, help="Log: group by policy, rule, agent or event")
+    log_flags.add_argument("--format", choices=FORMATS, help="Log: md prints a markdown summary")
     args = parser.parse_args(argv)
 
     sections = ("policies", "registry", "log")
@@ -160,15 +194,11 @@ def status_main(argv: list[str] | None) -> int:
         print(f"Unknown section(s): {', '.join(unknown)}. Choose from: {', '.join(sections)}", file=sys.stderr)
         return 2
 
-    from chock.gate.runner import ROLLOUT_ENFORCE, agent_signal, rollout
+    if "log" not in selected and _log_args(args):
+        print("--policy, --since, --json, --by and --format apply to `--only log`", file=sys.stderr)
+        return 2
 
-    repo = Path(args.repo).resolve()
-    level = rollout(repo, "pre-commit", agent_signal(repo))
-    if level != ROLLOUT_ENFORCE:
-        print(
-            f"ROLLOUT: {level} -- gates are capped below block and record what enforce would have stopped "
-            "(`chock status --only log`). Remove `rollout:` from .chock/config.yaml to enforce."
-        )
+    _print_rollout(Path(args.repo).resolve())
 
     rc = 0
     if "policies" in selected:
@@ -182,5 +212,9 @@ def status_main(argv: list[str] | None) -> int:
     if "log" in selected:
         from chock.gatelog import main as gatelog_main
 
-        rc = max(rc, _run("gate log", gatelog_main, ["--repo", args.repo]))
+        log_argv = ["--repo", args.repo, *_log_args(args)]
+        if args.json or args.format == "md":
+            rc = max(rc, int(gatelog_main(log_argv) or 0))
+        else:
+            rc = max(rc, _run("gate log", gatelog_main, log_argv))
     return rc

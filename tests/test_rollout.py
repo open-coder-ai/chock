@@ -26,9 +26,16 @@ def _git(repo: Path, *args: str) -> None:
     subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
 
 
-def _config(repo: Path, text: str) -> None:
+def _uncommitted(repo: Path, text: str) -> None:
     (repo / ".chock").mkdir(exist_ok=True)
     (repo / ".chock" / "config.yaml").write_text(text, encoding="utf-8")
+
+
+def _config(repo: Path, text: str) -> None:
+    """The level as a person set it: written and committed, which is what agents and ci read."""
+    _uncommitted(repo, text)
+    _git(repo, "add", ".chock/config.yaml")
+    _git(repo, "commit", "-qm", "rollout")
 
 
 def _gate(repo: Path, action: str = "block") -> Path:

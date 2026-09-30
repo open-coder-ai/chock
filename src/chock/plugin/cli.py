@@ -10,6 +10,7 @@ from pathlib import Path
 from chock.compile.compiler import _load_manifest
 from chock.manifest import CANONICAL_MANIFEST
 from chock.output import error
+from chock.plugin import bundles
 from chock.plugin.build import (
     NAMESPACE,
     PluginNameError,
@@ -17,6 +18,7 @@ from chock.plugin.build import (
     plugin_differences,
     plugin_name,
 )
+from chock.plugin.bundle_cli import bundle_step
 from chock.plugin.claude import build_claude_plugin, claude_plugin_differences
 from chock.plugin.codex import build_codex_plugin, codex_plugin_differences
 from chock.plugin.copilot import build_copilot_plugin, copilot_plugin_differences
@@ -105,6 +107,11 @@ def main(argv: list[str] | None = None) -> int:
         "Requires exactly one --policy.",
     )
     parser.add_argument(
+        "--bundles",
+        default=None,
+        help=f"Bundles file, packaged beside the policies (default: <repo>/{bundles.BUNDLES_FILE} when it exists)",
+    )
+    parser.add_argument(
         "--check",
         action="store_true",
         help="Report policies whose packaged output is missing or stale, and exit non-zero. Writes nothing.",
@@ -128,6 +135,7 @@ def main(argv: list[str] | None = None) -> int:
     out_root = Path(args.out_dir).resolve() if args.out_dir else None
     explicit_out = Path(args.out).resolve() if args.out else None
     policy_dirs = resolve_policy_dirs(repo_root, args.policies_dir)
+    every_policy_dir = policy_dirs
     if args.policies:
         policy_dirs, missing = _select_policy_dirs(policy_dirs, args.policies)
         if missing:
@@ -179,6 +187,17 @@ def main(argv: list[str] | None = None) -> int:
         except PluginNameError as exc:
             error(f"{policy_dir}: {exc}")
             return 2
+
+    if out_root is not None and not args.policies and explicit_out is None:
+        try:
+            found, bundle_ids = bundle_step(
+                repo_root, args.bundles, every_policy_dir, (formats, out_root), check=args.check
+            )
+        except (bundles.BundleError, PluginNameError) as exc:
+            error(str(exc))
+            return 2
+        differences.extend(found)
+        seen.update(dict.fromkeys(bundle_ids, repo_root))
 
     if out_root is not None and not args.policies:
         # Staleness can only be judged against the full policy set; a --policy-narrowed

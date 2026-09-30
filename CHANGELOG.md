@@ -3,14 +3,21 @@
 ## Unreleased
 
 - **A watch-only rollout mode.** `rollout: observe | ask | enforce` in `.chock/config.yaml` caps
-  how far every compiled gate may escalate: observe turns a block or ask into a warning, ask caps
-  at ask, enforce (the default, and what an absent, repeated, unreadable or unknown value means)
-  changes nothing. A gate the level lowered still logs to `.chock/log/gate-events.jsonl` with
-  `rollout`, `would_action` and `would_block`, and `chock status --only log` counts them. An agent
-  cannot move the level: `CHOCK_ROLLOUT` is read only for a person's own commit or push (never an
-  agent's, a tool call's or CI), and `chock check --only baseline --base <ref>` refuses a
-  downgrade as a weakening. `chock status` leads with `ROLLOUT:` whenever the level is below
-  enforce. Not yet capped: `tool_call` gates and a script hook's own exit 1.
+  how far compiled gates escalate: observe turns a block or ask into a warning, ask caps at ask
+  (and an ask does not fail CI), enforce (the default, and what an absent, repeated, unreadable,
+  unknown or symlinked value means) changes nothing. Not capped: command guards, `tool_call`
+  gates, the MCP gateway and a script hook's own exit 1, which still block. A gate the level
+  lowered logs `rollout`, `would_action` and `would_block` to `.chock/log/gate-events.jsonl`, even
+  with `CHOCK_GATE_LOG=0`, and `chock status --only log` counts them. Nothing the judged actor
+  can edit lowers the level: an agent (a tool call, the turn's end, an agent's commit) is held to
+  the stricter of HEAD's committed level and the working tree's; at CI the base's committed level
+  caps the head's, so a pull request cannot lower its own gates; `CHOCK_ROLLOUT` counts only for a
+  person's own commit or push. `chock check --only baseline --base <ref>` refuses a downgrade,
+  reading the level the way the runtime does (line by line, not as YAML), so a config the two
+  would read differently cannot hide one. `chock status` leads with `ROLLOUT:` and where the level
+  came from whenever it is below enforce. The catalog's protect-agent-config and block-no-verify
+  must also cover `.chock/config.yaml` and `CHOCK_ROLLOUT` / `CHOCK_GATE_LOG` for agents that set
+  no marker.
 - **A findings refusal leads with the finding.** A script gate's refusal put the policy's long
   message first and the findings last, so an agent read the boilerplate before the `path:line:`
   that mattered. Findings now come first, then a one-line summary, then the policy message. A
@@ -19,6 +26,30 @@
   telling the reader to write `chock: allow` is replaced by "ask a person to review it; an agent
   cannot add the waiver", since an agent's waiver is never honoured; a person's commit and CI
   keep the sentence.
+- **`chock status --only log` groups and reports.** `--by policy|rule|agent|event` counts blocked,
+  asked, warned, `would_block` (its own column once a record carries it), new against baseline
+  findings, agents and the top three files per group; `--format md` prints a paste-able markdown
+  summary. The log is read locally and only ids, counts and the paths in `matches` are shown, never
+  file contents. `chock status` now forwards `--policy`, `--since` and `--json` to the log, which
+  only `python -m chock.gatelog` accepted. The runner records `agent` (the `agent_signal` marker,
+  when one is set) on every git and script-hook outcome, and `rules` (rule id to count of new
+  findings) when a script finding names its optional `rule`; older records group under "unknown".
+- **Plugin bundles: install a set once.** `chock plugin build` reads an optional `bundles.yaml`
+  (schema-checked: id, version, description, two or more member policies) and packages each bundle
+  beside the policies in every format. Claude's manifest documents `dependencies`, so its bundle is a
+  manifest-only meta-plugin that installs its members. The Agent Plugins 1.0.0 schema forbids extra
+  manifest fields, and no dependency field was found for Codex, Cursor, Copilot or Devin, so those
+  merge: one plugin carrying every member's skills, hooks and scripts, each member's scripts, gate
+  and sibling packages kept under `scripts/<member>/` and its hook commands re-pointed there. The
+  bundle description states each member's enforcement, and its posture sentence is the weakest
+  member's. `chock marketplace build` lists bundles first in the index and in `PLUGINS.md`.
+  A bundle writes its own `LICENSE`, and only when every member shares one licence and holder
+  (dated from the oldest member); a member's notice is never carried over to cover the others. A
+  `--bundles` file that does not exist fails the build instead of reading as "no bundles".
+  A bundle whose built content changes while its version in the bundles file stays the same
+  fails `chock plugin build` (and `--check` reports it as `unbumped`): clients that update a
+  plugin by version would otherwise never receive a member's fix. That includes a change that
+  comes from an engine update, not only a member's own.
 - **Runtime bytecode stays out of git.** `.chock/bin/` holds Python the hooks import, so running a
   hook wrote `__pycache__` there, and the `!.chock/bin/**` rule that keeps the runtime tracked
   re-included it: every adopter saw untracked bytecode after the first hook ran. `chock sync` now
