@@ -12,7 +12,9 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import tomllib
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -30,6 +32,8 @@ class GateResult:
     #: What a script gate itself chose (`ask` or `warn`) when it did not simply refuse; the
     #: gate's declared action still caps it. Empty means "whatever the gate declares".
     verdict: str = ""
+    #: Counts a gate log record carries beside the verdict (a script gate's new and baseline findings).
+    detail: dict[str, int] = field(default_factory=dict)
 
 
 def _is_outside(path: str) -> bool:
@@ -89,7 +93,7 @@ class GateContext:
                 errors="replace",
                 check=True,
             )
-        except (subprocess.CalledProcessError, FileNotFoundError, UnicodeError):
+        except (subprocess.CalledProcessError, OSError, UnicodeError):
             return ""
         else:
             return proc.stdout or ""
@@ -212,6 +216,10 @@ class WriteContext(GateContext):
 
     def removed_lines(self, path: str) -> list[str]:
         return self._diff(path)[1]
+
+    def committed_blob(self, path: str) -> str:
+        """HEAD's file, named from `repo_root` (`./`), which may sit below the git top-level."""
+        return self._git("show", f"HEAD:./{path}")
 
     def head_blob(self, path: str) -> str:
         """The baseline: HEAD at the turn's end, else what is on disk now, which this write would replace."""
@@ -535,44 +543,81 @@ _CRASH_MARKERS = ("traceback (most recent call last)", "syntax error", "syntaxer
 
 _UNDECIDED = " -- refusing rather than allowing what it never judged"
 
+_FINDINGS_KEY = "findings"
 
-def _kind_script(ctx: GateContext, params: dict, event: str) -> GateResult:
-    """Hand the material to the policy's own script and carry back its verdict.
 
-    The script reads `{"event", "repo_root", "writes": {path: text}}` on stdin -- the staged
-    blobs at commit and push, the write itself at tool use and at the turn's end -- so one
-    script serves every surface the declarative kinds do, and reads them the same way. It
-    answers with an exit code: 0 allows; 1 refuses, 3 asks, 4 warns, with its own words on stderr.
-    A missing script, a crash or a timeout is undecided, and an undecided gate takes its declared
-    action, in this runner's words: a gate that cannot reach a decision never reports an allow it
-    never established.
-    """
-    named = str(params.get("script", ""))
-    script = ctx.repo_root / named
-    if not script.is_file():
-        return GateResult(allowed=False, message=f"script gate: {named!r} is not installed{_UNDECIDED}")
-    writes = {path: ctx.staged_blob(path) for path in ctx.staged_paths()}
-    if not writes:
-        return GateResult(allowed=True)
-    material = {"event": event, "repo_root": str(ctx.repo_root), "writes": writes}
-    payload = json.dumps({**material, "session": ctx.session} if ctx.session else material)
+def _spawn(script: Path, ctx: GateContext, payload: dict, timeout: float) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(  # noqa: S603 -- the script is the policy's own, named in its manifest
+        [sys.executable, str(script)],
+        input=json.dumps(payload),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        cwd=ctx.repo_root,
+        timeout=timeout,
+        check=False,
+    )
+
+
+def _is_finding(item: object) -> bool:
+    if not isinstance(item, dict):
+        return False
+    line = item.get("line")
+    return (
+        isinstance(item.get("key"), str)
+        and isinstance(item.get("path"), str)
+        and isinstance(line, int)
+        and not isinstance(line, bool)
+        and isinstance(item.get("message"), str)
+        and isinstance(item.get("new", False), bool)
+    )
+
+
+def _findings_document(stdout: str) -> list[dict] | None:
+    """The findings a script printed as its one JSON object, or None when stdout is not that document."""
     try:
-        proc = subprocess.run(  # noqa: S603 -- the script is the policy's own, named in its manifest
-            [sys.executable, str(script)],
-            input=payload,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            cwd=ctx.repo_root,
-            timeout=_SCRIPT_TIMEOUT_SECONDS,
-            check=False,
-        )
-    except subprocess.TimeoutExpired:
-        budget = f"gave no verdict within {_SCRIPT_TIMEOUT_SECONDS}s"
-        return GateResult(allowed=False, message=f"script gate: {script.name} {budget}{_UNDECIDED}")
-    except OSError as exc:
-        return GateResult(allowed=False, message=f"script gate: {script.name} could not run ({exc}){_UNDECIDED}")
+        document = json.loads(stdout)
+    except ValueError:
+        return None
+    found = document.get(_FINDINGS_KEY) if isinstance(document, dict) else None
+    if not isinstance(found, list) or not all(_is_finding(item) for item in found):
+        return None
+    return found
+
+
+def _new_findings(found: list[dict], baseline: list[dict]) -> list[dict]:
+    """The findings the baseline does not account for: per path and key, each baseline copy absolves one."""
+    unspent = Counter((item["path"], item["key"]) for item in baseline)
+    fresh: list[dict] = []
+    for item in found:
+        slot = (item["path"], item["key"])
+        if item.get("new") or not unspent[slot]:
+            fresh.append(item)
+        else:
+            unspent[slot] -= 1
+    return fresh
+
+
+def _baseline_findings(ctx: GateContext, script: Path, material: dict, started: float) -> list[dict]:
+    """What the script finds in the baseline text of the change's files; empty when it cannot say.
+
+    A new file has no baseline and is left out. A run that fails, times out, prints no findings
+    document, or has no budget left contributes nothing, which errs toward blocking.
+    """
+    texts = {path: text for path in material["writes"] if (text := ctx.head_blob(path))}
+    remaining = _SCRIPT_TIMEOUT_SECONDS - (time.monotonic() - started)
+    if not texts or remaining <= 0:
+        return []
+    try:
+        proc = _spawn(script, ctx, {**material, "writes": texts, "baseline": True}, remaining)
+    except (subprocess.TimeoutExpired, OSError):
+        return []
+    return _findings_document(proc.stdout or "") or []
+
+
+def _exit_verdict(script: Path, proc: subprocess.CompletedProcess[str]) -> GateResult:
+    """The verdict of a script's exit code alone, with its own words as the reason."""
     spoken = ((proc.stderr or "") + (proc.stdout or "")).strip()
     if proc.returncode == _SCRIPT_ALLOW:
         return GateResult(allowed=True)
@@ -587,6 +632,63 @@ def _kind_script(ctx: GateContext, params: dict, event: str) -> GateResult:
     first = spoken.splitlines()[0] if spoken else ""
     detail = f": {first}" if first else ""
     return GateResult(allowed=False, message=f"script gate: {script.name} exited {proc.returncode}{detail}{_UNDECIDED}")
+
+
+def _judge_findings(
+    ctx: GateContext, script: Path, material: dict, proc: subprocess.CompletedProcess[str], started: float
+) -> GateResult:
+    """Judge only the findings the change introduces; the change-run's exit code is the verdict for them."""
+    if proc.returncode not in (_SCRIPT_ALLOW, _SCRIPT_BLOCK, _SCRIPT_ASK, _SCRIPT_WARN):
+        # A document followed by a crash or an unknown exit is undecided, never a clean pass.
+        return _exit_verdict(script, proc)
+    found = _findings_document(proc.stdout or "") or []
+    if not found:
+        return GateResult(allowed=True, detail={"new_findings": 0, "baseline_findings": 0})
+    baseline = _baseline_findings(ctx, script, material, started)
+    fresh = _new_findings(found, baseline)
+    counts = {"new_findings": len(fresh), "baseline_findings": len(baseline)}
+    if not fresh or proc.returncode == _SCRIPT_ALLOW:
+        return GateResult(allowed=True, detail=counts)
+    lines = [f"{item['path']}:{item['line']}: {item['message']}" for item in fresh]
+    verdict = {_SCRIPT_ASK: "ask", _SCRIPT_WARN: "warn"}.get(proc.returncode, "")
+    return GateResult(allowed=False, matches=lines, verdict=verdict, detail=counts)
+
+
+def _kind_script(ctx: GateContext, params: dict, event: str) -> GateResult:
+    """Hand the material to the policy's own script and carry back its verdict.
+
+    The script reads `{"event", "repo_root", "writes": {path: text}}` on stdin -- the staged
+    blobs at commit and push, the write itself at tool use and at the turn's end -- so one
+    script serves every surface the declarative kinds do, and reads them the same way. It
+    answers with an exit code: 0 allows; 1 refuses, 3 asks, 4 warns, with its own words on stderr.
+    A missing script, a crash or a timeout is undecided, and an undecided gate takes its declared
+    action, in this runner's words: a gate that cannot reach a decision never reports an allow it
+    never established.
+
+    A script that also prints a findings document (`{"findings": [...]}`) is run once more on
+    the baseline text, and only the findings the change adds are judged (see spec/gate-dsl.md).
+    """
+    named = str(params.get("script", ""))
+    script = ctx.repo_root / named
+    if not script.is_file():
+        return GateResult(allowed=False, message=f"script gate: {named!r} is not installed{_UNDECIDED}")
+    writes = {path: ctx.staged_blob(path) for path in ctx.staged_paths()}
+    if not writes:
+        return GateResult(allowed=True)
+    material = {"event": event, "repo_root": str(ctx.repo_root), "writes": writes}
+    if ctx.session:
+        material["session"] = ctx.session
+    started = time.monotonic()
+    try:
+        proc = _spawn(script, ctx, material, _SCRIPT_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        budget = f"gave no verdict within {_SCRIPT_TIMEOUT_SECONDS}s"
+        return GateResult(allowed=False, message=f"script gate: {script.name} {budget}{_UNDECIDED}")
+    except OSError as exc:
+        return GateResult(allowed=False, message=f"script gate: {script.name} could not run ({exc}){_UNDECIDED}")
+    if _findings_document(proc.stdout or "") is None:
+        return _exit_verdict(script, proc)
+    return _judge_findings(ctx, script, material, proc, started)
 
 
 KINDS = {
@@ -644,6 +746,7 @@ def _log_outcome(
             "verdict": verdict,
             "match_count": len(result.matches),
             "matches": result.matches[:_LOG_MATCH_CAP],
+            **result.detail,
         }
         if override:
             record["override"] = ALLOW_ENV
@@ -1002,12 +1105,13 @@ def main(argv: list[str] | None = None) -> int:
         # The files are on stdin because a tool call's content is not in the repository yet and
         # cannot be read back from it. {"writes": {"<path>": "<text>"}, "added": {"<path>": "<text>"}},
         # `added` present only for an edit, carrying the text it introduces.
+        # Paths are named from the directory the runtime works in, which may sit below the git top-level.
         raw = sys.stdin.read()
         return run(
             Path(args.gate),
             args.event,
             None,
-            _repo_root(),
+            Path.cwd(),
             writes=_writes(raw),
             added=_texts(raw, "added"),
             session=_session(raw),

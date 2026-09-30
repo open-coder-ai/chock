@@ -82,6 +82,32 @@ execute: {event: pre-commit, head_files: {page.html: "<a id=x>"}, files: {page.h
 A hook may also carry both `gate` and `script`: keep the pre-commit script and add a gate at
 `tool_use`. They may not both run at the same git event.
 
+## A gate script that judges only what a change adds
+
+A `kind: script` gate that prints `{"findings": [...]}` on stdout is run a second time on the
+baseline text, and only findings whose key the baseline does not account for are judged (spec:
+[Gate DSL](../spec/gate-dsl.md), `kind: script`). An old violation in a touched file no longer
+blocks; a violation the change creates, including by deleting a line, does.
+
+```python
+import json, re, sys
+
+payload = json.load(sys.stdin)  # "baseline": true on the second run; apply the same rules in both
+findings = []
+for path, text in payload["writes"].items():
+    lines = text.splitlines()
+    sanitized = any("sanitize(" in line for line in lines)
+    for number, line in enumerate(lines, 1):
+        if "query(" in line and not sanitized and "chock: allow" not in line:
+            stmt = re.sub(r"\s+", " ", line.strip())
+            findings.append({"key": f"sqli|{path}|{stmt}", "path": path, "line": number, "message": f"unsanitized {stmt}"})
+print(json.dumps({"findings": findings}))
+sys.exit(1 if findings else 0)
+```
+
+The key holds no line number, so moving code does not make it new; deleting `sanitize(` does, as
+the finding then appears where the baseline had none.
+
 ## See also
 
 - [Authoring Policies](authoring-policies.md) — the other artifact types and their manifests
