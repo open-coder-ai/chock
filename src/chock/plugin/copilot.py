@@ -13,10 +13,9 @@ from chock.compile.emitters.in_agent_hooks import hooks_map_file
 from chock.hooks import launch
 from chock.plugin import gate_package, store
 from chock.plugin.build import (
-    _ADVISORY_NOTE_HOOK,
-    _ADVISORY_NOTE_RULE,
     LICENSE_REL,
     NAMESPACE,
+    advisory_note,
     build_manifest,
     build_skill,
     license_text,
@@ -109,12 +108,11 @@ def copilot_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: 
     enforced = script is not None or gate is not None
 
     skill = build_skill(policy_dir, manifest, Path(repo_root), hooks=HOOKS_REL if enforced else None)
+    generic = advisory_note(policy_dir, manifest)
     if script:
-        skill = skill.replace(_ADVISORY_NOTE_RULE, _COPILOT_ENFORCED_NOTE).replace(
-            _ADVISORY_NOTE_HOOK, _COPILOT_ENFORCED_NOTE
-        )
+        skill = skill.replace(generic, _COPILOT_ENFORCED_NOTE)
     elif gate:
-        skill = skill.replace(_ADVISORY_NOTE_RULE, _GATE_NOTE_COPILOT).replace(_ADVISORY_NOTE_HOOK, _GATE_NOTE_COPILOT)
+        skill = skill.replace(generic, _GATE_NOTE_COPILOT)
 
     files: dict[Path, str] = {
         Path(_LAYOUT["manifest"]): json.dumps(

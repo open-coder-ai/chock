@@ -14,12 +14,11 @@ from chock.gate import runtime_bundle
 from chock.hooks import launch
 from chock.plugin import gate_package, store
 from chock.plugin.build import (
-    _ADVISORY_NOTE_HOOK,
-    _ADVISORY_NOTE_RULE,
     LICENSE_REL,
     _author,
     _keywords,
     _one_line,
+    advisory_note,
     build_skill,
     license_text,
     plugin_name,
@@ -120,12 +119,11 @@ def claude_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
     enforced = script is not None or gate is not None
 
     skill = build_skill(policy_dir, manifest, Path(repo_root), hooks="hooks/hooks.json" if enforced else None)
+    generic = advisory_note(policy_dir, manifest)
     if script:
-        skill = skill.replace(_ADVISORY_NOTE_RULE, _ENFORCED_NOTE).replace(_ADVISORY_NOTE_HOOK, _ENFORCED_NOTE)
+        skill = skill.replace(generic, _ENFORCED_NOTE)
     elif gate:
-        skill = skill.replace(_ADVISORY_NOTE_RULE, _ENFORCED_GATE_NOTE).replace(
-            _ADVISORY_NOTE_HOOK, _ENFORCED_GATE_NOTE
-        )
+        skill = skill.replace(generic, _ENFORCED_GATE_NOTE)
 
     skill_rel = Path(packaging.supports("claude_code", packaging.SKILL).format(name=name))
     files: dict[Path, str] = {

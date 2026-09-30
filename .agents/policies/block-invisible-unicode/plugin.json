@@ -13,7 +13,7 @@
     "policy-as-code",
     "hook",
     "block",
-    "{'control': 'asi01', 'coverage': 'partial', 'note': 'blocks the hidden-character slice of goal-hijack payloads a diff can show; semantic injection defense remains advisory (injection-defense, owasp-asi01-agent-goal-hijack)'}"
+    "asi01"
   ],
   "extensions": {
     "io.github.open-coder-ai": {

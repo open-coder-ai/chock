@@ -14,7 +14,7 @@
       "id": "block-destructive-commands",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "7b571e9b8696697355b379d310aa4dd3525a5a230c477c16bb683aba19db71d9",
+      "sha256": "ba1108ffdfce230bf66ee9d83a71c46cddb7d7c995759d4daee987439107afc6",
       "source": "local",
       "artifacts_sha256": "a0e8f4649a534679188e9e5dc465331036352753b9e473c19c6925aa123fe7ce"
     },
@@ -22,7 +22,7 @@
       "id": "block-invisible-unicode",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "983a4528dee8b0c1d2779273f9ef2addc53d12f2729795e4a1ba78e561ac166f",
+      "sha256": "bc91b8805d38ab92649b5eb69cf7a40c311ad86263ba343935ba4a5a4c3a8d3e",
       "source": "local",
       "artifacts_sha256": "c1facf023eedad82a8ba80f1305fe7181fce15118fab0997e1e3c84e3ecdc16d"
     },
@@ -30,7 +30,7 @@
       "id": "block-no-verify",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "775a05cc11450dbf4320fb7a8a8c4f30c856ff969e12b72e00c03e4a5b10f6e9",
+      "sha256": "67c7a06a6676eb0ecc8f929dbdf8fc181ead721c8aa7b6e0f29e1757fdfbb3ff",
       "source": "local",
       "artifacts_sha256": "a7f9f231d90199cfa70f4d7d3bbb867872f7406b5b9728ce3eaf05273f6fa8d8"
     },
@@ -38,7 +38,7 @@
       "id": "block-wildcard-agent-permissions",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "898d2dd802941d09a775f5f00a2ea56543d85433bfcf3535a5563c06c8cb32e7",
+      "sha256": "84f1abd22069e058c86daaff175d57f8cd1a0b74e028903327f342f055992971",
       "source": "local",
       "artifacts_sha256": "393f17ade534f8d7116c6156fc20041d8a514f72f657465ea095359d88d1290d"
     },
@@ -94,7 +94,7 @@
       "id": "pin-github-actions",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "70ac075941841e3c8f9b49a99f44b61ca7e7e8fec87b221cf97a46b4a09b599e",
+      "sha256": "4835ac4f1fc2bd4c0b13a1d9f99d40265135c0abe315f4b49378fd89befc415e",
       "source": "local",
       "artifacts_sha256": "a33f59a73ab35f1f0eea61f83b20aedd01992e740dbc3fdc539a844bd7289a35"
     },
@@ -110,7 +110,7 @@
       "id": "protect-agent-config",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "1038054491c268d0d29fbb5c0b7ccc65b3922e0f5d075293861112c3d6f6a2aa",
+      "sha256": "29c1a18fa1bd3ee2ab34a0ea1d1c07617a5841b8afbd65ad8704d31093c4fcc9",
       "source": "local",
       "artifacts_sha256": "1c0ff90bc064dec5020334067a1e3d12b0c9863556a4376df4a4e3156a35caea"
     },
@@ -118,7 +118,7 @@
       "id": "protect-commit-privacy",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "3616df348241bb3f780adc15c6ce4f44b3f066cb0bdcc0243013b2b599e60517",
+      "sha256": "22045da796ba466d8043b7d4322b6dbfdcc46e3fd9709221c505acdf24d08119",
       "source": "local",
       "artifacts_sha256": "665406f2237cdaac186f229005504d9611aade4dad8946d124a8d6221601592b"
     },
@@ -126,7 +126,7 @@
       "id": "protect-main-branch",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "316bd80a2fdbeb098f8477503af8c9e0977cf11be4e32572d87014ef062e055d",
+      "sha256": "a0c154b0e2fc31a90f518419d29177a487702f881e7f0158e566271d5a8a61a8",
       "source": "local",
       "artifacts_sha256": "18bb4772936ece0e374fb48e1a09fdbf946fb82381ed30687c0bcc8a10d4643c"
     },
@@ -142,7 +142,7 @@
       "id": "scan-secrets",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "655f0e19f40c2e31997b23fa2687a041c68649a9567178515e9373091e01d570",
+      "sha256": "f4183f6f5d24f9ccfe0a5823a6ceaaff1fb2a7ad4da1db67dcd0ba596f2c0c90",
       "source": "local",
       "artifacts_sha256": "5166c048549ad13fd6b63ef7a65bcf1a1975cc5154a872b242c9fdfaef3b09b4"
     },
@@ -158,7 +158,7 @@
       "id": "token-efficiency",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "97c72ed40896f500d7f3ff14d94fd8fbdfca796319bc3b2dcbfa35cb95ccb7fc",
+      "sha256": "cea845541e17c74ce0ffe8fd269c1b00d649d96c61a0b504a185b7ed6e247b4e",
       "source": "local",
       "artifacts_sha256": "0a8e53b16fa7170987065591572186a4c9240654edbeca5b6eefb66f820de7bc"
     },
@@ -166,7 +166,7 @@
       "id": "verify-dependency-exists",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "805409b7d5a018fd49a949ee524e3f2706b5c30804b6ad62587e2ecccb48dd87",
+      "sha256": "005680c3df7ab7272edf4e45d3ea1f56dec2fedd8a8f78b75b1555c8ccbe762b",
       "source": "local"
     },
     {

@@ -7,8 +7,12 @@ import re
 from pathlib import Path
 from typing import Any
 
+from chock.compile.emitters import SCRIPT_EVENTS
 from chock.compile.emitters.advisory import advisory_lines
+from chock.compile.emitters.in_agent import TOOL_USE, _guard_script
 from chock.emit import write_generated
+from chock.gate.runner import STOP_EVENT
+from chock.gate.schema import TOOL_CALL_EVENT
 from chock.plugin.listing import LICENSE_REL, license_text
 from chock.plugin.listing import one_line as _one_line
 
@@ -57,7 +61,9 @@ def _keywords(manifest: dict[str, Any]) -> list[str]:
         if value:
             words.append(str(value))
     for tag in (manifest.get("compliance") or {}).get("owasp_asi") or []:
-        words.append(str(tag).lower())
+        control = tag.get("control") if isinstance(tag, dict) else tag
+        if control:
+            words.append(str(control).lower())
     seen: set[str] = set()
     return [w for w in words if not (w in seen or seen.add(w))]
 
@@ -100,16 +106,50 @@ def build_manifest(manifest: dict[str, Any], policy_dir: Path) -> dict[str, Any]
     return {key: data[key] for key in MANIFEST_KEYS if key in data}
 
 
-_ADVISORY_NOTE_HOOK = (
-    "This skill is advisory: the client reading it has no mechanism to enforce it. "
-    "The same policy compiled by `chock` becomes a git hook that exits non-zero. "
-    "See https://github.com/open-coder-ai/chock"
+_SITE = "See https://github.com/open-coder-ai/chock"
+_ADVISORY_LEAD = "This skill is advisory: the client reading it has no mechanism to enforce it"
+_NOT_ENFORCED = (
+    f"{_ADVISORY_LEAD}, and this policy stays advisory even when compiled by `chock` "
+    f"-- it ships rule text, not a blocking hook. {_SITE}"
 )
-_ADVISORY_NOTE_RULE = (
-    "This skill is advisory: the client reading it has no mechanism to enforce it, and this "
-    "policy stays advisory even when compiled by `chock` -- it ships rule text, not a blocking "
-    "hook. See https://github.com/open-coder-ai/chock"
-)
+_GATE_VERBS = {"block": "blocks", "ask": "asks", "warn": "warns"}
+#: Where a gate's declared event lands, in the order a reader meets them.
+_GATE_SURFACES = {
+    "commit": ("at commit",),
+    "push": ("at push",),
+    "ci": ("in CI",),
+    TOOL_USE: ("on an agent's file writes", "at turn end"),
+    STOP_EVENT: ("at turn end",),
+    TOOL_CALL_EVENT: ("on tool calls",),
+}
+
+
+def _listed(items: list[str]) -> str:
+    return items[0] if len(items) == 1 else f"{', '.join(items[:-1])} and {items[-1]}"
+
+
+def _gate_surfaces(events: list[Any]) -> list[str]:
+    found = [phrase for event in events for phrase in _GATE_SURFACES.get(str(event), ())]
+    return list(dict.fromkeys(found))
+
+
+def advisory_note(policy_dir: Path, manifest: dict[str, Any]) -> str:
+    """The SKILL.md footer: advisory on its own, and honest about what `chock` compiles."""
+    hook = manifest.get("hook") or {}
+    script, gate = hook.get("script") or {}, hook.get("gate") or {}
+    refusals: list[str] = []
+    if _guard_script(Path(policy_dir), str(manifest.get("id") or Path(policy_dir).name)):
+        refusals.append("an agent's shell command before it runs")
+    git_events = [e for e in SCRIPT_EVENTS if e in (script.get("on") or [])]
+    if git_events:
+        refusals.append(f"a change at {_listed(git_events)}")
+    clauses = [f"can refuse {' and '.join(refusals)}"] if refusals else []
+    surfaces = _gate_surfaces(list(gate.get("on") or [])) if gate else []
+    if surfaces:
+        clauses.append(f"{_GATE_VERBS.get(str(gate.get('action') or 'block'), 'blocks')} {_listed(surfaces)}")
+    if not clauses:
+        return _NOT_ENFORCED
+    return f"{_ADVISORY_LEAD}. The same policy compiled by `chock` {'; '.join(clauses)}. {_SITE}"
 
 
 #: A policy's own words for its skill, and the files it wants beside them: `skill/body.md`
@@ -146,7 +186,6 @@ def build_skill(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, hoo
     body = "\n".join(lines) if lines else f"see .agents/policies/{policy_id}/"
 
     coverage_line = f"  chock.hooks: {hooks}\n" if hooks else "  chock.coverage_without_chock: advisory\n"
-    advisory_note = _ADVISORY_NOTE_HOOK if (manifest.get("artifact") == "hook") else _ADVISORY_NOTE_RULE
     own = skill_body(policy_dir)
     own_section = f"{own}\n\n" if own else ""
     return (
@@ -168,7 +207,7 @@ def build_skill(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, hoo
         "```\n"
         "\n"
         f"{own_section}"
-        f"{advisory_note}\n"
+        f"{advisory_note(policy_dir, manifest)}\n"
     )
 
 

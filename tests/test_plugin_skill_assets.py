@@ -76,5 +76,5 @@ def test_a_policy_without_a_skill_folder_renders_exactly_as_before(gate_policy, 
     build_plugin(pack, manifest, tmp_path)
     skill = (pack / "skills" / POLICY_ID / "SKILL.md").read_text(encoding="utf-8")
     assert skill.endswith(
-        "```\n\nThis skill is advisory: the client reading it has no mechanism to enforce it. The same policy compiled by `chock` becomes a git hook that exits non-zero. See https://github.com/open-coder-ai/chock\n"
+        "```\n\nThis skill is advisory: the client reading it has no mechanism to enforce it. The same policy compiled by `chock` blocks at commit, on an agent's file writes and at turn end. See https://github.com/open-coder-ai/chock\n"
     )
