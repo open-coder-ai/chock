@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **Plugin bundles: install a set once.** `chock plugin build` reads an optional `bundles.yaml`
+  (schema-checked: id, version, description, two or more member policies) and packages each bundle
+  beside the policies in every format. Claude's manifest documents `dependencies`, so its bundle is a
+  manifest-only meta-plugin that installs its members. The Agent Plugins 1.0.0 schema forbids extra
+  manifest fields, and no dependency field was found for Codex, Cursor, Copilot or Devin, so those
+  merge: one plugin carrying every member's skills, hooks and scripts, each member's scripts, gate
+  and sibling packages kept under `scripts/<member>/` and its hook commands re-pointed there. The
+  bundle description states each member's enforcement, and its posture sentence is the weakest
+  member's. `chock marketplace build` lists bundles first in the index and in `PLUGINS.md`.
 - **Runtime bytecode stays out of git.** `.chock/bin/` holds Python the hooks import, so running a
   hook wrote `__pycache__` there, and the `!.chock/bin/**` rule that keeps the runtime tracked
   re-included it: every adopter saw untracked bytecode after the first hook ran. `chock sync` now

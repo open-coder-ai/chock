@@ -83,13 +83,18 @@ def _gate_command() -> str:
     return f'{_interpreter("claude_code")} "{adapter}" --gate "{gate}"'
 
 
+def manifest_posture(*, enforced: bool, gate: bool = False) -> str:
+    """The posture sentence a package's description ends with."""
+    return (POSTURE_ENFORCED_GATE if gate else POSTURE_ENFORCED) if enforced else POSTURE_ADVISORY
+
+
 def build_claude_manifest(
     manifest: dict[str, Any], policy_dir: Path, *, enforced: bool, gate: bool = False
 ) -> dict[str, Any]:
     """Derive `.claude-plugin/plugin.json` from a policy manifest."""
     policy_id = manifest.get("id") or Path(policy_dir).name
     provenance = manifest.get("provenance") or {}
-    posture = (POSTURE_ENFORCED_GATE if gate else POSTURE_ENFORCED) if enforced else POSTURE_ADVISORY
+    posture = manifest_posture(enforced=enforced, gate=gate)
 
     data: dict[str, Any] = {
         "name": plugin_name(str(policy_id)),
