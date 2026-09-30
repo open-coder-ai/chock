@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **A findings refusal leads with the finding.** A script gate's refusal put the policy's long
+  message first and the findings last, so an agent read the boilerplate before the `path:line:`
+  that mattered. Findings now come first, then a one-line summary, then the policy message. A
+  tool-use refusal (and the turn's end) carries the findings and one line on how a person
+  customises the rules, with no policy text. At tool use and for an agent's commit, a sentence
+  telling the reader to write `chock: allow` is replaced by "ask a person to review it; an agent
+  cannot add the waiver", since an agent's waiver is never honoured; a person's commit and CI
+  keep the sentence.
 - **Runtime bytecode stays out of git.** `.chock/bin/` holds Python the hooks import, so running a
   hook wrote `__pycache__` there, and the `!.chock/bin/**` rule that keeps the runtime tracked
   re-included it: every adopter saw untracked bytecode after the first hook ran. `chock sync` now
