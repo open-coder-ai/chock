@@ -256,7 +256,9 @@ introduces:
   script owns its scope. Recommended: rule id + enclosing scope + the normalized flagged line,
   never a line number. `path` is the file the finding belongs to; `line` (integer) and `message`
   are for display. An optional `"new": true` makes the finding count as new whatever the
-  baseline holds, for a script that already compared with HEAD itself.
+  baseline holds, for a script that already compared with HEAD itself. An optional `rule` (string,
+  `[A-Za-z0-9][A-Za-z0-9 ._:/-]{0,63}`) names the rule for the gate log; a missing or malformed
+  `rule` is ignored and never invalidates the document.
 - A document is valid only when `findings` is a list of objects each carrying string `key`, `path`
   and `message`, an integer `line`, and a boolean `new` if present. Anything else on stdout is not
   a document, and the script keeps the exit-code contract above exactly (one run).
@@ -281,7 +283,8 @@ introduces:
 - **Baseline failure** (crash, timeout, non-zero exit without a document, non-JSON stdout, no
   git, no HEAD) leaves the baseline findings empty, which errs toward blocking.
 - **Budget.** Both runs share the 30s timeout; the baseline run gets what the change-run left.
-- The gate log records `new_findings` and `baseline_findings`. `tool_call` scripts and the
+- The gate log records `new_findings`, `baseline_findings` and, per declared `rule`, `rules`
+  (rule to count of new findings). `tool_call` scripts and the
   `hook.script` event scripts are unchanged.
 
 `chock compile` rewrites `script` to the file's path from the repository root, which is all

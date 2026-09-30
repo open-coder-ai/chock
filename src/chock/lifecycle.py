@@ -6,6 +6,8 @@ import argparse
 import sys
 from pathlib import Path
 
+from chock.gatelog import FORMATS, GROUP_KEYS
+
 
 def _run(label: str, fn, argv: list[str]) -> int:
     print(f"== {label}")
@@ -146,11 +148,24 @@ def _run_baseline(args: argparse.Namespace) -> int:
     return _run("policy baseline", baseline_main, ["--repo", args.repo, "--base", args.base])
 
 
+def _log_args(args: argparse.Namespace) -> list[str]:
+    """The `status` flags that belong to the gate log, in `chock.gatelog`'s own spelling."""
+    flags = [("--policy", args.policy), ("--since", args.since), ("--by", args.by), ("--format", args.format)]
+    given = [part for flag, value in flags if value is not None for part in (flag, str(value))]
+    return given + (["--json"] if args.json else [])
+
+
 def status_main(argv: list[str] | None) -> int:
     """Read-only picture of the repo: policy table, plus registry and gate log on request."""
     parser = argparse.ArgumentParser(prog="chock status")
     parser.add_argument("--repo", default=".", help="Repo root")
     parser.add_argument("--only", default=None, help="Comma-separated subset of: policies, registry, log")
+    log_flags = parser.add_argument_group("log section")
+    log_flags.add_argument("--policy", help="Log: restrict to one policy id")
+    log_flags.add_argument("--since", type=int, metavar="DAYS", help="Log: only records from the last N days")
+    log_flags.add_argument("--json", action="store_true", help="Log: machine-readable output")
+    log_flags.add_argument("--by", choices=GROUP_KEYS, help="Log: group by policy, rule, agent or event")
+    log_flags.add_argument("--format", choices=FORMATS, help="Log: md prints a markdown summary")
     args = parser.parse_args(argv)
 
     sections = ("policies", "registry", "log")
@@ -158,6 +173,10 @@ def status_main(argv: list[str] | None) -> int:
     unknown = sorted(set(selected) - set(sections))
     if unknown:
         print(f"Unknown section(s): {', '.join(unknown)}. Choose from: {', '.join(sections)}", file=sys.stderr)
+        return 2
+
+    if "log" not in selected and _log_args(args):
+        print("--policy, --since, --json, --by and --format apply to `--only log`", file=sys.stderr)
         return 2
 
     rc = 0
@@ -172,5 +191,9 @@ def status_main(argv: list[str] | None) -> int:
     if "log" in selected:
         from chock.gatelog import main as gatelog_main
 
-        rc = max(rc, _run("gate log", gatelog_main, ["--repo", args.repo]))
+        log_argv = ["--repo", args.repo, *_log_args(args)]
+        if args.json or args.format == "md":
+            rc = max(rc, int(gatelog_main(log_argv) or 0))
+        else:
+            rc = max(rc, _run("gate log", gatelog_main, log_argv))
     return rc
