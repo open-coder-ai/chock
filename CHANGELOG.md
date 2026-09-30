@@ -1,6 +1,6 @@
 # Chock changelog
 
-## Unreleased
+## 0.14.0 — Gates on any tool call that can ask or warn, agent commits detected, and guards that run on any command
 
 - **Eval cases can expect `ask` and `warn`.** `execute.expect` is now `allow | block | ask | warn`.
   At the agent events (`tool_use`, `stop`) the gate runner's exit 3 replays as `ask` and 4 as `warn`
