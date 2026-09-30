@@ -13,7 +13,7 @@
     "policy-as-code",
     "hook",
     "block",
-    "{'control': 'asi04', 'coverage': 'partial', 'note': 'blocks the unpinned-action acquisition path a diff can show; signature/provenance verification and non-actions supply chain remain out of scope'}"
+    "asi04"
   ],
   "extensions": {
     "io.github.open-coder-ai": {

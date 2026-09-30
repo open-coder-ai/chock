@@ -13,7 +13,7 @@
     "policy-as-code",
     "hook",
     "block",
-    "{'control': 'asi03', 'coverage': 'partial', 'note': 'blocks the everything-grant a diff can show (llm03 excessive agency); least-agency tool design remains advisory (owasp-asi02-tool-misuse, owasp-asi03-identity-privilege-abuse)'}"
+    "asi03"
   ],
   "extensions": {
     "io.github.open-coder-ai": {

@@ -13,7 +13,7 @@
     "policy-as-code",
     "rule",
     "advise",
-    "{'control': 'asi03', 'coverage': 'partial', 'note': 'blocks shell self-modification of agent permission and instruction files; identity design and grant scoping remain advisory'}"
+    "asi03"
   ],
   "extensions": {
     "io.github.open-coder-ai": {

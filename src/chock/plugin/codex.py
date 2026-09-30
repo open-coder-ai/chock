@@ -12,11 +12,10 @@ from chock.compile.emitters.in_agent import _guard_script, tool_use_gate_spec
 from chock.compile.emitters.in_agent_hooks import hooks_map_file
 from chock.plugin import gate_package, posture, store
 from chock.plugin.build import (
-    _ADVISORY_NOTE_HOOK,
-    _ADVISORY_NOTE_RULE,
     _author,
     _keywords,
     _one_line,
+    advisory_note,
     build_skill,
     plugin_name,
     skill_assets,
@@ -120,12 +119,11 @@ def codex_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
     enforced = script is not None or gate is not None
 
     skill = build_skill(policy_dir, manifest, Path(repo_root), hooks=HOOKS_REL if enforced else None)
+    generic = advisory_note(policy_dir, manifest)
     if script:
-        skill = skill.replace(_ADVISORY_NOTE_RULE, _ENFORCED_NOTE_CODEX).replace(
-            _ADVISORY_NOTE_HOOK, _ENFORCED_NOTE_CODEX
-        )
+        skill = skill.replace(generic, _ENFORCED_NOTE_CODEX)
     elif gate:
-        skill = skill.replace(_ADVISORY_NOTE_RULE, _GATE_NOTE_CODEX).replace(_ADVISORY_NOTE_HOOK, _GATE_NOTE_CODEX)
+        skill = skill.replace(generic, _GATE_NOTE_CODEX)
 
     files: dict[Path, str] = {
         Path(_LAYOUT["manifest"]): json.dumps(
