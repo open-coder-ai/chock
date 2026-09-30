@@ -887,13 +887,42 @@ def _verdict(result: GateResult, declared: str) -> str:
     return min(chosen, declared, key=_ACTION_RANK.__getitem__)
 
 
-def _reason(result: GateResult, spec: dict) -> str:
-    lines = [result.message or spec.get("message", ""), *(f"  - {m}" for m in result.matches)]
-    return "\n".join(lines)
+#: One sentence that tells the reader to write a `chock: allow` waiver: an agent's waiver is never honoured.
+_WAIVER_SENTENCE_RE = re.compile(r"(?:(?<=\.\s)|^)(?:(?!\.\s)[^\n])*?chock: allow(?:(?!\.\s)[^\n])*\.?", re.MULTILINE)
+_AGENT_WAIVER_HINT = "If this must stay, ask a person to review it; an agent cannot add the waiver."
+_CUSTOMISE_POINTER = (
+    "A person customises this policy's rules in .agents/policies/{policy}/manifest.yaml; an agent cannot loosen them."
+)
 
 
-def _report_refusal(result: GateResult, spec: dict, judged: str, signal: str | None) -> None:
-    print(_reason(result, spec), file=sys.stderr)
+def _for_agent(text: str) -> str:
+    """The text with any waiver instruction replaced by the agent's way forward."""
+    return _WAIVER_SENTENCE_RE.sub(_AGENT_WAIVER_HINT, text)
+
+
+def _summary(result: GateResult, policy_id: str | None) -> str:
+    """One line saying how many new findings the gate refused on."""
+    return (
+        f"{policy_id or 'gate'} refused {len(result.matches)} new finding(s) (only lines this change adds are judged)."
+    )
+
+
+def _reason(result: GateResult, spec: dict, event: str = "commit", policy_id: str | None = None) -> str:
+    """The refusal. A findings gate puts its findings first; at tool use the agent gets them alone."""
+    agent = event in HEAD_WAIVER_EVENTS
+    policy = result.message or spec.get("message", "")
+    matches = list(result.matches)
+    if agent:
+        policy, matches = _for_agent(policy), [_for_agent(m) for m in matches]
+    if "new_findings" not in result.detail:
+        return "\n".join([policy, *(f"  - {m}" for m in matches)])
+    if event == TOOL_USE_EVENT:
+        return "\n".join([*matches, _CUSTOMISE_POINTER.format(policy=policy_id or "<id>")])
+    return "\n".join([*matches, _summary(result, policy_id), policy])
+
+
+def _report_refusal(result: GateResult, spec: dict, judged: str, signal: str | None, policy_id: str | None) -> None:
+    print(_reason(result, spec, judged, policy_id), file=sys.stderr)
     if judged == AGENT_COMMIT_EVENT and signal:
         print(_AGENT_COMMIT_NOTE.format(signal=signal), file=sys.stderr)
 
@@ -932,7 +961,7 @@ def _ask_answered(policy_id: str | None, signal: str | None) -> bool:
 
 def _deliver(verdict: str, result: GateResult, spec: dict, event: str, policy_id: str | None) -> int:
     """Report a `warn` or `ask` in this event's own channel and return its exit code."""
-    reason = _reason(result, spec)
+    reason = _reason(result, spec, TOOL_USE_EVENT if event in AGENT_EVENTS else event, policy_id)
     if event in AGENT_EVENTS:
         print(reason, file=sys.stderr)
         # The turn's end has nobody to ask and nothing to withhold: a Stop ask is a warning.
@@ -1054,10 +1083,10 @@ def _conclude(
         print(f"gate: {policy_id} asked; allowed by {ALLOW_ENV}.", file=sys.stderr)
         return 0, "allow"
     if verdict == ACTION_BLOCK:
-        _report_refusal(result, spec, judged, signal)
+        _report_refusal(result, spec, judged, signal, policy_id)
         return 1, verdict
     if verdict == ACTION_ASK and event in _GIT_EVENTS:
-        print(_reason(result, spec), file=sys.stderr)
+        print(_reason(result, spec, judged, policy_id), file=sys.stderr)
         print(_ask_refusal(policy_id, signal), file=sys.stderr)
         return 1, verdict
     return (0 if verdict == "allow" else _deliver(verdict, result, spec, event, policy_id)), verdict
