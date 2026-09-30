@@ -13,10 +13,9 @@ from chock.compile.emitters.in_agent_hooks import hooks_map_file
 from chock.hooks import launch
 from chock.plugin import gate_package, posture, store
 from chock.plugin.build import (
-    _ADVISORY_NOTE_HOOK,
-    _ADVISORY_NOTE_RULE,
     LICENSE_REL,
     _one_line,
+    advisory_note,
     build_skill,
     license_text,
     plugin_name,
@@ -119,12 +118,11 @@ def devin_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
     enforced = script is not None or gate is not None
 
     skill = build_skill(policy_dir, manifest, Path(repo_root), hooks=HOOKS_REL if enforced else None)
+    generic = advisory_note(policy_dir, manifest)
     if script:
-        skill = skill.replace(_ADVISORY_NOTE_RULE, _BESTEFFORT_NOTE_DEVIN).replace(
-            _ADVISORY_NOTE_HOOK, _BESTEFFORT_NOTE_DEVIN
-        )
+        skill = skill.replace(generic, _BESTEFFORT_NOTE_DEVIN)
     elif gate:
-        skill = skill.replace(_ADVISORY_NOTE_RULE, _GATE_NOTE_DEVIN).replace(_ADVISORY_NOTE_HOOK, _GATE_NOTE_DEVIN)
+        skill = skill.replace(generic, _GATE_NOTE_DEVIN)
 
     files: dict[Path, str] = {
         Path(_LAYOUT["manifest"]): json.dumps(
