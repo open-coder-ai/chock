@@ -122,6 +122,15 @@ def test_a_document_with_a_malformed_finding_is_not_a_document(tmp_path: Path, c
     assert "raw words" in capsys.readouterr().err
 
 
+def test_a_document_then_an_unknown_exit_is_undecided_not_a_pass(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+    """A script that prints an empty document and then crashes or exits oddly has decided nothing."""
+    repo = repo_with(tmp_path, **{"app.py": OLD})
+    gate = make_gate(repo)
+    (repo / "toy.py").write_text("import sys\nprint('{\"findings\": []}')\nsys.exit(7)\n")
+    assert judge_write(gate, repo, OLD) == 1
+    assert "exited 7" in capsys.readouterr().err
+
+
 def test_a_committed_change_is_judged_against_head(tmp_path: Path) -> None:
     from conftest import stage
 

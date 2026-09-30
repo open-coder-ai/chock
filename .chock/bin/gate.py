@@ -638,6 +638,9 @@ def _judge_findings(
     ctx: GateContext, script: Path, material: dict, proc: subprocess.CompletedProcess[str], started: float
 ) -> GateResult:
     """Judge only the findings the change introduces; the change-run's exit code is the verdict for them."""
+    if proc.returncode not in (_SCRIPT_ALLOW, _SCRIPT_BLOCK, _SCRIPT_ASK, _SCRIPT_WARN):
+        # A document followed by a crash or an unknown exit is undecided, never a clean pass.
+        return _exit_verdict(script, proc)
     found = _findings_document(proc.stdout or "") or []
     if not found:
         return GateResult(allowed=True, detail={"new_findings": 0, "baseline_findings": 0})
@@ -646,9 +649,6 @@ def _judge_findings(
     counts = {"new_findings": len(fresh), "baseline_findings": len(baseline)}
     if not fresh or proc.returncode == _SCRIPT_ALLOW:
         return GateResult(allowed=True, detail=counts)
-    if proc.returncode not in (_SCRIPT_BLOCK, _SCRIPT_ASK, _SCRIPT_WARN):
-        undecided = _exit_verdict(script, proc)
-        return GateResult(allowed=False, message=undecided.message, detail=counts)
     lines = [f"{item['path']}:{item['line']}: {item['message']}" for item in fresh]
     verdict = {_SCRIPT_ASK: "ask", _SCRIPT_WARN: "warn"}.get(proc.returncode, "")
     return GateResult(allowed=False, matches=lines, verdict=verdict, detail=counts)
