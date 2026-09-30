@@ -1,6 +1,6 @@
 # Chock changelog
 
-## Unreleased
+## 0.15.0 — Script gates judge only the findings a change introduces
 
 - **Script gates judge only the findings a change introduces.** A `kind: script` gate that prints
   `{"findings": [{"key", "path", "line", "message"}]}` on stdout is run again on the baseline text
