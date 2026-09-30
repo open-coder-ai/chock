@@ -184,3 +184,25 @@ def test_policy_dir_in_rule_text_compiles_to_the_installed_path(tmp_path: Path) 
         "never(execute): instruction_in_content; see .agents/policies/injection-defense/references/notes.md"
     ]
     assert not any("{policy_dir}" in line for line in lines)
+
+
+_LONG_REGEX = r"(\.env(\.(?!(sample|example|template|dist|default)$)[A-Za-z0-9_-]+)?|id_rsa)$"
+
+
+def test_gate_line_shows_paths_and_labels_a_long_regex_instead_of_cutting_it() -> None:
+    from chock.compile.emitters.advisory import _gate_lines
+
+    spec = {
+        "kind": "content_regex",
+        "on": ["commit", "tool_use"],
+        "action": "block",
+        "message": "m",
+        "paths": [".github/workflows/*", ".github/actions/*"],
+        "params": {"scan": "added_lines", "forbidden_path_regex": _LONG_REGEX, "allowlist_pragma": r"pragma:\s*allow"},
+    }
+    head = _gate_lines(spec)[0]
+    assert head == (
+        "on(commit|tool_use): block(content_regex) paths=.github/workflows/*|.github/actions/* "
+        r"scan=added_lines forbidden_path_regex(regex) allowlist_pragma=pragma:\s*allow"
+    )
+    assert "..." not in head

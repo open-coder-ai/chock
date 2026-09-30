@@ -262,3 +262,15 @@ def test_the_packaged_runner_is_invoked_the_way_the_hook_would(policy, tmp_path:
         check=False,
     )
     assert proc.returncode == 1 and "forbidden marker" in proc.stderr
+
+
+@pytest.mark.parametrize("vendor", ["claude_code", "codex_cli", "cursor", "devin", "vscode_copilot"])
+def test_gate_skill_note_states_the_gates_real_action(vendor: str) -> None:
+    from chock.plugin.gate_package import gate_skill_note
+
+    assert "is enforced in this client by" in gate_skill_note(vendor)
+    assert gate_skill_note(vendor, "block") == gate_skill_note(vendor)
+    assert "asks the person before the action proceeds" in gate_skill_note(vendor, "ask")
+    assert "is enforced" not in gate_skill_note(vendor, "ask")
+    assert "warns, and does not block" in gate_skill_note(vendor, "warn")
+    assert "is enforced" not in gate_skill_note(vendor, "warn")

@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import re
 import sys
 from pathlib import Path
 from typing import Any, Iterator
 from urllib.parse import unquote
+
+from chock.gate.session_log import SESSION_PATH_KEYS
 
 GATEWAY_DIRNAME = "mcp-gateway"
 GATE_FILENAME = "gateway-gate.json"
@@ -51,6 +54,7 @@ def load_gates(repo_root: Path) -> list[dict[str, Any]]:
             )
             continue
         spec["policy_id"] = gate_file.parent.parent.name
+        spec["repo_root"] = str(repo_root)
         gates.append(spec)
     return gates
 
@@ -90,15 +94,45 @@ def _hosts_in(text: str) -> Iterator[str]:
             yield from _emit(authority)
 
 
+def _call_paths(spec: dict[str, Any], arguments: Any) -> list[str]:
+    """Write targets the call names, repo-relative: the same argument keys the session log reads."""
+    if not isinstance(arguments, dict):
+        return []
+    root = str(spec.get("repo_root") or "").replace("\\", "/").rstrip("/")
+    paths: list[str] = []
+    for key in SESSION_PATH_KEYS:
+        value = arguments.get(key)
+        if not isinstance(value, str) or not value:
+            continue
+        path = value.replace("\\", "/")
+        if root and path.startswith(root + "/"):
+            path = path[len(root) + 1 :]
+        paths.append(path.removeprefix("./"))
+    return paths
+
+
 def _eval_content_regex(spec: dict[str, Any], arguments: Any) -> str | None:
     params = spec.get("params") or {}
     pattern = params.get("content_pattern") or ""
     if not pattern:
         return str(spec.get("message") or "content_regex pattern is empty; refusing (fail closed)")
+    message = str(spec.get("message") or f"content matched forbidden pattern ({pattern})")
+    scope = spec.get("paths") or []
+    paths = _call_paths(spec, arguments)
+    if scope:
+        # A path-bounded gate judges only what it can place inside its bound.
+        paths = [p for p in paths if any(fnmatch.fnmatchcase(p, g) for g in scope)]
+        if not paths:
+            return None
+    forbidden = params.get("forbidden_path_regex")
+    if forbidden and any(re.search(forbidden, p) for p in paths):
+        return message
+    # allowlist_pragma is deliberately not honoured: the gateway is an agent-side surface,
+    # and a waiver the agent writes into its own tool call must never lift the block.
     for text in _string_values(arguments):
         for line in text.splitlines() or [""]:
             if re.search(pattern, line):
-                return str(spec.get("message") or f"content matched forbidden pattern ({pattern})")
+                return message
     return None
 
 

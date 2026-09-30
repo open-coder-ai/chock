@@ -38,9 +38,9 @@
       "id": "block-wildcard-agent-permissions",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "898d2dd802941d09a775f5f00a2ea56543d85433bfcf3535a5563c06c8cb32e7",
+      "sha256": "a976b15bb9a8c494a942ff3405ab3a32340e75e99a1bcf43530fa90fc284ee3d",
       "source": "local",
-      "artifacts_sha256": "393f17ade534f8d7116c6156fc20041d8a514f72f657465ea095359d88d1290d"
+      "artifacts_sha256": "cb2ef666328377d02d295fb8a5febfc10269c4d31888e31a8ca97b15cda6a7e7"
     },
     {
       "id": "code-safety",
@@ -94,9 +94,9 @@
       "id": "pin-github-actions",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "70ac075941841e3c8f9b49a99f44b61ca7e7e8fec87b221cf97a46b4a09b599e",
+      "sha256": "58352700ea1920b793a6a1df65f1f29f7ec5c354af396a6ae614d90dc387e5cd",
       "source": "local",
-      "artifacts_sha256": "a33f59a73ab35f1f0eea61f83b20aedd01992e740dbc3fdc539a844bd7289a35"
+      "artifacts_sha256": "d06407114c835bf72632fd2258992c8fb2880c02611f067d24c194536d236b8d"
     },
     {
       "id": "pre-generated-scripts",
@@ -142,9 +142,9 @@
       "id": "scan-secrets",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "655f0e19f40c2e31997b23fa2687a041c68649a9567178515e9373091e01d570",
+      "sha256": "548235a7449a5ffae655fb4092d557e9cbd0d45a7e80336058fb8a2437b7c6a9",
       "source": "local",
-      "artifacts_sha256": "5166c048549ad13fd6b63ef7a65bcf1a1975cc5154a872b242c9fdfaef3b09b4"
+      "artifacts_sha256": "03d7151bae8c6343fb090375426b8d99e65b62728663db9a590bdc876b776fc4"
     },
     {
       "id": "test-integrity",
@@ -152,7 +152,7 @@
       "managed": false,
       "sha256": "c140c5ca23c3e9dde10712b889840ee9a4a1976f7cb328d088f8f781e03c274e",
       "source": "local",
-      "artifacts_sha256": "c5e8de5994b7c5a044203babbca3db334500cab99e66ac409ba07daa5baf51a6"
+      "artifacts_sha256": "c5d2e1f614b609c98c3da3c2e33beb9196beeacec4e3f7c7541f3bd1b08c1db4"
     },
     {
       "id": "token-efficiency",

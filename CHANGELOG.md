@@ -1,5 +1,20 @@
 # Chock changelog
 
+## Unreleased
+
+- **The MCP gateway judges a `content_regex` gate inside its scope.** The gateway matched every
+  string argument of a tool call, so `pin-github-actions` (bounded to `.github/workflows/*` and
+  `.github/actions/*`) refused a README written through an MCP filesystem tool for quoting
+  `uses: a/b@v4`. The gateway spec now carries `applies_to.paths`. A call's write target is read
+  from the same argument keys the session log uses (`file_path`, `filePath`, `path`,
+  `notebook_path`, `target_file`, `TargetFile`). Content is judged only at an in-scope path,
+  `forbidden_path_regex` applies to that path, and a path-bounded gate does not judge a call that
+  names no path. Gates with no bound behave as before. `allowlist_pragma` stays unhonoured there:
+  a waiver the agent writes into its own call must never lift the block.
+- **The SKILL.md advisory line shows the gate's paths and no longer cuts a regex mid-pattern.**
+  `paths=<applies_to globs>` follows the gate kind; a regex param (`*_regex`, `*_pattern`,
+  `*_pragma`) longer than 60 characters renders as `<name>(regex)`, shorter ones in full.
+
 ## 0.15.2 — Script hashes skip Python bytecode
 
 - **Script hashes skip Python bytecode.** A `.py` guard that imports a sibling package makes
