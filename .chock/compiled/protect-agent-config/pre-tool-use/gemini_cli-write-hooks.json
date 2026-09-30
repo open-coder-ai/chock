@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "BeforeTool": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/gemini_cli.py --gate \".chock/compiled/protect-agent-config/pre-tool-use/gate.json\""
+          }
+        ],
+        "matcher": "write_file|replace"
+      }
+    ]
+  }
+}

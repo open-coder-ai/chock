@@ -1,0 +1,26 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "block-destructive-commands",
+  "version": "0.1.0",
+  "description": "Best-effort guard against destructive commands, read as parsed commands (bash -c and cd chains included, echo excluded): rm -rf on absolute, home ($HOME/~) or root-adjacent paths (and PowerShell Remove-Item -Recurse); git push --force (not --force-with-lease), reset --hard, clean -f; kubectl delete; terraform destroy; aws s3 rm --recursive / rb --force; dropdb; helm uninstall/delete; docker volume rm/prune and system prune; gcloud ... delete; find -delete / -exec rm; shred; truncate; wipefs -a. git branch -D asks first. Verbs are matched position-aware, so a bucket or object NAMED like a verb is allowed, and a relative path in the working tree stays allowed. sudo, doas and pkexec are transparent. A pre-push hook refuses any non-fast-forward push -- force, +refspec or lease alike; a human escapes with git push --no-verify. Known bypasses: aliases, an unusual value-flag, interpreters and scripts. Friction, not a security boundary.",
+  "author": {
+    "name": "chock-core"
+  },
+  "repository": "https://github.com/open-coder-ai/chock",
+  "license": "Apache-2.0",
+  "keywords": [
+    "chock",
+    "policy-as-code",
+    "rule",
+    "advise",
+    "asi02"
+  ],
+  "extensions": {
+    "io.github.open-coder-ai": {
+      "manifest": "manifest.yaml",
+      "artifact": "rule",
+      "enforcement": "advise",
+      "coverage_without_chock": "advisory"
+    }
+  }
+}

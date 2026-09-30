@@ -182,6 +182,9 @@ max-statements = 50
 ]
 "acceptance/**" = ["S101", "FBT", "PLR2004", "PLW1510", "S105", "S108", "S602", "S603"]
 "fuzz/**" = ["S101"]
+# Installed chock-catalog guards are vendored, catalog-owned and refreshed verbatim, never hand-edited
+# here. They are CLI hooks: a verdict reason on stderr is the protocol (T201).
+".agents/policies/**/implementations/*.py" = ["T201"]
 # docs/assets/gen_brand_assets.py derives docs/assets/social-preview.svg from repo data
 # (see the ci.yml brand-assets job) -- a dev/build script, not shipped source.
 "docs/assets/**" = ["ERA001", "PLR0913", "PLR0917", "PLR2004", "PLW2901", "RUF001", "RUF003", "RUF005", "S101", "S603", "T201"]

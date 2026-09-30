@@ -1,0 +1,25 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "context-hygiene",
+  "version": "0.0.1",
+  "description": "trigger: context bloat, stale observations, resolved content inlined, noisy exploration. avoid: context rot and lost-in-the-middle failures.",
+  "author": {
+    "name": "chock-core"
+  },
+  "repository": "https://github.com/open-coder-ai/chock",
+  "license": "Apache-2.0",
+  "keywords": [
+    "chock",
+    "policy-as-code",
+    "rule",
+    "advise"
+  ],
+  "extensions": {
+    "io.github.open-coder-ai": {
+      "manifest": "manifest.yaml",
+      "artifact": "rule",
+      "enforcement": "advise",
+      "coverage_without_chock": "advisory"
+    }
+  }
+}

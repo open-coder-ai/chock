@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "protect-agent-config",
-  "version": "0.0.1",
-  "description": "Guard against an agent hand-editing its own guardrails. Agent instruction files (AGENTS.md and the per-agent wrappers), permission files (.claude/settings.json, .mcp.json) and vendored enforcement (.chock/bin/, .chock/compiled/) define what the agent may do -- so a shell command that rewrites them is the agent modifying its own authority (MITRE ATLAS AML.T0081; the AIVSS self-modification factor). The guard refuses shell write-commands targeting those paths; reads pass, and regeneration through `chock sync` passes because the tool writes them itself rather than through shell editing. Best-effort and deliberately coarse: a compound command that both reads a protected file and writes elsewhere may be refused -- rewrite it in two steps. Escape for a human-approved change: include 'chock: approved-config-change' in the command.",
+  "version": "0.2.0",
+  "description": "Guard against an agent hand-editing its own guardrails. Agent instruction files (AGENTS.md and the per-agent wrappers), permission files (.claude/settings.json, .mcp.json), the dependency allowlist (.chock/dependency-allowlist.txt) and vendored enforcement (.chock/bin/, .chock/compiled/) define what the agent may do -- so a shell command that rewrites them is the agent modifying its own authority (MITRE ATLAS AML.T0081). The guard refuses shell writes to those paths -- a redirect, rm/mv/tee/sed -i, cp into the path, git checkout/restore, PowerShell Set-Content/Add-Content/Out-File; reads and copies out pass, and `chock sync` passes. Best-effort and deliberately coarse. The 'chock: approved-config-change' marker is friction plus an audit trail, not authentication. A second, tool_use-only gate refuses Edit/Write to the same paths; it never runs at commit, so a person stays free to edit them.",
   "author": {
     "name": "chock-core"
   },

@@ -141,8 +141,9 @@ def test_ambient_rule_stays_within_the_two_line_budget(tmp_path: Path, policy_id
 def test_a_long_param_is_clipped_not_dumped(tmp_path: Path) -> None:
     """scan-secrets carries a ~700-char regex; rendering it whole destroys the budget."""
     policy = _repo(tmp_path, "scan-secrets")
-    for line in _fenced(_ambient(tmp_path, policy)):
-        assert len(line) < 200, line
+    head, *_message = _fenced(_ambient(tmp_path, policy))  # the authored message line is passed through unclipped
+    assert head.startswith("on("), head
+    assert len(head) < 200, head
 
 
 def test_index_names_the_branches_the_gate_enforces(tmp_path: Path) -> None:

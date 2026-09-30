@@ -61,7 +61,7 @@ def test_both_fragments_reference_the_same_guard(tmp_path: Path) -> None:
     surface_dir = out / "block-destructive-commands" / "pre-tool-use"
     claude = json.loads((surface_dir / "pretooluse.json").read_text())["hooks"][0]["command"]
     cursor = json.loads((surface_dir / "cursor-hooks.json").read_text())["beforeShellExecution"][0]["command"]
-    guard = ".agents/policies/block-destructive-commands/implementations/block-destructive.sh"
+    guard = ".agents/policies/block-destructive-commands/implementations/block-destructive-commands.py"
     assert claude == hook_command(".chock/bin/claude_code.py", "--guard", guard)
     assert cursor == hook_command(".chock/bin/cursor.py", "--guard", guard)
     assert claude.split("--guard", 1)[1] == cursor.split("--guard", 1)[1], "same guard, both envelopes"
@@ -103,7 +103,7 @@ def test_an_old_baked_entry_is_replaced_by_the_launcher_form() -> None:
     settings = json.loads(hooks_path.read_text(encoding="utf-8"))
     current = settings["hooks"]["beforeShellExecution"][0]
     root = "${CLAUDE_PROJECT_DIR}"
-    guard = ".agents/policies/block-destructive-commands/implementations/block-destructive.sh"
+    guard = ".agents/policies/block-destructive-commands/implementations/block-destructive-commands.py"
     settings["hooks"]["beforeShellExecution"] = [
         {"command": f'"/usr/bin/python3" "{root}/.chock/bin/cursor.py" --guard "{root}/{guard}"', "timeout": 30}
     ]

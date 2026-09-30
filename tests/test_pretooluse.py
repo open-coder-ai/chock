@@ -13,10 +13,10 @@ import pytest
 from conftest import baseline_policy, run_hook_command
 
 from chock.gate import runtime_bundle
-from chock.gate.guard_runner import find_bash
+from chock.gate.guard_runner import find_interpreter
 
 FRAMEWORK_ROOT = Path(__file__).resolve().parents[1]
-GUARD = baseline_policy("block-destructive-commands") / "implementations" / "block-destructive.sh"
+GUARD = baseline_policy("block-destructive-commands") / "implementations" / "block-destructive-commands.py"
 
 
 @pytest.fixture(scope="module")
@@ -75,9 +75,9 @@ def test_safe_commands_are_allowed(command: str, claude_code_runtime: Path) -> N
 
 def test_argv_guard_receives_the_stdin_command(claude_code_runtime: Path) -> None:
     """The original defect: guards read argv, Claude sends JSON on stdin."""
-    bash = find_bash(GUARD)
-    assert bash, "no usable bash on this machine; cannot exercise the guard"
-    direct = subprocess.run([bash, str(GUARD)], input=_payload("rm -rf /"), capture_output=True, text=True)
+    interpreter = find_interpreter(GUARD)
+    assert interpreter, "no usable interpreter on this machine; cannot exercise the guard"
+    direct = subprocess.run([interpreter, str(GUARD)], input=_payload("rm -rf /"), capture_output=True, text=True)
     assert direct.returncode == 0, "precondition: the bare guard ignores stdin"
     assert _denied(_adapter(claude_code_runtime, "rm -rf /")), "the runtime must bridge stdin to argv"
 

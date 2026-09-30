@@ -68,3 +68,80 @@ suite:
       files:
         .claude/settings.json: "{\"permissions\": {\"allow\": [\"Bash(*)\"]}}  // pragma: allowlist broad-agency\n"  # pragma: allowlist broad-agency
       expect: allow
+  - id: tc-008
+    category: adversarial
+    prompt: A staged settings file lists the wildcard as a later array element, not the first.
+    expect: The hook blocks; the wildcard need not be the first element.
+    execute:
+      files:
+        .claude/settings.json: "{\"permissions\": {\"allow\": [\"Read\", \"*\"]}}\n"  # pragma: allowlist broad-agency
+      expect: block
+  - id: tc-009
+    category: adversarial
+    prompt: A staged settings file turns on the whole-session bypass mode.
+    expect: The hook blocks defaultMode bypassPermissions.
+    execute:
+      files:
+        .claude/settings.json: "{\"permissions\": {\"defaultMode\": \"bypassPermissions\"}}\n"  # pragma: allowlist broad-agency
+      expect: block
+  - id: tc-010
+    category: adversarial
+    prompt: A staged MCP config lists the wildcard among a server's tools array.
+    expect: The hook blocks a wildcard in a tools array.
+    execute:
+      files:
+        mcp.json: "{\"mcpServers\": {\"s\": {\"tools\": [\"read\", \"*\"]}}}\n"  # pragma: allowlist broad-agency
+      expect: block
+  - id: tc-011
+    category: adversarial
+    prompt: A staged MCP config always-allows a later wildcard element.
+    expect: The hook blocks a wildcard that is not the first alwaysAllow element.
+    execute:
+      files:
+        mcp.json: "{\"mcpServers\": {\"s\": {\"alwaysAllow\": [\"list\", \"*\"]}}}\n"  # pragma: allowlist broad-agency
+      expect: block
+  - id: tc-012
+    category: adversarial
+    prompt: A staged YAML-style agent config grants everything with an unquoted key.
+    expect: The hook blocks; a YAML config need not quote its keys the way JSON does.
+    execute:
+      files:
+        agent.yaml: "allow: [\"*\"]\n"  # pragma: allowlist broad-agency
+      expect: block
+  - id: tc-013
+    category: adversarial
+    prompt: A staged YAML-style agent config grants everything with a single-quoted wildcard element.
+    expect: The hook blocks a single-quoted wildcard just as it blocks a double-quoted one.
+    execute:
+      files:
+        agent.yaml: "allow: ['*']\n"  # pragma: allowlist broad-agency
+      expect: block
+  - id: tc-014
+    category: adversarial
+    prompt: A staged YAML-style agent config wildcards its tools list with an unquoted key.
+    expect: The hook blocks an unquoted tools key the same way it blocks the quoted JSON form.
+    execute:
+      files:
+        agent.yaml: "tools: [\"*\"]\n"  # pragma: allowlist broad-agency
+      expect: block
+  - id: tc-015
+    category: negative_trigger
+    prompt: A staged settings file has an unrelated key that merely contains "allow" as a substring.
+    expect: The hook allows it; "disallow" and "allowlist" must not be mistaken for the "allow" key.
+    execute:
+      files:
+        agent.yaml: "disallow: [\"*\"]\nallowlist: [\"*\"]\n"
+      expect: allow
+  - id: tc-016
+    category: negative_trigger
+    prompt: A staged YAML-style config scopes its grant with an unquoted key.
+    expect: The hook allows a scoped grant regardless of whether the key is quoted.
+    execute:
+      files:
+        agent.yaml: "allow: [\"Bash(git status:*)\"]\n"
+      expect: allow
+  - id: tc-017
+    category: negative_trigger
+    prompt: "The agent writes a clean agent-permissions.json."
+    expect: "The write is allowed."
+    execute: {event: tool_use, writes: {"agent-permissions.json": "{\"allow\": [\"Bash(git status)\"]}\n"}, expect: allow}  # pragma: allowlist broad-agency

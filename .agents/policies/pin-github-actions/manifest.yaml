@@ -1,6 +1,6 @@
 id: pin-github-actions
 name: "Pin GitHub Actions"
-version: "0.0.3"
+version: "0.0.4"
 description: >
   The mechanizable slice of CI supply-chain hardening, enforced at two points: at commit (the
   git hook, over staged changes) and at agent tool-use (over a tool call's arguments, as the
@@ -37,10 +37,7 @@ hook:
       Unpinned GitHub Action detected: a workflow references an action by a tag or branch
       (owner/repo at a movable ref) rather than a full 40-character commit SHA. Pin it to the
       SHA -- keep the version in a trailing comment for readability -- so a re-tagged or
-      compromised release cannot change what runs. At commit, 'pragma: allowlist
-      unpinned-action' on the same line marks a deliberate exception; the pragma is NOT
-      honored at tool-use, where the scanned text is a live tool argument an appended
-      token could neutralize.
+      compromised release cannot change what runs. 'pragma: allowlist unpinned-action' on the same line marks a reviewed exception; in the agent (tool use, the turn's end) it counts only when that exact line is already committed in HEAD, so an agent asks a person rather than writing the pragma itself.
     params:
       scan: added_lines
       allowlist_pragma: 'pragma:\s*allowlist\s+unpinned-action'
@@ -92,4 +89,8 @@ changelog:
 - version: 0.0.3
   date: '2026-09-20'
   changes:
-  - "Bound the gate to the files a `uses:` reference can live in (applies_to.paths: .github/workflows/*, .github/actions/*). The engine now runs this policy at the agent's write path and at the end of a turn, where the text under judgement is whatever was written -- unbounded, a README that documents how to pin an action was refused, and a control that fires on a correct change has failed. No pattern change; the commit-time behaviour on workflow files is unchanged."
+  - "Bound the gate to the files a `uses:` reference can live in (applies_to.paths: .github/workflows/*, .github/actions/*). The engine now runs this policy at the agent's write path and at the end of a turn, where the text under judgement is whatever was written -- unbounded, a README that documents how to pin an action was refused, and a control that fires on a correct change has failed. No pattern change; the commit-time behaviour on workflow files is unchanged. Evals tc-010 (a README quoting an unpinned action is allowed) and tc-011 (a composite action under .github/actions/ is blocked) prove the bound both ways."
+- version: 0.0.4
+  date: '2026-09-29'
+  changes:
+  - "Waiver wording follows chock 0.14.0: the pragma is honoured at commit; in the agent (tool use, the turn's end, a commit made with CHOCK_AGENT_COMMIT set) it counts only when that exact line is already committed in HEAD, and the turn's end judges only the lines changed against HEAD. The gate message and description said a waiver is never honoured in the agent. Pattern and gate behaviour unchanged."

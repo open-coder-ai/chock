@@ -1,9 +1,13 @@
 id: scan-secrets
 name: "Scan Secrets"
-version: "0.0.1"
+version: "0.0.8"
 description: >
-  Pre-commit hook that blocks commits of credential files and high-entropy secret values.
-  Best-effort guard; not a replacement for a dedicated secret scanner.
+  Blocks known credential patterns -- vendor key prefixes, private-key blocks, and
+  key/token/password assignments -- at two enforcement points: at commit (the git hook,
+  over staged changes) and at agent tool-use (the mcp-gateway / agent write guard, over a
+  tool call's arguments), so a secret is caught as the agent writes it, before it ever
+  reaches a commit. Matched by pattern, not by entropy analysis. Best-effort guard; not a
+  replacement for a dedicated secret scanner.
 artifact: hook
 enforcement: block
 mandatory: true
@@ -15,22 +19,31 @@ approval:
 hook:
   gate:
     kind: content_regex
-    "on": [commit]
+    "on": [commit, tool_use]
     action: block
     message: >
-      Potential secret detected in staged changes. Remove credentials and rotate any exposed keys.
-      Add '# pragma: allowlist secret' on the same line only for documented test fixtures.
+      Potential secret detected in this change. Remove credentials and rotate any exposed keys.
+      '# pragma: allowlist secret' on the same line marks a documented test fixture; in the agent (tool use, the turn's end) it counts only when that exact line is already committed in HEAD, so an agent asks a person rather than writing the pragma itself.
     params:
       scan: added_lines
-      forbidden_path_regex: '\.(env|pem|key|p12|pfx|jks|keystore)$'
+      # .env plus environment-specific variants (.env.production, .env.local, .env.staging)
+      # but NOT the committed templates (.env.example/.sample/.template/.dist/.defaults),
+      # which carry placeholders, not real secrets.
+      forbidden_path_regex: '(\.env(\.(?!(sample|example|template|dist|defaults)$)[^/]+)?|\.(pem|key|p12|pfx|jks|keystore))$'
       allowlist_pragma: '#\s*pragma:\s*allowlist\s+secret'
       content_pattern: |-
-        (?i)(AKIA[0-9A-Z]{16}|ghp_[0-9A-Za-z]{36}|ghs_[0-9A-Za-z]{36}|eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*|-----BEGIN (RSA |OPENSSH |EC |DSA )?PRIVATE KEY-----|api[_-]?key\s*=\s*["'][A-Za-z0-9_\-]{20,}["']|secret[_-]?key\s*=\s*["'][A-Za-z0-9_\-]{20,}["']|auth[_-]?token\s*=\s*["'][A-Za-z0-9_\-]{20,}["']|password\s*=\s*["'][^"'\s]{12,}["'])
+        (?i)((AKIA|ASIA)[0-9A-Z]{16}|gh[oprsu]_[0-9A-Za-z]{36}|github_pat_[0-9A-Za-z_]{22,}|xox[bpas]-[0-9A-Za-z-]{10,}|(sk|rk)_live_[0-9A-Za-z]{16,}|sk-proj-[0-9A-Za-z_-]{20,}|sk-ant-[0-9A-Za-z_-]{20,}|sk-[0-9A-Za-z]{20,}|AIza[0-9A-Za-z_-]{35}|npm_[0-9A-Za-z]{36}|SG\.[0-9A-Za-z_-]{16,}\.[0-9A-Za-z_-]{16,}|eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*|-----BEGIN (RSA |OPENSSH |EC |DSA )?PRIVATE KEY-----|api[_-]?key\s*=\s*["'][A-Za-z0-9_\-]{20,}["']|secret[_-]?key\s*=\s*["'][A-Za-z0-9_\-]{20,}["']|auth[_-]?token\s*=\s*["'][A-Za-z0-9_\-]{20,}["']|password\s*=\s*["'][^"'\s]{12,}["']|(api|secret|auth)[_-]?(key|token)\s*[=:]\s*[A-Za-z0-9_\-]{20,}|password\s*[=:]\s*[^\s"'${}]{12,})
+
+compliance:
+  mitre_atlas:
+  - control: AML.T0055
+    coverage: partial
+    note: "blocks committed credential values a diff can show; runtime credential hygiene is out of scope"
 
 provenance:
   author: "chock-core"
   created_at: "2026-07-12T00:00:00Z"
-  updated_at: "2026-07-12T00:00:00Z"
+  updated_at: "2026-08-25T00:00:00Z"
   source_repo: "https://github.com/open-coder-ai/chock"
   license: "Apache-2.0"
   trust_tier: "community"
@@ -44,7 +57,41 @@ security:
   content_instructions: never-obey
 
 changelog:
+- version: 0.0.8
+  date: '2026-09-29'
+  changes:
+  - "Waiver wording follows chock 0.14.0: the pragma is honoured at commit; in the agent (tool use, the turn's end, a commit made with CHOCK_AGENT_COMMIT set) it counts only when that exact line is already committed in HEAD, and the turn's end judges only the lines changed against HEAD. The gate message and description said a waiver is never honoured in the agent. Pattern and gate behaviour unchanged."
+- version: 0.0.7
+  date: '2026-09-21'
+  changes:
+  - "Token format coverage (deep review, CONTRIBUTING.md's own invited first contribution):
+    AWS ASIA (STS temporary access keys, as common as AKIA in CI); GitHub gho_/ghu_/ghr_
+    (OAuth, App user-to-server, App refresh tokens -- ghp_/ghs_/github_pat_ were already
+    covered); and the legacy sk- OpenAI API key format (pre sk-proj-, still issued and valid,
+    distinct from sk-ant- and sk-proj- which were already covered). Six eval cases added
+    (tc-021..tc-026), one of them a negative guarding scikit-learn/sklearn text against the
+    broadened sk- pattern."
 - version: 0.0.1
   date: '2026-07-12'
   changes:
   - "Initial public baseline (0.0.1); pre-release iteration history is preserved in git log."
+- version: 0.0.2
+  date: '2026-08-13'
+  changes:
+  - "Vendor token prefixes (#10): GitHub fine-grained PATs, Slack, Stripe live keys, OpenAI project keys, Anthropic, Google API keys, npm, SendGrid. Bounded shapes, not bare prefixes -- `SG.` alone would match prose."
+- version: 0.0.3
+  date: '2026-08-16'
+  changes:
+  - "Add compliance claims (mitre_atlas); no mechanism change."
+- version: 0.0.4
+  date: '2026-08-24'
+  changes:
+  - "Broaden coverage (hardening review): the forbidden-path regex now catches environment-specific dotenv files (.env.production, .env.local, .env.staging) while still sparing committed templates (.env.example/.sample/.template/.dist/.defaults, which hold placeholders). Content patterns gain UNQUOTED credential assignments -- api/secret/auth key|token = or : value (>=20 chars) and password = or : value (>=12 chars) -- which the previous quote-anchored patterns missed; ${VAR} env references are excluded from the password value class to avoid false positives. Self-hosting preserved. Five eval cases added (.env.production block, .env.example allow, unquoted api_key, unquoted password, below-floor negative)."
+- version: 0.0.5
+  date: '2026-08-25'
+  changes:
+  - "Honesty (do-not-claim): drop 'high-entropy secret values' from the description -- the guard matches known patterns (vendor prefixes, private-key blocks, key/token/password assignments) and computes no entropy. Wording only; guard unchanged."
+- version: 0.0.6
+  date: '2026-08-28'
+  changes:
+  - "Bind at tool-use as well as commit: gate.on now [commit, tool_use], so the same pattern enforces at agent write-time (mcp-gateway / agent guard) and not only over a git diff -- a secret is caught as the agent writes it, before any commit. No pattern change. Message generalized from 'staged changes' to 'this change' and notes that the allowlist pragma is a commit-review concept NOT honored at tool-use (the scanned text there is a live, attacker-controllable tool argument, so a match always blocks -- matching the gateway's existing content_regex semantics)."

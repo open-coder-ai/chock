@@ -86,9 +86,9 @@ def test_prompt_and_grader_tags_share_the_rendered_rule_id(tmp_path: Path) -> No
     )
     rule_tag = next(t.split(":", 1)[1] for t in prompt["tags"] if t.startswith("rule:"))
     assert rule_tag == grader["rule"]
-    # Pinned against a verified `context-report run --dry-run` of this export (see the PR body):
-    # context-report's own extractor strips underscores before deriving the id.
-    assert rule_tag == "never-withoutapproval-forcepush-resethard-branch"
+    # context-report's own extractor strips underscores before deriving the id, then keeps 6 words and
+    # 48 chars: git-safety's rule opens "see(block-destructive-commands): force_push|reset_hard|...".
+    assert rule_tag == "see-block-destructive-commands-forcepush-resetha"
 
 
 def test_subject_text_equals_chocks_own_renderer_output(tmp_path: Path) -> None:

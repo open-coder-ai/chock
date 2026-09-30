@@ -15,8 +15,15 @@ EXEMPT = {
 }
 
 # .chock/bin/ is bundler output (generated, review lives at its sources); runtime_goldens
-# freeze that same generated output per vendor.
-EXEMPT_PREFIXES = (".chock/log/", "src/chock/authoring/data/", ".chock/bin/", "tests/fixtures/runtime_goldens/")
+# freeze that same generated output per vendor. .agents/policies/ holds installed chock-catalog
+# policies: catalog-owned, refreshed verbatim, so their review lives in the catalog.
+EXEMPT_PREFIXES = (
+    ".chock/log/",
+    "src/chock/authoring/data/",
+    ".chock/bin/",
+    "tests/fixtures/runtime_goldens/",
+    ".agents/policies/",
+)
 
 SKIP_DIRS = {
     ".git",
