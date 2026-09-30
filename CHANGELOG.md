@@ -1,5 +1,18 @@
 # Chock changelog
 
+## Unreleased
+
+- **Script gates judge only the findings a change introduces.** A `kind: script` gate that prints
+  `{"findings": [{"key", "path", "line", "message"}]}` on stdout is run again on the baseline text
+  (`"baseline": true`; HEAD at commit and Stop, the range base at push and ci, the disk before the
+  write at PreToolUse), and only findings whose key the baseline lacks count, including a
+  violation created by deleting a line. No new findings allows; otherwise the change-run's exit
+  code decides and the reason lists just the new findings. A script that prints no findings
+  document behaves as before. The two runs share the 30s budget. The gate log records
+  `new_findings` and `baseline_findings`. Agent-event HEAD reads now resolve from `repo_root`, so
+  a root below the git top-level finds its baseline (and a `content_regex` waiver already in
+  HEAD). Vendored runner resynced; run `chock sync`.
+
 ## 0.14.0 — Gates on any tool call that can ask or warn, agent commits detected, and guards that run on any command
 
 - **Eval cases can expect `ask` and `warn`.** `execute.expect` is now `allow | block | ask | warn`.

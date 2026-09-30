@@ -242,6 +242,48 @@ refuses, `ask` asks, `warn` warns. A gate that reaches no decision never reports
 established. `3` and `0`/`1` are the command-guard contract's; `4` exists only for script gates
 and script-backed hooks (a command guard's exit 4 is still "not checked").
 
+#### New findings only
+
+A script that judges files whole blocks a change for a violation the file already had. It may
+instead print, on stdout, one JSON object, and the runner then judges only what the change
+introduces:
+
+```json
+{"findings": [{"key": "sql-inject|UserDao.find|query(sql + id)", "path": "src/UserDao.java", "line": 42, "message": "unsanitized query"}]}
+```
+
+- `key` (string) is a fingerprint stable under line shifts. The engine treats it as opaque; the
+  script owns its scope. Recommended: rule id + enclosing scope + the normalized flagged line,
+  never a line number. `path` is the file the finding belongs to; `line` (integer) and `message`
+  are for display. An optional `"new": true` makes the finding count as new whatever the
+  baseline holds, for a script that already compared with HEAD itself.
+- A document is valid only when `findings` is a list of objects each carrying string `key`, `path`
+  and `message`, an integer `line`, and a boolean `new` if present. Anything else on stdout is not
+  a document, and the script keeps the exit-code contract above exactly (one run).
+- **Baseline run.** When the change-run prints a valid document with at least one finding, the
+  runner runs the script once more: same event, same stdin shape, plus `"baseline": true`, with
+  `writes` holding the baseline text of each path in the change-run's `writes` that has one (a
+  new file has none and is omitted). A change-run with no findings allows with no second run.
+  The script must apply the same logic in both runs, waivers included: skipping waiver handling
+  when `baseline` is true lets a copy of a waived line pass as new.
+- **New findings.** Per `path`, each baseline finding cancels one change-run finding with the
+  same `key`, so a finding is new when its key occurs more often in the change-run than in the
+  baseline; a second copy of an old violation is new.
+- **Verdict.** No new findings allows, whatever the change-run's exit code. Otherwise the
+  change-run's exit code decides (`1` blocks, `3` asks, `4` warns, capped by the declared
+  `action`; exit `0` allows; any other code is undecided as above), and the reason lists only the
+  new findings as `path:line: message`, not the script's stderr.
+- **Baseline text** is the file before the change: `commit`, HEAD; `push` and `ci`, the base of
+  the range; `tool_use` before the write (PreToolUse), the file on disk, and at the turn's end
+  (Stop), HEAD. A write outside the repository has the file on disk before the write, or no
+  baseline when absent. HEAD is read from `repo_root` (`git show HEAD:./<path>`), which may sit
+  below the git top-level.
+- **Baseline failure** (crash, timeout, non-zero exit without a document, non-JSON stdout, no
+  git, no HEAD) leaves the baseline findings empty, which errs toward blocking.
+- **Budget.** Both runs share the 30s timeout; the baseline run gets what the change-run left.
+- The gate log records `new_findings` and `baseline_findings`. `tool_call` scripts and the
+  `hook.script` event scripts are unchanged.
+
 `chock compile` rewrites `script` to the file's path from the repository root, which is all
 the runner has; the ambient line an agent reads keeps the bare name, so the packaged `SKILL.md`
 is the same wherever the policy sits. `chock check` refuses a name that is not a bare `.py` file

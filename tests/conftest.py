@@ -6,6 +6,7 @@ import json
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -134,3 +135,11 @@ def working_bash() -> str | None:
 WORKING_BASH = working_bash()
 
 needs_bash = pytest.mark.skipif(WORKING_BASH is None, reason="no working bash on this machine")
+
+
+@pytest.fixture
+def toy_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Callable[[], list[str]]:
+    """Point the toy findings script at a log; the returned callable lists its runs (`change`, `baseline`)."""
+    log = tmp_path.parent / f"{tmp_path.name}-toy.log"
+    monkeypatch.setenv("TOY_LOG", str(log))
+    return lambda: log.read_text(encoding="utf-8").split() if log.exists() else []
