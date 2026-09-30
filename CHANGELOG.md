@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- **`chock mcp`: plan-time guidance.** A stdio MCP server with one read-only tool,
+  `chock_guidance(plan, paths)`. It maps a plan's words and the paths to be touched to the rules of
+  the repo's installed `java-security` (read from its shipped `setup-contract.json`), keeps the
+  ones `.chock/security.json` sets to deny or ask (absent = deny), and returns at most 12 of them,
+  deny before ask, then by match score, then id, each with its verdict, pack, CWE ids and the rule's
+  own constraint text, inside a 4000-byte response. Matching is a rarity-weighted word overlap
+  plus pack path globs from `src/chock/guidance/data/guidance_map.json`: no model call, no
+  network, nothing written, nothing read outside `.agents/policies/java-security` and the selection
+  file. Input is capped (plan 4000 characters, 50 paths of 512, 1 MiB per request line); absolute,
+  `..` and control-character paths are refused, and paths are only matched, never opened; a
+  symlinked, oversize or unreadable contract or selection is reported as an error, never as "no
+  rules". Not done: `chock sync` does not yet register the server in any client's MCP config (chock
+  has no MCP config writer and agentseam records no MCP paths), and `agentic-code-security` ships
+  no structured rule metadata to read, so only `java-security` is served. Matching is lexical: a
+  plan that names none of a rule's words gets nothing, and an empty result is not a clearance.
 - **GitHub annotations from the CI gate.** With `GITHUB_ACTIONS=true`, `chock gate run --event ci`
   also prints one `::error` (or `::warning` for warn, ask and anything the rollout level lowered)
   workflow command per new finding, `file`, `line` and `title=chock <policy>: <rule>` included, and
