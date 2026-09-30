@@ -85,7 +85,9 @@ clone and fork instead of living in a hosted dashboard only you can see:
   your team needs ships a manifest and an eval suite, never a change to chock's engine.
 - **Deterministic, not vibes** — gates are declarative and run through a stdlib-only vendored
   runner; guard scripts are plain, reviewable shell or Python. No LLM calls, no network access, at
-  enforcement time — a hook either blocks or it doesn't, and it does the same thing twice.
+  enforcement time — a gate blocks, asks a person, or warns, as its `action` says, and it does the
+  same thing twice. A gate can also match any tool call by name, MCP tools and `WebFetch` included,
+  and a waiver an agent adds to its own commit is not honoured.
 - **Coverage you can prove** — every policy × agent is graded, and the grade carries the
   evidence that bounds it: ambient `AGENTS.md` prose is `advisory`, a compiled git hook or a
   wired CI gate is `enforced-at-commit`, and an in-agent control is graded on what its client
