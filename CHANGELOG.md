@@ -1,5 +1,13 @@
 # Chock changelog
 
+## 0.15.1 — Plugins ship their guard's shared packages
+
+- **Plugins ship their guard's shared packages.** The Claude, Codex, Copilot, Cursor and Devin
+  plugins copied only `implementations/<id>.py`, so a guard that imports a sibling package such
+  as `chock_shellparse` crashed with `ModuleNotFoundError` and asked instead of denying. Each
+  plugin now also carries every directory under `implementations/` that has an `__init__.py`
+  (its `.py` files, recursively, no `__pycache__`) beside the guard.
+
 ## 0.15.0 — Script gates judge only the findings a change introduces
 
 - **Script gates judge only the findings a change introduces.** A `kind: script` gate that prints
