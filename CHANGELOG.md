@@ -2,6 +2,14 @@
 
 ## 0.14.0 — Gates on any tool call that can ask or warn, agent commits detected, and guards that run on any command
 
+- **Eval cases can expect `ask` and `warn`.** `execute.expect` is now `allow | block | ask | warn`.
+  At the agent events (`tool_use`, `stop`) the gate runner's exit 3 replays as `ask` and 4 as `warn`
+  (a Stop `ask` warns, as it does live); at `commit` and `push` an `ask` gate's refusal reads as
+  `ask`, not `block`, and a `warn` gate as `warn`; a `pre-commit`, `pre-push` or `commit-msg`
+  script's exit 3 is `ask` and 4 is `warn`. A gate's declared `action` still caps a script's
+  verdict. An `expect: block` case whose gate asks or warns now fails, saying so. The runner gains
+  `judge()` (exit code and verdict); `run()` and every exit code are unchanged. Vendored runner
+  resynced; run `chock sync`.
 - **A `tool_call` script asks and warns too.** Exit `3` asks the person and exit `4` warns, as at
   every other event, and the gate's declared `action` caps the verdict and any refusal: a warn
   gate never denies a tool call, an ask gate never denies outright.

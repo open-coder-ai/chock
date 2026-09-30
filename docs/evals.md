@@ -74,6 +74,23 @@ confirm and never echo the command. A case expects it with `expect: ask`. Any ot
 exit is the guard failing to decide, reported as an `error` in a replay and as an ask (with
 "could not check") in a client.
 
+## What `expect` can say
+
+`expect` is the verdict the replay must observe: `allow`, `block`, `ask` or `warn`. A case that
+expects the wrong one fails, naming both.
+
+| Replayed | allow | block | ask | warn |
+| :--- | :--- | :--- | :--- | :--- |
+| Command guard (`command`) | exit 0 | exit 1 with a reason | exit 3 | not checked (`error`) |
+| Gate at `commit` / `push` | exit 0 | refuses | an `ask` gate refuses (the hook cannot prompt) | a `warn` gate allows, printing the reason |
+| Gate at `tool_use` / `stop` | exit 0 | exit 1 | exit 3 | exit 4; at `stop` an `ask` gate also warns |
+| Script at `pre-commit` / `pre-push` / `commit-msg` | exit 0 | exit 1 with a reason, or any other code | exit 3 | exit 4 |
+
+A gate's declared `action` (`block`, `ask`, `warn`) is the ceiling, and a `script` gate may only
+choose a gentler verdict, so an `ask` gate whose script exits 1 replays as `ask`. A script-backed
+hook declares no action, so its exit code is the verdict. A case written as `expect: block`
+against a gate that now asks or warns fails rather than passing.
+
 ## Which gate a case is replayed against
 
 `chock check --only evals` runs each case against the **compiled gate** in
