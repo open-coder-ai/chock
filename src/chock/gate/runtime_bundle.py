@@ -84,6 +84,26 @@ def _extract(module) -> str:
 _DISPATCH = _DATA_DIR.joinpath("dispatch.py.tmpl").read_text(encoding="utf-8")
 _DISPATCH_BRANCH_TOKEN = "# __SESSION_START_BRANCH__\n"  # noqa: S105 -- a template marker, not a credential
 
+_UNREADABLE = _DATA_DIR.joinpath("unreadable_payload.py.tmpl").read_text(encoding="utf-8")
+
+#: agentseam's `main` allows a payload it cannot read; the replacement refuses in the client's dialect.
+_UNREADABLE_BRANCH = """    except Exception:
+        # Malformed input is not the agent's fault to pay for: allow, stay silent.
+        if exit:
+            sys.exit(0)
+        return 0
+"""
+_UNREADABLE_REFUSAL = """    except Exception:
+        raw = None
+    if not isinstance(raw, dict):
+        text, code = _chock_unreadable()
+        if text:
+            _emit(out, text)
+        if exit:
+            sys.exit(code)
+        return code
+"""
+
 _SESSION_START_BRANCH = _DATA_DIR.joinpath("session_start_branch.py.tmpl").read_text(encoding="utf-8")
 
 _SESSION_START_ORCHESTRATION = _DATA_DIR.joinpath("session_start_orchestration.py.tmpl").read_text(encoding="utf-8")
@@ -127,6 +147,7 @@ def _handler_source(agent: str) -> str:
         parts.append(_extract(sessionstart))
         parts.append(_SESSION_START_ORCHESTRATION)
     branch = _SESSION_START_BRANCH if agent in _SESSION_START_AGENTS else ""
+    parts.append(_UNREADABLE)
     parts.append(_DISPATCH.replace(_DISPATCH_BRANCH_TOKEN, branch))
     if agent in _COPILOT_RESPOND_AGENTS:
         parts.append(_COPILOT_RESPOND)
@@ -193,4 +214,7 @@ def render(agent: str) -> str:
         if _RESPOND_CALL not in tail:
             raise ValueError("%s: bundle() output has no %r call to route" % (agent, _RESPOND_CALL))
         tail = tail.replace(_RESPOND_CALL, _WARN_RESPOND_CALL)
+    if _UNREADABLE_BRANCH not in tail:
+        raise ValueError("%s: bundle() output has no unreadable-payload branch to refuse on" % agent)
+    tail = tail.replace(_UNREADABLE_BRANCH, _UNREADABLE_REFUSAL)
     return "%s%s\n%s%s%s" % (head, BEGIN, handler, END, tail)

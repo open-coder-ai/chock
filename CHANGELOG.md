@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **Hooks that cannot read their input, or find their package, refuse.** Every vendored runtime
+  (`.chock/bin/<agent>.py`, plugin `scripts/<agent>.py`, bundles included) used to exit 0 on an
+  empty, unparseable or non-object payload. It now refuses in the client's own grammar (Cursor
+  `{"permission": "deny"}`, Copilot `permissionDecision: deny`, Devin `{"decision": "block"}`,
+  exit 2 for Claude Code, Codex and Gemini) with a stderr reason; a gate that declares `warn` still
+  passes. Unmapped events of a readable payload are still allowed. Copilot's plugin hook command
+  exits 2 when `PLUGIN_ROOT` is unset or the bundled adapter is missing, instead of 0. Cursor's
+  plugin hooks set `failClosed: true` on the pre-tool entry, as the repo-level hooks already did.
+  Windsurf cannot block a pre-tool call, so it is unchanged.
+- **Coverage labels name both points.** A cell whose policy has a commit-time gate and an installed
+  tool-use hook reads `enforced-at-commit + best-effort at tool use (live-run)` in `chock sync`
+  and `chock enable`/`disable` output; `coverage.json` cells carry `at_commit`. `level` is unchanged, and a
+  cell claims a point only where its surface is installed.
 - **GitHub annotations from the CI gate.** With `GITHUB_ACTIONS=true`, `chock gate run --event ci`
   also prints one `::error` (or `::warning` for warn, ask and anything the rollout level lowered)
   workflow command per new finding, `file`, `line` and `title=chock <policy>: <rule>` included, and

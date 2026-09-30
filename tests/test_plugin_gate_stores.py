@@ -113,14 +113,15 @@ def _run_cursor_hook(out: Path, repo: Path, payload: str) -> subprocess.Complete
 
 
 def test_the_cursor_package_gates_the_write_flat_and_reports_at_stop(gate_policy, tmp_path: Path) -> None:
-    """Cursor's hooks file is its own shape: flat entries, no matcher, no failClosed, `version: 1`."""
+    """Cursor's hooks file is its own shape: flat entries, no matcher, failClosed on the pre-tool gate, `version: 1`."""
     manifest = _manifest()
     out = tmp_path / "dist" / "cursor" / POLICY_ID
     cursor.build_cursor_plugin(gate_policy(manifest), manifest, tmp_path, out)
     doc = json.loads((out / cursor.HOOKS_REL).read_text(encoding="utf-8"))
     assert doc["version"] == 1 and set(doc["hooks"]) == {"preToolUse", "stop"}
-    for entries in doc["hooks"].values():
-        assert set(entries[0]) == {"command", "timeout"}, "flat, unmatched, and never failClosed"
+    for event, entries in doc["hooks"].items():
+        expected = {"command", "timeout", "failClosed"} if event == "preToolUse" else {"command", "timeout"}
+        assert set(entries[0]) == expected, "flat, unmatched, failClosed on the pre-tool gate only"
     description = json.loads((out / ".cursor-plugin" / "plugin.json").read_text(encoding="utf-8"))["description"]
     assert "PreToolUse and Stop hooks" in description and "follow-up message" in description
     assert cursor.POSTURE_ADVISORY not in description

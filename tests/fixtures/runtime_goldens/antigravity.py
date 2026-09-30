@@ -1657,6 +1657,30 @@ def evaluate_tool_call(argv, event):
     if spec.get('kind') in _TOOL_CALL_NEEDS_SESSION:
         session_record(root, event, 'pre', _TOOL_CALL_BLOCKED if verdict and verdict[0] == 'deny' else None)
     return verdict
+_CHOCK_UNREADABLE = (
+    "chock could not read this hook's payload, so it could not check the call. "
+    "Refusing rather than reporting an allow it never established."
+)
+
+
+def _chock_declared_action():
+    argv = sys.argv[1:]
+    try:
+        spec = json.loads(_chock_Path(argv[argv.index("--gate") + 1]).read_text(encoding="utf-8"))
+        action = spec.get("action")
+    except Exception:
+        return "block"
+    return action if action in ("ask", "warn") else "block"
+
+
+def _chock_unreadable():
+    action = _chock_declared_action()
+    if action == "warn":
+        return "", 0
+    _report(_CHOCK_UNREADABLE + "\n")
+    decision = Decision.escalate(_CHOCK_UNREADABLE) if action == "ask" else Decision.deny(_CHOCK_UNREADABLE)
+    text, code = respond(degrade(decision, Event(AGENT, PRE_TOOL, raw={})), Event(AGENT, PRE_TOOL, raw={}))
+    return (text, code) if text or code else ("", 2)
 
 
 def _spoken(verdict):
@@ -1819,10 +1843,14 @@ def main(stdin=None, stdout=None, exit=True):
     try:
         raw = json.loads(_read_payload(stream))
     except Exception:
-        # Malformed input is not the agent's fault to pay for: allow, stay silent.
+        raw = None
+    if not isinstance(raw, dict):
+        text, code = _chock_unreadable()
+        if text:
+            _emit(out, text)
         if exit:
-            sys.exit(0)
-        return 0
+            sys.exit(code)
+        return code
     try:
         text, code = _decide(raw)
     except Exception:

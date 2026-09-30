@@ -82,7 +82,8 @@ def test_hook_lives_in_the_copilot_namespace(policy, tmp_path: Path) -> None:
     assert entry["matcher"] == vendors.shell_matcher("vscode_copilot")
     command = entry["hooks"][0]["command"]
     assert command == (
-        'r="${PLUGIN_ROOT:-}"; [ -n "$r" ] && [ -f "$r/scripts/vscode_copilot.py" ] || exit 0; '
+        'r="${PLUGIN_ROOT:-}"; [ -n "$r" ] && [ -f "$r/scripts/vscode_copilot.py" ] || { echo \'chock: the plugin root is unset or the bundled hook is missing, so this call cannot be checked. '
+        "Refusing rather than allowing it unchecked.' >&2; exit 2; }; "
         'exec git -c "alias.chock-sh=!sh" chock-sh "$r/scripts/launch.sh" "$r/scripts/vscode_copilot.py" '
         '--guard "$r/scripts/block-destructive-commands.sh"'
     )

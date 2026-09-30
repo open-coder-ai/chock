@@ -54,8 +54,8 @@ def _emitted_command(policy, tmp_path: Path) -> str:
     return hooks["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
 
 
-def test_hook_allows_when_the_plugin_root_cannot_be_resolved(policy, tmp_path: Path) -> None:
-    """An unresolvable plugin root must ALLOW. It used to deny every tool call in the session."""
+def test_hook_refuses_when_the_plugin_root_cannot_be_resolved(policy, tmp_path: Path) -> None:
+    """An unresolvable plugin root REFUSES (exit 2, the blocking code): nothing judged the call."""
     command = _emitted_command(policy, tmp_path)
 
     env = {k: v for k, v in os.environ.items() if k != "PLUGIN_ROOT"}
@@ -68,10 +68,8 @@ def test_hook_allows_when_the_plugin_root_cannot_be_resolved(policy, tmp_path: P
             text=True,
             env={**env, **extra},
         )
-        assert done.returncode == 0, (
-            f"plugin root {label}: hook exited {done.returncode}; anything non-zero is a deny in "
-            f"VS Code, and 2 in particular blocks the call. stderr={done.stderr[:300]!r}"
-        )
+        assert done.returncode == 2, f"plugin root {label}: hook exited {done.returncode}, not the blocking 2"
+        assert "Refusing" in done.stderr, f"plugin root {label}: no reason given: {done.stderr[:300]!r}"
 
 
 def test_copilot_and_claude_packages_run_the_same_hook(policy, tmp_path: Path) -> None:
@@ -92,7 +90,8 @@ def test_copilot_and_claude_packages_run_the_same_hook(policy, tmp_path: Path) -
         assert f"/scripts/{script}" in copilot_command
         assert f"/scripts/{claude_script}" in claude_command
     assert copilot_command.endswith(f'--guard "$r/scripts/{"block-destructive-commands.sh"}"')
-    assert "exit 0" in copilot_command, "this format's hook must allow when its root is unresolved"
+    assert "exit 2" in copilot_command, "this format's hook must refuse when its root is unresolved"
+    assert "exit 0" not in copilot_command
 
     assert copilot[Path("scripts/vscode_copilot.py")] == runtime_bundle.render("vscode_copilot")
     assert claude[Path("scripts/claude_code.py")] == runtime_bundle.render("claude_code")

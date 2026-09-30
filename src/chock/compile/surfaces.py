@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from chock.compile.levels import (
+    AT_COMMIT,
     IN_AGENT_TODAY,
     STOP_TODAY,
     Grade,
@@ -87,17 +88,17 @@ def coverage_cell(
     if not active:
         return Grade("none", None, witnessed=False)
 
+    commit_time = active & INSTALLED_SURFACES & {Surface.GIT_HOOK}
+    if ci_gate_installed:
+        commit_time |= active & INSTALLED_SURFACES & {Surface.CI_GATE}
     for installed, surface in (
         (pre_tool_use_installed, Surface.PRE_TOOL_USE),
         (agent_hooks_installed, Surface.AGENT_HOOKS),
     ):
         if installed and surface in active and agent in IN_AGENT_TODAY:
-            return in_agent_grade(agent, surface.value)
-    commit_time = active & INSTALLED_SURFACES & {Surface.GIT_HOOK}
-    if ci_gate_installed:
-        commit_time |= active & INSTALLED_SURFACES & {Surface.CI_GATE}
+            return in_agent_grade(agent, surface.value, at_commit=bool(commit_time))
     if commit_time:
-        return Grade("enforced-at-commit", None, witnessed=False)
+        return Grade(AT_COMMIT, None, witnessed=False)
     if Surface.AMBIENT_RULE in active & INSTALLED_SURFACES:
         return Grade("advisory", None, witnessed=False)
     return Grade("none", None, witnessed=False)

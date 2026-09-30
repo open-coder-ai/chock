@@ -55,7 +55,9 @@ CONTROL_DEGRADES_TO = DEGRADES_TO_ALLOW
 
 IN_AGENT_LEVELS = ("none", "detect", "best-effort", "fail-to-ask", "enforceable", "enforced")
 
-UNRANKED_LEVELS = ("enforced-at-commit", "advisory", DISABLED)
+AT_COMMIT = "enforced-at-commit"
+
+UNRANKED_LEVELS = (AT_COMMIT, "advisory", DISABLED)
 
 UNREPORTABLE_LEVELS = ("detect",)
 
@@ -88,11 +90,12 @@ BASIS_CAP = {
 
 
 class Grade(NamedTuple):
-    """One coverage cell: the word, the evidence binding it, and whether chock saw it work."""
+    """One coverage cell: the word, the evidence binding it, whether chock saw it work, and whether a commit-time gate also holds."""
 
     level: str
     basis: str | None
     witnessed: bool
+    at_commit: bool = False
 
 
 def cap_for(basis: str) -> str:
@@ -144,7 +147,9 @@ def in_agent_level(agent: str, *, degrades_to: str = CONTROL_DEGRADES_TO) -> str
     return capped("fail-to-ask" if lifts else host, resting_bases(mapped))
 
 
-def in_agent_grade(agent: str, surface: str, *, degrades_to: str = CONTROL_DEGRADES_TO) -> Grade:
+def in_agent_grade(
+    agent: str, surface: str, *, degrades_to: str = CONTROL_DEGRADES_TO, at_commit: bool = False
+) -> Grade:
     """`in_agent_level` with the evidence that bounds it and chock's own witness for `surface`."""
     mapped = _mapped_vendor(agent)
     if not mapped:
@@ -153,9 +158,16 @@ def in_agent_grade(agent: str, surface: str, *, degrades_to: str = CONTROL_DEGRA
         in_agent_level(agent, degrades_to=degrades_to),
         weakest_basis(resting_bases(mapped)),
         evidence.witness(mapped, surface) is not None,
+        at_commit,
     )
 
 
 def render_grade(grade: Grade) -> str:
-    """One cell as a report prints it -- `best-effort (vendor-docs)`, evidence never detached."""
-    return f"{grade.level} ({grade.basis})" if grade.basis else grade.level
+    """One cell as a report prints it, naming every point it holds at: `enforced-at-commit + best-effort at tool use (vendor-docs)`.
+
+    The evidence binds the tool-use word, never the commit one. A cell with no tool-use
+    level prints its one word unchanged.
+    """
+    tool_use = grade.level in IN_AGENT_LEVELS and grade.level != "none"
+    text = f"{AT_COMMIT} + {grade.level} at tool use" if grade.at_commit and tool_use else grade.level
+    return f"{text} ({grade.basis})" if grade.basis else text

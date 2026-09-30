@@ -71,7 +71,7 @@ def test_cursor_guard_policy_layout_and_hook(policy, tmp_path: Path) -> None:
     entries = hooks["hooks"]["beforeShellExecution"]
     assert len(entries) == 1
     entry = entries[0]
-    assert set(entry) == {"command", "timeout"}
+    assert set(entry) == {"command", "timeout", "failClosed"}
     assert entry["command"] == (
         'git -c "alias.chock-sh=!sh" chock-sh "${CURSOR_PLUGIN_ROOT}/scripts/launch.sh" '
         '"${CURSOR_PLUGIN_ROOT}/scripts/cursor.py" '
@@ -84,7 +84,7 @@ def test_cursor_hook_carries_no_matcher(policy, tmp_path: Path) -> None:
     files = cursor_plugin_files(policy(GUARD_MANIFEST, guard=True), GUARD_MANIFEST, tmp_path)
     entry = json.loads(files[Path("hooks/hooks.json")])["hooks"]["beforeShellExecution"][0]
     assert "matcher" not in entry
-    assert "failClosed" not in entry
+    assert entry["failClosed"] is True
 
 
 def test_cursor_manifest_rejects_agent_plugins_keys(policy, tmp_path: Path) -> None:
@@ -229,7 +229,8 @@ def test_losing_a_guard_removes_the_hook(policy, tmp_path: Path, build, tree, ho
 def test_each_vendor_claims_only_what_was_witnessed(policy, tmp_path: Path) -> None:
     """Cursor was witnessed blocking; Codex was witnessed NOT blocking. The packages say so."""
     assert "Session-enforced in Cursor" in POSTURE_ENFORCED_CURSOR
-    assert "OPEN" in POSTURE_ENFORCED_CURSOR and "Python 3.11+" in POSTURE_ENFORCED_CURSOR
+    assert "`failClosed`" in POSTURE_ENFORCED_CURSOR and "Python 3.11+" in POSTURE_ENFORCED_CURSOR
+    assert "fails OPEN" not in POSTURE_ENFORCED_CURSOR
 
     assert "Session-enforced in Codex" in POSTURE_ENFORCED_CODEX, "witnessed 2026-08-24"
     assert "trust review" in POSTURE_ENFORCED_CODEX, "hooks are inert until a human approves"
