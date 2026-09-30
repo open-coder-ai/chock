@@ -1,5 +1,14 @@
 # Chock changelog
 
+## 0.15.2 — Script hashes skip Python bytecode
+
+- **Script hashes skip Python bytecode.** A `.py` guard that imports a sibling package makes
+  Python write `__pycache__` into `implementations/` the first time it runs. The registry scan
+  and the determinism check hashed those `.pyc` files, so `chock registry scan` drifted as soon
+  as `chock check --only evals` had run a guard. Both now hash only shipped files, through one
+  predicate. The shellcheck sweep also leaves `*.py` guards out: their sh trampoline header made
+  discovery by shebang hand their Python bodies to shellcheck.
+
 ## 0.15.1 — Plugins ship their guard's shared packages
 
 - **Plugins ship their guard's shared packages.** The Claude, Codex, Copilot, Cursor and Devin

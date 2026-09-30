@@ -7,7 +7,7 @@ abstract: >-
 type: software
 authors:
   - name: Open Coder AI
-version: 0.15.1
+version: 0.15.2
 license: Apache-2.0
 repository-code: https://github.com/open-coder-ai/chock
 url: https://github.com/open-coder-ai/chock
