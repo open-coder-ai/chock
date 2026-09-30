@@ -73,38 +73,38 @@
       "witnessed": false
     },
     "claude": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "live-run",
       "witnessed": false
     },
     "codex": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "live-run-partial",
       "witnessed": false
     },
     "copilot": {
-      "level": "enforced-at-commit",
-      "basis": null,
-      "witnessed": false
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
     },
     "cursor": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "enforceable",
+      "basis": "live-run-partial",
       "witnessed": false
     },
     "devin": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "gemini": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-source",
       "witnessed": false
     },
     "grok": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "kimi-code": {
@@ -118,18 +118,18 @@
       "witnessed": false
     },
     "tabnine": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "vscode": {
-      "level": "enforced-at-commit",
-      "basis": null,
-      "witnessed": false
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
     },
     "windsurf": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "third-party-install",
       "witnessed": false
     }
   },
@@ -140,33 +140,33 @@
       "witnessed": false
     },
     "claude": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "live-run",
       "witnessed": false
     },
     "codex": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "live-run-partial",
       "witnessed": false
     },
     "copilot": {
-      "level": "enforced-at-commit",
-      "basis": null,
-      "witnessed": false
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
     },
     "cursor": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "enforceable",
+      "basis": "live-run-partial",
       "witnessed": false
     },
     "devin": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "gemini": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-source",
       "witnessed": false
     },
     "grok": {
@@ -185,14 +185,14 @@
       "witnessed": false
     },
     "tabnine": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "vscode": {
-      "level": "enforced-at-commit",
-      "basis": null,
-      "witnessed": false
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
     },
     "windsurf": {
       "level": "enforced-at-commit",
@@ -207,38 +207,38 @@
       "witnessed": false
     },
     "claude": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "live-run",
       "witnessed": false
     },
     "codex": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "live-run-partial",
       "witnessed": false
     },
     "copilot": {
-      "level": "advisory",
-      "basis": null,
-      "witnessed": false
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
     },
     "cursor": {
-      "level": "advisory",
-      "basis": null,
+      "level": "enforceable",
+      "basis": "live-run-partial",
       "witnessed": false
     },
     "devin": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "gemini": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-source",
       "witnessed": false
     },
     "grok": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "kimi-code": {
@@ -252,18 +252,18 @@
       "witnessed": false
     },
     "tabnine": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "vscode": {
-      "level": "advisory",
-      "basis": null,
-      "witnessed": false
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
     },
     "windsurf": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "third-party-install",
       "witnessed": false
     }
   },
@@ -274,33 +274,33 @@
       "witnessed": false
     },
     "claude": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "live-run",
       "witnessed": false
     },
     "codex": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "live-run-partial",
       "witnessed": false
     },
     "copilot": {
-      "level": "enforced-at-commit",
-      "basis": null,
-      "witnessed": false
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
     },
     "cursor": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "enforceable",
+      "basis": "live-run-partial",
       "witnessed": false
     },
     "devin": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "gemini": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-source",
       "witnessed": false
     },
     "grok": {
@@ -319,14 +319,14 @@
       "witnessed": false
     },
     "tabnine": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "vscode": {
-      "level": "enforced-at-commit",
-      "basis": null,
-      "witnessed": false
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
     },
     "windsurf": {
       "level": "enforced-at-commit",
@@ -877,38 +877,38 @@
       "witnessed": false
     },
     "claude": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "live-run",
       "witnessed": false
     },
     "codex": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "live-run-partial",
       "witnessed": false
     },
     "copilot": {
-      "level": "advisory",
-      "basis": null,
-      "witnessed": false
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
     },
     "cursor": {
-      "level": "advisory",
-      "basis": null,
+      "level": "enforceable",
+      "basis": "live-run-partial",
       "witnessed": false
     },
     "devin": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "gemini": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-source",
       "witnessed": false
     },
     "grok": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "kimi-code": {
@@ -922,18 +922,18 @@
       "witnessed": false
     },
     "tabnine": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "vscode": {
-      "level": "advisory",
-      "basis": null,
-      "witnessed": false
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
     },
     "windsurf": {
-      "level": "advisory",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "third-party-install",
       "witnessed": false
     }
   },
@@ -944,38 +944,38 @@
       "witnessed": false
     },
     "claude": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "live-run",
       "witnessed": false
     },
     "codex": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "live-run-partial",
       "witnessed": false
     },
     "copilot": {
-      "level": "enforced-at-commit",
-      "basis": null,
-      "witnessed": false
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
     },
     "cursor": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "enforceable",
+      "basis": "live-run-partial",
       "witnessed": false
     },
     "devin": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "gemini": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-source",
       "witnessed": false
     },
     "grok": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "kimi-code": {
@@ -989,18 +989,18 @@
       "witnessed": false
     },
     "tabnine": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "vscode": {
-      "level": "enforced-at-commit",
-      "basis": null,
-      "witnessed": false
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
     },
     "windsurf": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "third-party-install",
       "witnessed": false
     }
   },
@@ -1145,33 +1145,33 @@
       "witnessed": false
     },
     "claude": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "live-run",
       "witnessed": false
     },
     "codex": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "live-run-partial",
       "witnessed": false
     },
     "copilot": {
-      "level": "enforced-at-commit",
-      "basis": null,
-      "witnessed": false
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
     },
     "cursor": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "enforceable",
+      "basis": "live-run-partial",
       "witnessed": false
     },
     "devin": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "gemini": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-source",
       "witnessed": false
     },
     "grok": {
@@ -1190,14 +1190,14 @@
       "witnessed": false
     },
     "tabnine": {
-      "level": "enforced-at-commit",
-      "basis": null,
+      "level": "best-effort",
+      "basis": "vendor-docs",
       "witnessed": false
     },
     "vscode": {
-      "level": "enforced-at-commit",
-      "basis": null,
-      "witnessed": false
+      "level": "best-effort",
+      "basis": "live-run-partial",
+      "witnessed": true
     },
     "windsurf": {
       "level": "enforced-at-commit",

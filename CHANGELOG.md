@@ -11,6 +11,12 @@
 - **Plugin keywords use a compliance entry's control id.** A dict-shaped `owasp_asi` entry such
   as `{control: ASI01, coverage: partial}` was stringified whole into `plugin.json` `keywords`.
   The keyword is now the control id, lowercased.
+- **`chock sync --check` compares committed agent-hook configs.** It compared only the compiled
+  tree, so a vendor hook config still naming a guard script a later sync had replaced passed the
+  check while the gate failed closed and denied every shell command. It now runs the real
+  installers on a scratch copy of each wired vendor's committed config and reports `differs`
+  where chock's own entries disagree; foreign entries and list order are ignored. The repo's own
+  hook configs, coverage and `chock_session.py` runtime are regenerated.
 
 ## 0.15.2 — Script hashes skip Python bytecode
 
