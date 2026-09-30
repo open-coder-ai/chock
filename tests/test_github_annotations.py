@@ -53,7 +53,7 @@ def _repo(tmp_path: Path, findings: list[dict], *, rollout: str | None = None) -
 
 
 def _ci(gate: Path, repo: Path, monkeypatch: pytest.MonkeyPatch, *, actions: str | None, summary: Path | None = None):
-    for name in ("GITHUB_ACTIONS", "GITHUB_STEP_SUMMARY"):
+    for name in ("GITHUB_ACTIONS", "GITHUB_STEP_SUMMARY", "RUNNER_TEMP"):
         monkeypatch.delenv(name, raising=False)
     if actions is not None:
         monkeypatch.setenv("GITHUB_ACTIONS", actions)
@@ -105,7 +105,7 @@ def test_at_most_ten_annotations_and_the_rest_in_the_summary(tmp_path, monkeypat
     assert lines[-1].startswith("::error file=src/f10.py,line=10,")
     text = summary.read_text(encoding="utf-8")
     assert f"| {POLICY} | 13 | 0 | block |" in text
-    assert "More findings (3 past the annotation cap)" in text
+    assert "Not annotated (3: GitHub shows 10 errors and 10 warnings per step)" in text
     assert [f"- src/f{n}.py:{n}: bad {n}" in text for n in (11, 12, 13)] == [True] * 3
     assert "src/f10.py" not in text
 
@@ -116,7 +116,7 @@ def test_no_overflow_section_under_the_cap(tmp_path, monkeypatch) -> None:
     _ci(gate, repo, monkeypatch, actions="true", summary=summary)
     text = summary.read_text(encoding="utf-8")
     assert "| policy | new findings | baseline | verdict |" in text
-    assert "More findings" not in text
+    assert "Not annotated" not in text
 
 
 def test_the_summary_is_appended_not_replaced(tmp_path, monkeypatch) -> None:

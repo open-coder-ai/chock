@@ -995,15 +995,16 @@ def _reason(result: GateResult, spec: dict, event: str = "commit", policy_id: st
 
 
 def _report_refusal(result: GateResult, spec: dict, judged: str, signal: str | None, policy_id: str | None) -> None:
-    print(_reason(result, spec, judged, policy_id), file=sys.stderr)
+    reason = _reason(result, spec, judged, policy_id)
+    print(_encodable(ci_inert(reason) if judged == "ci" else reason, sys.stderr), file=sys.stderr)
     if judged == AGENT_COMMIT_EVENT and signal:
         print(_AGENT_COMMIT_NOTE.format(signal=signal), file=sys.stderr)
 
 
 def _annotation(policy_id: str | None, reason: str) -> str:
     """A GitHub Actions `::warning::` workflow command; the runner reads it from stdout."""
-    text = reason.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-    return f"::warning title=chock {policy_id or 'gate'}::{text}"
+    title = _escape_property(f"chock {policy_id or 'gate'}")
+    return f"::warning title={title}::{_escape_data(reason)}"
 
 
 #: GitHub shows at most this many error and this many warning annotations per step.
@@ -1025,9 +1026,32 @@ def _escape_property(text: str) -> str:
 
 
 def _cell(value: object) -> str:
-    """Text that stays inside one markdown table cell or bullet, whatever a finding holds."""
+    """Text that stays inside one markdown table cell or bullet, whatever a finding holds: no new row,
+    no HTML, and no link, image or mention (a finding's text comes from the pull request)."""
     text = " ".join(str(value).split())
-    return text.replace("|", "\\|").replace("`", "'").replace("<", "&lt;")
+    for char in "\\|[]!@":
+        text = text.replace(char, "\\" + char)
+    return text.replace("`", "'").replace("<", "&lt;")
+
+
+_LINE_BREAK = re.compile(r"\r\n|\r|\n")
+
+
+def ci_inert(text: str) -> str:
+    """`text` with no line a GitHub runner would parse as a workflow command.
+
+    The runner reads commands from stdout and stderr alike, a line at a time (CR, LF or CRLF), after
+    trimming it. A finding's path or message comes from the pull request, so at ci a line that would
+    start with `::` is prefixed; every other line is printed as it was.
+    """
+    lines = _LINE_BREAK.split(text)
+    return "\n".join(f"> {line}" if line.strip().startswith("::") else line for line in lines)
+
+
+def _encodable(text: str, stream: Any) -> str:
+    """`text` as `stream` can write it: a lone surrogate or a character its encoding lacks becomes `?`."""
+    encoding = getattr(stream, "encoding", None) or "utf-8"
+    return text.encode(encoding, "replace").decode(encoding, "replace")
 
 
 def _repo_relative(path: str, repo_root: Path) -> str:
@@ -1055,10 +1079,43 @@ def _workflow_command(level: str, finding: dict, policy_id: str | None, repo_roo
     return f"::{level} {','.join(props)}::{_escape_data(finding['message'])}"
 
 
-def _annotation_plan(findings: list[dict]) -> tuple[list[dict], list[dict]]:
-    """The findings to annotate (at most the cap) and those past it, ordered by path then line."""
+#: What names one step of one job attempt: every gate the step runs shares its annotation budget.
+_STEP_KEYS = ("GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_JOB", "GITHUB_ACTION")
+
+
+def _budget_file() -> Path | None:
+    """This step's annotation budget under `RUNNER_TEMP`, or None off a runner (each gate then caps alone)."""
+    temp = os.environ.get("RUNNER_TEMP")
+    if not temp:
+        return None
+    key = "-".join(re.sub(r"[^A-Za-z0-9_.-]", "_", os.environ.get(name, "")) for name in _STEP_KEYS)
+    return Path(temp) / f"chock-annotations-{key}.json"
+
+
+def _take_budget(level: str, wanted: int) -> int:
+    """How many of `wanted` annotations of `level` this gate may print, and record them as spent.
+
+    A budget that cannot be read or written prints none: the step summary still lists every finding.
+    """
+    path = _budget_file()
+    if path is None:
+        return min(wanted, _ANNOTATION_CAP)
+    try:
+        spent = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        used = spent.get(level, 0) if isinstance(spent, dict) else _ANNOTATION_CAP
+        used = used if isinstance(used, int) and not isinstance(used, bool) and used >= 0 else _ANNOTATION_CAP
+        take = max(0, min(wanted, _ANNOTATION_CAP - used))
+        path.write_text(json.dumps({**spent, level: used + take}), encoding="utf-8")
+    except (OSError, ValueError):
+        return 0
+    return take
+
+
+def _annotation_plan(findings: list[dict], level: str) -> tuple[list[dict], list[dict]]:
+    """The findings to annotate within this step's budget and those left out, ordered by path then line."""
     ordered = sorted(findings, key=lambda item: (item["path"], item["line"], item["key"]))
-    return ordered[:_ANNOTATION_CAP], ordered[_ANNOTATION_CAP:]
+    take = _take_budget(level, len(ordered)) if ordered else 0
+    return ordered[:take], ordered[take:]
 
 
 def _step_summary(result: GateResult, policy_id: str | None, verdict: str, overflow: list[dict]) -> str:
@@ -1072,7 +1129,7 @@ def _step_summary(result: GateResult, policy_id: str | None, verdict: str, overf
         f"| {_cell(policy_id or 'gate')} | {counts['new_findings']} | {counts['baseline_findings']} | {verdict} |",
     ]
     if overflow:
-        lines += ["", f"#### More findings ({len(overflow)} past the annotation cap)", ""]
+        lines += ["", f"#### Not annotated ({len(overflow)}: GitHub shows 10 errors and 10 warnings per step)", ""]
         for item in overflow:
             rule = f"[{_cell(item['rule'])}] " if isinstance(item.get("rule"), str) and item["rule"] else ""
             lines.append(f"- {_cell(item['path'])}:{item['line']}: {rule}{_cell(item['message'])}")
@@ -1090,16 +1147,24 @@ def _annotate(result: GateResult, verdict: str, policy_id: str | None, repo_root
     shown: list[dict] = []
     overflow: list[dict] = []
     if verdict != "allow":
-        shown, overflow = _annotation_plan(result.findings)
+        shown, overflow = _annotation_plan(result.findings, level)
     for item in shown:
-        print(_workflow_command(level, item, policy_id, repo_root))
+        print(_encodable(_workflow_command(level, item, policy_id, repo_root), sys.stdout))
     summary = os.environ.get(_STEP_SUMMARY_ENV)
     if summary:
         try:
-            with open(summary, "a", encoding="utf-8") as handle:
+            with open(summary, "a", encoding="utf-8", errors="replace") as handle:
                 handle.write(_step_summary(result, policy_id, verdict, overflow))
         except OSError as exc:
             print(f"gate: cannot write the step summary: {exc}", file=sys.stderr)
+
+
+def _annotate_safely(result: GateResult, verdict: str, policy_id: str | None, repo_root: Path) -> None:
+    """`_annotate`, whose failure is reported and never reaches the verdict, the refusal or the log."""
+    try:
+        _annotate(result, verdict, policy_id, repo_root)
+    except Exception as exc:  # noqa: BLE001 -- output only: an annotation failure never changes the verdict
+        print(f"gate: GitHub annotations skipped: {type(exc).__name__}", file=sys.stderr)
 
 
 def allowed_ids() -> set[str]:
@@ -1136,8 +1201,10 @@ def _deliver(verdict: str, result: GateResult, spec: dict, event: str, policy_id
         # The turn's end has nobody to ask and nothing to withhold: a Stop ask is a warning.
         return EXIT_ASK if verdict == ACTION_ASK and event != STOP_EVENT else EXIT_WARN
     if event == "ci":
-        if not (_github_actions() and result.findings):
-            print(_annotation(policy_id, reason))
+        if _github_actions() and result.findings:
+            print(_encodable(ci_inert(f"gate: warning: {reason}"), sys.stderr), file=sys.stderr)
+        else:
+            print(_encodable(_annotation(policy_id, reason), sys.stdout))
         return 0
     print(f"gate: warning: {reason}", file=sys.stderr)
     return 0
@@ -1255,7 +1322,7 @@ def judge(
     result = kind(ctx, _params(gate_path, spec), judged)
     level = rollout(repo_root, event, signal, base)
     if event == "ci":
-        _annotate(result, _verdict(result, declared, level), _policy_id(gate_path), repo_root)
+        _annotate_safely(result, _verdict(result, declared, level), _policy_id(gate_path), repo_root)
     return _conclude(gate_path, spec, event, judged, result, (signal, level))
 
 
