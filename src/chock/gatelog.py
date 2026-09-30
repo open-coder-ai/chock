@@ -10,6 +10,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from chock.gatelog_report import _printable, render_groups_md, render_groups_text
+
 LOG_DIR = "log"
 LOG_NAME = "gate-events.jsonl"
 ROTATED_NAME = "gate-events.1.jsonl"
@@ -18,6 +20,7 @@ GROUP_KEYS = ("policy", "rule", "agent", "event")
 FORMATS = ("text", "md")
 UNKNOWN = "unknown"
 TOP_FILES = 3
+_SINCE_RANGE = "must be 1 or more days"
 #: A gate's `matches` line is `<path>[:<line>]: <label>`; only the path is read, never the label.
 _MATCH_PATH_RE = re.compile(r"^(?P<path>[^\s:]+)(?::\d+)?: ")
 
@@ -101,10 +104,10 @@ def _group_names(record: dict[str, Any], by: str) -> list[str]:
     return [str(record.get(by) or UNKNOWN)]
 
 
-def _record_files(record: dict[str, Any]) -> set[str]:
+def _record_files(record: dict[str, Any]) -> list[str]:
     matches = record.get("matches")
     found = (_MATCH_PATH_RE.match(m) for m in matches if isinstance(m, str)) if isinstance(matches, list) else ()
-    return {m.group("path") for m in found if m}
+    return sorted({m.group("path") for m in found if m})
 
 
 def _new_group(name: str) -> dict[str, Any]:
@@ -125,15 +128,20 @@ def _new_group(name: str) -> dict[str, Any]:
 
 
 def _tally(entry: dict[str, Any], record: dict[str, Any], by: str) -> None:
+    """Add one record to a group. Grouped by rule, `new` is that rule's own count; the verdict,
+    baseline and file columns stay per record, since the log does not tie them to one rule."""
     entry["events"] += 1
     verdict = record.get("verdict")
     entry[verdict if verdict in ("block", "ask", "warn") else "allow"] += 1
     entry["would_block"] += record.get("would_block") is True
-    entry["new_findings"] += _count(record.get("new_findings"))
+    rules = record.get("rules")
+    if by == "rule" and isinstance(rules, dict) and entry["group"] in rules:
+        entry["new_findings"] += _count(rules[entry["group"]])
+    else:
+        entry["new_findings"] += _count(record.get("new_findings"))
     entry["baseline_findings"] += _count(record.get("baseline_findings"))
     if record.get("agent"):
         entry["agents"].add(str(record["agent"]))
-    rules = record.get("rules")
     if by != "rule" and isinstance(rules, dict):
         entry["rules"].update({str(k): _count(v) for k, v in rules.items()})
     entry["files"].update(_record_files(record))
@@ -152,7 +160,8 @@ def group_events(events: list[dict[str, Any]], by: str) -> list[dict[str, Any]]:
     for entry in groups.values():
         entry["agents"] = sorted(entry["agents"])
         entry["rules"] = dict(entry["rules"].most_common())
-        entry["files"] = [{"path": p, "count": n} for p, n in entry["files"].most_common(TOP_FILES)]
+        top = sorted(entry["files"].items(), key=lambda item: (-item[1], item[0]))[:TOP_FILES]
+        entry["files"] = [{"path": p, "count": n} for p, n in top]
         rows.append(entry)
     return sorted(rows, key=lambda e: (-(e["block"] + e["ask"] + e["warn"]), -e["events"], e["group"]))
 
@@ -189,76 +198,19 @@ def render_text(summary: list[dict[str, Any]], silent: list[str]) -> str:
     return "\n".join(lines)
 
 
-_COLUMNS = (
-    ("events", "events"),
-    ("block", "blocked"),
-    ("ask", "asked"),
-    ("warn", "warned"),
-    ("would_block", "would-block"),
-    ("new_findings", "new"),
-    ("baseline_findings", "baseline"),
-)
-
-
-def _columns(rows: list[dict[str, Any]]) -> list[tuple[str, str]]:
-    """The would-block column appears only once a record carries the field."""
-    return [c for c in _COLUMNS if c[0] != "would_block" or any(r["would_block"] for r in rows)]
-
-
-def headline(row: dict[str, Any]) -> str:
-    """`java-security: 14 would-block (9 path traversal, 5 SQL) across 3 agents`."""
-    counts = [f"{row[key]} {label}" for key, label in _COLUMNS[1:5] if row[key]] or ["0 blocked"]
-    text = f"{row['group']}: {', '.join(counts)}"
-    if row["rules"]:
-        text += f" ({', '.join(f'{n} {rule}' for rule, n in row['rules'].items())})"
-    if row["agents"]:
-        text += f" across {len(row['agents'])} agent{'s' if len(row['agents']) != 1 else ''}"
-    if row["files"]:
-        text += "; top files: " + ", ".join(f"{f['path']} ({f['count']})" for f in row["files"])
-    return text
-
-
-def render_groups_text(rows: list[dict[str, Any]], by: str) -> str:
-    if not rows:
-        return "No gate outcomes recorded yet."
-    columns = _columns(rows)
-    width = max(len(by), *(len(str(r["group"])) for r in rows))
-    head = by.ljust(width) + "".join(f"  {label:>{max(len(label), 5)}}" for _, label in columns)
-    lines = [head]
-    for row in rows:
-        cells = "".join(f"  {row[key]:>{max(len(label), 5)}}" for key, label in columns)
-        lines.append(str(row["group"]).ljust(width) + cells)
-    return "\n".join([*lines, "", *(headline(r) for r in rows)])
-
-
-def _cell(value: Any) -> str:
-    """Text that stays inside one markdown table cell or bullet, whatever a log line holds."""
-    text = " ".join(str(value).split())
-    return text.replace("|", "\\|").replace("`", "'").replace("<", "&lt;")
-
-
-def render_groups_md(rows: list[dict[str, Any]], by: str, since: int | None = None) -> str:
-    window = f" (last {since} days)" if since is not None else ""
-    title = f"### Chock gate log by {by}{window}"
-    if not rows:
-        return f"{title}\n\nNo gate outcomes recorded yet."
-    columns = _columns(rows)
-    lines = [
-        title,
-        "",
-        f"| {by} | " + " | ".join(label for _, label in columns) + " |",
-        "|" + "---|" * (len(columns) + 1),
-    ]
-    for row in rows:
-        lines.append(f"| {_cell(row['group'])} | " + " | ".join(str(row[key]) for key, _ in columns) + " |")
-    return "\n".join([*lines, "", *(f"- {_cell(headline(r))}" for r in rows)])
+def positive_days(value: str) -> int:
+    """argparse type for `--since`: a whole number of days, 1 or more."""
+    days = int(value)
+    if days < 1:
+        raise argparse.ArgumentTypeError(_SINCE_RANGE)
+    return days
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="chock status --only log", description="Read the gate outcome log")
     parser.add_argument("--repo", default=".", help="Repository root (default: cwd)")
     parser.add_argument("--policy", help="Restrict the report to one policy id")
-    parser.add_argument("--since", type=int, metavar="DAYS", help="Only records from the last N days")
+    parser.add_argument("--since", type=positive_days, metavar="DAYS", help="Only records from the last N days")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable results")
     parser.add_argument("--by", choices=GROUP_KEYS, help="Group counts by policy, rule, agent or event")
     parser.add_argument("--format", choices=FORMATS, default="text", help="md prints a paste-able markdown summary")
@@ -279,7 +231,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.format == "md":
             print(render_groups_md(rows, by, args.since))
         else:
-            print(render_groups_text(rows, by))
+            print(_printable(render_groups_text(rows, by)))
         return 0
 
     summary = summarize(events)
@@ -291,7 +243,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         print(json.dumps({"summary": summary, "silent": silent, "events": len(events)}, indent=2))
     else:
-        print(render_text(summary, silent))
+        print(_printable(render_text(summary, silent)))
     return 0
 
 

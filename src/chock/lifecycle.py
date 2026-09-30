@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from chock.gatelog import FORMATS, GROUP_KEYS
+from chock.gatelog import FORMATS, GROUP_KEYS, positive_days
 
 
 def _run(label: str, fn, argv: list[str]) -> int:
@@ -162,7 +162,7 @@ def status_main(argv: list[str] | None) -> int:
     parser.add_argument("--only", default=None, help="Comma-separated subset of: policies, registry, log")
     log_flags = parser.add_argument_group("log section")
     log_flags.add_argument("--policy", help="Log: restrict to one policy id")
-    log_flags.add_argument("--since", type=int, metavar="DAYS", help="Log: only records from the last N days")
+    log_flags.add_argument("--since", type=positive_days, metavar="DAYS", help="Log: only records from the last N days")
     log_flags.add_argument("--json", action="store_true", help="Log: machine-readable output")
     log_flags.add_argument("--by", choices=GROUP_KEYS, help="Log: group by policy, rule, agent or event")
     log_flags.add_argument("--format", choices=FORMATS, help="Log: md prints a markdown summary")
@@ -177,6 +177,10 @@ def status_main(argv: list[str] | None) -> int:
 
     if "log" not in selected and _log_args(args):
         print("--policy, --since, --json, --by and --format apply to `--only log`", file=sys.stderr)
+        return 2
+
+    if (args.json or args.format == "md") and selected != ["log"]:
+        print("--json and --format md print the log alone: use `--only log`", file=sys.stderr)
         return 2
 
     rc = 0
