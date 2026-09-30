@@ -101,7 +101,9 @@ def _run_guard(
         ]
         return _run(cmd, repo_or_cwd, input_text=input_text)
 
-    if ext == "sh":
+    if ext == "py":
+        cmd = [sys.executable, str(script), *args]
+    elif ext == "sh":
         interpreter = _find_bash()
         assert interpreter is not None, "No bash on this platform"
         cmd = [interpreter, str(script), *args]
@@ -134,27 +136,37 @@ def _protect_cases() -> list[Case]:
 
 def _destructive_cases() -> list[Case]:
     return [
-        ("block-destructive-commands", "block-destructive", "sh", ["rm", "-rf", "/"], "", 1),
-        ("block-destructive-commands", "block-destructive", "sh", ["rm", "-fr", "/var"], "", 1),
-        ("block-destructive-commands", "block-destructive", "sh", ["rm", "-r", "-f", "/"], "", 1),
-        ("block-destructive-commands", "block-destructive", "sh", ["git", "push", "--force"], "", 1),
-        ("block-destructive-commands", "block-destructive", "sh", ["git", "reset", "--hard"], "", 1),
-        ("block-destructive-commands", "block-destructive", "sh", ["git", "status"], "", 0),
-        ("block-destructive-commands", "block-destructive", "sh", ["rm", "-rf", "./build"], "", 0),
-        ("block-destructive-commands", "block-destructive", "sh", ["git", "push", "--force-with-lease"], "", 0),
-        ("block-destructive-commands", "block-destructive", "sh", ["git", "clean", "-f"], "", 1),
-        ("block-destructive-commands", "block-destructive", "sh", ["kubectl", "delete", "pod", "x"], "", 1),
-        ("block-destructive-commands", "block-destructive", "sh", ["terraform", "destroy"], "", 1),
+        ("block-destructive-commands", "block-destructive-commands", "py", ["rm", "-rf", "/"], "", 1),
+        ("block-destructive-commands", "block-destructive-commands", "py", ["rm", "-fr", "/var"], "", 1),
+        ("block-destructive-commands", "block-destructive-commands", "py", ["rm", "-r", "-f", "/"], "", 1),
+        ("block-destructive-commands", "block-destructive-commands", "py", ["git", "push", "--force"], "", 1),
+        ("block-destructive-commands", "block-destructive-commands", "py", ["git", "reset", "--hard"], "", 1),
+        ("block-destructive-commands", "block-destructive-commands", "py", ["git", "status"], "", 0),
+        ("block-destructive-commands", "block-destructive-commands", "py", ["rm", "-rf", "./build"], "", 0),
+        (
+            "block-destructive-commands",
+            "block-destructive-commands",
+            "py",
+            ["git", "push", "--force-with-lease"],
+            "",
+            0,
+        ),
+        ("block-destructive-commands", "block-destructive-commands", "py", ["git", "clean", "-f"], "", 1),
+        ("block-destructive-commands", "block-destructive-commands", "py", ["kubectl", "delete", "pod", "x"], "", 1),
+        ("block-destructive-commands", "block-destructive-commands", "py", ["terraform", "destroy"], "", 1),
     ]
 
 
 def _no_verify_cases() -> list[Case]:
     return [
-        ("block-no-verify", "block-no-verify", "sh", ["git", "commit", "--no-verify"], "", 1),
-        ("block-no-verify", "block-no-verify", "sh", ["git", "commit", "-nm", "x"], "", 1),
-        ("block-no-verify", "block-no-verify", "sh", ["git", "commit", "-m", "fix -n flag"], "", 0),
-        ("block-no-verify", "block-no-verify", "sh", ["git", "commit", "-mn", "x"], "", 1),
-        ("block-no-verify", "block-no-verify", "sh", ["git", "push", "-n"], "", 1),
+        ("block-no-verify", "block-no-verify", "py", ["git", "commit", "--no-verify"], "", 1),
+        ("block-no-verify", "block-no-verify", "py", ["git", "commit", "-nm", "x"], "", 1),
+        ("block-no-verify", "block-no-verify", "py", ["git", "commit", "-m", "fix -n flag"], "", 0),
+        # git parses `-mn` as `-m` with the message "n", so no -n flag is set (gitcli: option bundling).
+        ("block-no-verify", "block-no-verify", "py", ["git", "commit", "-mn", "x"], "", 0),
+        # `git push -n` is --dry-run in git's option table, not --no-verify.
+        ("block-no-verify", "block-no-verify", "py", ["git", "push", "-n"], "", 0),
+        ("block-no-verify", "block-no-verify", "py", ["git", "push", "--no-verify"], "", 1),
     ]
 
 

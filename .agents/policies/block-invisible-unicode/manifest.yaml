@@ -1,9 +1,10 @@
 id: block-invisible-unicode
 name: "Block Invisible Unicode"
-version: "0.0.1"
+version: "0.0.4"
 description: >
-  Pre-commit gate for the mechanizable slice of prompt-injection defense: invisible
-  and direction-override Unicode in staged changes. Bidi controls make code read
+  The mechanizable slice of prompt-injection defense, enforced at two points: at commit
+  (the git hook, over staged changes) and at agent tool-use (over a tool call's arguments,
+  as the agent writes) -- invisible and direction-override Unicode. Bidi controls make code read
   differently than it parses (Trojan Source, CVE-2021-42574); Unicode tag-block
   characters smuggle instructions that are invisible to a human reviewer but fully
   legible to the agent reading the file. Zero-width joiners and bidi marks
@@ -23,13 +24,12 @@ approval:
 hook:
   gate:
     kind: content_regex
-    "on": [commit]
+    "on": [commit, tool_use]
     action: block
     message: >
-      Invisible or direction-override Unicode detected in staged changes. These
+      Invisible or direction-override Unicode detected in this change. These
       characters change how code reads to a human or hide instructions an agent will
-      still obey. Remove them, or add 'pragma: allowlist invisible-unicode' on the
-      same line for a documented exception (e.g. a test fixture).
+      still obey. Remove them. 'pragma: allowlist invisible-unicode' on the same line marks a documented exception; in the agent (tool use, the turn's end) it counts only when that exact line is already committed in HEAD, so an agent asks a person rather than writing the pragma itself.
     params:
       scan: added_lines
       allowlist_pragma: 'pragma:\s*allowlist\s+invisible-unicode'
@@ -38,6 +38,10 @@ hook:
       content_pattern: '[\u202A-\u202E\u2066-\u2069\U000E0001-\U000E007F]'
 
 compliance:
+  mitre_atlas:
+  - control: AML.T0051
+    coverage: partial
+    note: "blocks the hidden-character carrier of indirect injection; semantic injection stays advisory"
   owasp_asi:
   - control: ASI01
     coverage: partial
@@ -64,3 +68,15 @@ changelog:
   date: '2026-08-16'
   changes:
   - "Initial release. Anchors: OWASP LLM01/ASI01, MITRE ATLAS AML.T0051 (indirect), CVE-2021-42574 (Trojan Source)."
+- version: 0.0.2
+  date: '2026-08-16'
+  changes:
+  - "Add compliance claims (mitre_atlas); no mechanism change."
+- version: 0.0.3
+  date: '2026-08-28'
+  changes:
+  - "Bind at tool-use as well as commit: gate.on now [commit, tool_use], so the same pattern enforces as the agent writes (mcp-gateway / agent guard) and not only over a git diff -- the write-time point matters most here, since tag-block smuggling targets exactly what the agent writes and reads. No pattern change. Message generalized from 'staged changes' to 'this change' and notes the allowlist pragma is a commit-review concept NOT honored at tool-use (live, attacker-controllable tool argument -- a match always blocks, matching the gateway's content_regex semantics)."
+- version: 0.0.4
+  date: '2026-09-29'
+  changes:
+  - "Waiver wording follows chock 0.14.0: the pragma is honoured at commit; in the agent (tool use, the turn's end, a commit made with CHOCK_AGENT_COMMIT set) it counts only when that exact line is already committed in HEAD, and the turn's end judges only the lines changed against HEAD. The gate message and description said a waiver is never honoured in the agent. Pattern and gate behaviour unchanged."

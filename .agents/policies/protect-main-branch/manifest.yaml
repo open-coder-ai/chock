@@ -19,7 +19,8 @@ hook:
     action: block
     # {refs} is substituted with the resolved params.refs. Written literally as
     # "(main/master)" this message contradicted its own gate the moment an adopter set
-    # chock.defaults.protected_branches.
+    # chock.defaults.protected_branches: with `[main, master, release/*]` configured,
+    # a commit on release/1.0 was blocked by a message naming only main and master.
     message: >
       Direct commits/pushes to a protected branch ({refs}) are blocked.
       Create a feature branch and open a pull request.

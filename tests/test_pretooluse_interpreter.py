@@ -54,7 +54,7 @@ def _payload(command: str) -> str:
     )
 
 
-GUARD = ".agents/policies/block-destructive-commands/implementations/block-destructive.sh"
+GUARD = ".agents/policies/block-destructive-commands/implementations/block-destructive-commands.py"
 
 
 def _settings_path(repo: Path) -> Path:

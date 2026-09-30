@@ -1,0 +1,9 @@
+{
+  "preToolUse": [
+    {
+      "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/cursor.py --tool-call \".chock/compiled/token-efficiency/pre-tool-use/tool-call-gate.json\"",
+      "timeout": 30,
+      "failClosed": true
+    }
+  ]
+}

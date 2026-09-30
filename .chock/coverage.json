@@ -68,68 +68,68 @@
   },
   "block-destructive-commands": {
     "aider": {
-      "level": "advisory",
+      "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false
     },
     "claude": {
-      "level": "best-effort",
-      "basis": "live-run",
+      "level": "enforced-at-commit",
+      "basis": null,
       "witnessed": false
     },
     "codex": {
-      "level": "best-effort",
-      "basis": "live-run-partial",
+      "level": "enforced-at-commit",
+      "basis": null,
       "witnessed": false
     },
     "copilot": {
-      "level": "best-effort",
-      "basis": "live-run-partial",
-      "witnessed": true
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
     },
     "cursor": {
-      "level": "enforceable",
-      "basis": "live-run-partial",
+      "level": "enforced-at-commit",
+      "basis": null,
       "witnessed": false
     },
     "devin": {
-      "level": "best-effort",
-      "basis": "vendor-docs",
+      "level": "enforced-at-commit",
+      "basis": null,
       "witnessed": false
     },
     "gemini": {
-      "level": "best-effort",
-      "basis": "vendor-source",
+      "level": "enforced-at-commit",
+      "basis": null,
       "witnessed": false
     },
     "grok": {
-      "level": "best-effort",
-      "basis": "vendor-docs",
+      "level": "enforced-at-commit",
+      "basis": null,
       "witnessed": false
     },
     "kimi-code": {
-      "level": "advisory",
+      "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false
     },
     "replit": {
-      "level": "advisory",
+      "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false
     },
     "tabnine": {
-      "level": "best-effort",
-      "basis": "vendor-docs",
+      "level": "enforced-at-commit",
+      "basis": null,
       "witnessed": false
     },
     "vscode": {
-      "level": "best-effort",
-      "basis": "live-run-partial",
-      "witnessed": true
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
     },
     "windsurf": {
-      "level": "best-effort",
-      "basis": "third-party-install",
+      "level": "enforced-at-commit",
+      "basis": null,
       "witnessed": false
     }
   },
@@ -207,38 +207,38 @@
       "witnessed": false
     },
     "claude": {
-      "level": "best-effort",
-      "basis": "live-run",
+      "level": "advisory",
+      "basis": null,
       "witnessed": false
     },
     "codex": {
-      "level": "best-effort",
-      "basis": "live-run-partial",
+      "level": "advisory",
+      "basis": null,
       "witnessed": false
     },
     "copilot": {
-      "level": "best-effort",
-      "basis": "live-run-partial",
-      "witnessed": true
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
     },
     "cursor": {
-      "level": "enforceable",
-      "basis": "live-run-partial",
+      "level": "advisory",
+      "basis": null,
       "witnessed": false
     },
     "devin": {
-      "level": "best-effort",
-      "basis": "vendor-docs",
+      "level": "advisory",
+      "basis": null,
       "witnessed": false
     },
     "gemini": {
-      "level": "best-effort",
-      "basis": "vendor-source",
+      "level": "advisory",
+      "basis": null,
       "witnessed": false
     },
     "grok": {
-      "level": "best-effort",
-      "basis": "vendor-docs",
+      "level": "advisory",
+      "basis": null,
       "witnessed": false
     },
     "kimi-code": {
@@ -252,18 +252,18 @@
       "witnessed": false
     },
     "tabnine": {
-      "level": "best-effort",
-      "basis": "vendor-docs",
+      "level": "advisory",
+      "basis": null,
       "witnessed": false
     },
     "vscode": {
-      "level": "best-effort",
-      "basis": "live-run-partial",
-      "witnessed": true
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
     },
     "windsurf": {
-      "level": "best-effort",
-      "basis": "third-party-install",
+      "level": "advisory",
+      "basis": null,
       "witnessed": false
     }
   },
@@ -877,38 +877,38 @@
       "witnessed": false
     },
     "claude": {
-      "level": "best-effort",
-      "basis": "live-run",
+      "level": "advisory",
+      "basis": null,
       "witnessed": false
     },
     "codex": {
-      "level": "best-effort",
-      "basis": "live-run-partial",
+      "level": "advisory",
+      "basis": null,
       "witnessed": false
     },
     "copilot": {
-      "level": "best-effort",
-      "basis": "live-run-partial",
-      "witnessed": true
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
     },
     "cursor": {
-      "level": "enforceable",
-      "basis": "live-run-partial",
+      "level": "advisory",
+      "basis": null,
       "witnessed": false
     },
     "devin": {
-      "level": "best-effort",
-      "basis": "vendor-docs",
+      "level": "advisory",
+      "basis": null,
       "witnessed": false
     },
     "gemini": {
-      "level": "best-effort",
-      "basis": "vendor-source",
+      "level": "advisory",
+      "basis": null,
       "witnessed": false
     },
     "grok": {
-      "level": "best-effort",
-      "basis": "vendor-docs",
+      "level": "advisory",
+      "basis": null,
       "witnessed": false
     },
     "kimi-code": {
@@ -922,85 +922,85 @@
       "witnessed": false
     },
     "tabnine": {
-      "level": "best-effort",
-      "basis": "vendor-docs",
+      "level": "advisory",
+      "basis": null,
       "witnessed": false
     },
     "vscode": {
-      "level": "best-effort",
-      "basis": "live-run-partial",
-      "witnessed": true
+      "level": "advisory",
+      "basis": null,
+      "witnessed": false
     },
     "windsurf": {
-      "level": "best-effort",
-      "basis": "third-party-install",
+      "level": "advisory",
+      "basis": null,
       "witnessed": false
     }
   },
   "protect-commit-privacy": {
     "aider": {
-      "level": "advisory",
+      "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false
     },
     "claude": {
-      "level": "best-effort",
-      "basis": "live-run",
+      "level": "enforced-at-commit",
+      "basis": null,
       "witnessed": false
     },
     "codex": {
-      "level": "best-effort",
-      "basis": "live-run-partial",
+      "level": "enforced-at-commit",
+      "basis": null,
       "witnessed": false
     },
     "copilot": {
-      "level": "best-effort",
-      "basis": "live-run-partial",
-      "witnessed": true
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
     },
     "cursor": {
-      "level": "enforceable",
-      "basis": "live-run-partial",
+      "level": "enforced-at-commit",
+      "basis": null,
       "witnessed": false
     },
     "devin": {
-      "level": "best-effort",
-      "basis": "vendor-docs",
+      "level": "enforced-at-commit",
+      "basis": null,
       "witnessed": false
     },
     "gemini": {
-      "level": "best-effort",
-      "basis": "vendor-source",
+      "level": "enforced-at-commit",
+      "basis": null,
       "witnessed": false
     },
     "grok": {
-      "level": "best-effort",
-      "basis": "vendor-docs",
+      "level": "enforced-at-commit",
+      "basis": null,
       "witnessed": false
     },
     "kimi-code": {
-      "level": "advisory",
+      "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false
     },
     "replit": {
-      "level": "advisory",
+      "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false
     },
     "tabnine": {
-      "level": "best-effort",
-      "basis": "vendor-docs",
+      "level": "enforced-at-commit",
+      "basis": null,
       "witnessed": false
     },
     "vscode": {
-      "level": "best-effort",
-      "basis": "live-run-partial",
-      "witnessed": true
+      "level": "enforced-at-commit",
+      "basis": null,
+      "witnessed": false
     },
     "windsurf": {
-      "level": "best-effort",
-      "basis": "third-party-install",
+      "level": "enforced-at-commit",
+      "basis": null,
       "witnessed": false
     }
   },

@@ -1,9 +1,13 @@
 id: code-safety
 name: "Code Safety Rule"
-version: "0.0.1"
+version: "0.0.3"
 description: >
   trigger: secrets, eval/exec, unsanitized SQL, hallucinated dependencies.
   avoid: committing credentials, adding unverified packages, executing dynamic code.
+  Install scan-secrets for the enforced counterpart of the secret slice (a commit-time gate),
+  and verify-dependency-exists for the dependency slice (opt-in: disabled by default, needs a
+  curated allowlist); the eval/exec and unsanitized-SQL guidance stays advisory (a gate can
+  decide only the non-literal slice: agentic-code-security's code pack).
 artifact: rule
 enforcement: advise
 compliance:
@@ -11,12 +15,12 @@ compliance:
   - ASI05
 rule:
   text: |
-    never(commit): secrets|keys|tokens|passwords|.env; never(add): eval|exec|unsanitized_sql
-    before(dependency): verify(exists_in_registry); on_find(secret|hallucinated_pkg): block + remove
+    see(scan-secrets): commit(secrets|keys|tokens|passwords|.env); see(verify-dependency-exists, opt_in): add(unlisted_dependency)
+    see(agentic-code-security pack code): refuses eval|exec of non-literal text and SQL built from strings in Python|JS; advisory: avoid(eval|exec|unsanitized_sql); on_find(secret|hallucinated_pkg): propose_removal_to_human
 provenance:
   author: "chock-core"
   created_at: "2026-07-12T00:00:00Z"
-  updated_at: "2026-07-12T00:00:00Z"
+  updated_at: "2026-09-29T00:00:00Z"
   source_repo: "https://github.com/open-coder-ai/chock"
   license: "Apache-2.0"
   trust_tier: "community"
@@ -34,3 +38,11 @@ changelog:
   date: '2026-07-12'
   changes:
   - "Initial public baseline (0.0.1); pre-release iteration history is preserved in git log."
+- version: 0.0.2
+  date: '2026-08-25'
+  changes:
+  - "Meta-composition + honesty (hardening review): recast the advise-tier rule so the secret and dependency slices point via see() to their sibling policies -- scan-secrets (a commit-time gate) and verify-dependency-exists (marked opt_in, since it is disabled by default and needs a curated allowlist) -- rather than asserting 'never'/'block' or 'enforced when installed' from an advisory policy. eval/exec and unsanitized-SQL stay advisory (no diff-time gate can decide them), and on_find now says propose_removal_to_human, not 'block + remove'. Wording/framing only."
+- version: 0.0.3
+  date: '2026-09-29'
+  changes:
+  - "Point at the mechanised slice of the eval/exec and unsanitized-SQL guidance: the agentic-code-security gate's code pack refuses Python eval/exec of text that is not a literal and SQL assembled from f-strings, %, .format() or + (and JS template literals with ${} in query/execute), at commit and at tool use. The rule stays advisory: the pointer is a see(), no claim is raised."

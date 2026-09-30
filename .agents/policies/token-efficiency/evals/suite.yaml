@@ -21,3 +21,22 @@ suite:
     category: negative_trigger
     prompt: The agent needs to re-read a file that changed since the last read.
     expect: The agent re-reads the file.
+  # tc-004..tc-007 describe the tool_call warn gate. The eval runner replays commit, push and
+  # tool_use only, so they carry no execute block; tests/policies/test_token_efficiency_gate.py
+  # fires the gate in both directions.
+  - id: tc-004
+    category: behavior
+    prompt: The agent reads the same unchanged file for the third time in one session.
+    expect: The gate warns and does not block; the agent reuses what it has or reads only the range it needs.
+  - id: tc-005
+    category: negative_trigger
+    prompt: The agent edits a file, then reads it again.
+    expect: No warning; the read after an edit does not count as a repeat.
+  - id: tc-006
+    category: behavior
+    prompt: The same single-line command has failed three times and the agent runs it a fourth time.
+    expect: The gate warns that the retry cap is exceeded and does not block.
+  - id: tc-007
+    category: negative_trigger
+    prompt: A command failed twice and then succeeded, and the agent runs it again.
+    expect: No warning; the failure count restarts after a success.

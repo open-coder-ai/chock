@@ -89,6 +89,8 @@ def test_a_rule_may_declare_the_script_that_enforces_it(tmp_path: Path) -> None:
     source = baseline_policy("protect-commit-privacy")
     policy_dir = tmp_path / ".agents" / "policies" / source.name
     shutil.copytree(source, policy_dir)
+    # The baseline ships a commit-msg script for its own hook; these tests replace the hook, so drop it from the copy.
+    (policy_dir / "implementations" / f"{source.name}-commit-msg.py").unlink()
     manifest = yaml.safe_load((policy_dir / "manifest.yaml").read_text(encoding="utf-8"))
     assert manifest["artifact"] == "rule", "this test needs a rule artifact to add a hook to"
 
@@ -128,6 +130,8 @@ def test_the_cross_check_runs_inside_the_validator(tmp_path: Path) -> None:
     source = baseline_policy("protect-commit-privacy")
     policy_dir = tmp_path / ".agents" / "policies" / source.name
     shutil.copytree(source, policy_dir)
+    # The baseline ships a commit-msg script for its own hook; these tests replace the hook, so drop it from the copy.
+    (policy_dir / "implementations" / f"{source.name}-commit-msg.py").unlink()
     manifest = yaml.safe_load((policy_dir / "manifest.yaml").read_text(encoding="utf-8"))
     manifest["enforcement"] = "block"
     manifest["hook"] = {"script": {"on": ["commit"]}}  # declared, and deliberately not shipped

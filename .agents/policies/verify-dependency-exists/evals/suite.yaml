@@ -68,3 +68,23 @@ suite:
       repo_files:
         .chock/dependency-allowlist.txt: "requests\n"
       expect: allow
+  - id: tc-006
+    category: trigger
+    prompt: "The agent writes an unlisted package into requirements.txt."
+    expect: "The write is refused: the package is not in the allowlist."
+    execute: {event: tool_use, head_files: {"requirements.txt": "requests==2.31.0\n"}, writes: {"requirements.txt": "requests==2.31.0\nreqeusts==2.31.0\n"}, expect: block, repo_files: {".chock/dependency-allowlist.txt": "requests\n"}}
+  - id: tc-007
+    category: negative_trigger
+    prompt: "The agent writes a listed package into requirements.txt."
+    expect: "The write is allowed."
+    execute: {event: tool_use, head_files: {"requirements.txt": "requests==2.31.0\n"}, writes: {"requirements.txt": "requests==2.32.0\n"}, expect: allow, repo_files: {".chock/dependency-allowlist.txt": "requests\n"}}
+  - id: tc-008
+    category: trigger
+    prompt: "At the turn's end requirements.txt on disk names an unlisted package HEAD lacks."
+    expect: "The turn is blocked."
+    execute: {event: stop, head_files: {"requirements.txt": "requests==2.31.0\n"}, writes: {"requirements.txt": "requests==2.31.0\nreqeusts==2.31.0\n"}, expect: block, repo_files: {".chock/dependency-allowlist.txt": "requests\n"}}
+  - id: tc-009
+    category: negative_trigger
+    prompt: "At the turn's end requirements.txt differs from HEAD by a listed package; an old unlisted one is in HEAD."
+    expect: "The turn is allowed: only dependencies the turn adds are judged."
+    execute: {event: stop, head_files: {"requirements.txt": "legacy-unlisted==1.0.0\n"}, writes: {"requirements.txt": "legacy-unlisted==1.0.0\nrequests==2.31.0\n"}, expect: allow, repo_files: {".chock/dependency-allowlist.txt": "requests\n"}}

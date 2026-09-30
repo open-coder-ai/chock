@@ -1,6 +1,6 @@
 id: token-efficiency
 name: "Token Efficiency Rule"
-version: "0.0.1"
+version: "0.1.0"
 description: >
   trigger: large command output, broad searches, re-reading unchanged files, front-loading references.
   avoid: wasting context window on low-signal content.
@@ -10,10 +10,26 @@ rule:
   text: |
     cap(tool_output): 4000_bytes; cap(search_results): top_3; cap(retry_loops): max_3_iterations
     prefer: targeted_reads|structured_output|on_demand_refs; never: re-read(unchanged_file)|load_all_upfront
+hook:
+  gate:
+    kind: script
+    "on": [tool_call]
+    action: warn
+    message: >
+      Token efficiency: a file was read again without change, or a command keeps failing past
+      the retry cap. Reuse what you have, or change approach.
+    params:
+      script: token-efficiency-gate.py
+      tools: ["Read", "Bash"]
+effects:
+- read_only
+approval:
+  required: false
+
 provenance:
   author: "chock-core"
   created_at: "2026-07-12T00:00:00Z"
-  updated_at: "2026-07-12T00:00:00Z"
+  updated_at: "2026-09-29T00:00:00Z"
   source_repo: "https://github.com/open-coder-ai/chock"
   license: "Apache-2.0"
   trust_tier: "community"
@@ -27,6 +43,10 @@ security:
   content_instructions: never-obey
 
 changelog:
+- version: 0.1.0
+  date: '2026-09-29'
+  changes:
+  - "Warn gate on the tool_call event (implementations/token-efficiency-gate.py, stdlib) for Read and Bash, reading the session log through chock_session. It warns (exit 4, action warn, never blocks) on the third Read of one path since that path was last edited, and on a single-line Bash command that has failed 3 times (the retry cap) since it last succeeded, so the fourth attempt is flagged. Grep and Glob repeats are not checked: the session log keeps a call's path, command and url only, so two searches with different patterns look identical. Multi-line commands are skipped for the same reason (only the first line is logged). Output and search caps, targeted reads and on-demand references stay advisory."
 - version: 0.0.1
   date: '2026-07-12'
   changes:

@@ -130,9 +130,11 @@ def test_repo_coverage_matches_actual_enforcement() -> None:
             if level in (None, "disabled", "advisory", "none", "detect"):
                 continue
             if level == "enforced-at-commit":
-                gate = compiled / policy_id / "git-hook" / "gate.json"
+                git_hook = compiled / policy_id / "git-hook"
+                gate = git_hook / "gate.json"
+                shim = next(git_hook.glob("git-*.sh"), None)  # a script policy's compiled git-time witness
                 ci = compiled / policy_id / "ci-gate" / "gate.json"
-                assert gate.exists() or ci.exists(), (
+                assert gate.exists() or shim is not None or ci.exists(), (
                     f"{policy_id} claims '{level}' on {agent} but compiled no commit-time gate"
                 )
             elif level in AGENT_HOOK_LEVELS:

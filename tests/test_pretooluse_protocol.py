@@ -12,7 +12,7 @@ from conftest import baseline_policy
 
 from chock.gate import runtime_bundle
 
-GUARD = baseline_policy("block-destructive-commands") / "implementations" / "block-destructive.sh"
+GUARD = baseline_policy("block-destructive-commands") / "implementations" / "block-destructive-commands.py"
 
 
 @pytest.fixture(scope="module")

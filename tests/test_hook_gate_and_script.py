@@ -30,6 +30,8 @@ def _policy(tmp_path: Path, *, gate_on: list[str], script_on: list[str], ship: t
     source = baseline_policy("protect-commit-privacy")
     policy_dir = tmp_path / ".agents" / "policies" / source.name
     shutil.copytree(source, policy_dir)
+    # The baseline ships a commit-msg script for its own hook; these tests replace the hook, so drop it from the copy.
+    (policy_dir / "implementations" / f"{source.name}-commit-msg.py").unlink()
     manifest = yaml.safe_load((policy_dir / "manifest.yaml").read_text(encoding="utf-8"))
     manifest["enforcement"] = "block"
     manifest["hook"] = {"gate": {**_GATE, "on": gate_on}, "script": {"on": script_on}}

@@ -1,0 +1,15 @@
+{
+  "kind": "script",
+  "on": [
+    "tool_call"
+  ],
+  "action": "warn",
+  "message": "Token efficiency: a file was read again without change, or a command keeps failing past the retry cap. Reuse what you have, or change approach.",
+  "params": {
+    "script": ".agents/policies/token-efficiency/implementations/token-efficiency-gate.py",
+    "tools": [
+      "Read",
+      "Bash"
+    ]
+  }
+}

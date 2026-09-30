@@ -31,13 +31,24 @@ def _guard_body() -> str:
     return '#!/usr/bin/env bash\nset -eu\ncase "$*" in *rm*-rf*) echo "BLOCKED: rm -rf" >&2; exit 1;; esac\nexit 0\n'
 
 
+def _py_guard_body() -> str:
+    """A self-contained Python guard, named as the catalog's are: the runtime picks the interpreter by suffix."""
+    return (
+        "import sys\n"
+        "line = ' '.join(sys.argv[1:])\n"
+        "if 'rm' in line and '-rf' in line:\n"
+        "    print('BLOCKED: recursive force delete', file=sys.stderr)\n"
+        "    raise SystemExit(1)\n"
+    )
+
+
 def _synced_repo(tmp_path: Path) -> tuple[Path, dict]:
     """A git repo with the vendored runtime and one guard at the paths the entry references."""
     repo = tmp_path / "adopter"
     pol = repo / ".agents" / "policies" / "block-destructive-commands" / "implementations"
     pol.mkdir(parents=True)
     vendor_runtime(repo, "vscode_copilot")
-    (pol / "block-destructive.sh").write_text(_guard_body(), encoding="utf-8")
+    (pol / "block-destructive-commands.py").write_text(_py_guard_body(), encoding="utf-8")
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
     manifest = {"id": "block-destructive-commands"}
     return repo, manifest

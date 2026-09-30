@@ -101,7 +101,7 @@ A policy is one folder, and the manifest *is* the rule — here is `scan-secrets
 
 ```
 .agents/policies/scan-secrets/
-├── manifest.yaml   # kind: content_regex · on: [commit] · action: block
+├── manifest.yaml   # kind: content_regex · on: [commit, tool_use] · action: block
 └── evals/          # cases replayed against that gate on every build
 ```
 

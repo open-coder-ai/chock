@@ -1,13 +1,16 @@
 id: block-wildcard-agent-permissions
 name: "Block Wildcard Agent Permissions"
-version: "0.0.1"
+version: "0.0.6"
 description: >
-  Pre-commit gate for the mechanizable slice of excessive agency: committed agent
-  permission grants that allow everything. A settings file whose shell grant or
+  The mechanizable slice of excessive agency, enforced at two points: at commit (the git
+  hook, over staged changes) and at agent tool-use (over a tool call's arguments, as the
+  agent writes) -- agent permission grants that allow everything. A settings file whose shell grant or
   allow-list is a bare wildcard hands the agent unlimited tool authority for every future
   session, in a file reviewers rarely read as code. The agent-world twin of
-  block-wildcard-iam: scope grants to what the task needs (e.g. Bash(git status:*)).
-  Escape: 'pragma: allowlist broad-agency' on the same line.
+  block-wildcard-iam: scope grants to what the task needs (e.g. Bash(git status:*)). The
+  allow/alwaysAllow/tools/defaultMode keys match whether or not YAML-style config quotes
+  them, word-bounded so "disallow"/"allowlist" are not mistaken for "allow". Escape:
+  'pragma: allowlist broad-agency' on the same line.
 artifact: hook
 enforcement: block
 mandatory: false
@@ -19,22 +22,31 @@ approval:
 hook:
   gate:
     kind: content_regex
-    "on": [commit]
+    "on": [commit, tool_use]
     action: block
     message: >
       Wildcard agent permission grant detected. Scope the grant to specific tools or
-      commands (e.g. Bash(git status:*), a named tool list), or add
-      'pragma: allowlist broad-agency' on the same line for a reviewed exception.
+      commands (e.g. Bash(git status:*), a named tool list). 'pragma: allowlist broad-agency' on the same line marks a reviewed exception; in the agent (tool use, the turn's end) it counts only when that exact line is already committed in HEAD, so an agent asks a person rather than writing the pragma itself.
     params:
       scan: added_lines
       allowlist_pragma: 'pragma:\s*allowlist\s+broad-agency'
       # Written so the pattern never matches its own source text in this manifest or
       # the compiled gate.json (#32 class): [*] and \s stand between the literal
-      # tokens real content carries.
+      # tokens real content carries. [^\]]* lets the wildcard be ANY array element on
+      # the line (not only the first), and defaultMode:bypassPermissions is the
+      # whole-session escape hatch. LIMITATION: this gate matches per line (the engine
+      # splits even staged_blob into lines), so a pretty-printed grant with the wildcard
+      # alone on its own line is NOT caught here -- a line-scan cannot tell that "*" sits
+      # inside an allow array without unacceptable false positives on unrelated arrays.
+      # Catching that form needs a structure-aware gate kind (future work).
       content_pattern: |-
-        Bash\([*]\)|"allow"\s*:\s*\[\s*"\*"|"alwaysAllow"\s*:\s*\[\s*"\*"|"tools"\s*:\s*\[\s*"\*"
+        Bash\([*]\)|["']?\ballow\b["']?\s*:\s*\[[^\]]*["'][*]["']|["']?\balwaysAllow\b["']?\s*:\s*\[[^\]]*["'][*]["']|["']?\btools\b["']?\s*:\s*\[[^\]]*["'][*]["']|["']?\bdefaultMode\b["']?\s*:\s*["']bypassPermissions["']
 
 compliance:
+  mitre_atlas:
+  - control: AML.T0083
+    coverage: partial
+    note: "narrows the blast radius of any credential an over-granted agent config would expose"
   owasp_asi:
   - control: ASI03
     coverage: partial
@@ -43,7 +55,7 @@ compliance:
 provenance:
   author: "chock-core"
   created_at: "2026-08-16T00:00:00Z"
-  updated_at: "2026-08-16T00:00:00Z"
+  updated_at: "2026-08-24T00:00:00Z"
   source_repo: "https://github.com/open-coder-ai/chock-catalog"
   license: "Apache-2.0"
   trust_tier: "community"
@@ -57,7 +69,36 @@ security:
   content_instructions: never-obey
 
 changelog:
+- version: 0.0.6
+  date: '2026-09-29'
+  changes:
+  - "Waiver wording follows chock 0.14.0: the pragma is honoured at commit; in the agent (tool use, the turn's end, a commit made with CHOCK_AGENT_COMMIT set) it counts only when that exact line is already committed in HEAD, and the turn's end judges only the lines changed against HEAD. The gate message and description said a waiver is never honoured in the agent. Pattern and gate behaviour unchanged."
+- version: 0.0.5
+  date: '2026-09-21'
+  changes:
+  - "Bypass fix (deep review): the key-matching half of the pattern required a literal
+    double quote directly before allow/alwaysAllow/tools/defaultMode, so an unquoted
+    YAML-style key (as opposed to JSON's always-quoted keys) escaped detection entirely --
+    a wildcard grant under an unquoted allow or tools key passed clean. Quoting is now
+    optional around each key (and around the wildcard element itself, so a single-quoted
+    array element is caught too), with an explicit word boundary added so an unrelated key
+    merely containing one of these names as a substring (disallow, allowlist) is not
+    mistaken for it -- a regression the unbounded fix would otherwise have introduced,
+    caught in self-testing before it shipped. Five eval cases added (tc-012..tc-016), one
+    of them the disallow/allowlist regression guard."
 - version: 0.0.1
   date: '2026-08-16'
   changes:
   - "Initial release. Anchors: OWASP LLM03 (Excessive Agency), ASI03, OWASP Agentic T3; sibling of block-wildcard-iam."
+- version: 0.0.2
+  date: '2026-08-16'
+  changes:
+  - "Add compliance claims (mitre_atlas); no mechanism change."
+- version: 0.0.3
+  date: '2026-08-24'
+  changes:
+  - "Close the single-line regex under-match found in the hardening review: the wildcard is now matched as ANY array element on the line ([^\\]]*) across allow/alwaysAllow/tools, not only the first; and defaultMode:bypassPermissions -- the whole-session escape hatch -- is blocked. Self-hosting is preserved (the pattern still never matches its own escaped source in the manifest or gate.json). Four eval cases added (allow any-element, bypassPermissions, tools any-element, alwaysAllow later element). A pretty-printed grant with the wildcard alone on its own line is deliberately NOT matched: this gate is line-by-line (the engine splits even staged_blob into lines), and a line-scan cannot tell that a lone \"*\" sits inside a permission array without false-positiving on unrelated arrays -- catching that form needs a structure-aware gate kind (future work), stated here rather than shipped as broad friction."
+- version: 0.0.4
+  date: '2026-08-28'
+  changes:
+  - "Bind at tool-use as well as commit: gate.on now [commit, tool_use], so a wildcard grant is caught as the agent WRITES it into a settings file (the excessive-agency self-escalation path), not only when a human commits one. No pattern change. Message notes the allowlist pragma is a commit-review concept NOT honored at tool-use (live, attacker-controllable tool argument -- a match always blocks, matching the gateway's content_regex semantics)."

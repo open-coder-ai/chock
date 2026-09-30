@@ -1,0 +1,11 @@
+{
+  "kind": "content_regex",
+  "binds": "string-arguments",
+  "action": "block",
+  "message": "This path is agent configuration or enforcement (instruction files, permission files, the dependency allowlist, vendored gates, policy implementations). An agent must not edit its own guardrails through the Edit or Write tools. Propose the change to a human -- say which file and what should change and why -- and wait for approval; regenerate managed files with `chock sync`. A person edits these files from their own shell.",
+  "params": {
+    "scan": "added_lines",
+    "forbidden_path_regex": "(AGENTS\\.md|CLAUDE\\.md|GEMINI\\.md|copilot-instructions\\.md|\\.cursorrules|\\.windsurfrules|\\.aider\\.conf\\.yml|\\.claude[/\\\\]settings|\\.mcp\\.json|\\.chock[/\\\\](bin|compiled)|\\.chock[/\\\\]dependency-allowlist\\.txt|\\.git[/\\\\]hooks|\\.agents[/\\\\]policies[/\\\\].*implementations)",
+    "content_pattern": "(?!)"
+  }
+}

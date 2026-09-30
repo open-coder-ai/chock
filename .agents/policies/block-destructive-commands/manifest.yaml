@@ -1,12 +1,18 @@
 id: block-destructive-commands
 name: "Block Destructive Commands"
-version: "0.0.4"
+version: "0.1.0"
 description: >
-  Best-effort guard against destructive commands: rm -rf targeting absolute, home, or
-  root-adjacent paths; git push --force (not --force-with-lease); git reset --hard;
-  git clean -f; kubectl delete; terraform destroy. Known bypass classes include aliases,
-  quoted arguments, non-standard clients, and scripts that invoke these commands indirectly.
-  This is friction, not a security boundary.
+  Best-effort guard against destructive commands, read as parsed commands (bash -c and cd chains
+  included, echo excluded): rm -rf on absolute, home ($HOME/~) or root-adjacent paths (and
+  PowerShell Remove-Item -Recurse); git push --force (not --force-with-lease), reset --hard,
+  clean -f; kubectl delete; terraform destroy; aws s3 rm --recursive / rb --force; dropdb; helm
+  uninstall/delete; docker volume rm/prune and system prune; gcloud ... delete; find -delete /
+  -exec rm; shred; truncate; wipefs -a. git branch -D asks first. Verbs are matched
+  position-aware, so a bucket or object NAMED like a verb is allowed, and a relative path in the
+  working tree stays allowed. sudo, doas and pkexec are transparent. A pre-push hook refuses any
+  non-fast-forward push -- force, +refspec or lease alike; a human escapes with git push
+  --no-verify. Known bypasses: aliases, an unusual value-flag, interpreters and scripts.
+  Friction, not a security boundary.
 artifact: rule
 enforcement: advise
 compliance:
@@ -18,8 +24,11 @@ compliance:
   - ASI02
 rule:
   text: |
-    block(destructive_command): rm_-rf(/|~|.), git_push_--force, git_reset_--hard, git_checkout_., git_clean_-f, kubectl_delete, terraform_destroy
-    require_approval: reset_hard|rm_-rf|branch_-D; prefer: stash|soft_reset|force-with-lease|dry-run
+    block(destructive_command @position-aware): rm_-rf(/|~|$HOME|.)|Remove-Item_-Recurse, git_push_--force, git_reset_--hard, git_checkout_., git_clean_-f, kubectl_delete, terraform_destroy, aws_s3(rm_--recursive|rb_--force), dropdb, helm(uninstall|delete), docker_volume(rm|prune)|system_prune, gcloud_delete, find(-delete|-exec_rm)|shred|truncate @dangerous_target, wipefs(-a|-o)
+    require_approval: reset_hard|rm_-rf|branch_-D; prefer: stash|soft_reset|force-with-lease|dry-run; push: refuse_non_ff
+hook:
+  script:
+    "on": [push]
 effects:
 - read_only
 approval:
@@ -28,7 +37,7 @@ approval:
 provenance:
   author: "chock-core"
   created_at: "2026-07-12T00:00:00Z"
-  updated_at: "2026-07-12T00:00:00Z"
+  updated_at: "2026-09-29T00:00:00Z"
   source_repo: "https://github.com/open-coder-ai/chock"
   license: "Apache-2.0"
   trust_tier: "community"
@@ -42,6 +51,37 @@ security:
   content_instructions: never-obey
 
 changelog:
+- version: 0.1.0
+  date: '2026-09-29'
+  changes:
+  - "Ported from bash to Python: implementations/block-destructive-commands.py replaces the bash script, stdlib only, deterministic, no network. It ships beside the chock_shellparse package (identical in every ported policy; tests pin the copies), which reads the command with a quote-aware lexer instead of scanning text: it splits at unquoted && || ; | & and newlines, drops redirections and comments, keeps heredoc bodies, and looks through bash|sh|zsh -c, pwsh -Command, cmd /c, eval, sudo, doas, env VAR=x, command, exec, nohup, timeout, nice, time, xargs and subshells, so `cd repo && ...` and `bash -c '...'` are judged on the command they run and `echo ...` on none. Unbalanced quotes fall back to a split at separators and whitespace that still sees redirections and reads an unclosed quote as one word; CHOCK_TOOL=powershell|pwsh selects PowerShell reading (backslash paths, cmdlets), and without it the text decides. An unexpected exception exits 2 (a guard fault), never 1 (a block)."
+  - "Bypasses closed, each with eval cases: `bash -c 'rm -rf /'`, `cd x && rm -rf /`, `sudo bash -c 'rm -rf ~/work'`, `xargs rm -rf /abs`, force pushes behind env/sudo, and `git push -fu` (a cluster carrying -f). False block removed: `echo rm -rf /` prints text and is allowed, as is a commit message that mentions it. Actions are read from the first operand after the tool's own global options (helm, docker, kubectl, aws, terraform), so `kubectl get pods delete` is no longer read as a delete; `helm del|un` and `docker volume remove` are recognised as the aliases they are; find checks every start path, not only the first."
+  - "New: `git branch -D` and `git branch --delete --force` (also -df/-fd) ask (exit 3) instead of passing, as the rule text's `require_approval: branch_-D` says. A block still wins over an ask in the same command line."
+  - "New: implementations/block-destructive-commands-pre-push.py, declared as hook.script on push. It reads git's pre-push lines (`<local ref> <local sha> <remote ref> <remote sha>`) and refuses when a remote sha is not an ancestor of the local sha, for any ref including tags. New refs (remote sha all zeros), deletions (local sha all zeros) and no-op updates pass. --force-with-lease looks the same as --force at this point, so both are refused; the escape is a human running `git push --no-verify`. Tests in tests/policies/test_pre_push_guard.py drive it against real repositories."
+- version: 0.0.10
+  date: '2026-09-24'
+  changes:
+  - "Bug fix: pos_after (used to read the aws/helm/find action slot) returned failure when
+    its target word was never a positional -- reachable whenever that word only appears as
+    the VALUE of an earlier value-flag (e.g. `aws --profile s3 sts get-caller-identity`,
+    profile literally named \"s3\"). Every caller assigns its output directly and only
+    compares the string, but the unguarded assignment's failing exit code aborted the whole
+    script under `set -eu`, silently blocking an unrelated command with no BLOCKED message.
+    pos_after now always succeeds (empty output when not found), matching how every caller
+    already treats it. Eval cases added covering aws s3 rb --force, git checkout .,
+    kubectl delete, terraform destroy, a bare `aws s3` with no action, and the pos_after
+    regression (aws --profile s3 ..., now allowed)."
+- version: 0.0.9
+  date: '2026-09-17'
+  changes:
+  - "Four destruction families the guard never saw, and one wrapper it did not look through. `find ... -delete` and `find ... -exec rm` are refused when the start path is a dangerous root -- the slot after `find`, or the implied `.` when it is omitted -- while a relative start path stays allowed, the same trade `rm -rf ./build` makes. `shred` and `truncate` apply that same target test: both destroy contents without unlinking, so no rm rule saw them, and truncate leaves the path in place so it reads as a write. `wipefs` is refused only in its erasing forms (-a/--all, -o/--offset); bare `wipefs DEV` only lists signatures and stays allowed. `pkexec` joins sudo/doas/env as a transparent wrapper, so `pkexec dropdb production` and `pkexec helm uninstall api` are now graded on the program they run -- previously only `pkexec rm -rf /home` blocked, and by accident, on the inner rm. Privilege escalation itself is still not refused: that is a different policy, and blocking `pkexec whoami` here would fire on a non-destructive command. Operands for shred/truncate are read straight from argv rather than through the shared value-flag list, which is tuned for the wrapper CLIs and swallowed shred's own target after its no-value `-u`. The declared bypass classes named none of these and now do. Thirteen eval cases added, six of them negative or adversarial."
+- version: 0.0.6
+  date: '2026-08-23'
+  changes:
+  - "Catch PowerShell/cmd destructive removals (Remove-Item -Recurse -Force, ri -r -fo,
+    rd /s /q, del /f /s /q) targeting a drive root or home path, matched against the raw
+    command (CHOCK_RAW_COMMAND) so Windows paths and PowerShell long flags survive; relative
+    targets like ./build stay allowed. Closes the Windows gap for the agent-hooks surface."
 - version: 0.0.1
   date: '2026-07-12'
   changes:
@@ -58,3 +98,15 @@ changelog:
   date: '2026-08-22'
   changes:
   - "Block rm -rf against ~/... and $HOME/... forms: the unquoted tilde in the guard's pattern underwent tilde expansion, so home-directory deletions were allowed while the bare ~ was caught."
+- version: 0.0.5
+  date: '2026-08-22'
+  changes:
+  - "Delivery bump for the Claude-format plugin packages built from this policy: on republish, their PreToolUse command is a single python3 invocation (the proposed interpreter-fallback chain was rejected after review proved it could erase deny verdicts) and their descriptions state the per-client fail posture. Guard logic and this repo's own artifacts are unchanged."
+- version: 0.0.7
+  date: '2026-08-24'
+  changes:
+  - "Git flag-parsing hardening (hardening review): git accepts unambiguous option prefixes, so `git reset --h` and `git clean --f` now match --hard/--force via prefix (floor 3 chars). `push --force` stays an EXACT match on purpose -- it is itself a prefix of the safe --force-with-lease, which must not be blocked, and git rejects shorter push abbreviations as ambiguous. Also block a '+' force-refspec on push (`git push origin +main`, `+refs/heads/main`), which overwrites the remote ref with no --force flag. The PowerShell/cmd branch no longer requires -Force -- -Recurse alone deletes the tree. Eight eval cases added (reset/clean prefixes and negatives, +refspec, PowerShell recurse-without-force)."
+- version: 0.0.8
+  date: '2026-08-26'
+  changes:
+  - "Position-aware family matching (catalog #11): the aws/docker/helm/dropdb families read their destructive verb from the slot the tool parses it in, instead of matching the word anywhere in argv. `aws s3 cp --recursive <src> rm` (a destination dir named rm), `docker volume inspect rm`, `docker volume ls prune`, `helm list delete`, and a path/name that merely contains `dropdb` are no longer refused; the real `aws s3 rm --recursive`, `docker volume rm`, `docker system prune`, `helm uninstall|delete`, and `dropdb <db>` still block. Value-flag operands are consumed before positions are resolved (a curated set: --namespace, --kube-context, --region, --profile, -u, -n, -c, ...), so `helm --kube-context prod uninstall api` and `sudo -u postgres dropdb production` still block rather than reading the flag value as the action/program; an unusual value-flag outside that set can still shift a slot (named bypass class). rule.text and the description were stale -- they listed only the original rm/git/kubectl/terraform set and now name every family the guard covers (aws, dropdb, helm, docker, gcloud, PowerShell) plus the $HOME target forms. Eight negative/adversarial eval cases added."
