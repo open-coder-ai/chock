@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **The baseline check holds rule verdicts.** `chock check --only baseline --base <ref>` also
+  reads `.chock/security.json` (java-security) and `.chock/agentic-security.json`
+  (agentic-code-security) as their runtimes do, and fails on a verdict the head loosens against the
+  base: deny to ask, deny to allow, ask to allow, a pack verdict loosened, or a rule entry dropped
+  where silence is looser (agentic-code-security rules carry their own default, so a dropped deny
+  entry is flagged). A selection the runtime would refuse fails too.
+
 - **GitHub annotations from the CI gate.** With `GITHUB_ACTIONS=true`, `chock gate run --event ci`
   also prints one `::error` (or `::warning` for warn, ask and anything the rollout level lowered)
   workflow command per new finding, `file`, `line` and `title=chock <policy>: <rule>` included, and
