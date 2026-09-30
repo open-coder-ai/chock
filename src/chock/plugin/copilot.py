@@ -78,12 +78,17 @@ def _gate_command() -> str:
     return f'r="{root}"; [ -n "$r" ] && [ -f {adapter} ] || exit 0; exec {launcher} {adapter} --gate {gate}'
 
 
+def manifest_posture(*, enforced: bool, gate: bool = False) -> str:
+    """The posture sentence a package's description ends with."""
+    return (POSTURE_GATE_COPILOT if gate else POSTURE_ENFORCED_COPILOT) if enforced else POSTURE_ADVISORY
+
+
 def build_copilot_manifest(
     manifest: dict[str, Any], policy_dir: Path, *, enforced: bool, gate: bool = False
 ) -> dict[str, Any]:
     """Derive the root `plugin.json` from a policy manifest."""
     data = build_manifest(manifest, policy_dir)
-    posture = (POSTURE_GATE_COPILOT if gate else POSTURE_ENFORCED_COPILOT) if enforced else POSTURE_ADVISORY
+    posture = manifest_posture(enforced=enforced, gate=gate)
     data["description"] = f"{data['description']} [{posture}]".strip()
     extension = data["extensions"][NAMESPACE]
     del extension["manifest"]

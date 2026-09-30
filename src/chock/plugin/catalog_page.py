@@ -14,6 +14,8 @@ from typing import Any
 from agentseam import packaging
 
 from chock import evidence, vendors
+from chock.plugin.bundle_grade import _GATE_FLAG, _GUARD_FLAG, ADVISORY, _hook_commands, _hook_events, grade_of
+from chock.plugin.bundle_index import read_bundles_index
 from chock.plugin.marketplace_core import CLAUDE_TREE, NEWLINE, _manifest_rel
 from chock.vendors import CHOCK_AGENT
 
@@ -38,12 +40,6 @@ def _hooks_rel(tree: str) -> str:
     return packaging.supports(CHOCK_AGENT[tree], packaging.HOOKS)
 
 
-#: The flag a hook command carries for each kind of enforcing package. A guard judges a shell
-#: command before the client runs it; a gate judges what a turn writes. The page says which is
-#: which by reading the published hooks, never by assuming every enforcing package is a guard.
-_GUARD_FLAG = "--guard"
-_GATE_FLAG = "--gate"
-
 #: Per-tree catalog-page vocabulary. Devin gets its own row/summary words and a closing caveat
 #: so the page never claims "enforce"/"block" for a fail-open, best-effort client.
 _CATALOG_WORDS: dict[str, dict[str, str]] = {
@@ -61,22 +57,6 @@ _DEFAULT_CATALOG_WORDS = {
     "summary": "{enforcing} enforce in this client, {advisory} are advisory",
     "caveat": "",
 }
-
-
-def _hook_commands(node: Any) -> list[str]:
-    """Every `command` string anywhere in a hooks document, nested or flat."""
-    if isinstance(node, dict):
-        found = [node["command"]] if isinstance(node.get("command"), str) else []
-        return found + [c for value in node.values() for c in _hook_commands(value)]
-    if isinstance(node, list):
-        return [c for item in node for c in _hook_commands(item)]
-    return []
-
-
-def _hook_events(doc: Any) -> list[str]:
-    """The events a hooks document wires, in the order it wires them."""
-    events = doc.get("hooks", doc) if isinstance(doc, dict) else {}
-    return [event for event, entries in events.items() if isinstance(entries, list)] if isinstance(events, dict) else []
 
 
 def _package_kind(hooks_path: Path) -> tuple[str | None, list[str]]:
@@ -141,11 +121,54 @@ def _merge_events(into: list[str], events: list[str]) -> None:
     into.extend(event for event in events if event not in into)
 
 
+def _package_grade(pkg: Path, tree: str) -> int:
+    """The grade one published package earns from the hooks it ships."""
+    hooks = pkg / _hooks_rel(tree)
+    gate = pkg / "scripts" / "gate.json"
+    hooks_text = hooks.read_text(encoding="utf-8") if hooks.is_file() else None
+    gate_text = gate.read_text(encoding="utf-8") if gate.is_file() else None
+    return grade_of(hooks_text, gate_text, CHOCK_AGENT[tree])[0]
+
+
+def _bundle_row(dist_root: Path, tree: str, data: dict[str, Any], members: list[str]) -> str:
+    """A bundle's row: its posture is its weakest member's, so it never reads stronger than any of them."""
+    words = _CATALOG_WORDS.get(tree, _DEFAULT_CATALOG_WORDS)
+    grades = [_package_grade(dist_root / tree / member, tree) for member in members]
+    posture = "advisory" if min(grades) == ADVISORY else words["row"]
+    name = data["name"]
+    listed = ", ".join(f"`{m}`" for m in members)
+    return (
+        f"| `{name}` | {data.get('version', '-')} | {posture} (weakest member) "
+        f"| {_summary(data.get('description', ''))}. Installs {len(members)} policies: {listed} |"
+    )
+
+
+def _bundle_section(bundle_rows: list[str]) -> list[str]:
+    """The bundles table, ahead of the policies: install once, and what the set is held to."""
+    if not bundle_rows:
+        return []
+    return [
+        "## Bundles",
+        "",
+        "Install one bundle instead of each policy. A bundle's row takes its weakest member's grade;",
+        "each member's own line in its description says what that member does.",
+        "",
+        "| bundle | version | in this client | what it installs |",
+        "| :--- | :--- | :--- | :--- |",
+        *bundle_rows,
+        "",
+        "## Policies",
+        "",
+    ]
+
+
 def render_catalog_page(dist_root: Path, tree: str = CLAUDE_TREE) -> str:
     """The generated catalog: how many packages enforce, how many advise, which, and how."""
     dist_root = Path(dist_root)
     words = _CATALOG_WORDS.get(tree, _DEFAULT_CATALOG_WORDS)
     rows = []
+    bundle_rows = []
+    bundle_members = {b["id"]: b["members"] for b in read_bundles_index(dist_root)}
     enforcing = guards = gates = 0
     guard_events: list[str] = []
     gate_events: list[str] = []
@@ -154,6 +177,9 @@ def render_catalog_page(dist_root: Path, tree: str = CLAUDE_TREE) -> str:
     for manifest_path in sorted(dist_root.glob(f"{tree}/*/{manifest_rel}")):
         pkg = manifest_path.parent.parent
         data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if data["name"] in bundle_members:
+            bundle_rows.append(_bundle_row(dist_root, tree, data, bundle_members[data["name"]]))
+            continue
         hooks_path = pkg / hooks_rel
         has_hook = hooks_path.exists()
         if has_hook:
@@ -183,6 +209,7 @@ def render_catalog_page(dist_root: Path, tree: str = CLAUDE_TREE) -> str:
         "",
         _explain(tree, guards, guard_events, gates, gate_events),
         "",
+        *_bundle_section(bundle_rows),
         "| plugin | version | in this client | what it does |",
         "| :--- | :--- | :--- | :--- |",
         *rows,

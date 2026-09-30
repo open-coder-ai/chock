@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -63,3 +64,20 @@ def test_chock_status_prints_machine_output_only_for_the_log_alone(
     assert lifecycle.status_main(["--repo", str(tmp_path), "--only", "policies,log", *flag]) == 2
     assert capsys.readouterr().out == ""
     assert lifecycle.status_main(["--repo", str(tmp_path), "--only", "log", *flag]) == 0
+
+
+@pytest.mark.parametrize("flag", [["--json"], ["--format", "md"]])
+def test_the_rollout_notice_leaves_machine_output_alone(
+    tmp_path: Path, capsys: pytest.CaptureFixture, flag: list[str]
+) -> None:
+    (tmp_path / ".chock").mkdir()
+    (tmp_path / ".chock" / "config.yaml").write_text("rollout: observe\n", encoding="utf-8")
+    write_log(tmp_path, week())
+
+    assert lifecycle.status_main(["--repo", str(tmp_path), "--only", "log", *flag]) == 0
+
+    out, err = capsys.readouterr()
+    assert err.startswith("ROLLOUT: observe")
+    assert "ROLLOUT" not in out
+    if flag == ["--json"]:
+        json.loads(out)

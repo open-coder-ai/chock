@@ -277,6 +277,11 @@ HEAD_WAIVER_EVENTS = frozenset({AGENT_COMMIT_EVENT, TOOL_USE_EVENT})
 
 _HUMAN_ENV = frozenset({"0", "false", "no", "off"})
 
+_OBSERVE_NOTE = (
+    "gate: {policy} found a violation that enforce would have stopped ({held}); "
+    "this repo's rollout level lets it through and records it in .chock/log/gate-events.jsonl."
+)
+
 _AGENT_COMMIT_NOTE = (
     "gate: this commit is treated as an agent's ({signal}), so a waiver it adds "
     "was not honoured; only waivers already in HEAD count. A person reviews and waives it, then "
@@ -339,6 +344,74 @@ def agent_signal(repo_root: Path | None = None) -> str | None:
 def agent_commit(repo_root: Path | None = None) -> bool:
     """True when the environment marks this commit as a coding agent's."""
     return agent_signal(repo_root) is not None
+
+
+#: How far a gate may escalate in this repo: `rollout:` in `.chock/config.yaml`, else enforce.
+ROLLOUT_ENV = "CHOCK_ROLLOUT"
+ROLLOUT_OBSERVE, ROLLOUT_ASK, ROLLOUT_ENFORCE = "observe", "ask", "enforce"
+ROLLOUT_RANK = {ROLLOUT_OBSERVE: 0, ROLLOUT_ASK: 1, ROLLOUT_ENFORCE: 2}
+_CONFIG_ROLLOUT_RE = re.compile(r"^rollout:[ \t]*(?P<rest>[^#\n]*)")
+
+
+def rollout_level(raw: object) -> str:
+    """The level `raw` names; anything absent, unreadable or unknown is enforce, never a looser guess."""
+    value = raw.strip().strip("'\"") if isinstance(raw, str) else None
+    return value if value in ROLLOUT_RANK else ROLLOUT_ENFORCE
+
+
+def rollout_from_text(text: str) -> str:
+    """The level a config's text names, read line by line and never by a YAML parser, so every reader
+    (the runtime, `chock status`, the baseline check) agrees: one top-level `rollout:` line, else enforce."""
+    found = [m.group("rest") for m in map(_CONFIG_ROLLOUT_RE.match, text.splitlines()) if m]
+    return rollout_level(found[0]) if len(found) == 1 else ROLLOUT_ENFORCE
+
+
+def _config_rollout(repo_root: Path) -> str:
+    """`rollout:` in the working tree's `.chock/config.yaml`; a symlink, or an unreadable file, is enforce."""
+    path = repo_root.joinpath(*_CONFIG_PATH)
+    try:
+        if path.is_symlink():
+            return ROLLOUT_ENFORCE
+        return rollout_from_text(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError):
+        return ROLLOUT_ENFORCE
+
+
+def committed_rollout(repo_root: Path, ref: str) -> str:
+    """`rollout:` as committed at `ref`; a ref or file git cannot show is enforce."""
+    try:
+        shown = subprocess.run(  # noqa: S603 -- reading one committed file
+            ["git", "-C", str(repo_root), "show", f"{ref}:{'/'.join(_CONFIG_PATH)}"],  # noqa: S607
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError, UnicodeDecodeError):
+        return ROLLOUT_ENFORCE
+    return rollout_from_text(shown.stdout) if shown.returncode == 0 else ROLLOUT_ENFORCE
+
+
+def _stricter(*levels: str) -> str:
+    return max(levels, key=ROLLOUT_RANK.__getitem__)
+
+
+def rollout(repo_root: Path, event: str, signal: str | None, base: str | None = None) -> str:
+    """The level in force. Nothing the actor being judged can edit may lower it:
+
+    - at ci, the base's committed level caps the head's, so a pull request cannot lower its own gates;
+    - an agent (a tool call, the turn's end, an agent's commit) is held to HEAD's committed level too,
+      so an uncommitted edit to the config never lowers an agent's gates;
+    - `CHOCK_ROLLOUT` counts only for a person's own commit or push.
+    """
+    level = _config_rollout(repo_root)
+    if event == "ci":
+        return _stricter(level, committed_rollout(repo_root, base)) if base else ROLLOUT_ENFORCE
+    if signal is not None or event not in _GIT_EVENTS:
+        return _stricter(level, committed_rollout(repo_root, "HEAD"))
+    override = os.environ.get(ROLLOUT_ENV, "").strip()
+    return override if override in ROLLOUT_RANK else level
 
 
 def _judged_event(name: str, *, agent: bool) -> str:
@@ -746,13 +819,11 @@ def _log_outcome(
     spec: dict,
     result: GateResult,
     verdict: str,
-    *,
-    override: bool = False,
-    agent: str | None = None,
+    extra: Mapping[str, object] | None = None,
 ) -> None:
     """Append one outcome record. Best effort: never raises, never changes the verdict."""
     try:
-        if os.environ.get(GATE_LOG_ENV) == "0":
+        if os.environ.get(GATE_LOG_ENV) == "0" and not _held(extra):
             return
         parents = gate_path.resolve().parents
         if len(parents) < _MIN_COMPILED_PATH_DEPTH or parents[2].name != "compiled":
@@ -767,12 +838,9 @@ def _log_outcome(
             "matches": result.matches[:_LOG_MATCH_CAP],
             **result.detail,
         }
-        if override:
-            record["override"] = ALLOW_ENV
         if result.rules:
             record["rules"] = result.rules
-        if agent:
-            record["agent"] = agent
+        record.update(extra or {})
         _write_log(parents[3], record)
     except Exception:  # noqa: BLE001 -- best effort logging: never raises, never changes the verdict
         return
@@ -860,6 +928,7 @@ def _context(
 #: gentler verdict at run time, never a harsher one.
 ACTION_BLOCK, ACTION_ASK, ACTION_WARN = "block", "ask", "warn"
 _ACTION_RANK = {ACTION_WARN: 0, ACTION_ASK: 1, ACTION_BLOCK: 2}
+_ROLLOUT_CEILING = {ROLLOUT_OBSERVE: ACTION_WARN, ROLLOUT_ASK: ACTION_ASK, ROLLOUT_ENFORCE: ACTION_BLOCK}
 
 #: Exit codes an agent-event run reports beyond 0 (allow), 1 (block) and 2 (cannot judge): the
 #: command-guard contract's own, so the vendored runtimes read a gate as they read a guard.
@@ -879,12 +948,12 @@ def _policy_id(gate_path: Path) -> str | None:
     return parents[1].name
 
 
-def _verdict(result: GateResult, declared: str) -> str:
-    """`allow`, or the action this violation takes: what the kind chose, capped by the declared action."""
+def _verdict(result: GateResult, declared: str, level: str = ROLLOUT_ENFORCE) -> str:
+    """`allow`, or the action this violation takes: what the kind chose, capped by the declared action and the rollout."""
     if result.allowed:
         return "allow"
     chosen = result.verdict or declared
-    return min(chosen, declared, key=_ACTION_RANK.__getitem__)
+    return min(chosen, declared, _ROLLOUT_CEILING[level], key=_ACTION_RANK.__getitem__)
 
 
 #: One sentence that tells the reader to write a `chock: allow` waiver: an agent's waiver is never honoured.
@@ -973,19 +1042,32 @@ def _deliver(verdict: str, result: GateResult, spec: dict, event: str, policy_id
     return 0
 
 
+def _held(extra: Mapping[str, object] | None) -> bool:
+    """A record of what the rollout level let through: the evidence for enforcing, so it is written
+    even when `CHOCK_GATE_LOG=0` turns the rest of the log off."""
+    return bool(extra and "would_action" in extra)
+
+
+def _actor(signal: str | None) -> dict[str, object]:
+    """The agent marker a log record carries, when an agent acted."""
+    return {"agent": signal} if signal else {}
+
+
+def _held_record(held: str, level: str) -> dict[str, object]:
+    """What the log keeps of an action the rollout level lowered: the evidence for switching to enforce."""
+    return {"rollout": level, "would_action": held, "would_block": held == ACTION_BLOCK}
+
+
 def _log_script_hook(
-    policy_id: str, event: str, verdict: str, repo_root: Path, *, override: bool = False, agent: str | None = None
+    policy_id: str, event: str, verdict: str, repo_root: Path, extra: Mapping[str, object] | None = None
 ) -> None:
     """Record a script-backed hook's warn or ask; best effort like every gate log write."""
     try:
-        if os.environ.get(GATE_LOG_ENV) == "0":
+        if os.environ.get(GATE_LOG_ENV) == "0" and not _held(extra):
             return
         record = {"policy_id": policy_id, "surface": "git-hook", "event": _EVENT_NAME.get(event, event)}
         record.update({"kind": "script-hook", "verdict": verdict, "match_count": 0, "matches": []})
-        if override:
-            record["override"] = ALLOW_ENV
-        if agent:
-            record["agent"] = agent
+        record.update(extra or {})
         _write_log(repo_root / _CONFIG_PATH[0], record)
     except Exception:  # noqa: BLE001 -- best effort logging: never raises, never changes the verdict
         return
@@ -998,15 +1080,22 @@ def script_verdict(policy_id: str, event: str, code: int, repo_root: Path) -> in
     named the policy in `CHOCK_ALLOW` and no agent marker is on the command.
     """
     signal = agent_signal(repo_root)
+    level = rollout(repo_root, event, signal)
     if code == EXIT_WARN:
-        _log_script_hook(policy_id, event, ACTION_WARN, repo_root, agent=signal)
+        _log_script_hook(policy_id, event, ACTION_WARN, repo_root, _actor(signal))
+        return 0
+    if level == ROLLOUT_OBSERVE:
+        print(_OBSERVE_NOTE.format(policy=policy_id, held=ACTION_ASK), file=sys.stderr)
+        _log_script_hook(
+            policy_id, event, ACTION_WARN, repo_root, {**_held_record(ACTION_ASK, level), **_actor(signal)}
+        )
         return 0
     if _ask_answered(policy_id, signal):
         print(f"gate: {policy_id} asked; allowed by {ALLOW_ENV}.", file=sys.stderr)
-        _log_script_hook(policy_id, event, "allow", repo_root, override=True, agent=signal)
+        _log_script_hook(policy_id, event, "allow", repo_root, {"override": ALLOW_ENV, **_actor(signal)})
         return 0
     print(_ask_refusal(policy_id, signal), file=sys.stderr)
-    _log_script_hook(policy_id, event, ACTION_ASK, repo_root, agent=signal)
+    _log_script_hook(policy_id, event, ACTION_ASK, repo_root, _actor(signal))
     return 1
 
 
@@ -1063,7 +1152,7 @@ def judge(
     signal = agent_signal(repo_root)
     judged = _judged_event(name, agent=signal is not None)
     result = kind(ctx, _params(gate_path, spec), judged)
-    return _conclude(gate_path, spec, event, judged, result, signal)
+    return _conclude(gate_path, spec, event, judged, result, (signal, rollout(repo_root, event, signal, base)))
 
 
 def run(gate_path: Path, event: str, push_stdin: str | None, repo_root: Path, **options: Any) -> int:
@@ -1072,13 +1161,24 @@ def run(gate_path: Path, event: str, push_stdin: str | None, repo_root: Path, **
 
 
 def _conclude(
-    gate_path: Path, spec: dict, event: str, judged: str, result: GateResult, signal: str | None
+    gate_path: Path, spec: dict, event: str, judged: str, result: GateResult, actor: tuple[str | None, str]
 ) -> tuple[int, str]:
-    """Log the outcome and act on it: (exit code, verdict), and the words in the channel this event has."""
-    verdict = _verdict(result, spec.get("action", ACTION_BLOCK))
+    """Log the outcome and act on it: (exit code, verdict), and the words in the channel this event has.
+
+    `actor` is the agent marker (or None) and the rollout level in force.
+    """
+    signal, level = actor
+    declared = spec.get("action", ACTION_BLOCK)
+    verdict = _verdict(result, declared, level)
+    held = _verdict(result, declared)
     policy_id = _policy_id(gate_path)
     answered = verdict == ACTION_ASK and event in _GIT_EVENTS and _ask_answered(policy_id, signal)
-    _log_outcome(gate_path, judged, spec, result, "allow" if answered else verdict, override=answered, agent=signal)
+    extra = {**(_held_record(held, level) if held != verdict else {}), **_actor(signal)}
+    if answered:
+        extra["override"] = ALLOW_ENV
+    _log_outcome(gate_path, judged, spec, result, "allow" if answered else verdict, extra)
+    if held != verdict:
+        print(_OBSERVE_NOTE.format(policy=policy_id or "gate", held=held), file=sys.stderr)
     if answered:
         print(f"gate: {policy_id} asked; allowed by {ALLOW_ENV}.", file=sys.stderr)
         return 0, "allow"
