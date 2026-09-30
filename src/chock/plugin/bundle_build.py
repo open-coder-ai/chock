@@ -78,6 +78,13 @@ CLIENTS: dict[str, Client] = {
 AGENT_PLUGINS = "agent-plugins"
 
 
+def manifest_rel(fmt: str) -> Path:
+    """Where a bundle's own manifest sits inside its package, per format."""
+    if fmt == AGENT_PLUGINS:
+        return Path("plugin.json")
+    return Path(packaging.layout(CLIENTS[fmt].package_agent)["manifest"])
+
+
 @dataclass(frozen=True)
 class Member:
     """One policy a bundle names, as the packager is given it."""

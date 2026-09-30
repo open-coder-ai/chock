@@ -22,6 +22,10 @@
   A bundle writes its own `LICENSE`, and only when every member shares one licence and holder
   (dated from the oldest member); a member's notice is never carried over to cover the others. A
   `--bundles` file that does not exist fails the build instead of reading as "no bundles".
+  A bundle whose built content changes while its version in the bundles file stays the same
+  fails `chock plugin build` (and `--check` reports it as `unbumped`): clients that update a
+  plugin by version would otherwise never receive a member's fix. That includes a change that
+  comes from an engine update, not only a member's own.
 - **Runtime bytecode stays out of git.** `.chock/bin/` holds Python the hooks import, so running a
   hook wrote `__pycache__` there, and the `!.chock/bin/**` rule that keeps the runtime tracked
   re-included it: every adopter saw untracked bytecode after the first hook ran. `chock sync` now

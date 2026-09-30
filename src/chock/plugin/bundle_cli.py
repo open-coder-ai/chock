@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -36,16 +37,41 @@ def package_bundles(bundle_list: list[dict[str, Any]], run: BundleRun, *, check:
         for fmt in run.formats:
             target = run.out_root / fmt / name
             files_fn = _files_fn(fmt, bundle, members)
-            if fmt == bundle_build.AGENT_PLUGINS:
-                differences.extend(_plain(files_fn, name, target, run.repo_root, check=check))
-                continue
             args = (fmt, files_fn, Path(name), {"id": name}, run.repo_root, target)
+            plain = fmt == bundle_build.AGENT_PLUGINS
+            found = (
+                _plain(files_fn, name, target, run.repo_root, check=True)
+                if plain
+                else store.store_plugin_differences(*args)
+            )
+            unbumped = _unbumped(fmt, name, target, bundle) if found else None
             if check:
-                differences.extend(store.store_plugin_differences(*args))
+                differences.extend([unbumped] if unbumped else [])
+                differences.extend(found)
+            elif unbumped:
+                raise bundles.BundleError(unbumped)
+            elif plain:
+                _plain(files_fn, name, target, run.repo_root, check=False)
             else:
                 store.build_store_plugin(*args)
     differences.extend(_index(bundle_list, run.out_root, check=check))
     return differences
+
+
+def _unbumped(fmt: str, name: str, target: Path, bundle: dict[str, Any]) -> str | None:
+    """A built bundle whose content changes while its version stays: clients that update by version never
+    see the change, so the bundles file must bump it. A first build, or an unreadable old one, is not held."""
+    try:
+        built = json.loads((target / bundle_build.manifest_rel(fmt)).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    version = built.get("version") if isinstance(built, dict) else None
+    if version != bundle["version"]:
+        return None
+    return (
+        f"unbumped: {fmt}/{name} changes but stays at version {version} -- bump its version in the "
+        "bundles file (or remove a built copy edited by hand)"
+    )
 
 
 def _files_fn(fmt: str, bundle: dict[str, Any], members: list[bundle_build.Member]) -> Any:
