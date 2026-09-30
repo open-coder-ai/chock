@@ -7,13 +7,80 @@
         "matcher": "Edit|Write",
         "timeout": 30,
         "timeoutSec": 30,
+        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/block-invisible-unicode/agent-hooks/gate.json\"",
+        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/block-invisible-unicode/agent-hooks/gate.json\"",
+        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/block-invisible-unicode/agent-hooks/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
+        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/block-invisible-unicode/agent-hooks/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
+      },
+      {
+        "type": "command",
+        "matcher": "Edit|Write",
+        "timeout": 30,
+        "timeoutSec": 30,
+        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/block-wildcard-agent-permissions/agent-hooks/gate.json\"",
+        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/block-wildcard-agent-permissions/agent-hooks/gate.json\"",
+        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/block-wildcard-agent-permissions/agent-hooks/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
+        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/block-wildcard-agent-permissions/agent-hooks/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
+      },
+      {
+        "type": "command",
+        "matcher": "Edit|Write",
+        "timeout": 30,
+        "timeoutSec": 30,
         "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/pin-github-actions/agent-hooks/gate.json\"",
         "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/pin-github-actions/agent-hooks/gate.json\"",
         "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/pin-github-actions/agent-hooks/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
         "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/pin-github-actions/agent-hooks/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
+      },
+      {
+        "type": "command",
+        "matcher": "Edit|Write",
+        "timeout": 30,
+        "timeoutSec": 30,
+        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/protect-agent-config/agent-hooks/gate.json\"",
+        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/protect-agent-config/agent-hooks/gate.json\"",
+        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/protect-agent-config/agent-hooks/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
+        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/protect-agent-config/agent-hooks/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
+      },
+      {
+        "type": "command",
+        "matcher": "Edit|Write",
+        "timeout": 30,
+        "timeoutSec": 30,
+        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/scan-secrets/agent-hooks/gate.json\"",
+        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/scan-secrets/agent-hooks/gate.json\"",
+        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/scan-secrets/agent-hooks/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
+        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/scan-secrets/agent-hooks/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
+      },
+      {
+        "type": "command",
+        "timeout": 30,
+        "timeoutSec": 30,
+        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --tool-call \".chock/compiled/token-efficiency/agent-hooks/tool-call-gate.json\"",
+        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --tool-call \".chock/compiled/token-efficiency/agent-hooks/tool-call-gate.json\"",
+        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --tool-call \".chock/compiled/token-efficiency/agent-hooks/tool-call-gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
+        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --tool-call \".chock/compiled/token-efficiency/agent-hooks/tool-call-gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
       }
     ],
     "Stop": [
+      {
+        "type": "command",
+        "timeout": 30,
+        "timeoutSec": 30,
+        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/block-invisible-unicode/stop/gate.json\"",
+        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/block-invisible-unicode/stop/gate.json\"",
+        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/block-invisible-unicode/stop/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
+        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/block-invisible-unicode/stop/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
+      },
+      {
+        "type": "command",
+        "timeout": 30,
+        "timeoutSec": 30,
+        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/block-wildcard-agent-permissions/stop/gate.json\"",
+        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/block-wildcard-agent-permissions/stop/gate.json\"",
+        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/block-wildcard-agent-permissions/stop/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
+        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/block-wildcard-agent-permissions/stop/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
+      },
       {
         "type": "command",
         "timeout": 30,
@@ -22,6 +89,24 @@
         "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/pin-github-actions/stop/gate.json\"",
         "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/pin-github-actions/stop/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
         "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/pin-github-actions/stop/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
+      },
+      {
+        "type": "command",
+        "timeout": 30,
+        "timeoutSec": 30,
+        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/protect-agent-config/stop/gate.json\"",
+        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/protect-agent-config/stop/gate.json\"",
+        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/protect-agent-config/stop/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
+        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/protect-agent-config/stop/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
+      },
+      {
+        "type": "command",
+        "timeout": 30,
+        "timeoutSec": 30,
+        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/scan-secrets/stop/gate.json\"",
+        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/scan-secrets/stop/gate.json\"",
+        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/scan-secrets/stop/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
+        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/scan-secrets/stop/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
       }
     ],
     "preToolUse": [
@@ -30,40 +115,40 @@
         "matcher": "bash|powershell|pwsh|sh|shell",
         "timeout": 30,
         "timeoutSec": 30,
-        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\"",
-        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\"",
-        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
-        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive.sh\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
+        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive-commands.py\"",
+        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive-commands.py\"",
+        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive-commands.py\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
+        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive-commands.py\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
       },
       {
         "type": "command",
         "matcher": "bash|powershell|pwsh|sh|shell",
         "timeout": 30,
         "timeoutSec": 30,
-        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.sh\"",
-        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.sh\"",
-        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.sh\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
-        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.sh\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
+        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.py\"",
+        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.py\"",
+        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.py\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
+        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.py\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
       },
       {
         "type": "command",
         "matcher": "bash|powershell|pwsh|sh|shell",
         "timeout": 30,
         "timeoutSec": 30,
-        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\"",
-        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\"",
-        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
-        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.sh\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
+        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.py\"",
+        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.py\"",
+        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.py\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
+        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.py\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
       },
       {
         "type": "command",
         "matcher": "bash|powershell|pwsh|sh|shell",
         "timeout": 30,
         "timeoutSec": 30,
-        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\"",
-        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\"",
-        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
-        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.sh\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
+        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.py\"",
+        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.py\"",
+        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.py\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
+        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.py\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
       }
     ]
   }
