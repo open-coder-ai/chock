@@ -12,6 +12,7 @@ import yaml
 
 from chock import yamlio
 from chock.config import policy_status
+from chock.gate.runner import ROLLOUT_RANK, rollout_level
 from chock.validation.report import Finding, Report, emit
 
 CONFIG_REL = Path(".chock") / "config.yaml"
@@ -92,6 +93,9 @@ def weakenings(base: dict[str, Any] | None, head: dict[str, Any] | None) -> list
     can differ. No config at all is not an absence of policy: it is every policy enabled.
     """
     found = []
+    was, now = (rollout_level((c or {}).get("rollout")) for c in (base, head))
+    if ROLLOUT_RANK[now] < ROLLOUT_RANK[was]:
+        found.append(Weakening("rollout", was, now))
     for policy_id in sorted(_named(base) | _named(head)):
         base_rank, base_targets, was = _reach(base, policy_id)
         head_rank, head_targets, now = _reach(head, policy_id)

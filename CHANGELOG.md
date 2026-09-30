@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **A watch-only rollout mode.** `rollout: observe | ask | enforce` in `.chock/config.yaml` caps
+  how far every compiled gate may escalate: observe turns a block or ask into a warning, ask caps
+  at ask, enforce (the default, and what an absent, repeated, unreadable or unknown value means)
+  changes nothing. A gate the level lowered still logs to `.chock/log/gate-events.jsonl` with
+  `rollout`, `would_action` and `would_block`, and `chock status --only log` counts them. An agent
+  cannot move the level: `CHOCK_ROLLOUT` is read only for a person's own commit or push (never an
+  agent's, a tool call's or CI), and `chock check --only baseline --base <ref>` refuses a
+  downgrade as a weakening. `chock status` leads with `ROLLOUT:` whenever the level is below
+  enforce. Not yet capped: `tool_call` gates and a script hook's own exit 1.
 - **A findings refusal leads with the finding.** A script gate's refusal put the policy's long
   message first and the findings last, so an agent read the boilerplate before the `path:line:`
   that mattered. Findings now come first, then a one-line summary, then the policy message. A

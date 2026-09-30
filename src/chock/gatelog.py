@@ -61,10 +61,12 @@ def summarize(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "block": 0,
                 "ask": 0,
                 "warn": 0,
+                "would_block": 0,
                 "last_block": None,
             },
         )
         entry["events"] += 1
+        entry["would_block"] += record.get("would_block") is True
         verdict = record.get("verdict")
         if verdict in ("ask", "warn"):
             entry[verdict] += 1
@@ -94,14 +96,19 @@ def render_text(summary: list[dict[str, Any]], silent: list[str]) -> str:
         lines = ["No gate outcomes recorded yet."]
     else:
         width = max(len(str(e["policy_id"])) for e in summary)
+        watched = any(e["would_block"] for e in summary)
         lines = [
-            f"{'policy'.ljust(width)}  {'surface':<13} {'events':>6} {'allow':>6} {'block':>6} {'ask':>4} {'warn':>5}  last block"
+            f"{'policy'.ljust(width)}  {'surface':<13} {'events':>6} {'allow':>6} {'block':>6} {'ask':>4} {'warn':>5}"
+            + (f" {'would_block':>11}" if watched else "")
+            + "  last block"
         ]
         for entry in summary:
             last = entry["last_block"] or "never"
             lines.append(
                 f"{str(entry['policy_id']).ljust(width)}  {entry['surface']:<13} "
-                f"{entry['events']:>6} {entry['allow']:>6} {entry['block']:>6} {entry['ask']:>4} {entry['warn']:>5}  {last}"
+                f"{entry['events']:>6} {entry['allow']:>6} {entry['block']:>6} {entry['ask']:>4} {entry['warn']:>5}"
+                + (f" {entry['would_block']:>11}" if watched else "")
+                + f"  {last}"
             )
     if silent:
         lines.append("")

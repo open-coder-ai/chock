@@ -160,6 +160,16 @@ def status_main(argv: list[str] | None) -> int:
         print(f"Unknown section(s): {', '.join(unknown)}. Choose from: {', '.join(sections)}", file=sys.stderr)
         return 2
 
+    from chock.gate.runner import ROLLOUT_ENFORCE, agent_signal, rollout
+
+    repo = Path(args.repo).resolve()
+    level = rollout(repo, "pre-commit", agent_signal(repo))
+    if level != ROLLOUT_ENFORCE:
+        print(
+            f"ROLLOUT: {level} -- gates are capped below block and record what enforce would have stopped "
+            "(`chock status --only log`). Remove `rollout:` from .chock/config.yaml to enforce."
+        )
+
     rc = 0
     if "policies" in selected:
         from chock.toggles import policies_main
