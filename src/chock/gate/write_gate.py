@@ -255,20 +255,20 @@ def _missing_gate(gate):
 
 
 def _gate_says(gate, event, name):
-    """What the compiled gate says about this event, before a re-entered stop is weighed."""
+    """(decision, judged files): what the compiled gate says about this event, before a re-entered stop is weighed."""
     if not gate.exists():
-        return _missing_gate(gate)
+        return _missing_gate(gate), {}
     root = repo_root_for(event, gate)
     outside = outside_globs(gate)
     writes = judged_files(writes_for(event, gate), root, outside, lambda path: repo_paths(path, root))
     if not writes:
-        return None
+        return None, writes
     added = {**patch_added(event), **added_from_event(event)} if event.event == PRE_TOOL else {}
     added = judged_files(added, root, outside, lambda path: repo_paths(path, root))
     added = {path: text for path, text in added.items() if path in writes}
     extra = {**({"added": added} if added else {}), "session": session_for(event, root)}
     outcome, message = run_gate(gate, writes, name, root, extra)
-    return gate_decision(outcome, message, gate)
+    return gate_decision(outcome, message, gate), writes
 
 
 def evaluate_gate(argv, event):
@@ -277,7 +277,7 @@ def evaluate_gate(argv, event):
     name = _EVENT_ARG.get(getattr(event, "event", ""))
     if gate is None or name is None:
         return None
-    decision = _gate_says(gate, event, name)
+    decision, judged = _gate_says(gate, event, name)
     if event.event == PRE_TOOL:
         return decision
-    return settle_stop(event, repo_root_for(event, gate), gate, decision)
+    return settle_stop(event, repo_root_for(event, gate), gate, decision, judged)

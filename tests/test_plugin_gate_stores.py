@@ -22,6 +22,7 @@ from test_plugin_gate import POLICY_ID, SCRIPT, _manifest
 from test_plugin_gate import policy as shared_policy
 
 from chock.gate import runtime_bundle
+from chock.gate.stop_reentry import REENTRY_CAP
 from chock.plugin import codex, copilot, cursor, devin
 from chock.plugin.gate_package import gate_reach, gate_reaches
 
@@ -148,7 +149,11 @@ def test_the_cursor_package_runs_against_the_witnessed_payloads(gate_policy, tmp
     assert stop.returncode == 0, stop.stderr
     assert "Leak.java" in json.loads(stop.stdout)["followup_message"]
     again = _run_cursor_hook(out, repo, _cursor_payload(repo, hook_event_name="stop", status="completed", loop_count=1))
-    assert again.returncode == 0 and again.stdout.strip() == "", "a follow-up that re-entered once is not sent twice"
+    assert "Leak.java" in json.loads(again.stdout)["followup_message"], "the secret is still there"
+    last = _cursor_payload(repo, hook_event_name="stop", status="completed", loop_count=REENTRY_CAP + 1)
+    ended = _run_cursor_hook(out, repo, last)
+    assert ended.returncode == 0 and ended.stdout.strip() == "", "past the cap no follow-up: the turn ends"
+    assert "still on disk" in ended.stderr
 
 
 @pytest.mark.parametrize("store", sorted(STORES))

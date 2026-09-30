@@ -5,12 +5,17 @@
 - **The turn's end is re-judged when the client re-enters the Stop hook.** Claude Code, Codex and
   Copilot (`stop_hook_active`) and Cursor (`loop_count`) re-enter the hook after a refusal, and it
   used to allow every re-entry, so an agent that ignored the first refusal ended its turn with the
-  violation on disk. Each Stop is now written to the session log (a digest of the findings, never
-  file contents) and a re-entry is refused when its findings are new or changed, allowed when they
-  are the set the turn was already told, and refused for a person at the third re-entry. The
-  next one is allowed so the turn can end. Each re-entry verdict is logged to
-  `.chock/log/gate-events.jsonl` under the `stop-reentry` surface. A ledger that cannot be written
-  allows the re-entry, since it could not be bounded. Commit and CI are unchanged.
+  violation on disk. While findings remain, every re-entry is now refused, up to 3 per turn; the
+  next one ends the turn with a warning that the findings are still on disk and a commit will
+  refuse them: `systemMessage` for Claude Code, Codex and VS Code Copilot, stderr for every vendor,
+  and a held `warn` record (`would_block: true`) in `.chock/log/gate-events.jsonl`. Each re-entry is
+  logged there under the `stop-reentry` surface with `verdict` `block`, `allow` or `warn` and a
+  `reentry_verdict`. The count is kept in `.chock/state/<session>.stop.jsonl` (digests of each
+  flagged file's path and content, never the text), keyed on Codex's `turn_id` and Cursor's
+  `generation_id` where sent; Cursor's own `loop_count` is believed over it. A ledger that is
+  missing, damaged or unwritable never allows silently: it refuses again, or ends the turn with the
+  warning. A warn at Stop now also reaches Codex and VS Code Copilot users as `systemMessage`.
+  Commit and CI are unchanged.
 
 - **GitHub annotations from the CI gate.** With `GITHUB_ACTIONS=true`, `chock gate run --event ci`
   also prints one `::error` (or `::warning` for warn, ask and anything the rollout level lowered)

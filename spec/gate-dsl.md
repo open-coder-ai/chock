@@ -25,7 +25,7 @@ is declared under `hook.gate` in `manifest.yaml`. A hook may also carry a `hook.
 | `commit`, `push` | refuse, exit 1 | refuse, exit 1, unless `CHOCK_ALLOW` names the policy and the command is not an agent's (below) | reason on stderr, exit 0 |
 | `ci` | fail, exit 1 | `::warning title=chock <id>::<reason>` annotation, exit 0 | the same annotation, exit 0 |
 | `tool_use`, at PreToolUse | deny | ask the person: `permissionDecision: ask` with the reason, on vendors that honour an ask; every other vendor denies | allow; Claude Code gets the reason as PreToolUse `additionalContext` (no `permissionDecision`, so the user's own permission prompt is untouched); every other vendor gets stderr and the gate log only, as none has a verified channel |
-| `tool_use`, at Stop | block | a warning: nobody can be asked at the turn's end | a warning: Claude Code shows the reason to the user as `systemMessage`; never a block |
+| `tool_use`, at Stop | block; a re-entered Stop is refused again while findings remain, then warns (`spec/session-log.md`, Stop ledger) | a warning: nobody can be asked at the turn's end | a warning: Claude Code, Codex and VS Code Copilot show the reason to the user as `systemMessage`; never a block |
 | mcp-gateway | error to the client | block: a proxy has no person to ask | pass through, reason on stderr |
 
 Every outcome is a record in the gate log: `verdict` is `allow`, `block`, `ask` or `warn`, and an

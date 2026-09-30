@@ -3,14 +3,11 @@ def _chock_warn_respond(decision, event):
     # the reason, so the reason is added here in the one channel Claude Code documents for it:
     # PreToolUse `additionalContext` (Claude reads it beside the tool result; no permissionDecision
     # is sent, since `allow` would also skip the user's own permission prompt) and, at the turn's
-    # end, `systemMessage` (shown to the user; a Stop block would force the turn to continue).
+    # end, `systemMessage` (`_chock_stop_warning`).
     text, code = respond(decision, event)
     if text or degraded_from(decision) != WARN or not decision.reason:
         return text, code
     if event.event == PRE_TOOL:
         body = {"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": decision.reason}}
-    elif event.event == STOP:
-        body = {"systemMessage": decision.reason}
-    else:
-        return text, code
-    return json.dumps(body), code
+        return json.dumps(body), code
+    return _chock_stop_warning(decision, event) or text, code

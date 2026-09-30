@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from conftest import init_repo
 
 from chock.gate import write_gate
+from chock.gate.stop_reentry import REENTRY_CAP
 
 SECRET = 'KEY = "AKIAIOSFODNN7EXAMPLE"\n'  # pragma: allowlist secret -- the string under test
 
@@ -226,9 +227,13 @@ def test_a_gate_named_but_missing_refuses_and_says_to_sync(tmp_path: Path) -> No
 
 
 def test_a_missing_gate_does_not_trap_a_reentered_stop(tmp_path: Path) -> None:
-    """The refusal is told once; the same refusal on re-entry lets the turn end."""
+    """Refused on re-entry like any finding; past the cap the turn ends with a warning, not a loop."""
     gate = _installed(tmp_path)
     gate.unlink()
     first = write_gate.evaluate_gate(["--gate", str(gate)], _event("stop"))
     assert first is not None and first[0] == write_gate.VERDICT_DENY
-    assert write_gate.evaluate_gate(["--gate", str(gate)], _event("stop", raw={"stop_hook_active": True})) is None
+    again = _event("stop", raw={"stop_hook_active": True})
+    for _ in range(REENTRY_CAP):
+        assert write_gate.evaluate_gate(["--gate", str(gate)], again)[0] == write_gate.VERDICT_DENY
+    last = write_gate.evaluate_gate(["--gate", str(gate)], again)
+    assert last[0] == "warn" and "chock sync" in last[1]
