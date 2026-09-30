@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **GitHub annotations from the CI gate.** With `GITHUB_ACTIONS=true`, `chock gate run --event ci`
+  also prints one `::error` (or `::warning` for warn, ask and anything the rollout level lowered)
+  workflow command per new finding, `file`, `line` and `title=chock <policy>: <rule>` included, and
+  appends a policy, new findings, baseline, verdict table to `$GITHUB_STEP_SUMMARY`. At most 10
+  annotations per gate run; the rest are listed in the summary. Only new findings (the gate's own
+  baseline logic) are annotated. Text from a finding, path or rule is escaped so it cannot inject a
+  workflow command. Output only: no verdict or exit code changes, and other environments print
+  exactly what they did.
+
 - **A watch-only rollout mode.** `rollout: observe | ask | enforce` in `.chock/config.yaml` caps
   how far compiled gates escalate: observe turns a block or ask into a warning, ask caps at ask
   (and an ask does not fail CI), enforce (the default, and what an absent, repeated, unreadable,

@@ -36,6 +36,8 @@ class GateResult:
     detail: dict[str, int] = field(default_factory=dict)
     #: Rule id (a script finding's optional `rule`) -> how many new findings carried it.
     rules: dict[str, int] = field(default_factory=dict)
+    #: The new findings themselves (a script gate's), for the GitHub annotations; never read for a verdict.
+    findings: list[dict] = field(default_factory=list)
 
 
 def _is_outside(path: str) -> bool:
@@ -736,7 +738,9 @@ def _judge_findings(
         return GateResult(allowed=True, detail=counts)
     lines = [f"{item['path']}:{item['line']}: {item['message']}" for item in fresh]
     verdict = {_SCRIPT_ASK: "ask", _SCRIPT_WARN: "warn"}.get(proc.returncode, "")
-    return GateResult(allowed=False, matches=lines, verdict=verdict, detail=counts, rules=_rule_ids(fresh))
+    return GateResult(
+        allowed=False, matches=lines, verdict=verdict, detail=counts, rules=_rule_ids(fresh), findings=fresh
+    )
 
 
 def _kind_script(ctx: GateContext, params: dict, event: str) -> GateResult:
@@ -1002,6 +1006,102 @@ def _annotation(policy_id: str | None, reason: str) -> str:
     return f"::warning title=chock {policy_id or 'gate'}::{text}"
 
 
+#: GitHub shows at most this many error and this many warning annotations per step.
+_ANNOTATION_CAP = 10
+_GITHUB_ACTIONS_ENV = "GITHUB_ACTIONS"
+_STEP_SUMMARY_ENV = "GITHUB_STEP_SUMMARY"
+
+
+def _github_actions() -> bool:
+    return os.environ.get(_GITHUB_ACTIONS_ENV) == "true"
+
+
+def _escape_data(text: str) -> str:
+    return text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def _escape_property(text: str) -> str:
+    return _escape_data(text).replace(":", "%3A").replace(",", "%2C")
+
+
+def _cell(value: object) -> str:
+    """Text that stays inside one markdown table cell or bullet, whatever a finding holds."""
+    text = " ".join(str(value).split())
+    return text.replace("|", "\\|").replace("`", "'").replace("<", "&lt;")
+
+
+def _repo_relative(path: str, repo_root: Path) -> str:
+    """The finding's path as a repo-relative, forward-slash path; empty when it is outside the repo."""
+    text = path.replace("\\", "/")
+    if text.startswith("/") or re.match(r"[A-Za-z]:/", text):
+        try:
+            text = Path(text).resolve().relative_to(repo_root.resolve()).as_posix()
+        except (ValueError, OSError):
+            return ""
+    parts = [part for part in text.split("/") if part not in ("", ".")]
+    return "" if ".." in parts else "/".join(parts)
+
+
+def _workflow_command(level: str, finding: dict, policy_id: str | None, repo_root: Path) -> str:
+    """One `::error` or `::warning` command for a finding; every untrusted part is escaped."""
+    rule = finding.get("rule")
+    title = f"chock {policy_id or 'gate'}" + (f": {rule}" if isinstance(rule, str) and rule else "")
+    props = []
+    if path := _repo_relative(finding["path"], repo_root):
+        props.append(f"file={_escape_property(path)}")
+        if finding["line"] > 0:
+            props.append(f"line={finding['line']}")
+    props.append(f"title={_escape_property(title)}")
+    return f"::{level} {','.join(props)}::{_escape_data(finding['message'])}"
+
+
+def _annotation_plan(findings: list[dict]) -> tuple[list[dict], list[dict]]:
+    """The findings to annotate (at most the cap) and those past it, ordered by path then line."""
+    ordered = sorted(findings, key=lambda item: (item["path"], item["line"], item["key"]))
+    return ordered[:_ANNOTATION_CAP], ordered[_ANNOTATION_CAP:]
+
+
+def _step_summary(result: GateResult, policy_id: str | None, verdict: str, overflow: list[dict]) -> str:
+    """The markdown appended to the step summary: the gate's row, then any findings past the cap."""
+    counts = result.detail
+    lines = [
+        "### Chock gate",
+        "",
+        "| policy | new findings | baseline | verdict |",
+        "|---|---|---|---|",
+        f"| {_cell(policy_id or 'gate')} | {counts['new_findings']} | {counts['baseline_findings']} | {verdict} |",
+    ]
+    if overflow:
+        lines += ["", f"#### More findings ({len(overflow)} past the annotation cap)", ""]
+        for item in overflow:
+            rule = f"[{_cell(item['rule'])}] " if isinstance(item.get("rule"), str) and item["rule"] else ""
+            lines.append(f"- {_cell(item['path'])}:{item['line']}: {rule}{_cell(item['message'])}")
+    return "\n".join(lines) + "\n"
+
+
+def _annotate(result: GateResult, verdict: str, policy_id: str | None, repo_root: Path) -> None:
+    """On GitHub Actions, print one workflow command per new finding and append the step summary.
+
+    Output only: nothing here reads or changes a verdict or exit code.
+    """
+    if not _github_actions() or "new_findings" not in result.detail:
+        return
+    level = "error" if verdict == ACTION_BLOCK else "warning"
+    shown: list[dict] = []
+    overflow: list[dict] = []
+    if verdict != "allow":
+        shown, overflow = _annotation_plan(result.findings)
+    for item in shown:
+        print(_workflow_command(level, item, policy_id, repo_root))
+    summary = os.environ.get(_STEP_SUMMARY_ENV)
+    if summary:
+        try:
+            with open(summary, "a", encoding="utf-8") as handle:
+                handle.write(_step_summary(result, policy_id, verdict, overflow))
+        except OSError as exc:
+            print(f"gate: cannot write the step summary: {exc}", file=sys.stderr)
+
+
 def allowed_ids() -> set[str]:
     """Policy ids a person named in `CHOCK_ALLOW`, comma separated."""
     return {name.strip() for name in os.environ.get(ALLOW_ENV, "").split(",") if name.strip()}
@@ -1036,7 +1136,8 @@ def _deliver(verdict: str, result: GateResult, spec: dict, event: str, policy_id
         # The turn's end has nobody to ask and nothing to withhold: a Stop ask is a warning.
         return EXIT_ASK if verdict == ACTION_ASK and event != STOP_EVENT else EXIT_WARN
     if event == "ci":
-        print(_annotation(policy_id, reason))
+        if not (_github_actions() and result.findings):
+            print(_annotation(policy_id, reason))
         return 0
     print(f"gate: warning: {reason}", file=sys.stderr)
     return 0
@@ -1152,7 +1253,10 @@ def judge(
     signal = agent_signal(repo_root)
     judged = _judged_event(name, agent=signal is not None)
     result = kind(ctx, _params(gate_path, spec), judged)
-    return _conclude(gate_path, spec, event, judged, result, (signal, rollout(repo_root, event, signal, base)))
+    level = rollout(repo_root, event, signal, base)
+    if event == "ci":
+        _annotate(result, _verdict(result, declared, level), _policy_id(gate_path), repo_root)
+    return _conclude(gate_path, spec, event, judged, result, (signal, level))
 
 
 def run(gate_path: Path, event: str, push_stdin: str | None, repo_root: Path, **options: Any) -> int:
