@@ -12,12 +12,11 @@ from chock.compile.emitters.in_agent import _guard_script, tool_use_gate_spec
 from chock.compile.emitters.in_agent_hooks import cursor_hooks_file
 from chock.plugin import gate_package, posture, store
 from chock.plugin.build import (
-    _ADVISORY_NOTE_HOOK,
-    _ADVISORY_NOTE_RULE,
     LICENSE_REL,
     _author,
     _keywords,
     _one_line,
+    advisory_note,
     build_skill,
     license_text,
     plugin_name,
@@ -119,12 +118,11 @@ def cursor_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
     enforced = script is not None or gate is not None
 
     skill = build_skill(policy_dir, manifest, Path(repo_root), hooks=HOOKS_REL if enforced else None)
+    generic = advisory_note(policy_dir, manifest)
     if script:
-        skill = skill.replace(_ADVISORY_NOTE_RULE, _ENFORCED_NOTE_CURSOR).replace(
-            _ADVISORY_NOTE_HOOK, _ENFORCED_NOTE_CURSOR
-        )
+        skill = skill.replace(generic, _ENFORCED_NOTE_CURSOR)
     elif gate:
-        skill = skill.replace(_ADVISORY_NOTE_RULE, _GATE_NOTE_CURSOR).replace(_ADVISORY_NOTE_HOOK, _GATE_NOTE_CURSOR)
+        skill = skill.replace(generic, _GATE_NOTE_CURSOR)
 
     files: dict[Path, str] = {
         Path(_LAYOUT["manifest"]): json.dumps(

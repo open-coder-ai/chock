@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **SKILL.md footers say what chock actually enforces.** The footer was picked by artifact type
+  alone, so a rule with a command guard, a git script or a gate still read "stays advisory even
+  when compiled", and a hook whose gate only warns, or binds only at tool use, still read "becomes
+  a git hook that exits non-zero". The footer now keeps "advisory" for the skill alone and names
+  what `chock` compiles from the manifest: a guard or git script can refuse, a gate blocks, asks
+  or warns, at the surfaces it declares.
+- **Plugin keywords use a compliance entry's control id.** A dict-shaped `owasp_asi` entry such
+  as `{control: ASI01, coverage: partial}` was stringified whole into `plugin.json` `keywords`.
+  The keyword is now the control id, lowercased.
 - **The MCP gateway judges a `content_regex` gate inside its scope.** The gateway matched every
   string argument of a tool call, so `pin-github-actions` (bounded to `.github/workflows/*` and
   `.github/actions/*`) refused a README written through an MCP filesystem tool for quoting
