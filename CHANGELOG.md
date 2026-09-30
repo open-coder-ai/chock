@@ -18,6 +18,22 @@
   only `python -m chock.gatelog` accepted. The runner records `agent` (the `agent_signal` marker,
   when one is set) on every git and script-hook outcome, and `rules` (rule id to count of new
   findings) when a script finding names its optional `rule`; older records group under "unknown".
+- **Plugin bundles: install a set once.** `chock plugin build` reads an optional `bundles.yaml`
+  (schema-checked: id, version, description, two or more member policies) and packages each bundle
+  beside the policies in every format. Claude's manifest documents `dependencies`, so its bundle is a
+  manifest-only meta-plugin that installs its members. The Agent Plugins 1.0.0 schema forbids extra
+  manifest fields, and no dependency field was found for Codex, Cursor, Copilot or Devin, so those
+  merge: one plugin carrying every member's skills, hooks and scripts, each member's scripts, gate
+  and sibling packages kept under `scripts/<member>/` and its hook commands re-pointed there. The
+  bundle description states each member's enforcement, and its posture sentence is the weakest
+  member's. `chock marketplace build` lists bundles first in the index and in `PLUGINS.md`.
+  A bundle writes its own `LICENSE`, and only when every member shares one licence and holder
+  (dated from the oldest member); a member's notice is never carried over to cover the others. A
+  `--bundles` file that does not exist fails the build instead of reading as "no bundles".
+  A bundle whose built content changes while its version in the bundles file stays the same
+  fails `chock plugin build` (and `--check` reports it as `unbumped`): clients that update a
+  plugin by version would otherwise never receive a member's fix. That includes a change that
+  comes from an engine update, not only a member's own.
 - **Runtime bytecode stays out of git.** `.chock/bin/` holds Python the hooks import, so running a
   hook wrote `__pycache__` there, and the `!.chock/bin/**` rule that keeps the runtime tracked
   re-included it: every adopter saw untracked bytecode after the first hook ran. `chock sync` now

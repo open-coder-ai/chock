@@ -88,12 +88,17 @@ def _gate_command() -> str:
     return f'{launcher} "{adapter}" --gate "{gate}"'
 
 
+def manifest_posture(*, enforced: bool, gate: bool = False) -> str:
+    """The posture sentence a package's description ends with."""
+    return (POSTURE_GATE_DEVIN if gate else POSTURE_BESTEFFORT_DEVIN) if enforced else POSTURE_ADVISORY
+
+
 def build_devin_manifest(
     manifest: dict[str, Any], policy_dir: Path, *, enforced: bool, gate: bool = False
 ) -> dict[str, Any]:
     """Derive `.devin-plugin/plugin.json` from a policy manifest."""
     policy_id = str(manifest.get("id") or Path(policy_dir).name)
-    posture_text = (POSTURE_GATE_DEVIN if gate else POSTURE_BESTEFFORT_DEVIN) if enforced else POSTURE_ADVISORY
+    posture_text = manifest_posture(enforced=enforced, gate=gate)
 
     description = _one_line(manifest.get("description"))
 
