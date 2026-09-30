@@ -15,7 +15,17 @@ from typing import Any, Iterator
 from chock.compile.compiler import _load_manifest
 from chock.eval.fixture import init_repo, prepare
 from chock.eval.model import Case, CaseResult
-from chock.eval.replay import AGENT_CASE_EVENTS, SCRIPT_CASE_EVENTS, prepare_agent, run_script_event
+from chock.eval.replay import (
+    AGENT_CASE_EVENTS,
+    ALLOW,
+    ASK,
+    BLOCK,
+    ERROR,
+    SCRIPT_CASE_EVENTS,
+    WARN,
+    prepare_agent,
+    run_script_event,
+)
 from chock.gate import runner as gate_runner
 from chock.gate.build import build_gate_json
 from chock.gate.guard_runner import (
@@ -28,13 +38,18 @@ from chock.gate.guard_runner import (
 )
 from chock.gate.runner import GATE_LOG_ENV
 
-BLOCK = "block"
-ALLOW = "allow"
-ASK = "ask"
-ERROR = "error"
-
-#: gate_runner.run()'s process-exit convention: 0 allow, 1 block, 2 spec error.
+#: gate_runner.judge()'s process-exit convention: 0 allow, 1 block, 2 spec error, 3 ask, 4 warn.
 _GATE_EXIT_SPEC_ERROR = 2
+_GATE_EXIT_VERDICT = {gate_runner.EXIT_ASK: ASK, gate_runner.EXIT_WARN: WARN}
+
+
+def _observed(code: int, judged: str) -> str:
+    """The verdict a gate run earns. At a git event ask exits 1 and warn exits 0, so `judged` tells them apart."""
+    if code in _GATE_EXIT_VERDICT:
+        return _GATE_EXIT_VERDICT[code]
+    if judged in (ASK, WARN):
+        return judged
+    return BLOCK if code == 1 else ALLOW
 
 
 def _install_script(repo: Path, policy_dir: Path, gate_spec: dict[str, Any]) -> None:
@@ -89,7 +104,7 @@ def _run_gate(
     os.environ[GATE_LOG_ENV] = "0"
     try:
         with contextlib.redirect_stderr(captured), _person_env():
-            code = gate_runner.run(gate_path, event, push_stdin, repo, writes=writes, added=added)
+            code, judged = gate_runner.judge(gate_path, event, push_stdin, repo, writes=writes, added=added)
     finally:
         if prior_log is None:
             os.environ.pop(GATE_LOG_ENV, None)
@@ -99,7 +114,7 @@ def _run_gate(
 
     if code == _GATE_EXIT_SPEC_ERROR:
         return ERROR, f"gate reported a spec error: {reason}".strip()
-    return (BLOCK if code == 1 else ALLOW), reason or f"gate exit {code}"
+    return _observed(code, judged), reason or f"gate exit {code}"
 
 
 def _run_guard(repo: Path, guard: Path, command: str) -> tuple[str, str]:
@@ -201,4 +216,5 @@ def run_case(case: Case, policy_dir: Path, repo_root: Path, guards: list[Path]) 
         return CaseResult(case, "error", detail=detail)
     if verdict == expected:
         return CaseResult(case, "pass", detail=detail)
-    return CaseResult(case, "fail", detail=f"expected {expected}, observed {verdict} ({detail})")
+    hint = f"; the gate {verdict}s rather than {expected}s" if verdict in (ASK, WARN) and expected == BLOCK else ""
+    return CaseResult(case, "fail", detail=f"expected {expected}, observed {verdict}{hint} ({detail})")
