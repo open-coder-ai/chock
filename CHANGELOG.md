@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Runtime bytecode stays out of git.** `.chock/bin/` holds Python the hooks import, so running a
+  hook wrote `__pycache__` there, and the `!.chock/bin/**` rule that keeps the runtime tracked
+  re-included it: every adopter saw untracked bytecode after the first hook ran. `chock sync` now
+  appends ignores for `__pycache__/` and `*.pyc` under `.chock/bin/` and `.chock/compiled/`, after
+  the negations, the way it already did for `.agents/policies/`.
 - **A packaged skill's gate note states the gate's action.** Every Claude, Codex, Copilot, Cursor
   and Devin package with a tool-use gate said the policy "is enforced in this client", including a
   gate that only asks or warns. The note now reads "asks the person before the action proceeds" or
