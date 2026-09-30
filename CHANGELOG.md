@@ -5,15 +5,18 @@
 - **`chock mcp`: plan-time guidance.** A stdio MCP server with one read-only tool,
   `chock_guidance(plan, paths)`. It maps a plan's words and the paths to be touched to the rules of
   the repo's installed `java-security` (read from its shipped `setup-contract.json`), keeps the
-  ones `.chock/security.json` sets to deny or ask (absent = deny), and returns at most 12 of them,
+  ones the repo's `.chock/security.json` sets to deny or ask (absent = deny; a user-level
+  `~/.chock/security.json` or a version-1 selection is not read), and returns at most 12 of them,
   deny before ask, then by match score, then id, each with its verdict, pack, CWE ids and the rule's
-  own constraint text, inside a 4000-byte response. Matching is a rarity-weighted word overlap
+  own constraint text, in a response line of at most 4000 bytes. Matching is a rarity-weighted word overlap
   plus pack path globs from `src/chock/guidance/data/guidance_map.json`: no model call, no
-  network, nothing written, nothing read outside `.agents/policies/java-security` and the selection
-  file. Input is capped (plan 4000 characters, 50 paths of 512, 1 MiB per request line); absolute,
+  network, nothing written, nothing read outside `.agents/policies/java-security`, the selection
+  file and `.chock/config.yaml`. Input is capped (plan 4000 characters, 50 paths of 512, 1 MiB per
+  request line, counted in bytes); absolute,
   `..` and control-character paths are refused, and paths are only matched, never opened; a
-  symlinked, oversize or unreadable contract or selection is reported as an error, never as "no
-  rules". Not done: `chock sync` does not yet register the server in any client's MCP config (chock
+  symlinked, oversize, too deeply nested or unreadable contract, selection or config is reported as
+  an error, never as "no rules", and the server answers every request (an unexpected failure is a
+  JSON-RPC internal error) and keeps serving. Not done: `chock sync` does not yet register the server in any client's MCP config (chock
   has no MCP config writer and agentseam records no MCP paths), and `agentic-code-security` ships
   no structured rule metadata to read, so only `java-security` is served. Matching is lexical: a
   plan that names none of a rule's words gets nothing, and an empty result is not a clearance.

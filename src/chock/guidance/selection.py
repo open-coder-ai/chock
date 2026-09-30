@@ -41,8 +41,8 @@ def parse(raw: str, packs: Mapping[str, set[str]]) -> dict[str, str]:
     """Every rule's verdict. A silent rule denies; an unreadable or unknown shape raises."""
     try:
         document = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        msg = f"selection is not valid JSON ({exc.msg})"
+    except (json.JSONDecodeError, RecursionError) as exc:
+        msg = f"selection is not valid JSON ({getattr(exc, 'msg', 'nested too deeply')})"
         raise GuidanceError(msg) from exc
     if not isinstance(document, dict) or set(document) - _TOP_KEYS:
         msg = f"selection must be an object with only {sorted(_TOP_KEYS)}"

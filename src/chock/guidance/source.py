@@ -71,6 +71,9 @@ def _rule(entry: object, stopwords: frozenset[str], constraint_chars: int) -> Ru
         msg = "a rule entry lacks a string id, pack or constraint"
         raise GuidanceError(msg)
     cwe = entry.get("cwe") or []
+    if not isinstance(cwe, list):
+        msg = f"rule {entry['id']} has a cwe that is not a list"
+        raise GuidanceError(msg)
     cwe_items = [c for c in cwe if isinstance(c, dict) and isinstance(c.get("id"), str)]
     name_text = " ".join(
         [entry["id"].replace("-", " "), str(entry.get("title", ""))] + [str(c.get("name", "")) for c in cwe_items]
@@ -98,7 +101,7 @@ def load_catalog(repo: Path, policy: str, limits: dict, stopwords: frozenset[str
         raise GuidanceError(msg)
     try:
         entries = json.loads(raw).get("rules")
-    except (json.JSONDecodeError, AttributeError) as exc:
+    except (json.JSONDecodeError, AttributeError, RecursionError) as exc:
         msg = f"{rel} is not a setup contract"
         raise GuidanceError(msg) from exc
     if not isinstance(entries, list):
