@@ -48,7 +48,6 @@ _ENFORCED_NOTE = (
 _ENFORCED_GATE_NOTE = gate_package.gate_skill_note("claude_code")
 
 _GATE_REL = _SCRIPTS_TEMPLATE.format(name=GATE_FILE)
-_IMPLEMENTATIONS = gate_package.IMPLEMENTATIONS
 
 
 def _adapter_source(agent: str = "claude_code") -> str:
@@ -145,9 +144,7 @@ def claude_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: P
     if script:
         files[hooks_rel] = json.dumps(hooks_map_file("claude_code", _hook_command(script)), indent=2) + "\n"
         files.update(_runtime_files("claude_code"))
-        files[Path(_SCRIPTS_TEMPLATE.format(name=script))] = (policy_dir / _IMPLEMENTATIONS / script).read_text(
-            encoding="utf-8"
-        )
+        files.update(store.guard_files(policy_dir, script))
     elif gate:
         files[hooks_rel] = json.dumps(gate_package.gate_hooks_file("claude_code", _gate_command()), indent=2) + "\n"
         files.update(_runtime_files("claude_code"))

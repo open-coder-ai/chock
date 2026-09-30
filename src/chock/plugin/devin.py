@@ -141,9 +141,7 @@ def devin_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
     if script:
         files[Path(HOOKS_REL)] = json.dumps(hooks_map_file("devin", _hook_command(script)), indent=2) + "\n"
         files.update(_runtime_files("devin"))
-        files[Path(_SCRIPTS_TEMPLATE.format(name=script))] = (policy_dir / "implementations" / script).read_text(
-            encoding="utf-8"
-        )
+        files.update(store.guard_files(policy_dir, script))
     elif gate:
         files[Path(HOOKS_REL)] = json.dumps(gate_package.gate_hooks_file("devin", _gate_command()), indent=2) + "\n"
         files.update(_runtime_files("devin"))
