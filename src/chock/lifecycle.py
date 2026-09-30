@@ -6,8 +6,9 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from typing import TextIO
 
-from chock.gatelog import FORMATS, GROUP_KEYS
+from chock.gatelog import FORMATS, GROUP_KEYS, positive_days
 
 
 def _run(label: str, fn, argv: list[str]) -> int:
@@ -156,7 +157,7 @@ def _log_args(args: argparse.Namespace) -> list[str]:
     return given + (["--json"] if args.json else [])
 
 
-def _print_rollout(repo: Path) -> None:
+def _print_rollout(repo: Path, stream: TextIO = sys.stdout) -> None:
     """Lead with a level below enforce, where it came from, and what it does not reach."""
     from chock.gate.runner import ROLLOUT_ENFORCE, ROLLOUT_ENV, agent_signal, rollout
 
@@ -170,7 +171,8 @@ def _print_rollout(repo: Path) -> None:
     print(
         f"ROLLOUT: {level}, from {source} -- compiled gates {ceiling} instead of blocking and record what "
         "enforce would have stopped (`chock status --only log`); command guards, tool_call gates and the "
-        "MCP gateway still block. Remove it to enforce."
+        "MCP gateway still block. Remove it to enforce.",
+        file=stream,
     )
 
 
@@ -181,7 +183,7 @@ def status_main(argv: list[str] | None) -> int:
     parser.add_argument("--only", default=None, help="Comma-separated subset of: policies, registry, log")
     log_flags = parser.add_argument_group("log section")
     log_flags.add_argument("--policy", help="Log: restrict to one policy id")
-    log_flags.add_argument("--since", type=int, metavar="DAYS", help="Log: only records from the last N days")
+    log_flags.add_argument("--since", type=positive_days, metavar="DAYS", help="Log: only records from the last N days")
     log_flags.add_argument("--json", action="store_true", help="Log: machine-readable output")
     log_flags.add_argument("--by", choices=GROUP_KEYS, help="Log: group by policy, rule, agent or event")
     log_flags.add_argument("--format", choices=FORMATS, help="Log: md prints a markdown summary")
@@ -198,7 +200,12 @@ def status_main(argv: list[str] | None) -> int:
         print("--policy, --since, --json, --by and --format apply to `--only log`", file=sys.stderr)
         return 2
 
-    _print_rollout(Path(args.repo).resolve())
+    if (args.json or args.format == "md") and selected != ["log"]:
+        print("--json and --format md print the log alone: use `--only log`", file=sys.stderr)
+        return 2
+
+    # Machine output stays parseable: the level notice goes to stderr beside it.
+    _print_rollout(Path(args.repo).resolve(), sys.stderr if args.json or args.format == "md" else sys.stdout)
 
     rc = 0
     if "policies" in selected:

@@ -18,6 +18,14 @@
   came from whenever it is below enforce. The catalog's protect-agent-config and block-no-verify
   must also cover `.chock/config.yaml` and `CHOCK_ROLLOUT` / `CHOCK_GATE_LOG` for agents that set
   no marker.
+- **Gate-log report fixes.** `--by rule` credited each rule with the record's total new findings,
+  so two rules in one refusal were each shown every finding; each rule now counts its own. Ties in
+  the top-files list are broken by path, so the report is the same on every run. `chock status`
+  refuses `--json` and `--format md` unless `--only log` is the only section, since mixing the
+  policy or registry text into them made the output unparseable. A markdown cell escapes `\`, `[`
+  and `]`, so a log value can no longer render as a link, and the text report replaces control
+  characters, so a log line cannot send escape sequences to the terminal. `--since` takes 1 or
+  more days.
 - **A findings refusal leads with the finding.** A script gate's refusal put the policy's long
   message first and the findings last, so an agent read the boilerplate before the `path:line:`
   that mattered. Findings now come first, then a one-line summary, then the policy message. A
