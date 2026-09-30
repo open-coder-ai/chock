@@ -88,12 +88,12 @@ def test_the_turns_end_reads_what_is_on_disk_however_it_got_there(tmp_path: Path
     assert writes.get("written_by_bash.py") == SECRET
 
 
-def test_a_stop_hook_already_active_reads_nothing(tmp_path: Path) -> None:
-    """A refusal that re-entered its own stop hook would never terminate."""
+def test_a_stop_hook_already_active_still_reads_the_worktree(tmp_path: Path) -> None:
+    """A re-entered stop is judged again: what the turn left on disk may be what it was refused for."""
     gate = _installed(tmp_path)
     init_repo(tmp_path)
     (tmp_path / "app.py").write_text(SECRET, encoding="utf-8")
-    assert write_gate.writes_for(_event("stop", raw={"stop_hook_active": True}), gate) == {}
+    assert write_gate.writes_for(_event("stop", raw={"stop_hook_active": True}), gate)["app.py"] == SECRET
 
 
 def test_a_deletion_leaves_no_content_to_judge(tmp_path: Path) -> None:
@@ -226,7 +226,9 @@ def test_a_gate_named_but_missing_refuses_and_says_to_sync(tmp_path: Path) -> No
 
 
 def test_a_missing_gate_does_not_trap_a_reentered_stop(tmp_path: Path) -> None:
-    """A refusal on re-entry would never let the turn end."""
+    """The refusal is told once; the same refusal on re-entry lets the turn end."""
     gate = _installed(tmp_path)
     gate.unlink()
+    first = write_gate.evaluate_gate(["--gate", str(gate)], _event("stop"))
+    assert first is not None and first[0] == write_gate.VERDICT_DENY
     assert write_gate.evaluate_gate(["--gate", str(gate)], _event("stop", raw={"stop_hook_active": True})) is None

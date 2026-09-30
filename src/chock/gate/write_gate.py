@@ -22,6 +22,7 @@ from .gate_outcome import GATE_ERRORED, gate_decision, runner_outcome
 from .outside_repo import judged_files, outside_globs
 from .patch_image import patch_added, patched_files
 from .session_log import session_for
+from .stop_reentry import settle_stop
 
 GATE_FLAG = "--gate"
 
@@ -241,22 +242,11 @@ def writes_for(event, gate):
     """What this event puts under judgement: the call's own text, or what the turn left behind."""
     if event.event == PRE_TOOL:
         return writes_from_event(event, repo_root_for(event, gate))
-    if _reentered(event):
-        return {}
     return writes_from_worktree(repo_root_for(event, gate))
 
 
-def _reentered(event):
-    """Whether this stop re-entered its own hook: Claude Code's `stop_hook_active`, Cursor's `loop_count`."""
-    # A refusal that re-entered its own stop hook would never terminate.
-    raw = event.raw or {}
-    return bool(raw.get("stop_hook_active") or raw.get("loop_count"))
-
-
-def _missing_gate(gate, event):
+def _missing_gate(gate):
     """A gate the hook names but that is not on disk: a broken install, so a refusal that says so."""
-    if event.event != PRE_TOOL and _reentered(event):
-        return None
     return (
         VERDICT_DENY,
         f"chock gate {gate} is missing, so this write cannot be checked. "
@@ -264,14 +254,10 @@ def _missing_gate(gate, event):
     )
 
 
-def evaluate_gate(argv, event):
-    """The decision this event earns from a compiled gate, or None when it has nothing to say."""
-    gate = gate_path_from_argv(argv)
-    name = _EVENT_ARG.get(getattr(event, "event", ""))
-    if gate is None or name is None:
-        return None
+def _gate_says(gate, event, name):
+    """What the compiled gate says about this event, before a re-entered stop is weighed."""
     if not gate.exists():
-        return _missing_gate(gate, event)
+        return _missing_gate(gate)
     root = repo_root_for(event, gate)
     outside = outside_globs(gate)
     writes = judged_files(writes_for(event, gate), root, outside, lambda path: repo_paths(path, root))
@@ -283,3 +269,15 @@ def evaluate_gate(argv, event):
     extra = {**({"added": added} if added else {}), "session": session_for(event, root)}
     outcome, message = run_gate(gate, writes, name, root, extra)
     return gate_decision(outcome, message, gate)
+
+
+def evaluate_gate(argv, event):
+    """The decision this event earns from a compiled gate, or None when it has nothing to say."""
+    gate = gate_path_from_argv(argv)
+    name = _EVENT_ARG.get(getattr(event, "event", ""))
+    if gate is None or name is None:
+        return None
+    decision = _gate_says(gate, event, name)
+    if event.event == PRE_TOOL:
+        return decision
+    return settle_stop(event, repo_root_for(event, gate), gate, decision)

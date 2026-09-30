@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **The turn's end is re-judged when the client re-enters the Stop hook.** Claude Code, Codex and
+  Copilot (`stop_hook_active`) and Cursor (`loop_count`) re-enter the hook after a refusal, and it
+  used to allow every re-entry, so an agent that ignored the first refusal ended its turn with the
+  violation on disk. Each Stop is now written to the session log (a digest of the findings, never
+  file contents) and a re-entry is refused when its findings are new or changed, allowed when they
+  are the set the turn was already told, and refused for a person at the third re-entry. The
+  next one is allowed so the turn can end. Each re-entry verdict is logged to
+  `.chock/log/gate-events.jsonl` under the `stop-reentry` surface. A ledger that cannot be written
+  allows the re-entry, since it could not be bounded. Commit and CI are unchanged.
+
 - **GitHub annotations from the CI gate.** With `GITHUB_ACTIONS=true`, `chock gate run --event ci`
   also prints one `::error` (or `::warning` for warn, ask and anything the rollout level lowered)
   workflow command per new finding, `file`, `line` and `title=chock <policy>: <rule>` included, and

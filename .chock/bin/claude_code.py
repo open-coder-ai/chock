@@ -16,6 +16,7 @@ _json = json
 import os
 import sys
 
+import hashlib as _chock_hashlib
 import fnmatch as _chock_fnmatch
 import re as _chock_re
 import os as _chock_os
@@ -1381,6 +1382,127 @@ def session_record(root, event, phase, outcome=None):
     except Exception:
         return
 
+REENTRY_CAP = 3
+
+STOP_PHASE = 'stop'
+
+STOP_DENY = 'deny'
+
+_GATE_LOG_ENV = 'CHOCK_GATE_LOG'
+
+_GATE_LOG_PARTS = ('.chock', 'log', 'gate-events.jsonl')
+
+_LOG_MAX_BYTES = 1048576
+
+_FIRST = 0
+
+VERDICT_CLEAN = 'clean'
+
+VERDICT_REFUSED = 'refused'
+
+VERDICT_REPORTED = 'already-reported'
+
+VERDICT_CAPPED = 'cap-reached'
+
+VERDICT_UNTRACKED = 'untracked'
+
+_PERSON = ' This turn was refused {cap} times: a person must review these findings before the work is accepted.'
+
+def reentries(event):
+    """How many times the client says this stop re-entered its hook: `loop_count`, else 1 for `stop_hook_active`."""
+    raw = event.raw if isinstance(event.raw, dict) else {}
+    try:
+        counted = int(raw.get('loop_count') or 0)
+    except (TypeError, ValueError):
+        counted = 1
+    return max(counted, 1 if raw.get('stop_hook_active') else 0)
+
+def _fingerprint(message):
+    """The findings set as a digest of the refusal that named it: never the text itself."""
+    return _chock_hashlib.sha256(message.encode('utf-8', 'replace')).hexdigest()[:16]
+
+def _turn_records(path, policy):
+    """This policy's Stop records since its last first Stop of the session, oldest first."""
+    try:
+        lines = path.read_text(encoding='utf-8', errors='replace').splitlines()
+    except OSError:
+        return []
+    turn = []
+    for line in reversed(lines):
+        try:
+            seen = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(seen, dict) or seen.get('phase') != STOP_PHASE or seen.get('policy') != policy:
+            continue
+        turn.append(seen)
+        if seen.get('reentry') == _FIRST:
+            break
+    return turn[::-1]
+
+def _ledger(path, record):
+    """Append a Stop record; whether it landed."""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open('a', encoding='utf-8') as fh:
+            fh.write(json.dumps(record, sort_keys=True) + '\n')
+    except OSError:
+        return False
+    return True
+
+def _stamp():
+    return _chock_datetime.now(_chock_timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+def _gate_log(root, policy, index, verdict):
+    """One gate-log record per re-entry verdict; best effort, and off with `CHOCK_GATE_LOG=0`."""
+    try:
+        if _chock_os.environ.get(_GATE_LOG_ENV) == '0':
+            return
+        path = _chock_Path(root).joinpath(*_GATE_LOG_PARTS)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists() and path.stat().st_size > _LOG_MAX_BYTES:
+            path.replace(path.with_name('gate-events.1.jsonl'))
+        record = {'ts': _stamp(), 'policy_id': policy, 'surface': 'stop-reentry', 'event': 'stop', 'kind': 'reentry', 'reentry': index, 'verdict': verdict, 'match_count': 0, 'matches': []}
+        with path.open('a', encoding='utf-8') as fh:
+            fh.write(json.dumps(record, ensure_ascii=False) + '\n')
+    except Exception:
+        return
+
+def _record(path, policy, index, message, *, refused):
+    return {'ts': _stamp(), 'session_id': path.stem, 'phase': STOP_PHASE, 'policy': policy, 'reentry': index, 'fingerprint': _fingerprint(message) if message else '', 'verdict': STOP_DENY if refused else VERDICT_CLEAN}
+
+def _reentry_verdict(index, turn, message):
+    """(verdict, refuse) for a re-entry: clean, or findings refused unless already reported or past the cap."""
+    if not message:
+        return (VERDICT_CLEAN, False)
+    if index > REENTRY_CAP:
+        return (VERDICT_CAPPED, False)
+    reported = next((r.get('fingerprint') for r in reversed(turn) if r.get('verdict') == STOP_DENY), None)
+    if _fingerprint(message) == reported:
+        return (VERDICT_REPORTED, False)
+    return (VERDICT_REFUSED, True)
+
+def settle_stop(event, root, gate, decision):
+    """The decision a Stop earns once this turn's earlier Stops are weighed against `decision`."""
+    if decision is not None and decision[0] != STOP_DENY:
+        return decision
+    policy = gate.parent.parent.name
+    path = session_log_path(root, session_id_of(event))
+    signalled = reentries(event)
+    message = decision[1] if decision else ''
+    if not signalled:
+        _ledger(path, _record(path, policy, _FIRST, message, refused=decision is not None))
+        return decision
+    turn = _turn_records(path, policy)
+    index = max(len(turn), signalled)
+    verdict, refuse = _reentry_verdict(index, turn, message)
+    if not _ledger(path, _record(path, policy, index, message, refused=refuse)) and refuse:
+        verdict, refuse = (VERDICT_UNTRACKED, False)
+    _gate_log(root, policy, index, verdict)
+    if not refuse:
+        return None
+    return (STOP_DENY, message + (_PERSON.format(cap=REENTRY_CAP) if index == REENTRY_CAP else ''))
+
 GATE_FLAG = '--gate'
 
 _GATE_TIMEOUT_SECONDS = 30
@@ -1565,29 +1687,16 @@ def writes_for(event, gate):
     """What this event puts under judgement: the call's own text, or what the turn left behind."""
     if event.event == PRE_TOOL:
         return writes_from_event(event, repo_root_for(event, gate))
-    if _reentered(event):
-        return {}
     return writes_from_worktree(repo_root_for(event, gate))
 
-def _reentered(event):
-    """Whether this stop re-entered its own hook: Claude Code's `stop_hook_active`, Cursor's `loop_count`."""
-    raw = event.raw or {}
-    return bool(raw.get('stop_hook_active') or raw.get('loop_count'))
-
-def _missing_gate(gate, event):
+def _missing_gate(gate):
     """A gate the hook names but that is not on disk: a broken install, so a refusal that says so."""
-    if event.event != PRE_TOOL and _reentered(event):
-        return None
     return (VERDICT_DENY, f'chock gate {gate} is missing, so this write cannot be checked. Run `chock sync --repo .` to rebuild the compiled gates.')
 
-def evaluate_gate(argv, event):
-    """The decision this event earns from a compiled gate, or None when it has nothing to say."""
-    gate = gate_path_from_argv(argv)
-    name = _EVENT_ARG.get(getattr(event, 'event', ''))
-    if gate is None or name is None:
-        return None
+def _gate_says(gate, event, name):
+    """What the compiled gate says about this event, before a re-entered stop is weighed."""
     if not gate.exists():
-        return _missing_gate(gate, event)
+        return _missing_gate(gate)
     root = repo_root_for(event, gate)
     outside = outside_globs(gate)
     writes = judged_files(writes_for(event, gate), root, outside, lambda path: repo_paths(path, root))
@@ -1599,6 +1708,17 @@ def evaluate_gate(argv, event):
     extra = {**({'added': added} if added else {}), 'session': session_for(event, root)}
     outcome, message = run_gate(gate, writes, name, root, extra)
     return gate_decision(outcome, message, gate)
+
+def evaluate_gate(argv, event):
+    """The decision this event earns from a compiled gate, or None when it has nothing to say."""
+    gate = gate_path_from_argv(argv)
+    name = _EVENT_ARG.get(getattr(event, 'event', ''))
+    if gate is None or name is None:
+        return None
+    decision = _gate_says(gate, event, name)
+    if event.event == PRE_TOOL:
+        return decision
+    return settle_stop(event, repo_root_for(event, gate), gate, decision)
 
 TOOL_CALL_FLAG = '--tool-call'
 

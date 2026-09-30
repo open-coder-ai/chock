@@ -241,6 +241,7 @@ def test_a_clean_turn_and_a_re_entered_stop_are_allowed_silently(tmp_path: Path)
     (repo / "Fine.java").write_text("class Fine { }\n", encoding="utf-8")
     assert _run(repo, "Stop", _stop(repo)).stdout.strip() == ""
     (repo / "Leak.java").write_text(f'String k = "{SECRET}";\n', encoding="utf-8")
+    assert json.loads(_run(repo, "Stop", _stop(repo)).stdout)["decision"] == "block"
     assert _run(repo, "Stop", _stop(repo, active=True)).stdout.strip() == "", "no loop on the retry"
 
 

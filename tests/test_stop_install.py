@@ -157,10 +157,11 @@ def test_a_turn_that_wrote_a_secret_by_any_means_is_blocked(tmp_path: Path) -> N
 
 
 def test_a_stop_hook_that_already_fired_does_not_fire_again(tmp_path: Path) -> None:
-    """Refusing a turn re-enters this hook. Without the guard the refusal would never terminate."""
+    """Refusing a turn re-enters this hook. The same findings, already told, must let the turn end."""
     repo = _repo(tmp_path)
     install_hooks(repo, "claude_code")
     (repo / "leak.py").write_text(f'aws = "{SECRET}"\n', encoding="utf-8")
+    assert json.loads(_fire(repo, {"hook_event_name": "Stop"}).stdout)["decision"] == "block"
 
     result = _fire(repo, {"hook_event_name": "Stop", "stop_hook_active": True})
     assert result.returncode == 0

@@ -20,6 +20,7 @@ from . import (
     patch_image,
     session_log,
     sessionstart,
+    stop_reentry,
     tool_call_gate,
     write_gate,
 )
@@ -36,6 +37,7 @@ _IMPORTS = _DATA_DIR.joinpath("imports.py.tmpl").read_text(encoding="utf-8")
 
 _RENAME = {
     "fnmatch": "_chock_fnmatch",
+    "hashlib": "_chock_hashlib",
     "re": "_chock_re",
     "os": "_chock_os",
     "shlex": "_chock_shlex",
@@ -117,6 +119,8 @@ def _handler_source(agent: str) -> str:
         _extract(outside_repo),
         "\n",
         _extract(session_log),
+        "\n",
+        _extract(stop_reentry),
         "\n",
         _extract(write_gate),
         "\n",
