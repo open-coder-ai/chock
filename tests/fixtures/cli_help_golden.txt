@@ -20,5 +20,6 @@ Authoring:
   plugin     Package policies as installable plugins (plugin build [--format claude] [--check])
   marketplace Emit marketplace index files over a built plugin tree (marketplace build --dist <dir>)
   gateway    Run the MCP gateway proxy (gateway run --repo . -- <server command>)
+  mcp        Serve the read-only chock_guidance MCP tool over stdio (mcp --repo .)
   review     Produce or check reviewer evidence (review emit | review verify <file> | review require)
   compliance Generate a compliance coverage report (compliance report --framework owasp_asi)
