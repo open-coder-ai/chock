@@ -4,7 +4,7 @@
 
 # Chock
 
-**Your coding agent has a shell, your git history and your cloud credentials. Chock refuses the dangerous action before it lands — as a git hook, a CI gate, or the agent's own pre-tool hook.**
+**Application security for the code your AI agents write — checked at the agent's own hook where the client has one, and again at commit and in CI.**
 
 [![CI](https://github.com/open-coder-ai/chock/actions/workflows/ci.yml/badge.svg)](https://github.com/open-coder-ai/chock/actions/workflows/ci.yml) [![PyPI](https://img.shields.io/pypi/v/chock)](https://pypi.org/project/chock/) [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/open-coder-ai/chock/badge)](https://scorecard.dev/viewer/?uri=github.com/open-coder-ai/chock) [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14155/badge)](https://www.bestpractices.dev/projects/14155)<br>
@@ -18,13 +18,13 @@
        alt="Terminal: five security guards adopted from the catalog; a hard-coded AWS key, an MCP server at @latest, a wildcard IAM grant, model output piped into os.system and a Trojan Source bidi override are each refused at commit; the fixed file commits cleanly.">
 </p>
 
-Coding agents hard-code keys, run `git push --force`, skip hooks with `--no-verify`, delete
-assertions to turn a test green, add packages that do not exist, wire MCP servers at `@latest`,
-grant `Action:*`, get prompt-injected through invisible Unicode, and edit their own guardrail
-config. Telling an agent not to works until the context window fills, a new session starts, or a
-different agent joins the repo. **A rule an agent reads is advice. A hook that exits non-zero is
-a control.** Chock compiles each rule into the strongest control every agent actually supports,
-and labels it honestly when all it can do is advise. Guardrails, not guarantees.
+Coding agents already ask before they run a shell command. What they don't check is the code they
+write: SQL injection in a Spring repository, unsafe deserialization, a wildcard IAM grant, an MCP
+server at `@latest`, a hallucinated package, a Trojan Source bidi override, a stripped `aria-label`,
+a secret written into agent memory. Also refused: hard-coded keys, `git push --force`,
+`--no-verify`, deleted assertions, an agent editing its own guardrails. **A rule an agent reads is
+advice. A hook that exits non-zero is a control.** Chock compiles each rule to the strongest control
+each agent supports, labelled honestly when all it can do is advise. Guardrails, not guarantees.
 
 ## Quick start
 
@@ -68,16 +68,16 @@ The [catalog](https://github.com/open-coder-ai/chock-catalog) ships **48 policie
 
 | Area | What gets refused | Policies | Tier | Eval cases |
 | :--- | :--- | :--- | :--- | ---: |
+| **Secure code: Java / Kotlin** | SQL/command/SpEL/template injection, XXE, SSRF, unsafe deserialization, zip slip, trust-all TLS, disabled Spring Security, known-exploited dependency versions | `java-security` — 129 rules in 16 packs | commit | 115 |
+| **Secure code: agent code** | `eval`/`exec`, `shell=True`, `pickle`, `yaml.load` on model output; wildcard IAM (`Action: *`, `AdministratorAccess`, `roles/owner`); unsafe tool, memory and approval wiring in agent frameworks | `agentic-code-security` — 29 rules in 10 packs · `block-unsafe-code-execution` · `block-wildcard-iam` | commit | 141 · 13 · 12 |
+| **Supply chain** | hallucinated packages, Actions not pinned to a SHA, MCP servers and agent plugins at `@latest` | `verify-dependency-exists` (opt-in) · `pin-github-actions` · `block-unpinned-agent-components` | commit | 9 · 17 · 12 |
+| **OWASP Top 10 for Agentic Applications** | one policy per risk, ASI01–ASI10: 10/10 risks have a policy | `owasp-asi01` … `owasp-asi10` | advisory; commit slices for ASI03 · ASI04 · ASI05 | — |
+| **Accessibility (ADA / Section 508 / WCAG)** | a change that retracts an accessible name an element already had: `alt` emptied, `aria-label` removed, `aria-hidden` added, `lang` removed | `no-a11y-regression` | commit | 20 |
+| **Prompt injection** | Trojan Source bidi overrides (CVE-2021-42574), Unicode tag smuggling | `block-invisible-unicode` · `injection-defense` | commit · advisory | 14 · — |
+| **Test integrity** | deleted tests, net assertion loss, `assert True`, new `skip`/`only`/`@Disabled`/`t.Skip` | `protect-test-integrity` · `block-test-skips` | commit | 19 · 26 |
 | **Secrets & data leakage** | hard-coded keys, private data in commits, secrets written to agent memory, POSTs to unapproved hosts | `scan-secrets` · `protect-commit-privacy` · `guard-memory-writes` · `block-unapproved-egress` | commit · commit · commit · in-agent | 32 · 35 · 22 · 49 |
 | **Destructive commands & hook bypass** | `rm -rf`, `git push --force`, `--no-verify`, commits to `main`, `curl \| sh` | `block-destructive-commands` · `rtk-dangerous-actions-blocker` · `block-no-verify` · `protect-main-branch` · `block-curl-pipe-sh` | commit · in-agent · in-agent · commit · in-agent | 80 · 92 · 74 · 4 · 34 |
 | **Agent self-protection & excessive agency** | an agent editing its own guardrail config or CI, wildcard tool permissions, sub-agents spawned with `--dangerously-skip-permissions`, MCP servers off the allowlist | `protect-agent-config` · `protect-ci-workflows` · `block-wildcard-agent-permissions` · `block-unguarded-agent-spawn` · `verify-mcp-allowlist` | in-agent · in-agent · commit · in-agent · commit | 79 · 36 · 17 · 25 · 65 |
-| **Supply chain** | hallucinated packages, Actions not pinned to a SHA, MCP servers and agent plugins at `@latest` | `verify-dependency-exists` (opt-in) · `pin-github-actions` · `block-unpinned-agent-components` | commit | 9 · 17 · 12 |
-| **Prompt injection** | Trojan Source bidi overrides (CVE-2021-42574), Unicode tag smuggling | `block-invisible-unicode` · `injection-defense` | commit · advisory | 14 · — |
-| **Secure code: Java / Kotlin** | SQL/command/SpEL/template injection, XXE, SSRF, unsafe deserialization, zip slip, trust-all TLS, disabled Spring Security, known-exploited dependency versions | `java-security` — 129 rules in 16 packs | commit | 115 |
-| **Secure code: agent code** | `eval`/`exec`, `shell=True`, `pickle`, `yaml.load` on model output; wildcard IAM (`Action: *`, `AdministratorAccess`, `roles/owner`); unsafe tool, memory and approval wiring in agent frameworks | `agentic-code-security` — 29 rules in 10 packs · `block-unsafe-code-execution` · `block-wildcard-iam` | commit | 141 · 13 · 12 |
-| **Test integrity** | deleted tests, net assertion loss, `assert True`, new `skip`/`only`/`@Disabled`/`t.Skip` | `protect-test-integrity` · `block-test-skips` | commit | 19 · 26 |
-| **OWASP Top 10 for Agentic Applications** | one policy per risk, ASI01–ASI10: 10/10 risks have a policy | `owasp-asi01` … `owasp-asi10` | advisory; commit slices for ASI03 · ASI04 · ASI05 | — |
-| **Accessibility (ADA / Section 508 / WCAG)** | a change that retracts an accessible name an element already had: `alt` emptied, `aria-label` removed, `aria-hidden` added, `lang` removed | `no-a11y-regression` | commit | 20 |
 | **EU AI Act** | triage for prohibited practices (Art. 5), high-risk systems (Annex III), transparency duties (Art. 50) | `eu-ai-act-prohibited-practices` · `eu-ai-act-high-risk-triage` · `eu-ai-act-transparency` | advisory | — |
 
 <details>
