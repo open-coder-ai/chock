@@ -86,7 +86,7 @@
       "id": "minimal-content",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "fb0c85788ef4d636929d3078687f5bef6422b0c4f6ffc7e37f81d48940a3cc67",
+      "sha256": "0be9365f661d0a63e3b565a434ca9bd865818baecef425fbfe320cc77a6a2ce7",
       "source": "local",
       "artifacts_sha256": "318e534a8fbca46a300a7dc0d6ee0c3f2c5d9bbd5952999a188bf19ee092c29f"
     },
@@ -102,7 +102,7 @@
       "id": "pre-generated-scripts",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "8ef162f09f2d3ee521ce78976d4f31bfc9560a57933892c3dd5a4033f7242cbb",
+      "sha256": "3605fe3806364cc16407d81c6522783ab855c950c630dd464b196067b7fce136",
       "source": "local",
       "artifacts_sha256": "36bb984d05a83a67c124d6c85c97de3fa35b362d3e3514dccb3a59f6f3436224"
     },
@@ -134,7 +134,7 @@
       "id": "require-review-evidence",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "64fd51b3cdf89c68f5ae44c2d470b6ec1cf297b09f9357d9fba69025d36a4632",
+      "sha256": "6746768db59903cf017c66799b68ca4290870655ab6ede665ef2fde035c87875",
       "source": "local",
       "artifacts_sha256": "6bab271e1984302fd4c659739aac6d0029f5f2215af90182d3d7cbb59984f9c8"
     },
@@ -150,7 +150,7 @@
       "id": "test-integrity",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "6cec1103d2ca8fdb55596d6d821f0f165d77db88c8288e103eb0b709f775bc87",
+      "sha256": "c140c5ca23c3e9dde10712b889840ee9a4a1976f7cb328d088f8f781e03c274e",
       "source": "local",
       "artifacts_sha256": "c5d2e1f614b609c98c3da3c2e33beb9196beeacec4e3f7c7541f3bd1b08c1db4"
     },
@@ -173,7 +173,7 @@
       "id": "verify-framework-conformance",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "bc9485ae9be6998577a80c4645c945e6ceebf2772a8f496f1259ba9dc6b0e869",
+      "sha256": "d8d03b846cef3bcfc66ed036e3d69b3abd6762c1ff2f60b8ecc7c3d7da3e9609",
       "source": "local",
       "artifacts_sha256": "ea12f0f8a86bcab67484585b30d72226a6be554c4dc51a0e2f66d6c29d38d897"
     },
@@ -181,7 +181,7 @@
       "id": "yagni",
       "version": "0.0.1",
       "managed": false,
-      "sha256": "bda182f5bc33516c0bfd30c5bde51df93086fa5d6fad6b73abdcbbf65d808de4",
+      "sha256": "2546154d5eb24bbfa8510b69c809b19bb5546ae112bae29be2de26e492a42437",
       "source": "local",
       "artifacts_sha256": "80297724a9306b6a8a3278780a02e7bbdcb8dafd7b197e66fed8ba301ef090ab"
     }
