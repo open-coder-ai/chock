@@ -108,6 +108,7 @@ where = ["src"]
 "chock.compile.emitters" = ["data/*"]
 "chock.scaffold" = ["data/*"]
 "chock.gate" = ["data/*.tmpl"]
+"chock.guidance" = ["data/*.json"]
 # `**/*` does NOT match dotfiles or dot-directories, so the chock-init
 # template tree (.chock/, .agents/, .claude/, adapter dotfiles) was absent
 # from every built wheel -- 42 files. The explicit dot-prefixed patterns below are
@@ -227,6 +228,7 @@ max-statements = 50
 "src/chock/gate/guard_runner.py" = ["T201", "PLR0911"]
 "src/chock/gate/runner.py" = ["T201", "PLR0913", "PLR0917", "PLR0911"]
 "src/chock/gateway/__main__.py" = ["T201"]
+"src/chock/guidance/cli.py" = ["T201"]
 "src/chock/hooks/autocompile.py" = ["T201"]
 "src/chock/hooks/install.py" = ["T201"]
 "src/chock/hooks/installers.py" = ["T201"]
