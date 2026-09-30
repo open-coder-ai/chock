@@ -19,13 +19,13 @@ rule:
     never(erase): a name an element already had
 hook:
   script:
-    "on": [commit]        # commit | push, at least one
+    "on": [commit]        # commit | push | commit-msg, at least one
 ```
 
 ```
 .agents/policies/<id>/
 └── implementations/
-    └── <id>-pre-commit.py      # or -pre-push, or .sh
+    └── <id>-pre-commit.py      # or -pre-push, -commit-msg, or .sh
 ```
 
 `on` is **authoritative**. The compiler wires exactly the events it names — never what the

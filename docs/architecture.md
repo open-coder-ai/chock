@@ -39,11 +39,17 @@ agent. See [Coverage Levels](coverage-levels.md).
 ### 3. Enforce
 
 The compiled artifacts run where the agent actually operates: a **git hook** (pre-commit,
-pre-merge-commit, and pre-push — clean merges are gated too) blocks a bad commit, a
+pre-merge-commit, and pre-push — clean merges are gated too) stops a bad commit (or asks or warns, per the gate's `action`), a
 **CI gate** re-runs the same check over a pull request's commit range — the un-bypassable backstop
 for a hook skipped with `--no-verify` — and **Claude PreToolUse** stops a risky command *before* it
 runs. The CI gate is wired up by `chock sync --ci`, not by `compile`: until that has run the
 surface is compiled and inert, and the coverage report says so.
+A gate's `action` sets the verdict: `block` (the default), `ask` (a person decides) or `warn`
+(the reason is shown and the action proceeds); a script gate picks its own by exit code, capped by
+that `action`. At the agent events a gate can also match any tool by name (`tool_call`, e.g. MCP
+tools or `WebFetch`) on the vendors that record a tool vocabulary. A commit is judged as an agent's
+when `CLAUDECODE`, `AI_AGENT` or a configured variable is set, and a waiver the agent adds is then
+not honoured. Details: [Enforcement Surfaces](enforcement-surfaces.md).
 The git-hook shim calls the vendored **Python runner** (`.chock/bin/gate.py`), which
 reads the compiled `gate.json` and executes the deterministic check. No `pip install` is needed on
 the consumer machine — only a Python 3.11+ interpreter on PATH (the shim probes
