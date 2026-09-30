@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from chock.manifest import CANONICAL_MANIFEST, DETERMINIZATION_REVIEWED_KEY, resolve_manifest_path
+from chock.registry.core import is_shipped_file
 from chock.validation.checks_security import _is_script_file
 from chock.validation.patterns import (
     _DETERMINISTIC_HEURISTIC_PATTERNS,
@@ -232,7 +233,7 @@ def _compute_script_hashes(artifact_dir: Path, manifest: dict[str, Any]) -> dict
         scripts_dir = artifact_dir / "scripts"
         if scripts_dir.exists():
             for path in scripts_dir.rglob("*"):
-                if path.is_file():
+                if is_shipped_file(path):
                     rel = path.relative_to(scripts_dir).as_posix()
                     hashes[rel] = _hash_file(path)
         return hashes
@@ -241,7 +242,7 @@ def _compute_script_hashes(artifact_dir: Path, manifest: dict[str, Any]) -> dict
         impl_dir = artifact_dir / "implementations"
         if impl_dir.exists():
             for path in impl_dir.rglob("*"):
-                if path.is_file():
+                if is_shipped_file(path):
                     rel = path.relative_to(impl_dir).as_posix()
                     hashes[rel] = _hash_file(path)
         return hashes

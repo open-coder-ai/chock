@@ -117,6 +117,11 @@ def _hash_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def is_shipped_file(path: Path) -> bool:
+    """A file an artifact ships: not the bytecode Python leaves beside a guard it has run."""
+    return path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"
+
+
 def compute_script_hashes(artifact_dir: Path, manifest: dict[str, Any]) -> dict[str, str]:
     """Compute sha256 hashes for every deterministic script shipped with an artifact."""
     artifact = manifest.get("artifact", "")
@@ -126,7 +131,7 @@ def compute_script_hashes(artifact_dir: Path, manifest: dict[str, Any]) -> dict[
         scripts_dir = artifact_dir / "scripts"
         if scripts_dir.exists():
             for path in sorted(scripts_dir.rglob("*")):
-                if path.is_file():
+                if is_shipped_file(path):
                     rel = path.relative_to(scripts_dir).as_posix()
                     hashes[rel] = _hash_file(path)
         return hashes
@@ -135,7 +140,7 @@ def compute_script_hashes(artifact_dir: Path, manifest: dict[str, Any]) -> dict[
         impl_dir = artifact_dir / "implementations"
         if impl_dir.exists():
             for path in sorted(impl_dir.rglob("*")):
-                if path.is_file():
+                if is_shipped_file(path):
                     rel = path.relative_to(impl_dir).as_posix()
                     hashes[rel] = _hash_file(path)
         return hashes
