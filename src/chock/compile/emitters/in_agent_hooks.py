@@ -85,8 +85,8 @@ def cursor_entry(command: str, *, fail_closed: bool = False) -> dict[str, Any]:
 
 
 def cursor_hooks_file(command: str) -> dict[str, Any]:
-    """A cursor-format hooks file: envelope and shell-gate event from the vendor entry."""
+    """A cursor-format hooks file: envelope and shell-gate event, fail-closed, from the vendor entry."""
     return {
         **vendors.config_envelope("cursor"),
-        "hooks": {vendors.shell_gate_event("cursor"): [cursor_entry(command)]},
+        "hooks": {vendors.shell_gate_event("cursor"): [cursor_entry(command, fail_closed=True)]},
     }

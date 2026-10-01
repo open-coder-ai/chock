@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- **Hooks that cannot read their input, or find their package, refuse.** Every vendored runtime
+  (`.chock/bin/<agent>.py`, plugin `scripts/<agent>.py`, bundles included) used to exit 0 on an
+  empty, unparseable or non-object payload. A run that judges a call (`--guard`, a blocking
+  `--gate` or `--tool-call`) now refuses in the deny its client reads at the pre-tool event (Claude
+  Code and Codex `permissionDecision: deny`, Copilot both the nested and the top-level CLI form,
+  Cursor `{"permission": "deny"}`, Devin `{"decision": "block"}`, Gemini, Tabnine and Grok
+  `{"decision": "deny"}`, Windsurf exit 2 on `pre_run_command`), a stop gate in its stop grammar,
+  and exit 2 wherever that answer would not refuse; the reason goes to stderr. A spec that declares
+  `warn`, a `--record` (PostToolUse) run and a run with no arguments (SessionStart) stay silent and
+  exit 0. Unmapped events of a readable payload are still allowed.
+- **Plugin hooks refuse when their package is missing.** Claude, Codex, Cursor and Devin plugin
+  commands check for the launcher inside git's `sh` and exit 2 when it is absent, where bash-as-sh
+  exited 127. The path reaches that check as an argument, never as shell text, so a root holding
+  a quote, `$` or backtick neither breaks the hook nor skips it. Copilot's command still exits 0 when `PLUGIN_ROOT` is unset or empty (VS Code's
+  agent-plugin format exports no root), and now exits 2 when the root is set but lacks the bundled
+  adapter. Cursor's plugin hooks set `failClosed: true` on the pre-tool entry, as the repo-level
+  hooks already did.
+- **Coverage labels name both points.** A cell whose policy has a commit-time gate and an installed
+  tool-use hook reads `enforced-at-commit + best-effort at tool use (live-run)` in `chock sync`
+  and `chock enable`/`disable` output. `coverage.json` cells carry `at_commit`, true on every
+  `enforced-at-commit` cell, and cells written by an older or newer chock still read. A git hook
+  that runs only at push (`block-destructive-commands`' pre-push script) no longer earns
+  `enforced-at-commit`, so those cells read `advisory`; no other `level` changes.
 - **The baseline check holds rule verdicts.** `chock check --only baseline --base <ref>` also
   reads `.chock/security.json` (java-security) and `.chock/agentic-security.json`
   (agentic-code-security) as their runtimes do, and fails on a verdict the head loosens against the

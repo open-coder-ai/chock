@@ -81,7 +81,7 @@ def gate_hooks_file(vendor: str, command: str) -> dict[str, Any]:
         # A flat entry carries no matcher: the runtime answers every tool and judges only a
         # write it recognises, so an unmatched tool is allowed with nothing said.
         entries[vendors.pre_tool_event(vendor)] = [
-            cursor_entry(command) if flat else hook_entry(command, matcher=matcher)
+            cursor_entry(command, fail_closed=True) if flat else hook_entry(command, matcher=matcher)
         ]
     if stop:
         entries[vendors.stop_event(vendor)] = [cursor_entry(command) if flat else hook_entry(command)]

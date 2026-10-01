@@ -66,7 +66,7 @@ def _runtime_files(agent: str) -> dict[Path, str]:
 
 def _interpreter(agent: str) -> str:
     """The launcher invocation for `agent`'s plugin, reached through its plugin-root token."""
-    return launch.plugin_interpreter(f'"{packaging.executable_ref(agent, _LAUNCHER_REL)}"')
+    return launch.plugin_interpreter(str(packaging.executable_ref(agent, _LAUNCHER_REL)))
 
 
 def _hook_command(script: str) -> str:
