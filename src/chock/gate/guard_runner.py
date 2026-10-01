@@ -213,6 +213,18 @@ def run_guard_detailed(guard: Path, command: str, tool: str = "") -> tuple[str, 
     return GUARD_CLEAN, ""
 
 
+def append_gate_log(chock_root: Path, record: dict) -> None:
+    """Append one record, stamped, to `<chock_root>/log/gate-events.jsonl`, rotating past the size cap."""
+    log_dir = chock_root / "log"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / "gate-events.jsonl"
+    if log_path.exists() and log_path.stat().st_size > _LOG_MAX_BYTES:
+        log_path.replace(log_dir / "gate-events.1.jsonl")
+    stamped = {"ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), **record}
+    with log_path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(stamped, ensure_ascii=False) + "\n")
+
+
 def log_outcome(guard: Path, tool: str, *, verdict: str) -> None:
     """Append one outcome record. Best effort: never raises, never changes the verdict."""
     try:
@@ -228,13 +240,7 @@ def log_outcome(guard: Path, tool: str, *, verdict: str) -> None:
                 break
         if artifact_root is None:
             return
-        log_dir = artifact_root / "log"
-        log_dir.mkdir(parents=True, exist_ok=True)
-        log_path = log_dir / "gate-events.jsonl"
-        if log_path.exists() and log_path.stat().st_size > _LOG_MAX_BYTES:
-            log_path.replace(log_dir / "gate-events.1.jsonl")
         record = {
-            "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "policy_id": guard.parent.parent.name,
             "surface": "pre-tool-use",
             "event": "tool_use",
@@ -242,8 +248,7 @@ def log_outcome(guard: Path, tool: str, *, verdict: str) -> None:
             "tool": tool,
             "verdict": verdict,
         }
-        with log_path.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+        append_gate_log(artifact_root, record)
     except Exception:  # noqa: BLE001 -- best effort logging: never raises, never changes the verdict
         return
 

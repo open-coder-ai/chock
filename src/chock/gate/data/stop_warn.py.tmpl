@@ -1,0 +1,14 @@
+
+
+def _chock_stop_warning(decision, event):
+    # A warn at the turn's end never blocks: a Stop block would force the turn to continue. agentseam
+    # reduces WARN to a silent allow, which drops the reason, so it is added back as `systemMessage`,
+    # which Claude Code, Codex and VS Code Copilot each document as a warning shown to the user.
+    if event.event != STOP or degraded_from(decision) != WARN or not decision.reason:
+        return None
+    return json.dumps({"systemMessage": decision.reason})
+
+
+def _chock_stop_warn_respond(decision, event):
+    text, code = respond(decision, event)
+    return text or _chock_stop_warning(decision, event) or text, code
