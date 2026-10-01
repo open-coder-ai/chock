@@ -7,7 +7,7 @@ def _chock_copilot_respond(decision, event):
     # is added beside it, so either reading refuses.
     text, code = respond(decision, event)
     if not text:
-        return text, code
+        return _chock_stop_warning(decision, event) or text, code
     body = json.loads(text)
     nested = body.get("hookSpecificOutput")
     if not isinstance(nested, dict):

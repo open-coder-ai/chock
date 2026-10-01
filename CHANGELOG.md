@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- **The turn's end is re-judged when the client re-enters the Stop hook.** Claude Code, Codex and
+  Copilot (`stop_hook_active`) and Cursor (`loop_count`) re-enter the hook after a refusal, and it
+  used to allow every re-entry, so an agent that ignored the first refusal ended its turn with the
+  violation on disk. While findings remain, every re-entry is now refused, up to 3 per turn; the
+  next one ends the turn with a warning that the findings are still on disk and a commit will
+  refuse them: `systemMessage` for Claude Code, Codex and VS Code Copilot, stderr for every vendor,
+  and a held `warn` record (`would_block: true`) in `.chock/log/gate-events.jsonl`. Each re-entry is
+  logged there under the `stop-reentry` surface with `verdict` `block`, `allow` or `warn` and a
+  `reentry_verdict`. The count is kept in `.chock/state/<session>.stop.jsonl` (digests of each
+  flagged file's path and content, never the text), keyed on Codex's `turn_id` and Cursor's
+  `generation_id` where sent; Cursor's own `loop_count` is believed over it. A ledger that is
+  missing, damaged or unwritable never allows silently: it refuses again, or ends the turn with the
+  warning. A warn at Stop now also reaches Codex and VS Code Copilot users as `systemMessage`.
+  Commit and CI are unchanged.
+
 - **`chock mcp`: plan-time guidance.** A stdio MCP server with one read-only tool,
   `chock_guidance(plan, paths)`. It maps a plan's words and the paths to be touched to the rules of
   the repo's installed `java-security` (read from its shipped `setup-contract.json`), keeps the
@@ -20,6 +35,7 @@
   has no MCP config writer and agentseam records no MCP paths), and `agentic-code-security` ships
   no structured rule metadata to read, so only `java-security` is served. Matching is lexical: a
   plan that names none of a rule's words gets nothing, and an empty result is not a clearance.
+
 - **GitHub annotations from the CI gate.** With `GITHUB_ACTIONS=true`, `chock gate run --event ci`
   also prints one `::error` (or `::warning` for warn, ask and anything the rollout level lowered)
   workflow command per new finding, `file`, `line` and `title=chock <policy>: <rule>` included, and
