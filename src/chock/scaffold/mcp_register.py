@@ -5,13 +5,13 @@ from __future__ import annotations
 import json
 import os
 import re
-import stat
 import tomllib
 from pathlib import Path
 from typing import Any, NamedTuple
 
 from chock.hooks.launch import launcher_argv, write_launcher
 from chock.resources import package_data_dir
+from chock.scaffold.mcp_write import UNTOUCHED, McpConfigError, _lstat_checked, remove_file, write_file
 
 SERVER = "chock"
 TOML_BEGIN = "# chock:mcp:begin -- managed by `chock sync`; remove with `guidance_mcp: false` in .chock/config.yaml"
@@ -20,10 +20,6 @@ _TOML_BLOCK = re.compile(rf"(\n)?{re.escape(TOML_BEGIN)}\n.*?{re.escape(TOML_END
 MAX_BYTES = 1 << 20
 _BOM = "﻿"
 _NOT_OURS = "a `chock` server that chock did not write (or that was edited) is already there; rename or remove it"
-
-
-class McpConfigError(ValueError):
-    """A client's MCP config cannot be merged into safely; nothing was written."""
 
 
 class Client(NamedTuple):
@@ -53,30 +49,8 @@ def clients() -> dict[str, Client]:
 
 def server_entry(client: Client) -> dict[str, Any]:
     """The committed entry: git's alias runs the repo's launcher, which picks the interpreter at run time."""
+
     return {"command": "git", "args": launcher_argv("-m", "chock", "mcp", "--repo", ".")[1:], **client.extra}
-
-
-def _lstat_checked(root: Path, rel: str) -> os.stat_result | None:
-    """lstat of `rel` under `root`: None when absent; refuses a symlink anywhere on the way or a non-regular file."""
-    cur = root
-    parts = Path(rel).parts
-    for i, part in enumerate(parts):
-        cur = cur / part
-        try:
-            st = os.lstat(cur)
-        except FileNotFoundError:
-            return None
-        except OSError as exc:
-            msg = f"{rel}: cannot be inspected ({exc.strerror}); chock will not touch it"
-            raise McpConfigError(msg) from exc
-        if stat.S_ISLNK(st.st_mode):
-            msg = f"{rel}: {part} is a symlink; chock will not write through it"
-            raise McpConfigError(msg)
-        wanted = stat.S_ISREG if i == len(parts) - 1 else stat.S_ISDIR
-        if not wanted(st.st_mode):
-            msg = f"{rel}: {part} is not a {'regular file' if i == len(parts) - 1 else 'directory'}; chock will not touch it"
-            raise McpConfigError(msg)
-    return st
 
 
 def _no_duplicates(pairs: list[tuple[str, Any]]) -> dict:
@@ -110,7 +84,7 @@ def _inspect(root: Path, client: Client, *, removing: bool) -> _File | None:
             raise _Skip from exc
         if isinstance(exc, McpConfigError):
             raise
-        msg = f"{rel}: cannot be read ({exc}); chock will not touch it"
+        msg = f"{rel}: cannot be read ({exc}){UNTOUCHED}"
         raise McpConfigError(msg) from exc
     if got is None:
         return None
@@ -202,22 +176,9 @@ def _plan(root: Path, client: Client, *, enabled: bool) -> tuple[str | None, _Fi
         return None, None
 
 
-def _write(root: Path, client: Client, text: str, existing: _File | None) -> None:
-    """Replace the file through a same-directory temp file, after re-checking the path is still safe."""
-    _lstat_checked(root, client.path)
-    path = root / client.path
-    path.parent.mkdir(parents=True, exist_ok=True)
+def _payload(text: str, existing: _File | None) -> bytes:
     data = text.replace("\n", "\r\n") if existing and existing.crlf else text
-    payload = ((_BOM if existing and existing.bom else "") + data).encode("utf-8")
-    tmp = path.with_name(f".{path.name}.chock-{os.urandom(6).hex()}.tmp")
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, existing.mode if existing else 0o644)
-    try:
-        with os.fdopen(fd, "wb") as handle:
-            handle.write(payload)
-        tmp.replace(path)
-    except BaseException:
-        tmp.unlink(missing_ok=True)
-        raise
+    return ((_BOM if existing and existing.bom else "") + data).encode("utf-8")
 
 
 def _selected(wired: tuple[str, ...], *, enabled: bool) -> dict[str, Client]:
@@ -227,20 +188,23 @@ def _selected(wired: tuple[str, ...], *, enabled: bool) -> dict[str, Client]:
 
 
 def register(repo_root: Path | str, wired: tuple[str, ...], *, enabled: bool) -> list[str]:
-    """Bring every client's MCP config in line with the opt-in. A file we must not touch refuses before any write."""
+    """Bring every client's MCP config in line with the opt-in. Every client is planned first, so a refusal writes nothing; only an I/O error mid-write can leave earlier files done."""
     root = Path(repo_root)
     plans = [(c, *_plan(root, c, enabled=enabled)) for c in _selected(wired, enabled=enabled).values()]
     done: list[str] = []
     for client, new, existing in plans:
         if new is None:
             continue
-        if new.strip():
-            if enabled:
-                write_launcher(root)
-            _write(root, client, new, existing)
-        else:
-            _lstat_checked(root, client.path)
-            (root / client.path).unlink()
+        try:
+            if new.strip():
+                if enabled:
+                    write_launcher(root)
+                write_file(root, client.path, _payload(new, existing), existing.mode if existing else 0o644)
+            else:
+                remove_file(root, client.path)
+        except OSError as exc:
+            msg = f"{client.path}: cannot be written ({exc.strerror or exc}){UNTOUCHED}"
+            raise McpConfigError(msg) from exc
         verb = "Registered the chock MCP server in" if enabled else "Removed the chock MCP server from"
         done.append(f"{verb} {client.path}")
     return done

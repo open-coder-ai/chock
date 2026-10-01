@@ -214,3 +214,73 @@ def test_jsonc_comments_are_refused_with_a_clear_message(tmp_path):
     (tmp_path / CLAUDE.path).write_text('{\n // c\n "a": 1}', encoding="utf-8")
     with pytest.raises(McpConfigError, match="comments are not accepted"):
         register(tmp_path, ALL, enabled=True)
+
+
+def test_a_directory_swapped_for_a_symlink_after_the_check_writes_nothing_outside(tmp_path, monkeypatch):
+    from chock.scaffold import mcp_write
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    real = mcp_write._lstat_checked
+    swapped = []
+
+    def swap_after_check(root, rel):
+        result = real(root, rel)
+        if rel == CURSOR_REL and not swapped:
+            swapped.append(1)
+            (root / ".cursor").symlink_to(outside)
+        return result
+
+    monkeypatch.setattr(mcp_write, "_lstat_checked", swap_after_check)
+    with pytest.raises(McpConfigError, match="not a plain directory"):
+        register(repo, ALL, enabled=True)
+    assert swapped and list(outside.iterdir()) == []
+
+
+def test_removal_after_a_swap_deletes_nothing_outside(tmp_path, monkeypatch):
+    from chock.scaffold import mcp_write
+
+    repo = tmp_path / "repo"
+    register(repo, ALL, enabled=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    keep = outside / "mcp.json"
+    keep.write_text("{}", encoding="utf-8")
+    real = mcp_write._lstat_checked
+    swapped = []
+
+    def swap_after_check(root, rel):
+        result = real(root, rel)
+        if rel == CURSOR_REL and not swapped:
+            swapped.append(1)
+            (root / ".cursor" / "mcp.json").unlink()
+            (root / ".cursor").rmdir()
+            (root / ".cursor").symlink_to(outside)
+        return result
+
+    monkeypatch.setattr(mcp_write, "_lstat_checked", swap_after_check)
+    with pytest.raises(McpConfigError):
+        register(repo, ALL, enabled=False)
+    assert keep.read_text(encoding="utf-8") == "{}"
+
+
+def test_an_os_error_at_write_time_is_a_clean_refusal(tmp_path, monkeypatch):
+    from chock.scaffold import mcp_register
+
+    def boom(*_a, **_k):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(mcp_register, "write_file", boom)
+    with pytest.raises(McpConfigError, match="cannot be written"):
+        register(tmp_path, ALL, enabled=True)
+
+
+def test_the_path_fallback_still_writes(tmp_path, monkeypatch):
+    from chock.scaffold import mcp_write
+
+    monkeypatch.setattr(mcp_write, "_fd_safe", lambda: False)
+    assert register(tmp_path, ALL, enabled=True)
+    assert register(tmp_path, ALL, enabled=False)
+    assert not (tmp_path / CLAUDE.path).exists()
