@@ -231,9 +231,10 @@ max-statements = 50
 "src/chock/guidance/cli.py" = ["T201"]
 # History scan: its print() is the report; `chock check` imports it lazily so the other checks stay import-light.
 # Refusal messages sit beside the condition that refuses (the externalized-text exception), so TRY003 is file-scoped.
-"src/chock/history/cli.py" = ["T201", "PLC0415"]
+"src/chock/history/cli.py" = ["T201", "PLC0415", "TRY003"]
 "src/chock/history/gates.py" = ["TRY003"]
 "src/chock/history/gitlog.py" = ["TRY003"]
+"src/chock/history/scan.py" = ["TRY003"]
 "src/chock/hooks/autocompile.py" = ["T201"]
 "src/chock/hooks/install.py" = ["T201"]
 "src/chock/hooks/installers.py" = ["T201"]

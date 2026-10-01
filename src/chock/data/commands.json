@@ -20,7 +20,7 @@
     "check": {
       "module": "chock.history.cli",
       "fn": "check_main",
-      "help": "Run every truth check: validate, verify, evals, matrix (--only to narrow)"
+      "help": "Run every truth check: validate, verify, evals, matrix (--only to narrow; --history scans past commits)"
     },
     "status": {
       "module": "chock.lifecycle",

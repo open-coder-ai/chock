@@ -38,7 +38,7 @@ class Rule:
     def hits(self, text: str) -> list[int]:
         """1-based line numbers whose text matches and carries no waiver pragma."""
         found = []
-        for number, line in enumerate(text.split("\n"), start=1):
+        for number, line in enumerate(text.splitlines(), start=1):
             if self.pragma_re and self.pragma_re.search(line):
                 continue
             if self.content_re.search(line):
@@ -82,7 +82,10 @@ def load_rules(repo: Path) -> tuple[list[Rule], list[str]]:
             spec = json.loads(gate_path.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
             raise HistoryError(f"cannot read installed gate {gate_path.parents[1].name}: {exc}") from exc
-        if not isinstance(spec, dict) or EVENT not in (spec.get("on") or []):
+        name = gate_path.parents[1].name
+        if not isinstance(spec, dict) or not isinstance(spec.get("on", []), list):
+            raise HistoryError(f"installed gate {name} is not a gate document; refusing to skip it silently")
+        if EVENT not in spec.get("on", []):
             continue
         if spec.get("kind") == KIND:
             rules.append(_rule(repo, gate_path, spec))

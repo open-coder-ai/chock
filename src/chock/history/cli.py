@@ -9,7 +9,7 @@ from pathlib import Path
 
 from chock.history import gitlog
 from chock.history.gates import load_rules
-from chock.history.scan import DEFAULT_MAX_BLOB_BYTES, DEFAULT_MAX_COMMITS, Limits, Report, scan
+from chock.history.scan import DEFAULT_MAX_BLOB_BYTES, DEFAULT_MAX_COMMITS, DEFAULT_TIME_BUDGET, Limits, Report, scan
 
 EXIT_FINDINGS = 1
 EXIT_ERROR = 2
@@ -34,6 +34,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--since", default=None, help="Scan only commits after this rev (<rev>..HEAD)")
     parser.add_argument("--max-commits", type=_positive, default=DEFAULT_MAX_COMMITS, help="Newest commits to scan")
     parser.add_argument("--max-blob-bytes", type=_positive, default=DEFAULT_MAX_BLOB_BYTES, help="Skip larger blobs")
+    parser.add_argument("--allow-shallow", action="store_true", help="Scan a shallow clone anyway (exit 2 otherwise)")
+    parser.add_argument("--time-budget", type=_positive, default=DEFAULT_TIME_BUDGET, help="Seconds for the whole scan")
     parser.add_argument("--json", action="store_true", help="Machine-readable report on stdout")
     parser.add_argument(
         "--report-only", action="store_true", help="Report findings but exit 0 (history before adoption)"
@@ -52,6 +54,7 @@ def _document(report: Report, applied: list[str], skipped: list[str]) -> dict[st
         "blobs_scanned": report.blobs_scanned,
         "skipped_binary": report.skipped_binary,
         "skipped_oversize": report.skipped_oversize,
+        "skipped_submodules": report.skipped_submodules,
         "truncated": report.truncated,
         "shallow": report.shallow,
         "gates_applied": applied,
@@ -63,7 +66,8 @@ def _document(report: Report, applied: list[str], skipped: list[str]) -> dict[st
 def _text(report: Report, applied: list[str], skipped: list[str]) -> str:
     out = [
         f"history scan: {report.commits} commits, {report.blobs_scanned} distinct blobs "
-        f"(skipped {report.skipped_binary} binary, {report.skipped_oversize} oversize)",
+        f"(not scanned: {report.skipped_binary} binary, {report.skipped_oversize} oversize, "
+        f"{report.skipped_submodules} submodule pointers)",
         f"gates applied: {', '.join(applied)}",
     ]
     if skipped:
@@ -85,25 +89,40 @@ def _text(report: Report, applied: list[str], skipped: list[str]) -> str:
     return "\n".join(out)
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = _parser().parse_args(argv)
+def _run(args: argparse.Namespace) -> int:
     repo = Path(args.repo)
-    try:
-        since = gitlog.resolve_rev(repo, args.since) if args.since is not None else None
-        if not gitlog.has_commits(repo):
-            print("history: no commits to scan", file=sys.stderr)
-            return 0
-        rules, skipped = load_rules(repo)
-        report = scan(repo, rules, since, Limits(args.max_commits, args.max_blob_bytes))
-    except gitlog.HistoryError as exc:
-        print(f"history: {exc}", file=sys.stderr)
-        return EXIT_ERROR
+    gitlog.require_repo(repo)
+    since = None
+    if args.since is not None:
+        since = gitlog.resolve_rev(repo, args.since)
+        if since is None:
+            raise gitlog.HistoryError(f"{args.since!r} does not name a commit")
+    if gitlog.resolve_rev(repo, "HEAD") is None:
+        print("history: no commits to scan (HEAD is unborn)", file=sys.stderr)
+        return 0
+    rules, skipped = load_rules(repo)
+    limits = Limits(args.max_commits, args.max_blob_bytes, args.allow_shallow, args.time_budget)
+    report = scan(repo, rules, since, limits)
     applied = sorted({r.policy for r in rules})
     if args.json:
         print(json.dumps(_document(report, applied, skipped), indent=2))
     else:
         print(_text(report, applied, skipped))
     return EXIT_FINDINGS if report.findings and not args.report_only else 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    try:
+        return _run(args)
+    except gitlog.HistoryError as exc:
+        print(f"history: {exc}", file=sys.stderr)
+    except Exception as exc:  # noqa: BLE001 -- 1 means findings; anything undecided must be 2, naming only the type
+        print(f"history: scan failed ({type(exc).__name__}); no result was established", file=sys.stderr)
+    return EXIT_ERROR
+
+
+_HISTORY_HINT = "\nWith --history, scan past commits instead: chock check --history -h"
 
 
 def check_main(argv: list[str] | None) -> int:
@@ -113,4 +132,9 @@ def check_main(argv: list[str] | None) -> int:
         return main([a for a in args if a != "--history"])
     from chock.lifecycle import check_main as truth_checks
 
-    return truth_checks(argv)
+    try:
+        return truth_checks(argv)
+    except SystemExit:
+        if {"-h", "--help"} & set(args):
+            print(_HISTORY_HINT)
+        raise

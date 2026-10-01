@@ -24,11 +24,15 @@ def make_repo(path: Path, gates: tuple[str, ...] = GATES) -> Path:
     git(path, "init", "-q")
     git(path, "config", "user.email", "t@example.com")
     git(path, "config", "user.name", "t")
+    install_gates(path, gates)
+    return path
+
+
+def install_gates(path: Path, gates: tuple[str, ...] = GATES) -> None:
     for gate in gates:
         dest = path / ".chock" / "compiled" / gate / "git-hook"
         dest.mkdir(parents=True)
         shutil.copy(FRAMEWORK_ROOT / ".chock" / "compiled" / gate / "git-hook" / "gate.json", dest / "gate.json")
-    return path
 
 
 def commit(repo: Path, files: dict[str, str | bytes], message: str = "c", removed: tuple[str, ...] = ()) -> str:
