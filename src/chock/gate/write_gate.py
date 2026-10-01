@@ -25,6 +25,8 @@ from .session_log import session_for
 from .stop_reentry import settle_stop
 
 GATE_FLAG = "--gate"
+#: A plugin's Stop hook shares the pre-tool `gate.json`; this flag tells the runtime which event it serves.
+STOP_FLAG = "--stop"
 
 _GATE_TIMEOUT_SECONDS = 30
 

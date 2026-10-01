@@ -20,21 +20,21 @@ def _chock_spec_action(path):
 
 
 def _chock_declared():
-    """(strictest action, event) of the judging flags; (None, None) where this run judges nothing."""
+    """(strictest action, event, gate) of the judging flags; (None, None, None) where this run judges nothing."""
     argv = sys.argv[1:]
     actions = ["block"] if guard_path_from_argv(argv) is not None else []
     event = PRE_TOOL
     gate = _flag_path(argv, GATE_FLAG)
     if gate is not None:
         actions.append(_chock_spec_action(gate))
-        event = STOP if gate.parent.name == _EVENT_ARG[STOP] else PRE_TOOL
+        event = STOP if STOP_FLAG in argv or gate.parent.name == _EVENT_ARG[STOP] else PRE_TOOL
     called = _flag_path(argv, TOOL_CALL_FLAG)
     if called is not None:
         actions.append(_chock_spec_action(called))
     for action in ("block", "ask", "warn"):
         if action in actions:
-            return action, event
-    return None, None
+            return action, event, gate
+    return None, None, None
 
 
 def _chock_refuses(text, code):
@@ -51,12 +51,23 @@ def _chock_refuses(text, code):
     return any(part.get(key) in _CHOCK_REFUSING for part in answers for key in _CHOCK_ANSWER_KEYS)
 
 
+def _chock_unreadable_stop(gate):
+    """The bounded verdict of an unreadable Stop: a refusal, or a warning once the cap is spent."""
+    root = root_for(gate) or _chock_Path.cwd()
+    return settle_unreadable_stop(root, gate.parent.parent.name, _CHOCK_UNREADABLE)
+
+
 def _chock_unreadable():
-    action, kind = _chock_declared()
+    action, kind, gate = _chock_declared()
     if action in (None, "warn"):
         return "", 0
-    _report(_CHOCK_UNREADABLE + "\n")
-    decision = Decision.escalate(_CHOCK_UNREADABLE) if action == "ask" else Decision.deny(_CHOCK_UNREADABLE)
     event = Event(AGENT, kind, raw=dict(_CHOCK_WIRE_RAW[kind]))
+    reason = _CHOCK_UNREADABLE
+    if kind == STOP and gate is not None:
+        verdict, reason = _chock_unreadable_stop(gate)
+        if verdict == VERDICT_WARN:
+            return __WARN_RESPOND__(degrade(Decision.warn(reason), event), event)
+    _report(reason + "\n")
+    decision = Decision.escalate(reason) if action == "ask" else Decision.deny(reason)
     text, code = __RESPOND__(degrade(decision, event), event)
     return (text, code) if _chock_refuses(text, code) else ("", 2)

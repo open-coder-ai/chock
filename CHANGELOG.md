@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- **A plugin's Stop hook refuses an unreadable payload in the vendor's Stop grammar.** Plugin
+  packages reuse the pre-tool `gate.json` for their Stop hook, so the runtime could not tell it was
+  at Stop and answered in the pre-tool grammar (Claude, Codex and Copilot `permissionDecision: deny`,
+  Cursor `{"permission": "deny"}`), which does not end a Stop. The Stop command now carries
+  `--stop`: Claude, Codex and Devin answer `{"decision": "block"}`, Copilot its nested Stop
+  `decision: block`, Cursor exit 2.
+- **An unreadable Stop payload is refused at most 3 times, then warned.** Without a readable payload
+  there is no session id, so the per-session re-entry ledger could not count it and the turn was
+  refused every time. A per-repository ledger in the state directory under `.chock/` now counts refusals in a 600 second
+  window: 3 refusals, then the turn ends with a warning (`systemMessage` where the vendor documents
+  one; Cursor and Devin get stderr only, Devin with an `approve` answer) and a held `would_block`
+  record (`reentry_verdict: unreadable`), never silently. The ledger sits under the state directory under `.chock/`, which
+  protect-agent-config's shell guard covers; an agent that could edit it could pre-seed it, the same
+  trust the per-session ledger places in its own for clients that send no count. Pre-tool unreadable
+  payloads are never capped.
+- **A stop ledger that is not a plain file keeps refusing.** Both stop ledgers (the per-session
+  `<session>.stop.jsonl` and the unreadable-stop one) are lstat-checked before they are opened: a
+  symlink, FIFO, socket, device or directory in the ledger, the state directory under `.chock/` or `.chock` is never
+  opened (a FIFO would hang the hook until a client's timeout, which it may read as an allow) and
+  nothing is written through it. With nothing countable the Stop is refused, as it is when the ledger
+  cannot be written. A client that sends its own count (Cursor `loop_count`) is still believed.
 - **Hooks that cannot read their input, or find their package, refuse.** Every vendored runtime
   (`.chock/bin/<agent>.py`, plugin `scripts/<agent>.py`, bundles included) used to exit 0 on an
   empty, unparseable or non-object payload. A run that judges a call (`--guard`, a blocking

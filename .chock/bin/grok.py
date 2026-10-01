@@ -1343,6 +1343,14 @@ REENTRY_CAP = 3
 
 STOP_LEDGER_SUFFIX = '.stop.jsonl'
 
+GATE_LOG_PARTS = ('.chock', 'log', 'gate-events.jsonl')
+
+STOP_MODE_MASK = 61440
+
+STOP_MODE_FILE = 32768
+
+STOP_MODE_DIR = 16384
+
 STOP_PHASE = 'stop'
 
 STOP_TURN_KEYS = ('turn_id', 'generation_id')
@@ -1410,10 +1418,31 @@ def finding_digests(message, writes):
 def stop_ledger_path(root, session_id):
     return _chock_Path(root).joinpath(*SESSION_STATE_PARTS, session_id + STOP_LEDGER_SUFFIX)
 
+def stop_ledger_safe(path):
+    """Whether `path`, its directory and `.chock` are what chock made: real directories and a regular file or none.
+
+    lstat, so a symlink, FIFO, socket, device or directory in any place is refused before anything opens it:
+    opening a FIFO blocks the hook until its timeout, which a client may read as an allow.
+    """
+    for target, kind in ((path, STOP_MODE_FILE), (path.parent, STOP_MODE_DIR), (path.parent.parent, STOP_MODE_DIR)):
+        try:
+            mode = _chock_os.lstat(target).st_mode
+        except FileNotFoundError:
+            continue
+        except OSError:
+            return False
+        if mode & STOP_MODE_MASK != kind:
+            return False
+    return True
+
 def _stop_lines(path):
-    """The ledger's lines; none when it is missing or cannot be read."""
+    """The ledger's lines; none when it is missing, unsafe or cannot be read."""
+    if not stop_ledger_safe(path):
+        return []
     try:
-        return path.read_text(encoding='utf-8', errors='replace').splitlines()
+        fd = _chock_os.open(path, _chock_os.O_RDONLY | getattr(_chock_os, 'O_NOFOLLOW', 0) | getattr(_chock_os, 'O_NONBLOCK', 0))
+        with _chock_os.fdopen(fd, encoding='utf-8', errors='replace') as fh:
+            return fh.read().splitlines()
     except OSError:
         return []
 
@@ -1448,10 +1477,13 @@ def _stop_chain(lines, session_id, policy, turn):
 def _stop_append(path, lines, record):
     """Append one record, keeping the last `SESSION_MAX_ENTRIES`; whether it landed."""
     line = json.dumps(record, sort_keys=True)
+    if not stop_ledger_safe(path):
+        return False
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         if len(lines) < SESSION_MAX_ENTRIES and (not path.exists() or path.stat().st_size < SESSION_TRIM_BYTES):
-            with path.open('a', encoding='utf-8') as fh:
+            flags = _chock_os.O_WRONLY | _chock_os.O_APPEND | _chock_os.O_CREAT | getattr(_chock_os, 'O_NOFOLLOW', 0) | getattr(_chock_os, 'O_NONBLOCK', 0)
+            with _chock_os.fdopen(_chock_os.open(path, flags, 384), 'a', encoding='utf-8') as fh:
                 fh.write(line + '\n')
         else:
             scratch = path.with_name('%s.%d.tmp' % (path.name, _chock_os.getpid()))
@@ -1468,6 +1500,8 @@ def _stop_gate_log(root, policy, verdict, reentry, findings):
     `reentry` is (index, reentry_verdict, findings_changed or None).
     """
     try:
+        if not stop_ledger_safe(_chock_Path(root).joinpath(*GATE_LOG_PARTS)):
+            return
         held = verdict == STOP_LOG_WARN
         if _chock_os.environ.get(GATE_LOG_ENV) == '0' and (not held):
             return
@@ -1532,7 +1566,55 @@ def settle_stop(event, root, gate, decision, writes=None):
     _stop_gate_log(root, policy, verdict, (index, tracked, changed), findings)
     return (VERDICT_DENY, message + (_STOP_LAST.format(cap=REENTRY_CAP) if index == REENTRY_CAP else ''))
 
+UNREADABLE_STOP_LEDGER = 'unreadable-stop.jsonl'
+
+UNREADABLE_STOP_PHASE = 'unreadable-stop'
+
+UNREADABLE_STOP_WINDOW_SECONDS = 600
+
+REENTRY_UNREADABLE = 'unreadable'
+
+_UNREADABLE_STOP_WARNING = 'chock {policy}: {cap} stops in a row had a payload chock could not read, so none of them was judged. The turn was allowed to end so the client does not loop; a commit will judge what is on disk, and a person must look at why the payload is unreadable.\n'
+
+_UNREADABLE_STOP_LAST = '\nThis is refusal {cap} of {cap} for stops chock cannot read: the next one ends the turn unchecked, and a commit will judge what is on disk. A person must look at why the payload is unreadable.'
+
+def _unreadable_stop_recent(lines, now):
+    """The refusals recorded inside the window; a record that does not parse, or has no time, counts as none."""
+    kept = []
+    for line in lines:
+        seen = _stop_parse(line)
+        stamp = seen.get('at') if isinstance(seen, dict) else None
+        refused = isinstance(seen, dict) and seen.get('phase') == UNREADABLE_STOP_PHASE
+        if refused and seen.get('verdict') == STOP_LOG_BLOCK and (type(stamp) in (int, float)) and (0 <= now - stamp < UNREADABLE_STOP_WINDOW_SECONDS):
+            kept.append(stamp)
+    return kept
+
+def settle_unreadable_stop(root, policy, refusal):
+    """(verdict, text) this unreadable Stop earns: a refusal with `refusal`, or a warning once the cap is spent.
+
+    A ledger that is not a regular file in real directories, or cannot be written, keeps refusing: with nothing to count, only a refusal is safe.
+    """
+    path = _chock_Path(root).joinpath(*SESSION_STATE_PARTS, UNREADABLE_STOP_LEDGER)
+    if not stop_ledger_safe(path):
+        return (VERDICT_DENY, refusal)
+    lines = _stop_lines(path)
+    now = _chock_datetime.now(_chock_timezone.utc).timestamp()
+    index = len(_unreadable_stop_recent(lines, now)) + 1
+    capped = index > REENTRY_CAP
+    verdict = STOP_LOG_WARN if capped else STOP_LOG_BLOCK
+    _stop_append(path, lines, {'phase': UNREADABLE_STOP_PHASE, 'verdict': verdict, 'at': now, 'reentry': index})
+    _stop_gate_log(root, policy, verdict, (index, REENTRY_UNREADABLE, None), [])
+    if capped:
+        text = _UNREADABLE_STOP_WARNING.format(policy=policy, cap=REENTRY_CAP)
+        with contextlib.suppress(Exception):
+            sys.stderr.write(text)
+            sys.stderr.flush()
+        return (VERDICT_WARN, text)
+    return (VERDICT_DENY, refusal + (_UNREADABLE_STOP_LAST.format(cap=REENTRY_CAP) if index == REENTRY_CAP else ''))
+
 GATE_FLAG = '--gate'
+
+STOP_FLAG = '--stop'
 
 _GATE_TIMEOUT_SECONDS = 30
 
@@ -1893,21 +1975,21 @@ def _chock_spec_action(path):
 
 
 def _chock_declared():
-    """(strictest action, event) of the judging flags; (None, None) where this run judges nothing."""
+    """(strictest action, event, gate) of the judging flags; (None, None, None) where this run judges nothing."""
     argv = sys.argv[1:]
     actions = ["block"] if guard_path_from_argv(argv) is not None else []
     event = PRE_TOOL
     gate = _flag_path(argv, GATE_FLAG)
     if gate is not None:
         actions.append(_chock_spec_action(gate))
-        event = STOP if gate.parent.name == _EVENT_ARG[STOP] else PRE_TOOL
+        event = STOP if STOP_FLAG in argv or gate.parent.name == _EVENT_ARG[STOP] else PRE_TOOL
     called = _flag_path(argv, TOOL_CALL_FLAG)
     if called is not None:
         actions.append(_chock_spec_action(called))
     for action in ("block", "ask", "warn"):
         if action in actions:
-            return action, event
-    return None, None
+            return action, event, gate
+    return None, None, None
 
 
 def _chock_refuses(text, code):
@@ -1924,13 +2006,24 @@ def _chock_refuses(text, code):
     return any(part.get(key) in _CHOCK_REFUSING for part in answers for key in _CHOCK_ANSWER_KEYS)
 
 
+def _chock_unreadable_stop(gate):
+    """The bounded verdict of an unreadable Stop: a refusal, or a warning once the cap is spent."""
+    root = root_for(gate) or _chock_Path.cwd()
+    return settle_unreadable_stop(root, gate.parent.parent.name, _CHOCK_UNREADABLE)
+
+
 def _chock_unreadable():
-    action, kind = _chock_declared()
+    action, kind, gate = _chock_declared()
     if action in (None, "warn"):
         return "", 0
-    _report(_CHOCK_UNREADABLE + "\n")
-    decision = Decision.escalate(_CHOCK_UNREADABLE) if action == "ask" else Decision.deny(_CHOCK_UNREADABLE)
     event = Event(AGENT, kind, raw=dict(_CHOCK_WIRE_RAW[kind]))
+    reason = _CHOCK_UNREADABLE
+    if kind == STOP and gate is not None:
+        verdict, reason = _chock_unreadable_stop(gate)
+        if verdict == VERDICT_WARN:
+            return respond(degrade(Decision.warn(reason), event), event)
+    _report(reason + "\n")
+    decision = Decision.escalate(reason) if action == "ask" else Decision.deny(reason)
     text, code = respond(degrade(decision, event), event)
     return (text, code) if _chock_refuses(text, code) else ("", 2)
 
