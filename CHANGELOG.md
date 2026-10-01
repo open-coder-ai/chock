@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **`chock add` and `chock sync` write one spelling of a local pack to `chock.lock`.** A pack added
+  from the repo itself was recorded as `"source": "."` with `"source_commit": null`, and the next
+  `sync` rewrote it as `"source": "local"` with no `source_commit`, so a clean tree kept producing a
+  lockfile diff. A local pack is now always `"source": "local"` with no `source_commit`; an old
+  lockfile converges on its next `sync` and is then stable. Catalog provenance (`source`,
+  `source_commit`, `source_ref`) is kept across `sync` while the pack still hashes to what was
+  fetched; an edited pack is local again.
 - **`chock sync` can register the `chock mcp` guidance server with your agents, opt-in.** Set
   `guidance_mcp: true` (one top-level line, read like `rollout:`) in `.chock/config.yaml` and sync
   merges a `chock` server into each wired client's project MCP config: Claude Code `.mcp.json`,
