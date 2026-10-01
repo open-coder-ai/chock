@@ -28,6 +28,12 @@ _MISSING = f"test -f {LAUNCHER_REL} || {{ echo chock: no {LAUNCHER_REL} here, ru
 #: No `$`, no backslash, no single quote: bash, PowerShell and cmd.exe read it identically.
 _PREFIX = f'git -c "alias.{ALIAS}=!{_MISSING}; sh {LAUNCHER_REL}" {ALIAS}'
 
+
+def launcher_argv(*args: str) -> list[str]:
+    """`hook_command` as an argv, for clients that take a command and an args list (MCP configs)."""
+    return ["git", "-c", f"alias.{ALIAS}=!{_MISSING}; sh {LAUNCHER_REL}", ALIAS, *args]
+
+
 #: A plugin has no repository root to resolve against, so its alias carries nothing but `sh`: git
 #: supplies a POSIX sh under bash, PowerShell and cmd.exe alike, and the launcher's path is an
 #: argument the client expands in its plugin-root token, as it did for `python3 "<path>"`.
