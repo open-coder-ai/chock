@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **`chock check --history` scans the existing git history once.** At adoption, secrets committed
+  before chock was installed were invisible: the gates judge a diff, so only new commits were ever
+  read. `chock check --history [--since <rev>] [--max-commits N] [--max-blob-bytes N] [--json]
+  [--report-only]` now applies the installed `content_regex` commit gates (scan-secrets,
+  block-invisible-unicode, and any other gate of that kind) to every blob the newest N commits
+  introduced (default 5000, blobs up to 1 MiB) and reports commit, path, line, policy and rule, oldest
+  commit first; a line that persists across edits is reported once, where it entered. It is
+  read-only (`git log --raw` and `cat-file --batch`, list argv, no checkout, no hooks, no history
+  rewrite), refuses an option-like or unknown ref, skips binary and oversize blobs, and reads each
+  distinct blob once. Matched text is never printed. Findings exit 1 so CI can gate on it;
+  `--report-only` exits 0 for history that predates adoption; an unreadable gate or a repo with no
+  installed content gate exits 2. Script, ref and dependency gates are listed as not applied. It
+  runs only the installed gates' own patterns, never repo code.
 - **A plugin's Stop hook refuses an unreadable payload in the vendor's Stop grammar.** Plugin
   packages reuse the pre-tool `gate.json` for their Stop hook, so the runtime could not tell it was
   at Stop and answered in the pre-tool grammar (Claude, Codex and Copilot `permissionDecision: deny`,
