@@ -3,6 +3,12 @@
 `.chock/security.json` (java-security) and `.chock/agentic-security.json` (agentic-code-security) set
 each rule's verdict. Their readers live in those policies; this mirrors their semantics so the check and
 the runtime agree. The engine does not know the rule lists, so a pack's unnamed rules stand as one key.
+
+Where the check cannot see what the runtime would enforce, it fails closed instead of matching:
+- a head selection that is a symlink, a directory or another non-regular file is an error: the runtime
+  reads through a link to text outside the diff, and past a dangling one or a directory as if absent;
+- java-security falls back to the user-level `~/.chock/security.json` when the repository has none, so
+  deleting a committed java selection is a loosening, whatever the base said.
 """
 
 from __future__ import annotations
@@ -31,7 +37,8 @@ class Kind:
     verdicts: frozenset[str]
     default: str | None  # what a rule nobody spoke for does; None when each rule carries its own default
     verdict_ends_rules: bool = field(kw_only=True)  # java ignores `rules` beside a verdict; agentic lets them override
-    null_ok: bool = field(kw_only=True)  # a null pack or null rules reads as omitted
+    lenient: bool = field(kw_only=True)  # a falsy `packs` or `rules`, or a null pack, reads as omitted
+    fallback: str | None = field(default=None, kw_only=True)  # what deleting the file hands verdicts to
 
 
 JAVA = Kind(
@@ -40,7 +47,8 @@ JAVA = Kind(
     frozenset({ALLOW, ASK, DENY}),
     DENY,
     verdict_ends_rules=True,
-    null_ok=True,
+    lenient=True,
+    fallback="deleting the repo selection hands verdicts to ~/.chock/security.json",
 )
 AGENTIC = Kind(
     ".chock/agentic-security.json",
@@ -48,7 +56,7 @@ AGENTIC = Kind(
     frozenset({ALLOW, DENY}),
     None,
     verdict_ends_rules=False,
-    null_ok=False,
+    lenient=False,
 )
 KINDS = (JAVA, AGENTIC)
 
@@ -69,7 +77,7 @@ def _verdict(kind: Kind, value: object) -> str:
 
 
 def _object(kind: Kind, value: object, where: str, *, keys: frozenset[str] | None = None) -> dict:
-    if value is None and kind.null_ok and keys is None:
+    if not value and kind.lenient and keys is None:
         return {}
     if not isinstance(value, dict):
         msg = f"{kind.filename}: {where} must be an object"
@@ -82,10 +90,12 @@ def _object(kind: Kind, value: object, where: str, *, keys: frozenset[str] | Non
 
 def _pack(kind: Kind, name: str, body: object) -> tuple[str | None, dict[str, str]]:
     where = f"pack {name!r}"
-    if body is None and kind.null_ok:
+    if body is None and kind.lenient:
         return None, {}
     declared = _object(kind, body, where, keys=_PACK_KEYS)
     verdict = _verdict(kind, declared["verdict"]) if "verdict" in declared else None
+    if verdict and kind.verdict_ends_rules:
+        return verdict, {}
     spoken = _object(kind, declared.get("rules", {}), f"{where} rules")
     return verdict, {rule: _verdict(kind, value) for rule, value in spoken.items()}
 
@@ -101,7 +111,7 @@ def parse(kind: Kind, text: str | None) -> Selection:
         raise SelectionInvalidError(msg) from exc
     document = _object(kind, document, "the selection", keys=_TOP_KEYS)
     version = document.get("version")
-    if not isinstance(version, int) or isinstance(version, bool) or version not in kind.versions:
+    if not any(version == known for known in kind.versions):  # as the runtime: True and 2.0 equal 1 and 2
         msg = f"{kind.filename}: version must be one of {sorted(kind.versions)}, got {version!r}"
         raise SelectionInvalidError(msg)
     declared = _object(kind, document.get("packs", {}), "packs")
@@ -165,8 +175,11 @@ class Loosened:
     rule: str | None
     was: str | None
     now: str | None
+    why: str | None = None  # the whole file's loosening, in place of one rule's
 
     def render(self) -> str:
+        if self.why:
+            return f"{self.filename}: {self.why}"
         where = f"pack {self.pack!r}" if self.pack else "a rule"
         what = f"rule {self.rule!r}" if self.rule else "every rule it does not name"
         was, now = self.was or "its default", self.now or "its default"
@@ -177,6 +190,8 @@ def loosened(kind: Kind, base_text: str | None, head_text: str | None) -> list[L
     """Every rule whose verdict the head loosens against the base. Raises SelectionInvalidError on unreadable text."""
     if base_text == head_text:
         return []
+    if kind.fallback and base_text is not None and head_text is None:
+        return [Loosened(kind.filename, None, None, None, None, kind.fallback)]
     base, head = parse(kind, base_text), parse(kind, head_text)
     mixed = base.legacy != head.legacy
     found = []

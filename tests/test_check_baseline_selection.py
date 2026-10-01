@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -11,7 +12,7 @@ import pytest
 from chock.validation.checks_baseline import main
 from chock.validation.selection_baseline import AGENTIC, JAVA, SelectionInvalidError, loosened
 
-PACK = "frameworks"
+PACK = "java"
 RULE = "java-xss-unescaped-template"
 
 
@@ -70,8 +71,12 @@ def test_a_pack_removed_is_tightened_or_equal() -> None:
     assert _moves(JAVA, _java(verdict="allow"), json.dumps({"version": 2, "packs": {}})) == []
 
 
-def test_a_file_that_is_deleted_is_every_rule_denying() -> None:
-    assert _moves(JAVA, _java({RULE: "allow"}), None) == []
+def test_a_deleted_file_hands_verdicts_to_the_user_level_file() -> None:
+    """The runtime falls back to ~/.chock/security.json, so deletion is never read as all-deny."""
+    for base in (_java({RULE: "deny"}), json.dumps({"version": 2, "packs": {}})):
+        assert [i.render() for i in loosened(JAVA, base, None)] == [
+            f"{JAVA.filename}: deleting the repo selection hands verdicts to ~/.chock/security.json"
+        ]
 
 
 def test_a_file_added_that_allows_a_rule_is_loosened() -> None:
@@ -125,12 +130,47 @@ def test_an_agentic_file_added_with_an_allow_is_loosened() -> None:
     assert _moves(AGENTIC, None, _agentic({"exec-x": "allow"})) == [("exec", "exec-x", None, "allow")]
 
 
+def test_an_agentic_file_deleted_falls_to_rule_defaults_not_a_user_file() -> None:
+    """agentic-code-security has no user-level fallback: an absent file is every rule at its default."""
+    assert loosened(AGENTIC, _agentic({"exec-x": "allow"}), None) == []
+    assert _moves(AGENTIC, _agentic({"exec-x": "deny"}), None) == [("exec", "exec-x", "deny", None)]
+
+
 def test_an_agentic_ask_is_not_a_verdict() -> None:
     with pytest.raises(SelectionInvalidError):
         loosened(AGENTIC, None, _agentic({"exec-x": "ask"}))
 
 
-@pytest.mark.parametrize("text", ["[]", '{"version": 3}', '{"version": true}', '{"version": 2, "extra": 1}'])
+@pytest.mark.parametrize("version", ["true", "1.0"])
+def test_a_version_equal_to_one_reads_as_version_one(version: str) -> None:
+    head = f'{{"version": {version}, "packs": {{"java": {{"verdict": "allow"}}}}}}'
+    assert loosened(JAVA, _java(verdict="deny", pack="java", version=1), head)
+
+
+def test_a_version_equal_to_two_reads_as_version_two() -> None:
+    head = json.dumps({"version": 2.0, "packs": {"spring": {"verdict": "allow"}}})
+    assert _moves(JAVA, _java(verdict="deny", pack="spring"), head) == [("spring", None, "deny", "allow")]
+
+
+@pytest.mark.parametrize("empty", ["[]", '""', "0", "false", "null"])
+def test_falsy_packs_or_rules_read_as_empty_in_java(empty: str) -> None:
+    base = _java({RULE: "allow"})
+    assert loosened(JAVA, base, f'{{"version": 2, "packs": {empty}}}') == []
+    assert loosened(JAVA, base, f'{{"version": 2, "packs": {{"{PACK}": {{"rules": {empty}}}}}}}') == []
+
+
+def test_rules_beside_a_java_pack_verdict_are_not_read() -> None:
+    head = json.dumps({"version": 2, "packs": {"android": {"verdict": "allow", "rules": []}}})
+    assert _moves(JAVA, _java(verdict="deny", pack="android"), head) == [("android", None, "deny", "allow")]
+
+
+@pytest.mark.parametrize("packs", ["null", "[]"])
+def test_agentic_packs_must_be_an_object(packs: str) -> None:
+    with pytest.raises(SelectionInvalidError):
+        loosened(AGENTIC, None, f'{{"version": 1, "packs": {packs}}}')
+
+
+@pytest.mark.parametrize("text", ["[]", '{"version": 3}', '{"version": 2.5}', '{"version": 2, "extra": 1}'])
 def test_text_the_runtime_refuses_is_invalid(text: str) -> None:
     with pytest.raises(SelectionInvalidError):
         loosened(JAVA, None, text)
@@ -193,3 +233,47 @@ def test_a_head_selection_the_runtime_would_refuse_fails(tmp_path: Path, capsys:
     (repo / JAVA.filename).write_text("{broken", encoding="utf-8")
     assert main(["--repo", str(repo), "--base", "main"]) == 1
     assert "nothing was compared" in capsys.readouterr().out
+
+
+def test_a_branch_that_deletes_the_java_selection_fails(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+    repo = _repo(tmp_path, {JAVA.filename: _java({RULE: "deny"})})
+    (repo / JAVA.filename).unlink()
+    assert main(["--repo", str(repo), "--base", "main"]) == 1
+    assert "hands verdicts to ~/.chock/security.json" in capsys.readouterr().out
+
+
+def test_a_branch_that_deletes_an_allowing_agentic_selection_passes(tmp_path: Path) -> None:
+    repo = _repo(tmp_path, {AGENTIC.filename: _agentic({"exec-x": "allow"})})
+    (repo / AGENTIC.filename).unlink()
+    assert main(["--repo", str(repo), "--base", "main"]) == 0
+
+
+def _directory(path: Path, _: Path) -> None:
+    path.mkdir()
+
+
+def _link_to_missing(path: Path, outside: Path) -> None:
+    os.symlink(outside / "absent.json", path)
+
+
+def _link_to_present(path: Path, outside: Path) -> None:
+    (outside / "allow.json").write_text(_java({RULE: "deny"}), encoding="utf-8")
+    os.symlink(outside / "allow.json", path)
+
+
+@pytest.mark.parametrize("kind", [JAVA, AGENTIC])
+@pytest.mark.parametrize("swap", [_directory, _link_to_missing, _link_to_present])
+def test_a_selection_path_that_is_not_a_regular_file_fails(tmp_path: Path, kind, swap, capsys) -> None:
+    repo = _repo(tmp_path, {kind.filename: _java({RULE: "deny"}) if kind is JAVA else _agentic({"exec-x": "deny"})})
+    (repo / kind.filename).unlink()
+    swap(repo / kind.filename, tmp_path)
+    assert main(["--repo", str(repo), "--base", "main"]) == 1
+    assert "not a regular file" in capsys.readouterr().out
+
+
+def test_a_linked_chock_directory_fails(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+    repo = _repo(tmp_path, {JAVA.filename: _java({RULE: "deny"})})
+    (repo / ".chock").rename(tmp_path / "elsewhere")
+    os.symlink(tmp_path / "elsewhere", repo / ".chock")
+    assert main(["--repo", str(repo), "--base", "main"]) == 1
+    assert "not a regular file" in capsys.readouterr().out

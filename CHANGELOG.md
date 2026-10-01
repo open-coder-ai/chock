@@ -7,7 +7,9 @@
   (agentic-code-security) as their runtimes do, and fails on a verdict the head loosens against the
   base: deny to ask, deny to allow, ask to allow, a pack verdict loosened, or a rule entry dropped
   where silence is looser (agentic-code-security rules carry their own default, so a dropped deny
-  entry is flagged). A selection the runtime would refuse fails too.
+  entry is flagged). A selection the runtime would refuse fails too. Deleting a committed
+  `.chock/security.json` fails, since java-security then falls back to `~/.chock/security.json`, and a
+  symlink, directory or other non-regular file at either selection path is an error.
 
 - **GitHub annotations from the CI gate.** With `GITHUB_ACTIONS=true`, `chock gate run --event ci`
   also prints one `::error` (or `::warning` for warn, ask and anything the rollout level lowered)
