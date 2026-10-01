@@ -7,6 +7,10 @@ on:
 jobs:
   chock-gate:
     runs-on: ubuntu-latest
+    # Scoped to this job: `security-events: write` is only for the SARIF upload at the end.
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v4
         # Full history: `--event ci` diffs base...head, which needs the base ref present.
@@ -44,3 +48,21 @@ jobs:
             echo "::endgroup::"
           done
           exit "$status"
+
+      # The same gates' findings as SARIF, for code scanning. `always()` so a blocked run uploads
+      # too; this step's exit code is the gate step's own, so it never decides the job alone.
+      - name: Write SARIF findings
+        id: sarif
+        if: always()
+        run: |
+          chock check --event ci --format sarif --base "origin/$GITHUB_BASE_REF" \
+            --head-ref "$GITHUB_HEAD_REF" --output "$RUNNER_TEMP/chock.sarif"
+
+      # continue-on-error on this step only: code scanning may be off, or a fork's token read-only.
+      - name: Upload SARIF to code scanning
+        if: ${{ always() && steps.sarif.outcome != 'skipped' }}
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2  # v4.38.2
+        with:
+          sarif_file: ${{ runner.temp }}/chock.sarif
+          category: chock

@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **`chock check --event ci --base <ref> --format sarif` writes the ci gates' findings as SARIF 2.1.0.**
+  One `run` (driver `chock`, version, `informationUri`) with a rule per policy rule of each gated
+  policy's shipped setup contract (`<policy>/<rule>`, title, constraint, first https reference as
+  `helpUri`, CWE ids as `external/cwe/cwe-NNN` tags) and a result per finding: `block` is `error`,
+  `ask` `warning`, `warn` `note`; repo-relative POSIX `artifactLocation.uri` (a path outside the repo
+  falls back to the policy's manifest), `startLine` when known, a `partialFingerprints` entry that
+  ignores the line, text with no control or invisible character. A finding the rollout level holds
+  keeps the level it would have and carries `rolloutHeld: true`. `--output <file>` writes it to a file;
+  the exit code is the gates' own (1 on a block, 2 when a gate cannot judge), never the format's.
+  `chock sync --ci` installs a workflow that uploads it with a commit-pinned
+  `github/codeql-action/upload-sarif`, `security-events: write` on that job only, `if: always()`, and
+  `continue-on-error` on the upload step alone (code scanning may be off or a fork's token read-only).
 - **A plugin's Stop hook refuses an unreadable payload in the vendor's Stop grammar.** Plugin
   packages reuse the pre-tool `gate.json` for their Stop hook, so the runtime could not tell it was
   at Stop and answered in the pre-tool grammar (Claude, Codex and Copilot `permissionDecision: deny`,
