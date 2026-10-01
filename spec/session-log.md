@@ -124,9 +124,11 @@ block`), so it is written even with `CHOCK_GATE_LOG=0`.
 
 No session id is readable then, so `unreadable-stop.jsonl` beside the session files in `.chock/state/` counts the repository's refusals
 instead: records `{"phase": "unreadable-stop", "verdict", "at" (epoch seconds), "reentry"}`. Refusals
-inside a 600 second window count; 3 are refused, the next ends the turn with a `systemMessage` and
-stderr warning and a held `warn` record (`reentry_verdict: unreadable`), until the oldest refusal
-ages out. A record that does not parse counts as none, and a ledger that cannot be written keeps refusing.
+inside a 600 second window count; 3 are refused, the next ends the turn with a
+stderr warning (`systemMessage` only where the vendor documents one) and a held `warn` record (`reentry_verdict: unreadable`), until the oldest refusal
+ages out. A record that does not parse counts as none. A ledger, the state directory under `.chock/` or `.chock` that is a
+symlink or not a regular file or directory is never opened, and one that cannot be written keeps refusing;
+this holds for `<session_id>.stop.jsonl` too.
 
 ## Privacy
 

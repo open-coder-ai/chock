@@ -2,7 +2,7 @@
 
 Plugin Stop hooks share the pre-tool `gate.json`, so they say `--stop`; an unreadable payload cannot
 name a session, so a per-repo ledger counts the refusals: `REENTRY_CAP`, then a loud warning and a held
-gate-log record, never a silent allow, and never sooner than a readable payload gets.
+gate-log record, never a silent allow.
 """
 
 from __future__ import annotations

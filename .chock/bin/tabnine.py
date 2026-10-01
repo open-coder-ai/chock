@@ -1343,6 +1343,14 @@ REENTRY_CAP = 3
 
 STOP_LEDGER_SUFFIX = '.stop.jsonl'
 
+GATE_LOG_PARTS = ('.chock', 'log', 'gate-events.jsonl')
+
+STOP_MODE_MASK = 61440
+
+STOP_MODE_FILE = 32768
+
+STOP_MODE_DIR = 16384
+
 STOP_PHASE = 'stop'
 
 STOP_TURN_KEYS = ('turn_id', 'generation_id')
@@ -1410,10 +1418,31 @@ def finding_digests(message, writes):
 def stop_ledger_path(root, session_id):
     return _chock_Path(root).joinpath(*SESSION_STATE_PARTS, session_id + STOP_LEDGER_SUFFIX)
 
+def stop_ledger_safe(path):
+    """Whether `path`, its directory and `.chock` are what chock made: real directories and a regular file or none.
+
+    lstat, so a symlink, FIFO, socket, device or directory in any place is refused before anything opens it:
+    opening a FIFO blocks the hook until its timeout, which a client may read as an allow.
+    """
+    for target, kind in ((path, STOP_MODE_FILE), (path.parent, STOP_MODE_DIR), (path.parent.parent, STOP_MODE_DIR)):
+        try:
+            mode = _chock_os.lstat(target).st_mode
+        except FileNotFoundError:
+            continue
+        except OSError:
+            return False
+        if mode & STOP_MODE_MASK != kind:
+            return False
+    return True
+
 def _stop_lines(path):
-    """The ledger's lines; none when it is missing or cannot be read."""
+    """The ledger's lines; none when it is missing, unsafe or cannot be read."""
+    if not stop_ledger_safe(path):
+        return []
     try:
-        return path.read_text(encoding='utf-8', errors='replace').splitlines()
+        fd = _chock_os.open(path, _chock_os.O_RDONLY | getattr(_chock_os, 'O_NOFOLLOW', 0) | getattr(_chock_os, 'O_NONBLOCK', 0))
+        with _chock_os.fdopen(fd, encoding='utf-8', errors='replace') as fh:
+            return fh.read().splitlines()
     except OSError:
         return []
 
@@ -1448,10 +1477,13 @@ def _stop_chain(lines, session_id, policy, turn):
 def _stop_append(path, lines, record):
     """Append one record, keeping the last `SESSION_MAX_ENTRIES`; whether it landed."""
     line = json.dumps(record, sort_keys=True)
+    if not stop_ledger_safe(path):
+        return False
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         if len(lines) < SESSION_MAX_ENTRIES and (not path.exists() or path.stat().st_size < SESSION_TRIM_BYTES):
-            with path.open('a', encoding='utf-8') as fh:
+            flags = _chock_os.O_WRONLY | _chock_os.O_APPEND | _chock_os.O_CREAT | getattr(_chock_os, 'O_NOFOLLOW', 0) | getattr(_chock_os, 'O_NONBLOCK', 0)
+            with _chock_os.fdopen(_chock_os.open(path, flags, 420), 'a', encoding='utf-8') as fh:
                 fh.write(line + '\n')
         else:
             scratch = path.with_name('%s.%d.tmp' % (path.name, _chock_os.getpid()))
@@ -1468,6 +1500,8 @@ def _stop_gate_log(root, policy, verdict, reentry, findings):
     `reentry` is (index, reentry_verdict, findings_changed or None).
     """
     try:
+        if not stop_ledger_safe(_chock_Path(root).joinpath(*GATE_LOG_PARTS)):
+            return
         held = verdict == STOP_LOG_WARN
         if _chock_os.environ.get(GATE_LOG_ENV) == '0' and (not held):
             return
@@ -1558,9 +1592,11 @@ def _unreadable_stop_recent(lines, now):
 def settle_unreadable_stop(root, policy, refusal):
     """(verdict, text) this unreadable Stop earns: a refusal with `refusal`, or a warning once the cap is spent.
 
-    A ledger that cannot be written keeps refusing: with nothing to count, only a refusal is safe.
+    A ledger that is not a regular file in real directories, or cannot be written, keeps refusing: with nothing to count, only a refusal is safe.
     """
     path = _chock_Path(root).joinpath(*SESSION_STATE_PARTS, UNREADABLE_STOP_LEDGER)
+    if not stop_ledger_safe(path):
+        return (VERDICT_DENY, refusal)
     lines = _stop_lines(path)
     now = _chock_datetime.now(_chock_timezone.utc).timestamp()
     index = len(_unreadable_stop_recent(lines, now)) + 1

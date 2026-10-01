@@ -31,6 +31,11 @@ from .session_log import (
 #: or a client with no cap of its own would loop for ever.
 REENTRY_CAP = 3
 STOP_LEDGER_SUFFIX = ".stop.jsonl"
+#: st_mode type bits: a ledger is a regular file in real directories, nothing else.
+GATE_LOG_PARTS = (".chock", "log", "gate-events.jsonl")
+STOP_MODE_MASK = 0o170000
+STOP_MODE_FILE = 0o100000
+STOP_MODE_DIR = 0o040000
 STOP_PHASE = "stop"
 #: The vendor's own id for the turn, where it sends one: Codex `turn_id`, Cursor `generation_id`.
 STOP_TURN_KEYS = ("turn_id", "generation_id")
@@ -103,10 +108,32 @@ def stop_ledger_path(root, session_id):
     return Path(root).joinpath(*SESSION_STATE_PARTS, session_id + STOP_LEDGER_SUFFIX)
 
 
+def stop_ledger_safe(path):
+    """Whether `path`, its directory and `.chock` are what chock made: real directories and a regular file or none.
+
+    lstat, so a symlink, FIFO, socket, device or directory in any place is refused before anything opens it:
+    opening a FIFO blocks the hook until its timeout, which a client may read as an allow.
+    """
+    for target, kind in ((path, STOP_MODE_FILE), (path.parent, STOP_MODE_DIR), (path.parent.parent, STOP_MODE_DIR)):
+        try:
+            mode = os.lstat(target).st_mode
+        except FileNotFoundError:
+            continue
+        except OSError:
+            return False
+        if mode & STOP_MODE_MASK != kind:
+            return False
+    return True
+
+
 def _stop_lines(path):
-    """The ledger's lines; none when it is missing or cannot be read."""
+    """The ledger's lines; none when it is missing, unsafe or cannot be read."""
+    if not stop_ledger_safe(path):
+        return []
     try:
-        return path.read_text(encoding="utf-8", errors="replace").splitlines()
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
+        with os.fdopen(fd, encoding="utf-8", errors="replace") as fh:
+            return fh.read().splitlines()
     except OSError:
         return []
 
@@ -151,10 +178,13 @@ def _stop_chain(lines, session_id, policy, turn):
 def _stop_append(path, lines, record):
     """Append one record, keeping the last `SESSION_MAX_ENTRIES`; whether it landed."""
     line = json.dumps(record, sort_keys=True)
+    if not stop_ledger_safe(path):
+        return False
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         if len(lines) < SESSION_MAX_ENTRIES and (not path.exists() or path.stat().st_size < SESSION_TRIM_BYTES):
-            with path.open("a", encoding="utf-8") as fh:
+            flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+            with os.fdopen(os.open(path, flags, 0o644), "a", encoding="utf-8") as fh:
                 fh.write(line + "\n")
         else:
             scratch = path.with_name("%s.%d.tmp" % (path.name, os.getpid()))
@@ -172,6 +202,8 @@ def _stop_gate_log(root, policy, verdict, reentry, findings):
     `reentry` is (index, reentry_verdict, findings_changed or None).
     """
     try:
+        if not stop_ledger_safe(Path(root).joinpath(*GATE_LOG_PARTS)):
+            return
         held = verdict == STOP_LOG_WARN
         if os.environ.get(GATE_LOG_ENV) == "0" and not held:
             return

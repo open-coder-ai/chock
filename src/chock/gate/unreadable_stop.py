@@ -3,7 +3,10 @@
 No session id is readable then, so #208's per-session ledger cannot count it. A per-repo ledger,
 `.chock/state/unreadable-stop.jsonl`, counts refusals inside a sliding window instead: up to
 `REENTRY_CAP` are refused, the next ends the turn with a warning and a held gate-log record, never
-silently, until the oldest refusal ages out. An agent gets no allow sooner than a readable payload gets.
+silently, until the oldest refusal ages out. The ledger lives under
+`.chock/state`, which protect-agent-config's shell guard covers; an agent that can edit it can pre-seed
+it, the same trust the per-session ledger places in its own for clients that send no count. A ledger
+that is not a regular file in real directories is never opened: only a refusal is safe.
 """
 
 from __future__ import annotations
@@ -24,6 +27,7 @@ from .stop_reentry import (
     _stop_gate_log,
     _stop_lines,
     _stop_parse,
+    stop_ledger_safe,
 )
 
 UNREADABLE_STOP_LEDGER = "unreadable-stop.jsonl"
@@ -61,9 +65,11 @@ def _unreadable_stop_recent(lines, now):
 def settle_unreadable_stop(root, policy, refusal):
     """(verdict, text) this unreadable Stop earns: a refusal with `refusal`, or a warning once the cap is spent.
 
-    A ledger that cannot be written keeps refusing: with nothing to count, only a refusal is safe.
+    A ledger that is not a regular file in real directories, or cannot be written, keeps refusing: with nothing to count, only a refusal is safe.
     """
     path = Path(root).joinpath(*SESSION_STATE_PARTS, UNREADABLE_STOP_LEDGER)
+    if not stop_ledger_safe(path):
+        return VERDICT_DENY, refusal
     lines = _stop_lines(path)
     now = datetime.now(timezone.utc).timestamp()
     index = len(_unreadable_stop_recent(lines, now)) + 1
