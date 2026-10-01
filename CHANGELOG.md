@@ -11,8 +11,12 @@
   picks the interpreter at run time (`chock.python`, as hooks do), so no absolute path or home
   directory is committed. Other servers and keys are kept, a second sync changes nothing, and
   `guidance_mcp: false` (or removing the line) removes only chock's own entry. A config that does
-  not parse, or a `chock` server chock did not write, is refused with an error and never overwritten.
-  `chock sync --check` reports drift in these files.
+  not parse (JSONC comments included), a `chock` server chock did not write or edited (extra args,
+  env), forged TOML markers, a symlink on the path, a non-regular file or one over 1 MiB is refused
+  with an error and never overwritten, deleted or followed; with the opt-in off, such files are left
+  alone without error. Writes go through a same-directory temp file and `os.replace`; a UTF-8 BOM,
+  CRLF line endings, key order and non-ASCII text are kept; duplicate JSON keys are refused; only
+  lowercase `true` opts in. `chock sync --check` reports drift in these files.
 - **A plugin's Stop hook refuses an unreadable payload in the vendor's Stop grammar.** Plugin
   packages reuse the pre-tool `gate.json` for their Stop hook, so the runtime could not tell it was
   at Stop and answered in the pre-tool grammar (Claude, Codex and Copilot `permissionDecision: deny`,

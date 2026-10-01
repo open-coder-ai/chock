@@ -52,7 +52,7 @@ def guidance_mcp_from_text(text: str) -> bool:
 
     Read line by line like `rollout:`, never by a YAML parser; absent, repeated or anything else is off."""
     found = [m.group("rest") for m in map(_GUIDANCE_MCP_RE.match, text.splitlines()) if m]
-    return len(found) == 1 and found[0].strip().strip("'\"").lower() == "true"
+    return len(found) == 1 and found[0].strip().strip("'\"") == "true"
 
 
 def guidance_mcp_enabled(repo_root: Path | str) -> bool:

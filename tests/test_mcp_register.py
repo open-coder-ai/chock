@@ -146,8 +146,10 @@ def test_committed_output_names_no_home_or_absolute_interpreter(tmp_path):
     ("text", "want"),
     [
         ("guidance_mcp: true\n", True),
-        ("rollout: warn\nguidance_mcp: 'True'  # yes\n", True),
+        ("rollout: warn\nguidance_mcp: 'true'  # yes\n", True),
         ("guidance_mcp: false\n", False),
+        ("guidance_mcp: True\n", False),
+        ("guidance_mcp: TRUE\n", False),
         ("guidance_mcp: yes\n", False),
         ("guidance_mcp: true\nguidance_mcp: true\n", False),
         ("  guidance_mcp: true\n", False),
