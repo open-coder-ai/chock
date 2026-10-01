@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- **`chock check --history` scans the existing git history once.** At adoption, secrets committed
+  before chock was installed were invisible: the gates judge a diff, so only new commits were ever
+  read. `chock check --history [--since <rev>] [--max-commits N] [--max-blob-bytes N] [--time-budget S]
+  [--allow-shallow] [--json] [--report-only]` applies the `content_regex` commit gates installed in
+  the working tree's `.chock/compiled` (scan-secrets, block-invisible-unicode and any other gate of
+  that kind) to every blob the newest N commits introduced (default 5000; blobs up to 1 MiB) and
+  reports commit, path, line, policy and rule, oldest commit first; a line that persists across edits
+  is reported once, where it entered. Read-only: `git log --raw` and `cat-file --batch` (list argv,
+  never a checkout, a hook or a history rewrite; signature verification, textconv, external diff and
+  the repo's gpg programs are switched off), each distinct blob read once, output streamed. Refuses an
+  option-like or unknown ref. Matched text is never printed. **Exit codes:** 0 clean (or an unborn
+  HEAD), 1 findings (`--report-only` makes this 0, for history that predates adoption), 2 the scan
+  could not decide: not a git repository or git missing, a missing or corrupt blob, a shallow clone
+  (unless `--allow-shallow`), no installed content gate, an unreadable or non-object gate document,
+  a gate pattern that does not compile or runs over 10 seconds on one blob (POSIX), the time budget,
+  or any unexpected error. **Coverage gaps, stated in the output:** binary and oversize blobs and
+  submodule pointers are not scanned (counted in the text, JSON and stderr); script, ref, dependency
+  and test-integrity gates are not applied; only the newest N commits are scanned. The gate patterns
+  come from the working tree, so a hostile checkout could ship a slow pattern: the per-blob limit
+  turns that into exit 2, and the scan runs no repo code beyond those patterns. `chock check -h`
+  and the command list mention `--history`.
 - **A plugin's Stop hook refuses an unreadable payload in the vendor's Stop grammar.** Plugin
   packages reuse the pre-tool `gate.json` for their Stop hook, so the runtime could not tell it was
   at Stop and answered in the pre-tool grammar (Claude, Codex and Copilot `permissionDecision: deny`,
