@@ -1267,7 +1267,18 @@ def script_verdict(policy_id: str, event: str, code: int, repo_root: Path) -> in
     return 1
 
 
-def judge(
+@dataclass(frozen=True)
+class Evaluation:
+    """A gate run up to its verdict: what the kind found, and the actor and rollout level it was judged under."""
+
+    spec: dict
+    result: GateResult
+    level: str
+    signal: str | None
+    judged: str
+
+
+def evaluate(
     gate_path: Path,
     event: str,
     push_stdin: str | None,
@@ -1277,8 +1288,8 @@ def judge(
     writes: Mapping[str, str] | None = None,
     added: Mapping[str, str] | None = None,
     session: Mapping[str, object] | None = None,
-) -> tuple[int, str]:
-    """Run a compiled gate: (exit code, verdict), the verdict being allow, block, ask, warn or error."""
+) -> Evaluation | tuple[int, str]:
+    """Run a compiled gate's kind without reporting or logging: an Evaluation, or (exit code, verdict) when it ends early."""
     gate_path = Path(gate_path)
     if not gate_path.exists():
         print(
@@ -1320,10 +1331,29 @@ def judge(
     signal = agent_signal(repo_root)
     judged = _judged_event(name, agent=signal is not None)
     result = kind(ctx, _params(gate_path, spec), judged)
-    level = rollout(repo_root, event, signal, base)
+    return Evaluation(spec, result, rollout(repo_root, event, signal, base), signal, judged)
+
+
+def judge(
+    gate_path: Path,
+    event: str,
+    push_stdin: str | None,
+    repo_root: Path,
+    base: str | None = None,
+    head_ref: str | None = None,
+    writes: Mapping[str, str] | None = None,
+    added: Mapping[str, str] | None = None,
+    session: Mapping[str, object] | None = None,
+) -> tuple[int, str]:
+    """Run a compiled gate: (exit code, verdict), the verdict being allow, block, ask, warn or error."""
+    outcome = evaluate(gate_path, event, push_stdin, repo_root, base, head_ref, writes, added, session)
+    if isinstance(outcome, tuple):
+        return outcome
     if event == "ci":
-        _annotate_safely(result, _verdict(result, declared, level), _policy_id(gate_path), repo_root)
-    return _conclude(gate_path, spec, event, judged, result, (signal, level))
+        declared = outcome.spec.get("action", ACTION_BLOCK)
+        verdict = _verdict(outcome.result, declared, outcome.level)
+        _annotate_safely(outcome.result, verdict, _policy_id(gate_path), repo_root)
+    return _conclude(gate_path, outcome.spec, event, outcome.judged, outcome.result, (outcome.signal, outcome.level))
 
 
 def run(gate_path: Path, event: str, push_stdin: str | None, repo_root: Path, **options: Any) -> int:

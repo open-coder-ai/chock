@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- **`chock check --event ci --base <ref> --format sarif` writes the ci gates' findings as SARIF 2.1.0.**
+  One `run` (driver `chock`, version, `informationUri`) with a rule per policy rule of each gated
+  policy's shipped setup contract (`<policy>/<rule>`, title, constraint, first https reference as
+  `helpUri`, CWE ids as `external/cwe/cwe-NNN` tags) and a result per finding: `block` is `error`,
+  `ask` `warning`, `warn` `note`; repo-relative POSIX `artifactLocation.uri` (a path outside the repo
+  falls back to the policy's manifest), `startLine` when known, a `partialFingerprints` entry that
+  ignores the line, text with no control or invisible character. A finding the rollout level holds
+  keeps the level it would have and carries `rolloutHeld: true`. `--output <file>` writes it to a file;
+  the exit code is the gates' own (1 on a block, 2 when a gate cannot judge), never the format's.
+  `chock sync --ci` installs a workflow that uploads it with a commit-pinned
+  `github/codeql-action/upload-sarif`, `security-events: write` on that job only, `if: always()`, and
+  `continue-on-error` on the upload step alone (code scanning may be off or a fork's token read-only).
+  `--output` is written through a new file beside the target and renamed into place, and is refused
+  (exit 2, nothing written) when the target or any part of its path below the repo is a symlink, a
+  `..` is in it, or an existing target is not a regular file. Rule ids are one safe line of at most
+  200 characters; `helpUri` must be an https URL with a host. The same workflow now pins
+  `actions/checkout` and `actions/setup-python` to commits and sets `persist-credentials: false`. The
+  rules' titles and links are read from the checked-out tree, so a pull request can change its own
+  SARIF text (never a verdict or exit code).
 - **`chock sync` can register the `chock mcp` guidance server with your agents, opt-in.** Set
   `guidance_mcp: true` (one top-level line, read like `rollout:`) in `.chock/config.yaml` and sync
   merges a `chock` server into each wired client's project MCP config: Claude Code `.mcp.json`,
