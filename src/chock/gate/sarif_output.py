@@ -46,7 +46,6 @@ def write_output(path: Path, text: str, repo: Path) -> str | None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(text)
-        os.chmod(temp, 0o644)
         if reason := refusal(path, repo):
             return reason
         os.replace(temp, path)
