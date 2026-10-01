@@ -55,8 +55,9 @@ def enforced_cursor(*, ledger=None) -> str:
         "Session-enforced in Cursor by a beforeShellExecution hook: a matched command is "
         f"denied before it runs ({witness_clause('cursor', ledger=ledger)}). The hook needs git, "
         "a Python 3.11+ (python3, python or py; the Windows Store stub is skipped) and a usable "
-        "bash resolved from PATH; without them Cursor allows the command silently, so this fails "
-        "OPEN. If the guard itself crashes or times out, the hook returns "
+        "bash resolved from PATH. The hook entry sets `failClosed`, which Cursor's hooks documentation "
+        "(cursor.com/docs/agent/hooks) says blocks the action when the hook fails to run, so a hook "
+        "that cannot start refuses the command. If the guard itself crashes, the hook returns "
         '`permission: "ask"`, which beforeShellExecution honours. Repo-wide enforcement at '
         "commit time and in CI still needs `chock sync`."
     )

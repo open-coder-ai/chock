@@ -82,16 +82,16 @@ def test_argv_guard_receives_the_stdin_command(claude_code_runtime: Path) -> Non
     assert _denied(_adapter(claude_code_runtime, "rm -rf /")), "the runtime must bridge stdin to argv"
 
 
-def test_unparseable_input_allows(claude_code_runtime: Path) -> None:
-    """Failing closed here would block every Bash call on a malformed payload."""
+def test_unparseable_input_refuses(claude_code_runtime: Path) -> None:
+    """A payload nothing could read is refused, not passed: the guard never judged the call."""
     result = subprocess.run(
         [sys.executable, str(claude_code_runtime), "--guard", str(GUARD)],
         input="not json",
         capture_output=True,
         text=True,
     )
-    assert result.returncode == 0
-    assert result.stdout.strip() == ""
+    assert _denied(result), (result.returncode, result.stdout)
+    assert "could not read" in result.stderr
 
 
 def test_missing_guard_denies_and_says_to_sync(tmp_path: Path, claude_code_runtime: Path) -> None:

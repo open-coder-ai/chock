@@ -44,6 +44,12 @@ def bash_executable() -> str:
     return candidates[0] if candidates else (shutil.which("bash") or "bash")
 
 
+def guarded_launch(launcher: str) -> str:
+    """A plugin hook's pinned launch prefix: git's sh refuses with exit 2 when `launcher` is missing."""
+    refuse = "{ echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }"
+    return f"git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || {refuse}; sh' chock-sh \"{launcher}\" "
+
+
 def run_hook_command(
     command: str, cwd: Path, payload: str, env: dict[str, str] | None = None
 ) -> subprocess.CompletedProcess:
