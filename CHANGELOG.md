@@ -24,6 +24,40 @@
   `enforced-at-commit` cell, and cells written by an older or newer chock still read. A git hook
   that runs only at push (`block-destructive-commands`' pre-push script) no longer earns
   `enforced-at-commit`, so those cells read `advisory`; no other `level` changes.
+- **The turn's end is re-judged when the client re-enters the Stop hook.** Claude Code, Codex and
+  Copilot (`stop_hook_active`) and Cursor (`loop_count`) re-enter the hook after a refusal, and it
+  used to allow every re-entry, so an agent that ignored the first refusal ended its turn with the
+  violation on disk. While findings remain, every re-entry is now refused, up to 3 per turn; the
+  next one ends the turn with a warning that the findings are still on disk and a commit will
+  refuse them: `systemMessage` for Claude Code, Codex and VS Code Copilot, stderr for every vendor,
+  and a held `warn` record (`would_block: true`) in `.chock/log/gate-events.jsonl`. Each re-entry is
+  logged there under the `stop-reentry` surface with `verdict` `block`, `allow` or `warn` and a
+  `reentry_verdict`. The count is kept in `.chock/state/<session>.stop.jsonl` (digests of each
+  flagged file's path and content, never the text), keyed on Codex's `turn_id` and Cursor's
+  `generation_id` where sent; Cursor's own `loop_count` is believed over it. A ledger that is
+  missing, damaged or unwritable never allows silently: it refuses again, or ends the turn with the
+  warning. A warn at Stop now also reaches Codex and VS Code Copilot users as `systemMessage`.
+  Commit and CI are unchanged.
+
+- **`chock mcp`: plan-time guidance.** A stdio MCP server with one read-only tool,
+  `chock_guidance(plan, paths)`. It maps a plan's words and the paths to be touched to the rules of
+  the repo's installed `java-security` (read from its shipped `setup-contract.json`), keeps the
+  ones the repo's `.chock/security.json` sets to deny or ask (absent = deny; a user-level
+  `~/.chock/security.json` or a version-1 selection is not read), and returns at most 12 of them,
+  deny before ask, then by match score, then id, each with its verdict, pack, CWE ids and the rule's
+  own constraint text, in a response line of at most 4000 bytes. Matching is a rarity-weighted word overlap
+  plus pack path globs from `src/chock/guidance/data/guidance_map.json`: no model call, no
+  network, nothing written, nothing read outside `.agents/policies/java-security`, the selection
+  file and `.chock/config.yaml`. Input is capped (plan 4000 characters, 50 paths of 512, 1 MiB per
+  request line, counted in bytes); absolute,
+  `..` and control-character paths are refused, and paths are only matched, never opened; a
+  symlinked, oversize, too deeply nested or unreadable contract, selection or config is reported as
+  an error, never as "no rules", and the server answers every request (an unexpected failure is a
+  JSON-RPC internal error) and keeps serving. Not done: `chock sync` does not yet register the server in any client's MCP config (chock
+  has no MCP config writer and agentseam records no MCP paths), and `agentic-code-security` ships
+  no structured rule metadata to read, so only `java-security` is served. Matching is lexical: a
+  plan that names none of a rule's words gets nothing, and an empty result is not a clearance.
+
 - **GitHub annotations from the CI gate.** With `GITHUB_ACTIONS=true`, `chock gate run --event ci`
   also prints one `::error` (or `::warning` for warn, ask and anything the rollout level lowered)
   workflow command per new finding, `file`, `line` and `title=chock <policy>: <rule>` included, and

@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from conftest import init_repo
 
 from chock.gate import write_gate
+from chock.gate.stop_reentry import REENTRY_CAP
 
 SECRET = 'KEY = "AKIAIOSFODNN7EXAMPLE"\n'  # pragma: allowlist secret -- the string under test
 
@@ -88,12 +89,12 @@ def test_the_turns_end_reads_what_is_on_disk_however_it_got_there(tmp_path: Path
     assert writes.get("written_by_bash.py") == SECRET
 
 
-def test_a_stop_hook_already_active_reads_nothing(tmp_path: Path) -> None:
-    """A refusal that re-entered its own stop hook would never terminate."""
+def test_a_stop_hook_already_active_still_reads_the_worktree(tmp_path: Path) -> None:
+    """A re-entered stop is judged again: what the turn left on disk may be what it was refused for."""
     gate = _installed(tmp_path)
     init_repo(tmp_path)
     (tmp_path / "app.py").write_text(SECRET, encoding="utf-8")
-    assert write_gate.writes_for(_event("stop", raw={"stop_hook_active": True}), gate) == {}
+    assert write_gate.writes_for(_event("stop", raw={"stop_hook_active": True}), gate)["app.py"] == SECRET
 
 
 def test_a_deletion_leaves_no_content_to_judge(tmp_path: Path) -> None:
@@ -226,7 +227,13 @@ def test_a_gate_named_but_missing_refuses_and_says_to_sync(tmp_path: Path) -> No
 
 
 def test_a_missing_gate_does_not_trap_a_reentered_stop(tmp_path: Path) -> None:
-    """A refusal on re-entry would never let the turn end."""
+    """Refused on re-entry like any finding; past the cap the turn ends with a warning, not a loop."""
     gate = _installed(tmp_path)
     gate.unlink()
-    assert write_gate.evaluate_gate(["--gate", str(gate)], _event("stop", raw={"stop_hook_active": True})) is None
+    first = write_gate.evaluate_gate(["--gate", str(gate)], _event("stop"))
+    assert first is not None and first[0] == write_gate.VERDICT_DENY
+    again = _event("stop", raw={"stop_hook_active": True})
+    for _ in range(REENTRY_CAP):
+        assert write_gate.evaluate_gate(["--gate", str(gate)], again)[0] == write_gate.VERDICT_DENY
+    last = write_gate.evaluate_gate(["--gate", str(gate)], again)
+    assert last[0] == "warn" and "chock sync" in last[1]
