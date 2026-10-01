@@ -7,7 +7,7 @@ Everyday:
   add        Install a policy or skill from a catalog and compile it
   remove     Remove an installed policy and resync
   sync       Recompile + rewire so the repo matches its policies (--ci/--skills for extras)
-  check      Run every truth check: validate, verify, evals, matrix (--only to narrow)
+  check      Run every truth check: validate, verify, evals, matrix (--only to narrow; --history scans past commits)
   status     Policy states and coverage (--only registry,log for more)
   enable     Enable a policy by id
   disable    Disable a policy by id
