@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import re
+from pathlib import Path
 
 import yaml
 
@@ -50,3 +52,12 @@ def test_every_action_is_pinned_to_a_commit_and_checkout_keeps_no_token() -> Non
     checkout = next(step for step in JOB["steps"] if step.get("uses", "").startswith("actions/checkout@"))
     assert checkout["with"]["persist-credentials"] is False
     assert checkout["with"]["fetch-depth"] == 0
+
+
+def test_the_template_passes_the_installed_pin_github_actions_gate() -> None:
+    """#217: the workflow sync writes must pass pin-github-actions' own pattern, read from the installed gate."""
+    gate = Path(__file__).resolve().parents[1] / ".chock" / "compiled" / "pin-github-actions" / "git-hook" / "gate.json"
+    params = json.loads(gate.read_text(encoding="utf-8"))["params"]
+    unpinned = re.compile(params["content_pattern"])
+    assert unpinned.search("      - uses: actions/checkout@v4")  # the pattern still refuses a tag
+    assert [line for line in WORKFLOW_TEMPLATE.splitlines() if unpinned.search(line)] == []
