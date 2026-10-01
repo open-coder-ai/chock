@@ -21,6 +21,24 @@
   `actions/checkout` and `actions/setup-python` to commits and sets `persist-credentials: false`. The
   rules' titles and links are read from the checked-out tree, so a pull request can change its own
   SARIF text (never a verdict or exit code).
+- **`chock sync` can register the `chock mcp` guidance server with your agents, opt-in.** Set
+  `guidance_mcp: true` (one top-level line, read like `rollout:`) in `.chock/config.yaml` and sync
+  merges a `chock` server into each wired client's project MCP config: Claude Code `.mcp.json`,
+  Cursor `.cursor/mcp.json`, VS Code `.vscode/mcp.json` (`servers`, `type: stdio`), Gemini
+  `.gemini/settings.json` and Codex `.codex/config.toml` (`[mcp_servers.chock]` in a marked block).
+  The entry is `git -c alias.chock-hook=... chock-hook -m chock mcp --repo .`: the committed launcher
+  picks the interpreter at run time (`chock.python`, as hooks do), so no absolute path or home
+  directory is committed. Other servers and keys are kept, a second sync changes nothing, and
+  `guidance_mcp: false` (or removing the line) removes only chock's own entry. A config that does
+  not parse (JSONC comments included), a `chock` server chock did not write or edited (extra args,
+  env), forged TOML markers, a symlink on the path, a non-regular file or one over 1 MiB is refused
+  with an error and never overwritten, deleted or followed; with the opt-in off, such files are left
+  alone without error. Writes go through a same-directory temp file and an atomic rename, with every directory
+  opened by file descriptor (so swapping one for a symlink mid-run cannot redirect the write; where
+  the platform lacks directory fds the path-based fallback runs); every client is planned before any
+  is written, and an I/O error is a clean refusal; a UTF-8 BOM,
+  CRLF line endings, key order and non-ASCII text are kept; duplicate JSON keys are refused; only
+  lowercase `true` opts in. `chock sync --check` reports drift in these files.
 - **`chock check --history` scans the existing git history once.** At adoption, secrets committed
   before chock was installed were invisible: the gates judge a diff, so only new commits were ever
   read. `chock check --history [--since <rev>] [--max-commits N] [--max-blob-bytes N] [--time-budget S]
