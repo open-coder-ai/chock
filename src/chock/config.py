@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -41,6 +42,26 @@ def agents_from_config(repo_root: Path) -> list[str]:
         if name not in deduped:
             deduped.append(name)
     return deduped
+
+
+_GUIDANCE_MCP_RE = re.compile(r"^guidance_mcp:[ \t]*(?P<rest>[^#\n]*)")
+
+
+def guidance_mcp_from_text(text: str) -> bool:
+    """Opt-in to registering `chock mcp` with clients: exactly one top-level `guidance_mcp: true` line.
+
+    Read line by line like `rollout:`, never by a YAML parser; absent, repeated or anything else is off."""
+    found = [m.group("rest") for m in map(_GUIDANCE_MCP_RE.match, text.splitlines()) if m]
+    return len(found) == 1 and found[0].strip().strip("'\"").lower() == "true"
+
+
+def guidance_mcp_enabled(repo_root: Path | str) -> bool:
+    """`guidance_mcp:` in the working tree's `.chock/config.yaml`; a missing, symlinked or unreadable file is off."""
+    path = Path(repo_root) / CONFIG_DIR / CONFIG_NAME
+    try:
+        return not path.is_symlink() and guidance_mcp_from_text(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError):
+        return False
 
 
 def _policies(config: dict[str, Any]) -> dict[str, Any]:

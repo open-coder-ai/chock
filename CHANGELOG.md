@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **`chock sync` can register the `chock mcp` guidance server with your agents, opt-in.** Set
+  `guidance_mcp: true` (one top-level line, read like `rollout:`) in `.chock/config.yaml` and sync
+  merges a `chock` server into each wired client's project MCP config: Claude Code `.mcp.json`,
+  Cursor `.cursor/mcp.json`, VS Code `.vscode/mcp.json` (`servers`, `type: stdio`), Gemini
+  `.gemini/settings.json` and Codex `.codex/config.toml` (`[mcp_servers.chock]` in a marked block).
+  The entry is `git -c alias.chock-hook=... chock-hook -m chock mcp --repo .`: the committed launcher
+  picks the interpreter at run time (`chock.python`, as hooks do), so no absolute path or home
+  directory is committed. Other servers and keys are kept, a second sync changes nothing, and
+  `guidance_mcp: false` (or removing the line) removes only chock's own entry. A config that does
+  not parse, or a `chock` server chock did not write, is refused with an error and never overwritten.
+  `chock sync --check` reports drift in these files.
 - **A plugin's Stop hook refuses an unreadable payload in the vendor's Stop grammar.** Plugin
   packages reuse the pre-tool `gate.json` for their Stop hook, so the runtime could not tell it was
   at Stop and answered in the pre-tool grammar (Claude, Codex and Copilot `permissionDecision: deny`,
