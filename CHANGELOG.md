@@ -25,6 +25,15 @@
   `enforced-at-commit` cell, and cells written by an older or newer chock still read. A git hook
   that runs only at push (`block-destructive-commands`' pre-push script) no longer earns
   `enforced-at-commit`, so those cells read `advisory`; no other `level` changes.
+- **The baseline check holds rule verdicts.** `chock check --only baseline --base <ref>` also
+  reads `.chock/security.json` (java-security) and `.chock/agentic-security.json`
+  (agentic-code-security) as their runtimes do, and fails on a verdict the head loosens against the
+  base: deny to ask, deny to allow, ask to allow, a pack verdict loosened, or a rule entry dropped
+  where silence is looser (agentic-code-security rules carry their own default, so a dropped deny
+  entry is flagged). A selection the runtime would refuse fails too. Deleting a committed
+  `.chock/security.json` fails, since java-security then falls back to `~/.chock/security.json`, and a
+  symlink, directory or other non-regular file at either selection path is an error.
+
 - **The turn's end is re-judged when the client re-enters the Stop hook.** Claude Code, Codex and
   Copilot (`stop_hook_active`) and Cursor (`loop_count`) re-enter the hook after a refusal, and it
   used to allow every re-entry, so an agent that ignored the first refusal ended its turn with the
