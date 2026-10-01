@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import stat
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +15,7 @@ from chock import yamlio
 from chock.config import policy_status
 from chock.gate.runner import ROLLOUT_RANK, committed_rollout, rollout_from_text
 from chock.validation.report import Finding, Report, emit
+from chock.validation.selection_baseline import KINDS, Kind, SelectionInvalidError, loosened
 
 CONFIG_REL = Path(".chock") / "config.yaml"
 _CATEGORY = "policy_baseline"
@@ -118,8 +120,49 @@ def rollout_weakening(repo_root: Path, base: str) -> Weakening | None:
     return Weakening("rollout", was, now) if ROLLOUT_RANK[now] < ROLLOUT_RANK[was] else None
 
 
+def _worktree_text(repo_root: Path, kind: Kind) -> str | None:
+    """The worktree's selection; None only when nothing is at its path. A link or non-file is an error."""
+    rel = Path(kind.filename)
+    for part in (*reversed(rel.parents[:-1]), rel):
+        try:
+            mode = (repo_root / part).lstat().st_mode
+        except FileNotFoundError:
+            return None
+        if stat.S_ISLNK(mode) or (part == rel and not stat.S_ISREG(mode)):
+            msg = f"{part} is a symlink or not a regular file; a selection must be a committed regular file"
+            raise SelectionInvalidError(msg)
+    return (repo_root / rel).read_text(encoding="utf-8")
+
+
+def _selection_text(repo_root: Path, kind: Kind, ref: str | None) -> str | None:
+    """A selection file at `ref` (None: the worktree); None when that revision carried none."""
+    if ref is None:
+        return _worktree_text(repo_root, kind)
+    result = _git(repo_root, "show", f"{ref}:{kind.filename}")
+    return result.stdout if result.returncode == 0 else None
+
+
+def check_selections(repo_root: Path, base: str, report: Report) -> None:
+    """One error per rule verdict the rule-selection files loosen against `base`, or cannot be read."""
+    for kind in KINDS:
+        path = str(repo_root / kind.filename)
+        try:
+            base_text = _selection_text(repo_root, kind, base)
+            head_text = _selection_text(repo_root, kind, None)
+            found = loosened(kind, base_text, head_text)
+        except (SelectionInvalidError, OSError, UnicodeDecodeError) as exc:
+            report.add(Finding(path, _CATEGORY, "error", f"{exc} -- nothing was compared"))
+            continue
+        for item in found:
+            msg = (
+                f"{item.render()} -- looser than {base}. A rule's verdict is loosened in a pull request "
+                "a human approves, never as a side effect of the change that needed it gone."
+            )
+            report.add(Finding(path, _CATEGORY, "error", msg))
+
+
 def check_baseline(repo_root: Path, base: str, report: Report) -> None:
-    """One error per policy `.chock/config.yaml` weakens relative to `base`, and a lowered rollout level."""
+    """One error per policy `.chock/config.yaml` weakens relative to `base`, a lowered rollout level, a loosened rule."""
     repo_root = Path(repo_root)
     try:
         found = weakenings(config_at(repo_root, base), config_in_worktree(repo_root))
@@ -138,6 +181,7 @@ def check_baseline(repo_root: Path, base: str, report: Report) -> None:
                 "pull request a human approves, never as a side effect of the change that needed it gone.",
             )
         )
+    check_selections(repo_root, base, report)
 
 
 def main(argv: list[str] | None = None) -> int:
