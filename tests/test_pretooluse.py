@@ -90,7 +90,7 @@ def test_unparseable_input_refuses(claude_code_runtime: Path) -> None:
         capture_output=True,
         text=True,
     )
-    assert result.returncode == 2
+    assert _denied(result), (result.returncode, result.stdout)
     assert "could not read" in result.stderr
 
 

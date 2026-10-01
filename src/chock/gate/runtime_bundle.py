@@ -7,10 +7,10 @@ import functools
 import inspect
 import re
 
-from agentseam import bundler
+from agentseam import adapters, bundler, contract
 
 from chock.resources import package_data_dir
-from chock.vendors import in_agent_vendors
+from chock.vendors import entry, in_agent_vendors
 
 from . import (
     edit_image,
@@ -85,6 +85,27 @@ _DISPATCH = _DATA_DIR.joinpath("dispatch.py.tmpl").read_text(encoding="utf-8")
 _DISPATCH_BRANCH_TOKEN = "# __SESSION_START_BRANCH__\n"  # noqa: S105 -- a template marker, not a credential
 
 _UNREADABLE = _DATA_DIR.joinpath("unreadable_payload.py.tmpl").read_text(encoding="utf-8")
+_WIRE_RAW_TOKENS = {"__PRE_TOOL_RAW__": contract.PRE_TOOL, "__STOP_RAW__": contract.STOP}
+#: Where a vendor's payload names its event, after the vendor's own recorded `event_key`.
+_EVENT_KEYS = ("hook_event_name", "hookEventName", "agent_action_name")
+
+
+def _wire_raw(agent: str, canonical: str) -> dict[str, str]:
+    """The smallest payload `agent` parses back to `canonical`; {} where none does."""
+    adapter = adapters.get(agent)
+    wire = adapter.REVERSE_EVENT_MAP.get(canonical)
+    keys = (*entry(agent)["claims"].get("event_key", ()), *_EVENT_KEYS)
+    return next(({key: wire} for key in keys if wire and adapter.parse({key: wire}).event == canonical), {})
+
+
+def _unreadable_source(agent: str) -> str:
+    """The unreadable-payload refusal, in `agent`'s own pre-tool and stop event names and answer."""
+    answer = "_chock_copilot_respond" if agent in _COPILOT_RESPOND_AGENTS else "respond"
+    source = _UNREADABLE.replace("__RESPOND__", answer)
+    for token, canonical in _WIRE_RAW_TOKENS.items():
+        source = source.replace(token, repr(_wire_raw(agent, canonical)))
+    return source
+
 
 #: agentseam's `main` allows a payload it cannot read; the replacement refuses in the client's dialect.
 _UNREADABLE_BRANCH = """    except Exception:
@@ -147,7 +168,7 @@ def _handler_source(agent: str) -> str:
         parts.append(_extract(sessionstart))
         parts.append(_SESSION_START_ORCHESTRATION)
     branch = _SESSION_START_BRANCH if agent in _SESSION_START_AGENTS else ""
-    parts.append(_UNREADABLE)
+    parts.append(_unreadable_source(agent))
     parts.append(_DISPATCH.replace(_DISPATCH_BRANCH_TOKEN, branch))
     if agent in _COPILOT_RESPOND_AGENTS:
         parts.append(_COPILOT_RESPOND)

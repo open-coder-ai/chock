@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from conftest import guarded_launch
 
 from chock.gate import runtime_bundle
 from chock.plugin.cli import main as plugin_main
@@ -73,8 +74,7 @@ def test_cursor_guard_policy_layout_and_hook(policy, tmp_path: Path) -> None:
     entry = entries[0]
     assert set(entry) == {"command", "timeout", "failClosed"}
     assert entry["command"] == (
-        'git -c "alias.chock-sh=!sh" chock-sh "${CURSOR_PLUGIN_ROOT}/scripts/launch.sh" '
-        '"${CURSOR_PLUGIN_ROOT}/scripts/cursor.py" '
+        guarded_launch("${CURSOR_PLUGIN_ROOT}/scripts/launch.sh") + '"${CURSOR_PLUGIN_ROOT}/scripts/cursor.py" '
         '--guard "${CURSOR_PLUGIN_ROOT}/scripts/block-destructive-commands.sh"'
     )
 
@@ -125,8 +125,8 @@ def test_codex_guard_policy_layout_and_hook(policy, tmp_path: Path) -> None:
     assert inner["type"] == "command"
     assert "async" not in inner, "Codex only honours a blocking decision from a sync hook"
     assert inner["command"] == (
-        'git -c "alias.chock-sh=!sh" chock-sh "${PLUGIN_ROOT}/scripts/launch.sh" '
-        '"${PLUGIN_ROOT}/scripts/codex_cli.py" --guard "${PLUGIN_ROOT}/scripts/block-destructive-commands.sh"'
+        guarded_launch("${PLUGIN_ROOT}/scripts/launch.sh")
+        + '"${PLUGIN_ROOT}/scripts/codex_cli.py" --guard "${PLUGIN_ROOT}/scripts/block-destructive-commands.sh"'
     )
 
 

@@ -45,9 +45,15 @@ def hook_command(runtime: str, *args: str) -> str:
     return " ".join([_PREFIX, runtime, *words])
 
 
+#: A plugin launcher that is not there (root unset or wrong) refuses with exit 2 inside git's sh,
+#: so the outer shell (bash, PowerShell, cmd.exe) reads nothing but a quoted string.
+_PLUGIN_MISSING = "test -f '{path}' || {{ echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }}"
+
+
 def plugin_interpreter(launcher: str) -> str:
-    """What stands where a plugin hook said `python3`: git's sh running the shipped launcher."""
-    return f'git -c "alias.{PLUGIN_ALIAS}=!sh" {PLUGIN_ALIAS} {launcher}'
+    """What stands where a plugin hook said `python3`: git's sh running the shipped launcher at path `launcher`."""
+    missing = _PLUGIN_MISSING.format(path=launcher)
+    return f'git -c "alias.{PLUGIN_ALIAS}=!{missing}; sh" {PLUGIN_ALIAS} "{launcher}"'
 
 
 def launcher_text() -> str:

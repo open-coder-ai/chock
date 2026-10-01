@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from conftest import guarded_launch
 
 from chock.gate import runtime_bundle
 from chock.plugin.cli import main as plugin_main
@@ -77,8 +78,8 @@ def test_devin_guard_policy_layout_and_hook(policy, tmp_path: Path) -> None:
     inner = entry["hooks"][0]
     assert inner["type"] == "command"
     assert inner["command"] == (
-        'git -c "alias.chock-sh=!sh" chock-sh "$DEVIN_PLUGIN_ROOT/scripts/launch.sh" '
-        '"$DEVIN_PLUGIN_ROOT/scripts/devin.py" --guard "$DEVIN_PLUGIN_ROOT/scripts/block-destructive-commands.sh"'
+        guarded_launch("$DEVIN_PLUGIN_ROOT/scripts/launch.sh")
+        + '"$DEVIN_PLUGIN_ROOT/scripts/devin.py" --guard "$DEVIN_PLUGIN_ROOT/scripts/block-destructive-commands.sh"'
     )
 
 

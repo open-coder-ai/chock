@@ -66,7 +66,7 @@ def _hook_command(script: str) -> str:
     """One interpreter invocation, via a shell expansion of `$DEVIN_PLUGIN_ROOT`."""
     adapter = f"${DEVIN_PLUGIN_ROOT_VAR}/{_SCRIPTS_TEMPLATE.format(name='devin.py')}"
     launcher = launch.plugin_interpreter(
-        f'"${DEVIN_PLUGIN_ROOT_VAR}/{_SCRIPTS_TEMPLATE.format(name=launch.PLUGIN_LAUNCHER)}"'
+        f"${DEVIN_PLUGIN_ROOT_VAR}/{_SCRIPTS_TEMPLATE.format(name=launch.PLUGIN_LAUNCHER)}"
     )
     guard = f"${DEVIN_PLUGIN_ROOT_VAR}/{_SCRIPTS_TEMPLATE.format(name=script)}"
     return f'{launcher} "{adapter}" --guard "{guard}"'
@@ -82,7 +82,7 @@ def _gate_command() -> str:
     """The same adapter, handed the packaged gate instead of a guard."""
     adapter = f"${DEVIN_PLUGIN_ROOT_VAR}/{_SCRIPTS_TEMPLATE.format(name='devin.py')}"
     launcher = launch.plugin_interpreter(
-        f'"${DEVIN_PLUGIN_ROOT_VAR}/{_SCRIPTS_TEMPLATE.format(name=launch.PLUGIN_LAUNCHER)}"'
+        f"${DEVIN_PLUGIN_ROOT_VAR}/{_SCRIPTS_TEMPLATE.format(name=launch.PLUGIN_LAUNCHER)}"
     )
     gate = f"${DEVIN_PLUGIN_ROOT_VAR}/{_SCRIPTS_TEMPLATE.format(name='gate.json')}"
     return f'{launcher} "{adapter}" --gate "{gate}"'

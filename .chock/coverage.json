@@ -81,7 +81,7 @@
   },
   "block-destructive-commands": {
     "aider": {
-      "level": "enforced-at-commit",
+      "level": "advisory",
       "basis": null,
       "witnessed": false,
       "at_commit": false
@@ -90,52 +90,52 @@
       "level": "best-effort",
       "basis": "live-run",
       "witnessed": false,
-      "at_commit": true
+      "at_commit": false
     },
     "codex": {
       "level": "best-effort",
       "basis": "live-run-partial",
       "witnessed": false,
-      "at_commit": true
+      "at_commit": false
     },
     "copilot": {
       "level": "best-effort",
       "basis": "live-run-partial",
       "witnessed": true,
-      "at_commit": true
+      "at_commit": false
     },
     "cursor": {
       "level": "enforceable",
       "basis": "live-run-partial",
       "witnessed": false,
-      "at_commit": true
+      "at_commit": false
     },
     "devin": {
       "level": "best-effort",
       "basis": "vendor-docs",
       "witnessed": false,
-      "at_commit": true
+      "at_commit": false
     },
     "gemini": {
       "level": "best-effort",
       "basis": "vendor-source",
       "witnessed": false,
-      "at_commit": true
+      "at_commit": false
     },
     "grok": {
       "level": "best-effort",
       "basis": "vendor-docs",
       "witnessed": false,
-      "at_commit": true
+      "at_commit": false
     },
     "kimi-code": {
-      "level": "enforced-at-commit",
+      "level": "advisory",
       "basis": null,
       "witnessed": false,
       "at_commit": false
     },
     "replit": {
-      "level": "enforced-at-commit",
+      "level": "advisory",
       "basis": null,
       "witnessed": false,
       "at_commit": false
@@ -144,19 +144,19 @@
       "level": "best-effort",
       "basis": "vendor-docs",
       "witnessed": false,
-      "at_commit": true
+      "at_commit": false
     },
     "vscode": {
       "level": "best-effort",
       "basis": "live-run-partial",
       "witnessed": true,
-      "at_commit": true
+      "at_commit": false
     },
     "windsurf": {
       "level": "best-effort",
       "basis": "third-party-install",
       "witnessed": false,
-      "at_commit": true
+      "at_commit": false
     }
   },
   "block-invisible-unicode": {
@@ -164,7 +164,7 @@
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "claude": {
       "level": "best-effort",
@@ -206,19 +206,19 @@
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "kimi-code": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "replit": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "tabnine": {
       "level": "best-effort",
@@ -236,7 +236,7 @@
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     }
   },
   "block-no-verify": {
@@ -324,7 +324,7 @@
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "claude": {
       "level": "best-effort",
@@ -366,19 +366,19 @@
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "kimi-code": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "replit": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "tabnine": {
       "level": "best-effort",
@@ -396,7 +396,7 @@
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     }
   },
   "code-safety": {
@@ -884,7 +884,7 @@
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "claude": {
       "level": "best-effort",
@@ -926,19 +926,19 @@
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "kimi-code": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "replit": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "tabnine": {
       "level": "best-effort",
@@ -956,7 +956,7 @@
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     }
   },
   "pre-generated-scripts": {
@@ -1124,7 +1124,7 @@
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "claude": {
       "level": "best-effort",
@@ -1172,13 +1172,13 @@
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "replit": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "tabnine": {
       "level": "best-effort",
@@ -1204,79 +1204,79 @@
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "claude": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "codex": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "copilot": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "cursor": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "devin": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "gemini": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "grok": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "kimi-code": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "replit": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "tabnine": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "vscode": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "windsurf": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     }
   },
   "require-review-evidence": {
@@ -1364,7 +1364,7 @@
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "claude": {
       "level": "best-effort",
@@ -1406,19 +1406,19 @@
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "kimi-code": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "replit": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "tabnine": {
       "level": "best-effort",
@@ -1436,7 +1436,7 @@
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     }
   },
   "test-integrity": {
@@ -1444,79 +1444,79 @@
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "claude": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "codex": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "copilot": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "cursor": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "devin": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "gemini": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "grok": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "kimi-code": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "replit": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "tabnine": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "vscode": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     },
     "windsurf": {
       "level": "enforced-at-commit",
       "basis": null,
       "witnessed": false,
-      "at_commit": false
+      "at_commit": true
     }
   },
   "token-efficiency": {

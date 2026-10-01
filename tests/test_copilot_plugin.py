@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from conftest import guarded_launch
 
 from chock import vendors
 from chock.gate import runtime_bundle
@@ -82,9 +83,10 @@ def test_hook_lives_in_the_copilot_namespace(policy, tmp_path: Path) -> None:
     assert entry["matcher"] == vendors.shell_matcher("vscode_copilot")
     command = entry["hooks"][0]["command"]
     assert command == (
-        'r="${PLUGIN_ROOT:-}"; [ -n "$r" ] && [ -f "$r/scripts/vscode_copilot.py" ] || { echo \'chock: the plugin root is unset or the bundled hook is missing, so this call cannot be checked. '
+        'r="${PLUGIN_ROOT:-}"; [ -n "$r" ] || exit 0; [ -f "$r/scripts/vscode_copilot.py" ] || '
+        "{ echo 'chock: the plugin root is set but the bundled hook is missing, so this call cannot be checked. "
         "Refusing rather than allowing it unchecked.' >&2; exit 2; }; "
-        'exec git -c "alias.chock-sh=!sh" chock-sh "$r/scripts/launch.sh" "$r/scripts/vscode_copilot.py" '
+        "exec " + guarded_launch("$r/scripts/launch.sh") + '"$r/scripts/vscode_copilot.py" '
         '--guard "$r/scripts/block-destructive-commands.sh"'
     )
 

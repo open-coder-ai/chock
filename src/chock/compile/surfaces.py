@@ -98,7 +98,7 @@ def coverage_cell(
         if installed and surface in active and agent in IN_AGENT_TODAY:
             return in_agent_grade(agent, surface.value, at_commit=bool(commit_time))
     if commit_time:
-        return Grade(AT_COMMIT, None, witnessed=False)
+        return Grade(AT_COMMIT, None, witnessed=False, at_commit=True)
     if Surface.AMBIENT_RULE in active & INSTALLED_SURFACES:
         return Grade("advisory", None, witnessed=False)
     return Grade("none", None, witnessed=False)

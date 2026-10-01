@@ -43,31 +43,31 @@ POSTURE_ENFORCED_COPILOT = (
 
 _COPILOT_ENFORCED_NOTE = (
     "This package ships a PreToolUse hook under com.github.copilot/. It enforces only in a "
-    "client that both reads that namespace AND tells the hook where the package lives; a "
-    "client that exports no plugin-root variable runs the hook, which then exits 2 (the "
-    "blocking code) and refuses every call -- treat this package as advisory unless a deny "
-    "has been witnessed in your own client. "
+    "client that both reads that namespace AND tells the hook where the package lives. A "
+    "client that exports no plugin-root variable (VS Code's agent-plugin format exports none) "
+    "runs the hook, which then exits 0 and checks nothing; a root that is set but lacks the "
+    "bundled hook exits 2 and refuses the call. "
     "A client that ignores the namespace gets this text only. Repo-wide enforcement across "
     "every commit and in CI still needs `chock sync`. "
     "See https://github.com/open-coder-ai/chock"
 )
 
 
-_NO_ROOT_REFUSAL = (
-    "chock: the plugin root is unset or the bundled hook is missing, so this call cannot be "
+_NO_ADAPTER_REFUSAL = (
+    "chock: the plugin root is set but the bundled hook is missing, so this call cannot be "
     "checked. Refusing rather than allowing it unchecked."
 )
 
 
 def _root_guarded(target: str, flag: str) -> str:
-    """One interpreter invocation, guarded so an unresolved plugin root REFUSES (exit 2)."""
+    """One interpreter invocation: no plugin root allows (exit 0), a root without the adapter refuses (exit 2)."""
     assert PLUGIN_ROOT.startswith("${") and PLUGIN_ROOT.endswith("}"), PLUGIN_ROOT  # noqa: S101 -- build-time constant, not request input
     root = f"{PLUGIN_ROOT[:-1]}:-}}"
     adapter = f'"$r/{_SCRIPTS_TEMPLATE.format(name="vscode_copilot.py")}"'
-    launcher = launch.plugin_interpreter(f'"$r/{_SCRIPTS_TEMPLATE.format(name=launch.PLUGIN_LAUNCHER)}"')
+    launcher = launch.plugin_interpreter(f"$r/{_SCRIPTS_TEMPLATE.format(name=launch.PLUGIN_LAUNCHER)}")
     named = f'"$r/{_SCRIPTS_TEMPLATE.format(name=target)}"'
-    refuse = f"{{ echo '{_NO_ROOT_REFUSAL}' >&2; exit 2; }}"
-    return f'r="{root}"; [ -n "$r" ] && [ -f {adapter} ] || {refuse}; exec {launcher} {adapter} {flag} {named}'
+    refuse = f"{{ echo '{_NO_ADAPTER_REFUSAL}' >&2; exit 2; }}"
+    return f'r="{root}"; [ -n "$r" ] || exit 0; [ -f {adapter} ] || {refuse}; exec {launcher} {adapter} {flag} {named}'
 
 
 def _hook_command(script: str) -> str:
@@ -77,7 +77,7 @@ def _hook_command(script: str) -> str:
 
 POSTURE_GATE_COPILOT = gate_package.gate_posture(
     "vscode_copilot",
-    "Enforces only in a client that reads the com.github.copilot namespace and tells the hook where the package lives; a client that exports no plugin-root variable runs the hook, which then exits 2 (the blocking code) and refuses every call; treat this package as advisory unless a deny has been witnessed in your own client.",
+    "Enforces only in a client that reads the com.github.copilot namespace and tells the hook where the package lives; a client that exports no plugin-root variable (VS Code's agent-plugin format exports none) runs the hook, which then exits 0 and checks nothing; a root that is set but lacks the bundled hook exits 2 and refuses the call.",
 )
 
 

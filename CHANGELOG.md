@@ -4,17 +4,26 @@
 
 - **Hooks that cannot read their input, or find their package, refuse.** Every vendored runtime
   (`.chock/bin/<agent>.py`, plugin `scripts/<agent>.py`, bundles included) used to exit 0 on an
-  empty, unparseable or non-object payload. It now refuses in the client's own grammar (Cursor
-  `{"permission": "deny"}`, Copilot `permissionDecision: deny`, Devin `{"decision": "block"}`,
-  exit 2 for Claude Code, Codex and Gemini) with a stderr reason; a gate that declares `warn` still
-  passes. Unmapped events of a readable payload are still allowed. Copilot's plugin hook command
-  exits 2 when `PLUGIN_ROOT` is unset or the bundled adapter is missing, instead of 0. Cursor's
-  plugin hooks set `failClosed: true` on the pre-tool entry, as the repo-level hooks already did.
-  Windsurf cannot block a pre-tool call, so it is unchanged.
+  empty, unparseable or non-object payload. A run that judges a call (`--guard`, a blocking
+  `--gate` or `--tool-call`) now refuses in the deny its client reads at the pre-tool event (Claude
+  Code and Codex `permissionDecision: deny`, Copilot both the nested and the top-level CLI form,
+  Cursor `{"permission": "deny"}`, Devin `{"decision": "block"}`, Gemini, Tabnine and Grok
+  `{"decision": "deny"}`, Windsurf exit 2 on `pre_run_command`), a stop gate in its stop grammar,
+  and exit 2 wherever that answer would not refuse; the reason goes to stderr. A spec that declares
+  `warn`, a `--record` (PostToolUse) run and a run with no arguments (SessionStart) stay silent and
+  exit 0. Unmapped events of a readable payload are still allowed.
+- **Plugin hooks refuse when their package is missing.** Claude, Codex, Cursor and Devin plugin
+  commands check for the launcher inside git's `sh` and exit 2 when it is absent, where bash-as-sh
+  exited 127. Copilot's command still exits 0 when `PLUGIN_ROOT` is unset or empty (VS Code's
+  agent-plugin format exports no root), and now exits 2 when the root is set but lacks the bundled
+  adapter. Cursor's plugin hooks set `failClosed: true` on the pre-tool entry, as the repo-level
+  hooks already did.
 - **Coverage labels name both points.** A cell whose policy has a commit-time gate and an installed
   tool-use hook reads `enforced-at-commit + best-effort at tool use (live-run)` in `chock sync`
-  and `chock enable`/`disable` output; `coverage.json` cells carry `at_commit`. `level` is unchanged, and a
-  cell claims a point only where its surface is installed.
+  and `chock enable`/`disable` output. `coverage.json` cells carry `at_commit`, true on every
+  `enforced-at-commit` cell, and cells written by an older or newer chock still read. A git hook
+  that runs only at push (`block-destructive-commands`' pre-push script) no longer earns
+  `enforced-at-commit`, so those cells read `advisory`; no other `level` changes.
 - **GitHub annotations from the CI gate.** With `GITHUB_ACTIONS=true`, `chock gate run --event ci`
   also prints one `::error` (or `::warning` for warn, ask and anything the rollout level lowered)
   workflow command per new finding, `file`, `line` and `title=chock <policy>: <rule>` included, and

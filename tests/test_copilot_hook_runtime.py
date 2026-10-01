@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -54,22 +55,43 @@ def _emitted_command(policy, tmp_path: Path) -> str:
     return hooks["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
 
 
-def test_hook_refuses_when_the_plugin_root_cannot_be_resolved(policy, tmp_path: Path) -> None:
-    """An unresolvable plugin root REFUSES (exit 2, the blocking code): nothing judged the call."""
-    command = _emitted_command(policy, tmp_path)
+#: The shells a client may hand the command to; bash-as-sh exits 127 on a missing file, not 2.
+SHELLS = [s for s in (["dash", "-c"], ["bash", "--posix", "-c"]) if shutil.which(s[0])]
 
+
+def _run(command: str, root: str | None) -> list[subprocess.CompletedProcess]:
     env = {k: v for k, v in os.environ.items() if k != "PLUGIN_ROOT"}
-    for label, extra in (("unset", {}), ("set but wrong", {"PLUGIN_ROOT": str(tmp_path / "nope")})):
-        done = subprocess.run(  # `shell=True` IS the client's invocation under test
-            command,
-            shell=True,
-            input='{"tool_name":"Bash","tool_input":{"command":"rm -rf /"}}',
-            capture_output=True,
-            text=True,
-            env={**env, **extra},
-        )
-        assert done.returncode == 2, f"plugin root {label}: hook exited {done.returncode}, not the blocking 2"
-        assert "Refusing" in done.stderr, f"plugin root {label}: no reason given: {done.stderr[:300]!r}"
+    if root is not None:
+        env["PLUGIN_ROOT"] = root
+    payload = '{"tool_name":"Bash","tool_input":{"command":"rm -rf /"}}'
+    return [subprocess.run([*sh, command], input=payload, capture_output=True, text=True, env=env) for sh in SHELLS]
+
+
+def test_hook_allows_when_the_plugin_root_cannot_be_resolved(policy, tmp_path: Path) -> None:
+    """No plugin root must ALLOW: VS Code's agent-plugin format exports none, and refusing denied every call."""
+    command = _emitted_command(policy, tmp_path)
+    assert SHELLS, "no dash or bash to run the client's command under"
+    for label, root in (("unset", None), ("empty", "")):
+        for done in _run(command, root):
+            assert done.returncode == 0, (
+                f"plugin root {label}: hook exited {done.returncode}; anything non-zero is a deny in "
+                f"VS Code, and 2 in particular blocks the call. stderr={done.stderr[:300]!r}"
+            )
+
+
+def test_hook_refuses_when_the_plugin_root_lacks_the_package(policy, tmp_path: Path) -> None:
+    """A root that is set but holds no bundled hook is a broken install: it REFUSES with the blocking 2."""
+    command = _emitted_command(policy, tmp_path)
+    for done in _run(command, str(tmp_path / "nope")):
+        assert done.returncode == 2, f"hook exited {done.returncode}, not the blocking 2: {done.stderr[:300]!r}"
+        assert "Refusing" in done.stderr, done.stderr[:300]
+
+
+def test_hook_judges_the_call_when_the_root_holds_the_package(policy, tmp_path: Path) -> None:
+    out = tmp_path / "dist" / "copilot" / "block-destructive-commands"
+    command = _emitted_command(policy, tmp_path)
+    for done in _run(command, str(out)):
+        assert done.returncode == 0 and "Refusing" not in done.stderr, (done.returncode, done.stderr[:300])
 
 
 def test_copilot_and_claude_packages_run_the_same_hook(policy, tmp_path: Path) -> None:
@@ -90,8 +112,8 @@ def test_copilot_and_claude_packages_run_the_same_hook(policy, tmp_path: Path) -
         assert f"/scripts/{script}" in copilot_command
         assert f"/scripts/{claude_script}" in claude_command
     assert copilot_command.endswith(f'--guard "$r/scripts/{"block-destructive-commands.sh"}"')
-    assert "exit 2" in copilot_command, "this format's hook must refuse when its root is unresolved"
-    assert "exit 0" not in copilot_command
+    assert '[ -n "$r" ] || exit 0;' in copilot_command, "this format's hook must allow when its root is unset"
+    assert "exit 2" in copilot_command, "a root without the bundled hook must refuse"
 
     assert copilot[Path("scripts/vscode_copilot.py")] == runtime_bundle.render("vscode_copilot")
     assert claude[Path("scripts/claude_code.py")] == runtime_bundle.render("claude_code")

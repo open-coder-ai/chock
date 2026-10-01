@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Iterable, NamedTuple
+from typing import Any, Iterable, NamedTuple
 
 from agentseam import contract as _contract
 from agentseam import matrix as _matrix
@@ -90,12 +90,19 @@ BASIS_CAP = {
 
 
 class Grade(NamedTuple):
-    """One coverage cell: the word, the evidence binding it, whether chock saw it work, and whether a commit-time gate also holds."""
+    """One coverage cell: word, evidence, chock's own witness, and whether a commit-time gate holds."""
 
     level: str
     basis: str | None
     witnessed: bool
     at_commit: bool = False
+
+    @classmethod
+    def read(cls, cell: dict[str, Any]) -> Grade:
+        """A cell from coverage.json, written by any chock version: unknown keys dropped, missing ones defaulted."""
+        return cls(
+            cell.get("level", "none"), cell.get("basis"), bool(cell.get("witnessed")), bool(cell.get("at_commit"))
+        )
 
 
 def cap_for(basis: str) -> str:
@@ -163,11 +170,8 @@ def in_agent_grade(
 
 
 def render_grade(grade: Grade) -> str:
-    """One cell as a report prints it, naming every point it holds at: `enforced-at-commit + best-effort at tool use (vendor-docs)`.
-
-    The evidence binds the tool-use word, never the commit one. A cell with no tool-use
-    level prints its one word unchanged.
-    """
+    """One cell as printed, every point it holds at: `enforced-at-commit + best-effort at tool use (vendor-docs)`."""
+    # The evidence binds the tool-use word, never the commit one.
     tool_use = grade.level in IN_AGENT_LEVELS and grade.level != "none"
     text = f"{AT_COMMIT} + {grade.level} at tool use" if grade.at_commit and tool_use else grade.level
     return f"{text} ({grade.basis})" if grade.basis else text

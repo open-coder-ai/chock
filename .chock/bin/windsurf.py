@@ -1593,25 +1593,63 @@ _CHOCK_UNREADABLE = (
     "Refusing rather than reporting an allow it never established."
 )
 
+#: A payload naming only this vendor's own wire event, so `respond` picks that event's grammar.
+_CHOCK_WIRE_RAW = {PRE_TOOL: {'hook_event_name': 'pre_run_command'}, STOP: {'hook_event_name': 'post_cascade_response'}}
 
-def _chock_declared_action():
-    argv = sys.argv[1:]
+#: The words a client reads as a refusal, in any of the answer fields a vendor grammar uses.
+_CHOCK_REFUSING = ("deny", "block", "ask", "continue")
+_CHOCK_ANSWER_KEYS = ("decision", "permission", "permissionDecision")
+
+
+def _chock_spec_action(path):
     try:
-        spec = json.loads(_chock_Path(argv[argv.index("--gate") + 1]).read_text(encoding="utf-8"))
-        action = spec.get("action")
+        action = json.loads(path.read_text(encoding="utf-8")).get("action")
     except Exception:
         return "block"
     return action if action in ("ask", "warn") else "block"
 
 
+def _chock_declared():
+    """(strictest action, event) of the judging flags; (None, None) where this run judges nothing."""
+    argv = sys.argv[1:]
+    actions = ["block"] if guard_path_from_argv(argv) is not None else []
+    event = PRE_TOOL
+    gate = _flag_path(argv, GATE_FLAG)
+    if gate is not None:
+        actions.append(_chock_spec_action(gate))
+        event = STOP if gate.parent.name == _EVENT_ARG[STOP] else PRE_TOOL
+    called = _flag_path(argv, TOOL_CALL_FLAG)
+    if called is not None:
+        actions.append(_chock_spec_action(called))
+    for action in ("block", "ask", "warn"):
+        if action in actions:
+            return action, event
+    return None, None
+
+
+def _chock_refuses(text, code):
+    if code == 2:
+        return True
+    try:
+        body = json.loads(text)
+    except Exception:
+        return False
+    if not isinstance(body, dict):
+        return False
+    nested = body.get("hookSpecificOutput")
+    answers = [body] + ([nested] if isinstance(nested, dict) else [])
+    return any(part.get(key) in _CHOCK_REFUSING for part in answers for key in _CHOCK_ANSWER_KEYS)
+
+
 def _chock_unreadable():
-    action = _chock_declared_action()
-    if action == "warn":
+    action, kind = _chock_declared()
+    if action in (None, "warn"):
         return "", 0
     _report(_CHOCK_UNREADABLE + "\n")
     decision = Decision.escalate(_CHOCK_UNREADABLE) if action == "ask" else Decision.deny(_CHOCK_UNREADABLE)
-    text, code = respond(degrade(decision, Event(AGENT, PRE_TOOL, raw={})), Event(AGENT, PRE_TOOL, raw={}))
-    return (text, code) if text or code else ("", 2)
+    event = Event(AGENT, kind, raw=dict(_CHOCK_WIRE_RAW[kind]))
+    text, code = respond(degrade(decision, event), event)
+    return (text, code) if _chock_refuses(text, code) else ("", 2)
 
 
 def _spoken(verdict):
