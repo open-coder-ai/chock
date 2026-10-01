@@ -14,7 +14,8 @@
   exit 0. Unmapped events of a readable payload are still allowed.
 - **Plugin hooks refuse when their package is missing.** Claude, Codex, Cursor and Devin plugin
   commands check for the launcher inside git's `sh` and exit 2 when it is absent, where bash-as-sh
-  exited 127. Copilot's command still exits 0 when `PLUGIN_ROOT` is unset or empty (VS Code's
+  exited 127. The path reaches that check as an argument, never as shell text, so a root holding
+  a quote, `$` or backtick neither breaks the hook nor skips it. Copilot's command still exits 0 when `PLUGIN_ROOT` is unset or empty (VS Code's
   agent-plugin format exports no root), and now exits 2 when the root is set but lacks the bundled
   adapter. Cursor's plugin hooks set `failClosed: true` on the pre-tool entry, as the repo-level
   hooks already did.

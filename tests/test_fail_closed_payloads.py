@@ -18,10 +18,13 @@ from bundle_fixtures import ALL_ROOTS, BUNDLE_ID, bundle, hook_commands, make_me
 from conftest import run_hook_command
 
 from chock.gate import runtime_bundle
+from chock.hooks import launch
 from chock.plugin.bundle_build import CLIENTS, MERGED, bundle_files
 
 CLIENTS_UNDER_TEST = sorted(name for name, client in CLIENTS.items() if client.route == MERGED)
 MALFORMED = ("not json", "", "[1, 2]", '{"tool_name":', "null")
+#: The shells a client may hand a command to; bash-as-sh exits 127 on a missing file, dash 2.
+SHELLS = [s for s in ("dash", "bash --posix") if shutil.which(s.split()[0])]
 
 
 def _payload(client: str, repo: Path, command: str) -> str:
@@ -107,7 +110,7 @@ def test_an_ordinary_payload_is_still_allowed_and_a_dangerous_one_still_refused(
     assert any(_refused(client, done) for done in dangerous), client
 
 
-@pytest.mark.parametrize("shell", [s for s in ("dash", "bash --posix") if shutil.which(s.split()[0])])
+@pytest.mark.parametrize("shell", SHELLS)
 def test_a_hook_whose_root_lacks_its_package_refuses(installed, shell: str) -> None:
     """A root that is set but wrong is a broken install, under dash and bash-as-sh (which exits 127) alike."""
     client, package, repo = installed
@@ -146,7 +149,7 @@ def test_every_cursor_pre_tool_entry_sets_fail_closed_alone_and_merged(tmp_path:
         assert all(entry.get("failClosed") is True for entry in entries), entries
 
 
-@pytest.mark.parametrize("shell", [s for s in ("dash", "bash --posix") if shutil.which(s.split()[0])])
+@pytest.mark.parametrize("shell", SHELLS)
 def test_the_claude_plugin_refuses_when_its_root_lacks_the_package(tmp_path: Path, shell: str) -> None:
     repo = project(tmp_path)
     for member in make_members(tmp_path / "m"):
@@ -157,6 +160,45 @@ def test_the_claude_plugin_refuses_when_its_root_lacks_the_package(tmp_path: Pat
             argv = [*shell.split(), "-c", command]
             done = subprocess.run(argv, cwd=repo, env=env, input="{}", capture_output=True, text=True)
             assert done.returncode == 2 and "Refusing" in done.stderr, (shell, done.returncode, done.stderr)
+
+
+#: Roots a client may expand: the path is data, never shell text, so none may break out of the check.
+ODD_ROOTS = ["with space", "O'Brien", "x'; exit 0; echo '", 'q"uote', "$HOME", "back`tick`", "glob*[x]"]
+STUB_LAUNCHER = "echo LAUNCHED >&2\nexit 7\n"
+
+
+@pytest.mark.parametrize("client", sorted(CLIENTS))
+def test_an_odd_plugin_root_runs_the_launcher_or_refuses_never_allows(tmp_path: Path, client: str) -> None:
+    """Present: the launcher runs (its own rc 7). Missing: rc 2. Never rc 0 without the launcher."""
+    repo = project(tmp_path)
+    member = make_members(tmp_path / "m")[1]
+    package = write(tmp_path / "pkg", CLIENTS[client].files(member.policy_dir, member.manifest, tmp_path))
+    (command,) = _commands(package)[:1]
+    for name in ODD_ROOTS:
+        present, missing = tmp_path / "ok" / name, tmp_path / "gone" / name
+        shutil.copytree(package, present)
+        (present / "scripts" / "launch.sh").write_text(STUB_LAUNCHER, encoding="utf-8")
+        missing.mkdir(parents=True)
+        for root, expected in ((present, 7), (missing, 2)):
+            env = {**os.environ, **dict.fromkeys(ALL_ROOTS, str(root))}
+            for shell in SHELLS:
+                argv = [*shell.split(), "-c", command]
+                done = subprocess.run(argv, cwd=repo, env=env, input="{}", capture_output=True, text=True)
+                assert done.returncode == expected, (client, shell, name, done.returncode, done.stderr)
+                assert ("LAUNCHED" in done.stderr) == (expected == 7), (client, shell, name, done.stderr)
+
+
+@pytest.mark.parametrize("inner", SHELLS)
+def test_the_launcher_check_holds_in_either_sh_git_may_run(tmp_path: Path, inner: str) -> None:
+    """Git runs the alias as `sh -c '<body> "$@"'`; dash exits 2 on a missing script, bash-as-sh 127."""
+    body = launch._PLUGIN_MISSING + '; sh "$@"'
+    for name in ODD_ROOTS:
+        launcher = tmp_path / name / "launch.sh"
+        argv = [*inner.split(), "-c", body, "chock-sh", str(launcher)]
+        assert subprocess.run(argv, capture_output=True, check=False).returncode == 2, name
+        launcher.parent.mkdir()
+        launcher.write_text(STUB_LAUNCHER, encoding="utf-8")
+        assert subprocess.run(argv, capture_output=True, check=False).returncode == 7, name
 
 
 # --- the repo runtimes `chock sync` writes, rendered by the same generator ---------------------

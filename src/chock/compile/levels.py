@@ -101,7 +101,7 @@ class Grade(NamedTuple):
     def read(cls, cell: dict[str, Any]) -> Grade:
         """A cell from coverage.json, written by any chock version: unknown keys dropped, missing ones defaulted."""
         return cls(
-            cell.get("level", "none"), cell.get("basis"), bool(cell.get("witnessed")), bool(cell.get("at_commit"))
+            cell.get("level", "none"), cell.get("basis"), bool(cell.get("witnessed")), cell.get("at_commit") is True
         )
 
 
