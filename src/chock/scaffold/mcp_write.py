@@ -117,6 +117,7 @@ def _write_by_path(path: Path, payload: bytes, mode: int) -> None:
 def write_file(root: Path, rel: str, payload: bytes, mode: int) -> None:
     """Replace `rel` through a same-directory temp file, every directory pinned by fd against a late swap."""
     _lstat_checked(root, rel)
+    mode &= 0o700  # owner bits only: the file is never made group- or world-accessible here
     if _fd_safe():
         _write_pinned(root, rel, payload, mode)
     else:

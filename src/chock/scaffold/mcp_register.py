@@ -199,7 +199,7 @@ def register(repo_root: Path | str, wired: tuple[str, ...], *, enabled: bool) ->
             if new.strip():
                 if enabled:
                     write_launcher(root)
-                write_file(root, client.path, _payload(new, existing), existing.mode if existing else 0o644)
+                write_file(root, client.path, _payload(new, existing), existing.mode if existing else 0o600)
             else:
                 remove_file(root, client.path)
         except OSError as exc:
