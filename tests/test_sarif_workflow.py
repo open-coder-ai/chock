@@ -41,3 +41,12 @@ def test_the_log_is_written_after_the_gates_and_before_the_upload() -> None:
     assert "--format sarif" in write["run"] and "--event ci" in write["run"]
     assert write["run"].count("$RUNNER_TEMP/chock.sarif") == 1
     assert UPLOAD["with"]["sarif_file"] == "${{ runner.temp }}/chock.sarif"
+
+
+def test_every_action_is_pinned_to_a_commit_and_checkout_keeps_no_token() -> None:
+    uses = [step["uses"] for step in JOB["steps"] if "uses" in step]
+    assert len(uses) == 3
+    assert all(re.fullmatch(r"[\w./-]+@[0-9a-f]{40}", ref) for ref in uses)
+    checkout = next(step for step in JOB["steps"] if step.get("uses", "").startswith("actions/checkout@"))
+    assert checkout["with"]["persist-credentials"] is False
+    assert checkout["with"]["fetch-depth"] == 0

@@ -14,10 +14,11 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 from chock import __version__
 from chock.gate import runner
+from chock.gate.sarif_output import refusal, write_output
 from chock.guidance.source import CONTRACT, POLICIES_DIR, GuidanceError, read_text
 
 SARIF_SCHEMA = "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json"
@@ -26,6 +27,7 @@ FINGERPRINT_KEY = "chockFingerprint/v1"
 _LEVEL = {runner.ACTION_BLOCK: "error", runner.ACTION_ASK: "warning", runner.ACTION_WARN: "note"}
 _CONTRACT_BYTES = 4_000_000
 _TEXT_CAP = 1000
+_ID_CAP = 200
 _UTF8 = SimpleNamespace(encoding="utf-8")
 _UNSAFE = re.compile(r"[\x00-\x1f\x7f-\x9f\u200b-\u200f\u2028-\u202e\u2060-\u2069\ufeff]+")
 _CWE_ID = re.compile(r"CWE-(\d+)")
@@ -37,6 +39,11 @@ def safe_text(value: object, cap: int = _TEXT_CAP) -> str:
     text = " ".join(_UNSAFE.sub(" ", str(value)).split())
     text = runner._encodable(text, _UTF8)
     return text if len(text) <= cap else text[: cap - 1] + "…"
+
+
+def rule_id(policy: str, rule: str = "") -> str:
+    """A rule's SARIF id, `<policy>/<rule>` (the policy alone for no rule): one safe line, at most 200 characters."""
+    return safe_text(f"{policy}/{rule}" if rule else policy, _ID_CAP)
 
 
 @dataclass(frozen=True)
@@ -60,13 +67,21 @@ def _contract_rules(repo: Path, policy: str) -> list[dict]:
     return [r for r in rules if isinstance(r, dict) and isinstance(r.get("id"), str)] if isinstance(rules, list) else []
 
 
+def _https_uri(value: object) -> str | None:
+    """`value` when it is an absolute https URL with a host and no whitespace or control character."""
+    if not isinstance(value, str) or not value.isascii() or not value.isprintable() or any(c.isspace() for c in value):
+        return None
+    try:
+        parts = urlsplit(value)
+        host = parts.hostname
+    except ValueError:
+        return None
+    return value if parts.scheme == "https" and host else None
+
+
 def _help_uri(rule: dict) -> str | None:
     refs = rule.get("references")
-    return (
-        next((r for r in refs if isinstance(r, str) and r.startswith("https://") and r.isascii()), None)
-        if isinstance(refs, list)
-        else None
-    )
+    return next((uri for r in refs if (uri := _https_uri(r))), None) if isinstance(refs, list) else None
 
 
 def _tags(policy: str, rule: dict) -> list[str]:
@@ -146,9 +161,13 @@ class _Rules:
             contract = _contract_rules(repo, policy.policy)
             for rule in contract:
                 short, full = str(rule.get("title", "")), str(rule.get("constraint", ""))
-                self._add(f"{policy.policy}/{rule['id']}", policy.policy, level, {"short": short, "full": full}, rule)
+                self._add(
+                    rule_id(policy.policy, rule["id"]), policy.policy, level, {"short": short, "full": full}, rule
+                )
             if not contract:
-                self._add(policy.policy, policy.policy, level, {"short": policy.policy, "full": policy.message}, {})
+                self._add(
+                    rule_id(policy.policy), policy.policy, level, {"short": policy.policy, "full": policy.message}, {}
+                )
 
     def _add(self, rule_id: str, policy: str, level: str, text: dict[str, str], extra: dict) -> None:
         if rule_id not in self.index:
@@ -165,14 +184,14 @@ def _result(gated: GatedPolicy, item: Item, repo: Path, rules: _Rules, seen: Cou
     evaluation = gated.evaluation
     held = runner._verdict(evaluation.result, gated.declared)
     effective = runner._verdict(evaluation.result, gated.declared, evaluation.level)
-    rule_id = f"{gated.policy}/{item.rule}" if item.rule else gated.policy
+    ident = rule_id(gated.policy, item.rule)
     path = _location(item.path, gated, repo)
     physical: dict = {"artifactLocation": {"uri": quote(path, safe="/")}}
     if item.line > 0 and item.path:
         physical["region"] = {"startLine": item.line}
     return {
-        "ruleId": rule_id,
-        "ruleIndex": rules.need(rule_id, gated),
+        "ruleId": ident,
+        "ruleIndex": rules.need(ident, gated),
         "level": _LEVEL[held],
         "message": {"text": safe_text(item.message)},
         "locations": [{"physicalLocation": physical}],
@@ -251,12 +270,17 @@ def build(repo: Path, base: str, head_ref: str | None = None) -> tuple[dict, int
 
 
 def emit(repo: Path, base: str, head_ref: str | None, output: str | None) -> int:
-    """Write the SARIF log to `output` (or stdout) and return the gates' exit code."""
+    """Write the SARIF log to `output` (or stdout) and return the gates' exit code; 2 when `output` is refused."""
+    if output and (reason := refusal(Path(output), repo)):
+        sys.stderr.write(f"sarif: refusing to write --output: {reason}\n")
+        return 2
     log, code = build(repo, base, head_ref)
     text = json.dumps(log, indent=2, sort_keys=False) + "\n"
-    if output:
-        Path(output).write_text(text, encoding="utf-8")
-        sys.stderr.write(f"sarif: {len(log['runs'][0]['results'])} result(s) written to {output}\n")
-    else:
+    if not output:
         sys.stdout.write(text)
+        return code
+    if failure := write_output(Path(output), text, repo):
+        sys.stderr.write(f"sarif: cannot write --output: {failure}\n")
+        return 2
+    sys.stderr.write(f"sarif: {len(log['runs'][0]['results'])} result(s) written to {output}\n")
     return code

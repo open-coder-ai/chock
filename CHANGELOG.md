@@ -14,6 +14,13 @@
   `chock sync --ci` installs a workflow that uploads it with a commit-pinned
   `github/codeql-action/upload-sarif`, `security-events: write` on that job only, `if: always()`, and
   `continue-on-error` on the upload step alone (code scanning may be off or a fork's token read-only).
+  `--output` is written through a new file beside the target and renamed into place, and is refused
+  (exit 2, nothing written) when the target or any part of its path below the repo is a symlink, a
+  `..` is in it, or an existing target is not a regular file. Rule ids are one safe line of at most
+  200 characters; `helpUri` must be an https URL with a host. The same workflow now pins
+  `actions/checkout` and `actions/setup-python` to commits and sets `persist-credentials: false`. The
+  rules' titles and links are read from the checked-out tree, so a pull request can change its own
+  SARIF text (never a verdict or exit code).
 - **A plugin's Stop hook refuses an unreadable payload in the vendor's Stop grammar.** Plugin
   packages reuse the pre-tool `gate.json` for their Stop hook, so the runtime could not tell it was
   at Stop and answered in the pre-tool grammar (Claude, Codex and Copilot `permissionDecision: deny`,
