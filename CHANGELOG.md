@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **A plugin's Stop hook refuses an unreadable payload in the vendor's Stop grammar.** Plugin
+  packages reuse the pre-tool `gate.json` for their Stop hook, so the runtime could not tell it was
+  at Stop and answered in the pre-tool grammar (Claude, Codex and Copilot `permissionDecision: deny`,
+  Cursor `{"permission": "deny"}`), which does not end a Stop. The Stop command now carries
+  `--stop`: Claude, Codex and Devin answer `{"decision": "block"}`, Copilot its nested Stop
+  `decision: block`, Cursor exit 2.
+- **An unreadable Stop payload is refused at most 3 times, then warned.** Without a readable payload
+  there is no session id, so the per-session re-entry ledger could not count it and the turn was
+  refused every time. `.chock/state/unreadable-stop.jsonl` now counts refusals per repository in a
+  600 second window: 3 refusals, then the turn ends with the loud `systemMessage`/stderr warning and
+  a held `would_block` record (`reentry_verdict: unreadable`), the same bound a readable payload
+  gets, never a silent allow. A ledger that cannot be written, or whose records do not parse, keeps
+  refusing: with nothing to count, only a refusal is safe. Pre-tool unreadable payloads are never capped.
 - **Hooks that cannot read their input, or find their package, refuse.** Every vendored runtime
   (`.chock/bin/<agent>.py`, plugin `scripts/<agent>.py`, bundles included) used to exit 0 on an
   empty, unparseable or non-object payload. A run that judges a call (`--guard`, a blocking

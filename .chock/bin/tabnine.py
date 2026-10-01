@@ -1532,7 +1532,53 @@ def settle_stop(event, root, gate, decision, writes=None):
     _stop_gate_log(root, policy, verdict, (index, tracked, changed), findings)
     return (VERDICT_DENY, message + (_STOP_LAST.format(cap=REENTRY_CAP) if index == REENTRY_CAP else ''))
 
+UNREADABLE_STOP_LEDGER = 'unreadable-stop.jsonl'
+
+UNREADABLE_STOP_PHASE = 'unreadable-stop'
+
+UNREADABLE_STOP_WINDOW_SECONDS = 600
+
+REENTRY_UNREADABLE = 'unreadable'
+
+_UNREADABLE_STOP_WARNING = 'chock {policy}: {cap} stops in a row had a payload chock could not read, so none of them was judged. The turn was allowed to end so the client does not loop; a commit will judge what is on disk, and a person must look at why the payload is unreadable.\n'
+
+_UNREADABLE_STOP_LAST = '\nThis is refusal {cap} of {cap} for stops chock cannot read: the next one ends the turn unchecked, and a commit will judge what is on disk. A person must look at why the payload is unreadable.'
+
+def _unreadable_stop_recent(lines, now):
+    """The refusals recorded inside the window; a record that does not parse, or has no time, counts as none."""
+    kept = []
+    for line in lines:
+        seen = _stop_parse(line)
+        stamp = seen.get('at') if isinstance(seen, dict) else None
+        refused = isinstance(seen, dict) and seen.get('phase') == UNREADABLE_STOP_PHASE
+        if refused and seen.get('verdict') == STOP_LOG_BLOCK and (type(stamp) in (int, float)) and (0 <= now - stamp < UNREADABLE_STOP_WINDOW_SECONDS):
+            kept.append(stamp)
+    return kept
+
+def settle_unreadable_stop(root, policy, refusal):
+    """(verdict, text) this unreadable Stop earns: a refusal with `refusal`, or a warning once the cap is spent.
+
+    A ledger that cannot be written keeps refusing: with nothing to count, only a refusal is safe.
+    """
+    path = _chock_Path(root).joinpath(*SESSION_STATE_PARTS, UNREADABLE_STOP_LEDGER)
+    lines = _stop_lines(path)
+    now = _chock_datetime.now(_chock_timezone.utc).timestamp()
+    index = len(_unreadable_stop_recent(lines, now)) + 1
+    capped = index > REENTRY_CAP
+    verdict = STOP_LOG_WARN if capped else STOP_LOG_BLOCK
+    _stop_append(path, lines, {'phase': UNREADABLE_STOP_PHASE, 'verdict': verdict, 'at': now, 'reentry': index})
+    _stop_gate_log(root, policy, verdict, (index, REENTRY_UNREADABLE, None), [])
+    if capped:
+        text = _UNREADABLE_STOP_WARNING.format(policy=policy, cap=REENTRY_CAP)
+        with contextlib.suppress(Exception):
+            sys.stderr.write(text)
+            sys.stderr.flush()
+        return (VERDICT_WARN, text)
+    return (VERDICT_DENY, refusal + (_UNREADABLE_STOP_LAST.format(cap=REENTRY_CAP) if index == REENTRY_CAP else ''))
+
 GATE_FLAG = '--gate'
+
+STOP_FLAG = '--stop'
 
 _GATE_TIMEOUT_SECONDS = 30
 
@@ -1893,21 +1939,21 @@ def _chock_spec_action(path):
 
 
 def _chock_declared():
-    """(strictest action, event) of the judging flags; (None, None) where this run judges nothing."""
+    """(strictest action, event, gate) of the judging flags; (None, None, None) where this run judges nothing."""
     argv = sys.argv[1:]
     actions = ["block"] if guard_path_from_argv(argv) is not None else []
     event = PRE_TOOL
     gate = _flag_path(argv, GATE_FLAG)
     if gate is not None:
         actions.append(_chock_spec_action(gate))
-        event = STOP if gate.parent.name == _EVENT_ARG[STOP] else PRE_TOOL
+        event = STOP if STOP_FLAG in argv or gate.parent.name == _EVENT_ARG[STOP] else PRE_TOOL
     called = _flag_path(argv, TOOL_CALL_FLAG)
     if called is not None:
         actions.append(_chock_spec_action(called))
     for action in ("block", "ask", "warn"):
         if action in actions:
-            return action, event
-    return None, None
+            return action, event, gate
+    return None, None, None
 
 
 def _chock_refuses(text, code):
@@ -1924,13 +1970,24 @@ def _chock_refuses(text, code):
     return any(part.get(key) in _CHOCK_REFUSING for part in answers for key in _CHOCK_ANSWER_KEYS)
 
 
+def _chock_unreadable_stop(gate):
+    """The bounded verdict of an unreadable Stop: a refusal, or a warning once the cap is spent."""
+    root = root_for(gate) or _chock_Path.cwd()
+    return settle_unreadable_stop(root, gate.parent.parent.name, _CHOCK_UNREADABLE)
+
+
 def _chock_unreadable():
-    action, kind = _chock_declared()
+    action, kind, gate = _chock_declared()
     if action in (None, "warn"):
         return "", 0
-    _report(_CHOCK_UNREADABLE + "\n")
-    decision = Decision.escalate(_CHOCK_UNREADABLE) if action == "ask" else Decision.deny(_CHOCK_UNREADABLE)
     event = Event(AGENT, kind, raw=dict(_CHOCK_WIRE_RAW[kind]))
+    reason = _CHOCK_UNREADABLE
+    if kind == STOP and gate is not None:
+        verdict, reason = _chock_unreadable_stop(gate)
+        if verdict == VERDICT_WARN:
+            return respond(degrade(Decision.warn(reason), event), event)
+    _report(reason + "\n")
+    decision = Decision.escalate(reason) if action == "ask" else Decision.deny(reason)
     text, code = respond(degrade(decision, event), event)
     return (text, code) if _chock_refuses(text, code) else ("", 2)
 

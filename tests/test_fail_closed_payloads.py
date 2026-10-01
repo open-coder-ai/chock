@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 from bundle_fixtures import ALL_ROOTS, BUNDLE_ID, bundle, hook_commands, make_members, project, write
 from conftest import run_hook_command
+from test_unreadable_stop import STOP_REFUSALS
 
 from chock.gate import runtime_bundle
 from chock.hooks import launch
@@ -74,6 +75,8 @@ def _commands(package: Path) -> list[str]:
 
 
 def _run(command: str, repo: Path, payload: str, roots: Path | None) -> object:
+    # Each run is a first stop: the unreadable-stop ledger (test_unreadable_stop) is not what is under test here.
+    repo.joinpath(".chock", "state", "unreadable-stop.jsonl").unlink(missing_ok=True)
     env = {k: v for k, v in os.environ.items() if k not in ALL_ROOTS}
     if roots is not None:
         env.update(dict.fromkeys(ALL_ROOTS, roots.as_posix()))
@@ -93,9 +96,10 @@ def test_a_malformed_payload_is_refused(installed) -> None:
     for payload in MALFORMED:
         for command in _commands(package):
             done = _run(command, repo, payload, package)
-            assert _refused(client, done), (client, payload, done.returncode, done.stdout, done.stderr)
+            refused = STOP_REFUSALS[client] if " --stop" in command else DENIES[CLIENTS[client].agent]
+            assert refused(done), (client, payload, done.returncode, done.stdout, done.stderr)
             assert "could not read" in done.stderr, (client, payload, done.stderr)
-            if client == "copilot":
+            if client == "copilot" and " --stop" not in command:
                 assert _nested(done) == "deny", ("VS Code reads the nested answer", done.stdout)
 
 

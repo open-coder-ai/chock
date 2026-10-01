@@ -22,6 +22,7 @@ from . import (
     sessionstart,
     stop_reentry,
     tool_call_gate,
+    unreadable_stop,
     write_gate,
 )
 
@@ -100,10 +101,19 @@ def _wire_raw(agent: str, canonical: str) -> dict[str, str]:
     return next(({key: wire} for key in keys if wire and adapter.parse({key: wire}).event == canonical), {})
 
 
+def _warn_answer(agent: str) -> str:
+    """The respond function that carries a warning's words in `agent`'s client, as the dispatch routes it."""
+    if agent in _COPILOT_RESPOND_AGENTS:
+        return "_chock_copilot_respond"
+    if agent in _WARN_RESPOND_AGENTS:
+        return "_chock_warn_respond"
+    return "_chock_stop_warn_respond" if agent in _STOP_WARN_RESPOND_AGENTS else "respond"
+
+
 def _unreadable_source(agent: str) -> str:
     """The unreadable-payload refusal, in `agent`'s own pre-tool and stop event names and answer."""
     answer = "_chock_copilot_respond" if agent in _COPILOT_RESPOND_AGENTS else "respond"
-    source = _UNREADABLE.replace("__RESPOND__", answer)
+    source = _UNREADABLE.replace("__WARN_RESPOND__", _warn_answer(agent)).replace("__RESPOND__", answer)
     for token, canonical in _WIRE_RAW_TOKENS.items():
         source = source.replace(token, repr(_wire_raw(agent, canonical)))
     return source
@@ -169,6 +179,8 @@ def _handler_source(agent: str) -> str:
         _extract(session_log),
         "\n",
         _extract(stop_reentry),
+        "\n",
+        _extract(unreadable_stop),
         "\n",
         _extract(write_gate),
         "\n",
