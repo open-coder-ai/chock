@@ -10,6 +10,9 @@
   entry is flagged). A selection the runtime would refuse fails too. Deleting a committed
   `.chock/security.json` fails, since java-security then falls back to `~/.chock/security.json`, and a
   symlink, directory or other non-regular file at either selection path is an error.
+  At the base commit, a selection path that is a symlink, a directory or a submodule, or a `.chock`
+  that is not a directory, is an error naming the object (it was read as absent or as text); a
+  regular file at `.chock` in the worktree is a named error too.
 
 - **The turn's end is re-judged when the client re-enters the Stop hook.** Claude Code, Codex and
   Copilot (`stop_hook_active`) and Cursor (`loop_count`) re-enter the hook after a refusal, and it
