@@ -184,7 +184,7 @@ def _stop_append(path, lines, record):
         path.parent.mkdir(parents=True, exist_ok=True)
         if len(lines) < SESSION_MAX_ENTRIES and (not path.exists() or path.stat().st_size < SESSION_TRIM_BYTES):
             flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
-            with os.fdopen(os.open(path, flags, 0o644), "a", encoding="utf-8") as fh:
+            with os.fdopen(os.open(path, flags, 0o600), "a", encoding="utf-8") as fh:
                 fh.write(line + "\n")
         else:
             scratch = path.with_name("%s.%d.tmp" % (path.name, os.getpid()))

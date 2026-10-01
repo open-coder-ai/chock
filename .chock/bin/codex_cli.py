@@ -1528,7 +1528,7 @@ def _stop_append(path, lines, record):
         path.parent.mkdir(parents=True, exist_ok=True)
         if len(lines) < SESSION_MAX_ENTRIES and (not path.exists() or path.stat().st_size < SESSION_TRIM_BYTES):
             flags = _chock_os.O_WRONLY | _chock_os.O_APPEND | _chock_os.O_CREAT | getattr(_chock_os, 'O_NOFOLLOW', 0) | getattr(_chock_os, 'O_NONBLOCK', 0)
-            with _chock_os.fdopen(_chock_os.open(path, flags, 420), 'a', encoding='utf-8') as fh:
+            with _chock_os.fdopen(_chock_os.open(path, flags, 384), 'a', encoding='utf-8') as fh:
                 fh.write(line + '\n')
         else:
             scratch = path.with_name('%s.%d.tmp' % (path.name, _chock_os.getpid()))
