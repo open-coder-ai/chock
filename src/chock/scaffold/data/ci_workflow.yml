@@ -38,6 +38,15 @@ jobs:
       - name: Compiled artifacts match their manifests
         run: chock sync --repo . --check
 
+      # A hook cannot guard its own config: refuse a pull request that disables or narrows a policy.
+      # The base ref is a branch name, so it reaches the shell through env, as data. The checkout's
+      # full history already holds origin/<base>; a base that does not resolve fails the step.
+      - name: Policy set is no weaker than the base branch
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: chock check --only baseline --base "origin/$BASE_REF"
+
       - name: Run compiled CI gates (commit-range mode)
         run: |
           shopt -s nullglob
