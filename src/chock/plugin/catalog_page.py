@@ -106,7 +106,7 @@ def _explain(tree: str, guard: tuple[int, list[str]], gate: tuple[int, list[str]
             "vocabulary, so the write itself is not judged"
         )
         parts.append(
-            f"A gate package ships the policy's gate and a stdlib-only runner instead, hooked at "
+            f"A gate package ships the policy's gate and a stdlib-only runner{'' if both else ' instead'}, hooked at "
             f"{_event_list(gate_events)}, {reach}. It needs `git` and a Python 3.11+; with no working "
             "Python it exits 2, without git a fail-open client allows silently, and a gate that cannot reach a decision refuses rather than allowing "
             "one it never judged."

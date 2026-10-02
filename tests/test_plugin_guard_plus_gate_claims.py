@@ -69,3 +69,25 @@ def test_a_package_wiring_no_known_command_counts_as_neither_half(tmp_path: Path
     assert catalog_page._package_kinds(hooks) == {}
     assert not bundle_grade.carries_guard(None)
     assert bundle_grade.events_for(["not", "a", "map"], "--gate") == []
+
+
+def test_a_vendor_caveat_for_both_halves_is_stated_once_and_for_both(tmp_path: Path) -> None:
+    from guard_gate_support import STORES
+
+    pack, data = make_policy(tmp_path, guard=True, gate=True)
+    codex_files = STORES["codex"][1](pack, data, tmp_path)
+    codex_text = json.loads(codex_files[Path(".codex-plugin/plugin.json")])["description"]
+    assert codex_text.count("one-time trust review") == 1
+    copilot_files = STORES["copilot"][1](pack, data, tmp_path)
+    copilot_text = json.loads(copilot_files[Path("plugin.json")])["description"]
+    shared = copilot_text.split("Both halves:", 1)[1]
+    assert "exports no plugin-root variable" in shared, "the root caveat covers the guard too"
+    assert copilot_text.count("exports no plugin-root variable") == 1
+
+
+def test_the_catalog_page_drops_instead_only_when_a_package_ships_both(tmp_path: Path) -> None:
+    dist = tmp_path / "dist"
+    both, both_data = make_policy(tmp_path, guard=True, gate=True)
+    BUILDERS["claude"](both, both_data, tmp_path, dist / "claude" / POLICY_ID)
+    assert "stdlib-only runner instead" not in catalog_page.render_catalog_page(dist, "claude")
+    assert "stdlib-only runner instead" in catalog_page._explain("claude", (1, ["PreToolUse"]), (1, ["Stop"]))

@@ -18,7 +18,7 @@ from chock.plugin import gate_package
 #: The guard notes' closing sentences repeat the gate note's; a combined note keeps the gate's.
 _GUARD_NOTE_TAIL = " Repo-wide "
 _GATE_NOTE_SUBJECT, _GATE_SUBJECT_AFTER_GUARD = "This policy ", "Its write gate "
-_GUARD_LABEL, _GATE_LABEL = "Shell guard:", "Write gate:"
+_GUARD_LABEL, _GATE_LABEL, _SHARED_LABEL = "Shell guard:", "Write gate:", "Both halves:"
 
 
 class PackageCollisionError(ValueError):
@@ -83,8 +83,12 @@ def skill_note(guard_note: str | None, gate_note: str | None) -> str | None:
     return f"{lead} {gate_note.replace(_GATE_NOTE_SUBJECT, _GATE_SUBJECT_AFTER_GUARD, 1)}"
 
 
-def posture(guard_posture: str, gate_posture: str, *, guard: bool, gate: bool) -> str:
-    """The description's posture: each shipped half's own fail conditions, labelled when both ship."""
+def posture(guard_posture: str, gate_posture: str, *, guard: bool, gate: bool, shared: str = "") -> str:
+    """The description's posture: each shipped half's own fail conditions, labelled when both ship.
+
+    `shared` is a vendor caveat that holds for both halves, stated once after them.
+    """
     if guard and gate:
-        return f"{_GUARD_LABEL} {guard_posture} {_GATE_LABEL} {gate_posture}"
+        both = f"{_GUARD_LABEL} {guard_posture} {_GATE_LABEL} {gate_posture}"
+        return f"{both} {_SHARED_LABEL} {shared}" if shared else both
     return gate_posture if gate else guard_posture

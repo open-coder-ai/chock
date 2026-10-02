@@ -74,10 +74,14 @@ def _hook_command(script: str) -> str:
     return _root_guarded(script, "--guard")
 
 
-POSTURE_GATE_COPILOT = gate_package.gate_posture(
-    "vscode_copilot",
-    "Enforces only in a client that reads the com.github.copilot namespace and tells the hook where the package lives; a client that exports no plugin-root variable (VS Code's agent-plugin format exports none) runs the hook, which then exits 0 and checks nothing; a root that is set but lacks the bundled hook exits 2 and refuses the call.",
+#: Both hooks run through the same root check, so this holds for the guard as much as the gate.
+_ROOT_CAVEAT = (
+    "Enforces only in a client that reads the com.github.copilot namespace and tells the hook where the package "
+    "lives; a client that exports no plugin-root variable (VS Code's agent-plugin format exports none) runs the "
+    "hook, which then exits 0 and checks nothing; a root that is set but lacks the bundled hook exits 2 and "
+    "refuses the call."
 )
+POSTURE_GATE_COPILOT = gate_package.gate_posture("vscode_copilot", _ROOT_CAVEAT)
 
 
 def _gate_command() -> str:
@@ -89,7 +93,10 @@ def manifest_posture(*, enforced: bool, gate: bool = False, guard: bool = False)
     """The posture sentence a package's description ends with; `guard` with `gate` states both halves."""
     if not enforced:
         return POSTURE_ADVISORY
-    return guard_gate.posture(POSTURE_ENFORCED_COPILOT, POSTURE_GATE_COPILOT, guard=guard or not gate, gate=gate)
+    if guard and gate:
+        bare = gate_package.gate_posture("vscode_copilot")
+        return guard_gate.posture(POSTURE_ENFORCED_COPILOT, bare, guard=True, gate=True, shared=_ROOT_CAVEAT)
+    return guard_gate.posture(POSTURE_ENFORCED_COPILOT, POSTURE_GATE_COPILOT, guard=not gate, gate=gate)
 
 
 def build_copilot_manifest(

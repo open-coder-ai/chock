@@ -63,6 +63,8 @@ POSTURE_GATE_CODEX = gate_package.gate_posture(
     "codex_cli",
     "Codex requires a one-time trust review per hook -- the plugin is ADVISORY until you approve its hook, and a plugin update voids that trust until re-approved.",
 )
+#: Beside the guard, whose posture already states the per-hook trust review, the gate's is bare.
+_POSTURE_GATE_BESIDE_GUARD = gate_package.gate_posture("codex_cli")
 
 
 def _gate_command() -> str:
@@ -76,7 +78,8 @@ def manifest_posture(*, enforced: bool, gate: bool = False, guard: bool = False)
     """The posture sentence a package's description ends with; `guard` with `gate` states both halves."""
     if not enforced:
         return POSTURE_ADVISORY
-    return guard_gate.posture(POSTURE_ENFORCED_CODEX, POSTURE_GATE_CODEX, guard=guard or not gate, gate=gate)
+    gate_text = _POSTURE_GATE_BESIDE_GUARD if guard else POSTURE_GATE_CODEX
+    return guard_gate.posture(POSTURE_ENFORCED_CODEX, gate_text, guard=guard or not gate, gate=gate)
 
 
 def build_codex_manifest(
