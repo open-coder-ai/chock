@@ -87,11 +87,16 @@ def test_the_step_passes_a_pull_request_that_keeps_the_policy_set(pull_request: 
 
 @needs_bash
 def test_a_base_that_does_not_resolve_fails_the_step(pull_request: Path) -> None:
-    assert _run_step(pull_request, "no-such-branch").returncode != 0
+    result = _run_step(pull_request, "no-such-branch")
+    assert result.returncode == 1
+    assert "does not resolve" in result.stdout + result.stderr
 
 
 @needs_bash
-def test_a_branch_name_with_shell_metacharacters_stays_data(pull_request: Path) -> None:
-    result = _run_step(pull_request, 'main" ; touch pwned ; echo "')
-    assert result.returncode != 0
+def test_a_real_base_branch_named_with_shell_metacharacters_stays_data(pull_request: Path) -> None:
+    hostile = "main;touch${IFS}pwned"
+    _git(pull_request.parent / "origin", "branch", hostile, "main")
+    _git(pull_request, "fetch", "-q", "origin")
+    result = _run_step(pull_request, hostile)
+    assert result.returncode == 0, result.stdout + result.stderr
     assert not (pull_request / "pwned").exists()
