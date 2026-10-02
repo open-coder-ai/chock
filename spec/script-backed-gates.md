@@ -63,6 +63,39 @@ whose `"on"` includes `tool_use`. Both compile: the guard judges shell commands 
 judges the content a write leaves. Every vendor installer merges both entries, and the policy
 reads as installed only when all of its compiled entries are present.
 
+## Write-path door
+
+A command guard sees shell commands; an event script runs from the git hook. Neither sees an
+agent's Edit or Write, and `hook.script` has no `tool_use` event: the write path is always a
+`hook.gate` with `tool_use` in `"on"`, declared beside them, never implied by them.
+
+```yaml
+hook:
+  gate:                  # beside implementations/<id>.{sh,py} (guard) or hook.script
+    kind: content_regex  # path gate: refuses any write to a matching path (allowlist_pragma waives)
+    "on": [tool_use]     # add commit/push when no hook.script holds that event
+    action: block        # or ask
+    message: ...
+    params: {forbidden_path_regex: '...', content_pattern: '(?!)'}
+```
+
+For logic rather than a path list, the gate is `kind: script` (params.script, judged on the
+written files). The guard is found by name, as above.
+
+**DET-6** (`manifest_write_path`, error):
+
+| shape | verdict |
+|---|---|
+| `hook.script.on` names any event but `commit`, `push`, `commit-msg` | error: a script never runs in the agent or CI; the message names both gate forms |
+| `content_pattern: '(?!)'` with no or empty `forbidden_path_regex` | error: the gate can never refuse |
+| a guard plus a `'(?!)'` path gate whose `"on"` lacks `tool_use` | error: Edit/Write to the paths go unchecked |
+| guard alone; script alone; path gate alone; guard plus a content gate | valid |
+
+Limits: only the text `(?!)` (outer whitespace ignored) is read as path-only, so another
+never-matching pattern (`(?!x)x`) with no path passes; a guard plus a content gate is not
+checked for a write door, because a shell-only guard (no-verify, destructive commands) protects
+no file and needs none.
+
 ## Not a command guard
 
 `implementations/<id>.sh` is invoked with a command's argv by the in-agent PreToolUse hooks
