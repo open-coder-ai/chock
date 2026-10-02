@@ -39,9 +39,10 @@ def _claims(field: str) -> list[tuple[Path, int, str]]:
     return found
 
 
-def test_the_spec_makes_such_claims_at_all() -> None:
+@pytest.mark.parametrize("field", sorted(FIELDS))
+def test_the_spec_makes_such_claims_at_all(field: str) -> None:
     """A regex that matched nothing would make the test below vacuously green."""
-    assert any(_claims(field) for field in FIELDS), "no `field: value` claims found in spec/"
+    assert _claims(field), f"no `{field}: value` claims found in spec/"
 
 
 @pytest.mark.parametrize("field", sorted(FIELDS))

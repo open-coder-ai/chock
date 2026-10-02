@@ -6,7 +6,9 @@
   compiles and evaluates it at the mcp-gateway, but `manifest.hook.json` left it out of the
   `hook.gate.kind` enum, so `chock validate` refused every manifest using it (a schema error,
   exit 1). The enum now lists it; the gateway-only rule (no `commit`/`push` in `on`) and its
-  closed `params` still apply. A test pins the enum to the engine's kinds and param schemas, and
+  closed `params` still apply, and `outside_repo` is now refused on any kind that never judges a
+  write (it was accepted and ignored). Only the MCP gateway evaluates the kind, so a policy using
+  it earns `advisory` coverage per agent. A test pins the enum to the engine's kinds and param schemas, and
   `spec/` prose quoting a `` `kind: <value>` `` must name one the schema accepts.
 - **A watch-only rollout mode.** `rollout: observe | ask | enforce` in `.chock/config.yaml` caps
   how far compiled gates escalate: observe turns a block or ask into a warning, ask caps at ask

@@ -36,6 +36,7 @@ def test_every_kind_has_a_param_schema() -> None:
 
 
 def test_gateway_only_kinds_have_a_gateway_runtime_and_no_git_runtime() -> None:
+    assert set(gateway_gates.RUNTIME_KINDS) <= SCHEMA_KINDS
     assert GATEWAY_ONLY_KINDS <= set(gateway_gates.RUNTIME_KINDS)
     assert GATEWAY_ONLY_KINDS <= set(emitter.RUNTIME_KINDS)
     assert not GATEWAY_ONLY_KINDS & set(KINDS)
@@ -66,6 +67,7 @@ def test_egress_allowlist_manifest_validates(tmp_path: Path) -> None:
         ({**_EGRESS, "params": {"allowed_hosts": []}}, "allowed_hosts"),
         ({**_EGRESS, "params": {"allowed_hosts": ["a.com"], "allowlist_pragma": "x"}}, "Additional properties"),
         ({**_EGRESS, "kind": "egress_allowlist_v2"}, "is not one of"),
+        ({**_EGRESS, "outside_repo": ["~/.ssh/*"]}, "outside_repo needs a kind that judges a write"),
     ],
 )
 def test_egress_allowlist_misuse_still_fails(tmp_path: Path, gate: dict, needle: str) -> None:
