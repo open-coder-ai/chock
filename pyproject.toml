@@ -251,6 +251,7 @@ max-statements = 50
 "src/chock/registry/core.py" = ["T201", "C901"]
 "src/chock/review/cli.py" = ["T201"]
 "src/chock/scaffold/add.py" = ["T201", "PLR0913"]
+"src/chock/scaffold/pin.py" = ["T201"]
 "src/chock/scaffold/init.py" = ["T201", "C901", "PLR0912", "PLR0915"]
 "src/chock/scaffold/install_ci.py" = ["T201"]
 "src/chock/scaffold/new.py" = ["T201"]
