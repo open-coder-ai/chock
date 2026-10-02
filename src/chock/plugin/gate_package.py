@@ -20,6 +20,7 @@ from chock.compile.emitters.in_agent import GATE_FILE
 from chock.compile.emitters.in_agent_hooks import cursor_entry, hook_entry
 from chock.gate import runtime_bundle
 from chock.gate.runner import SCRIPT_BASE_GATE
+from chock.gate.write_gate import STOP_FLAG
 
 RUNNER_FILE = "gate.py"
 IMPLEMENTATIONS = "implementations"
@@ -81,10 +82,13 @@ def gate_hooks_file(vendor: str, command: str) -> dict[str, Any]:
         # A flat entry carries no matcher: the runtime answers every tool and judges only a
         # write it recognises, so an unmatched tool is allowed with nothing said.
         entries[vendors.pre_tool_event(vendor)] = [
-            cursor_entry(command) if flat else hook_entry(command, matcher=matcher)
+            cursor_entry(command, fail_closed=True) if flat else hook_entry(command, matcher=matcher)
         ]
     if stop:
-        entries[vendors.stop_event(vendor)] = [cursor_entry(command) if flat else hook_entry(command)]
+        # The Stop hook shares the pre-tool gate file, so it says which event it serves: an unreadable
+        # Stop payload then earns the vendor's Stop refusal, not the pre-tool grammar.
+        stop_command = f"{command} {STOP_FLAG}"
+        entries[vendors.stop_event(vendor)] = [cursor_entry(stop_command) if flat else hook_entry(stop_command)]
     if flat:
         return {**vendors.config_envelope(vendor), "hooks": entries}
     return entries if vendors.hook_entry_bare(vendor) else {"hooks": entries}

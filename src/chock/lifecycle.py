@@ -6,8 +6,9 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from typing import TextIO
 
-from chock.gatelog import FORMATS, GROUP_KEYS
+from chock.gatelog import FORMATS, GROUP_KEYS, positive_days
 
 
 def _run(label: str, fn, argv: list[str]) -> int:
@@ -93,20 +94,70 @@ def _run_mechanisms(args: argparse.Namespace) -> int:
     return _run("matrix mechanisms", mechanisms_main, ["--repo", args.repo])
 
 
-def check_main(argv: list[str] | None) -> int:
-    """Run every truth check: validate, verify, evals, matrix, index freshness, conflicts."""
+def _sarif_main(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    """The ci gates' findings as SARIF; the exit code is the gate step's own (0, 1 on a block, 2 undecided)."""
+    if args.format != "sarif":
+        parser.error("--output and --head-ref go with --format sarif")
+    if args.event != "ci" or not args.base or args.only or args.mode:
+        parser.error("--format sarif needs --event ci and --base, and takes no --only or --mode")
+    from chock.gate.sarif import emit
+
+    return emit(Path(args.repo), args.base, args.head_ref, args.output)
+
+
+def _check_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="chock check")
     parser.add_argument("--repo", default=".", help="Repo root")
     parser.add_argument("--only", default=None, help=f"Comma-separated subset of: {', '.join(CHECKS)}")
     parser.add_argument("--mode", default=None, help="Validation mode (passed to validate, e.g. frontier-claude)")
     parser.add_argument("--event", default=None, help="Hook event context (passed to validate, e.g. commit)")
     parser.add_argument("--base", default=None, help="Git ref the policy set may not be weaker than (baseline)")
-    args = parser.parse_args(argv)
+    parser.add_argument(
+        "--format",
+        choices=("text", "sarif"),
+        default="text",
+        help="sarif: run the compiled ci gates (needs --event ci and --base) and print their findings as SARIF 2.1.0",
+    )
+    parser.add_argument("--output", default=None, help="With --format sarif: write the log to this file, not stdout")
+    parser.add_argument(
+        "--head-ref", default=None, help="With --format sarif: the branch under test ($GITHUB_HEAD_REF)"
+    )
+    return parser
 
-    selected = [s.strip() for s in args.only.split(",")] if args.only else list(CHECKS)
+
+def _run_freshness_checks(selected: list[str], repo: str) -> int:
+    """Index freshness and ambient conflicts."""
+    rc = 0
+    if "index" in selected:
+        from chock.index.cli import cmd_refresh
+
+        rc = max(rc, _run("index freshness", cmd_refresh, ["--repo", repo, "--check"]))
+    if "conflicts" in selected:
+        from chock.validation.checks_conflicts import main as conflicts_main
+
+        rc = max(rc, _run("ambient conflicts", conflicts_main, ["--repo", repo]))
+    return rc
+
+
+def _selected_checks(only: str | None) -> list[str] | None:
+    """The checks named by `--only` (all when unset); None, after saying so, when one is unknown."""
+    selected = [s.strip() for s in only.split(",")] if only else list(CHECKS)
     unknown = sorted(set(selected) - set(CHECKS))
     if unknown:
         print(f"Unknown check(s): {', '.join(unknown)}. Choose from: {', '.join(CHECKS)}", file=sys.stderr)
+        return None
+    return selected
+
+
+def check_main(argv: list[str] | None) -> int:
+    """Run every truth check: validate, verify, evals, matrix, index freshness, conflicts."""
+    parser = _check_parser()
+    args = parser.parse_args(argv)
+    if args.format == "sarif" or args.output or args.head_ref:
+        return _sarif_main(args, parser)
+
+    selected = _selected_checks(args.only)
+    if selected is None:
         return 2
 
     rc = 0
@@ -124,14 +175,7 @@ def check_main(argv: list[str] | None) -> int:
         rc = max(rc, _run_matrix(args))
     if "mechanisms" in selected:
         rc = max(rc, _run_mechanisms(args))
-    if "index" in selected:
-        from chock.index.cli import cmd_refresh
-
-        rc = max(rc, _run("index freshness", cmd_refresh, ["--repo", args.repo, "--check"]))
-    if "conflicts" in selected:
-        from chock.validation.checks_conflicts import main as conflicts_main
-
-        rc = max(rc, _run("ambient conflicts", conflicts_main, ["--repo", args.repo]))
+    rc = max(rc, _run_freshness_checks(selected, args.repo))
     if "baseline" in selected:
         rc = max(rc, _run_baseline(args))
     return rc
@@ -156,7 +200,7 @@ def _log_args(args: argparse.Namespace) -> list[str]:
     return given + (["--json"] if args.json else [])
 
 
-def _print_rollout(repo: Path) -> None:
+def _print_rollout(repo: Path, stream: TextIO = sys.stdout) -> None:
     """Lead with a level below enforce, where it came from, and what it does not reach."""
     from chock.gate.runner import ROLLOUT_ENFORCE, ROLLOUT_ENV, agent_signal, rollout
 
@@ -170,7 +214,8 @@ def _print_rollout(repo: Path) -> None:
     print(
         f"ROLLOUT: {level}, from {source} -- compiled gates {ceiling} instead of blocking and record what "
         "enforce would have stopped (`chock status --only log`); command guards, tool_call gates and the "
-        "MCP gateway still block. Remove it to enforce."
+        "MCP gateway still block. Remove it to enforce.",
+        file=stream,
     )
 
 
@@ -181,7 +226,7 @@ def status_main(argv: list[str] | None) -> int:
     parser.add_argument("--only", default=None, help="Comma-separated subset of: policies, registry, log")
     log_flags = parser.add_argument_group("log section")
     log_flags.add_argument("--policy", help="Log: restrict to one policy id")
-    log_flags.add_argument("--since", type=int, metavar="DAYS", help="Log: only records from the last N days")
+    log_flags.add_argument("--since", type=positive_days, metavar="DAYS", help="Log: only records from the last N days")
     log_flags.add_argument("--json", action="store_true", help="Log: machine-readable output")
     log_flags.add_argument("--by", choices=GROUP_KEYS, help="Log: group by policy, rule, agent or event")
     log_flags.add_argument("--format", choices=FORMATS, help="Log: md prints a markdown summary")
@@ -198,7 +243,12 @@ def status_main(argv: list[str] | None) -> int:
         print("--policy, --since, --json, --by and --format apply to `--only log`", file=sys.stderr)
         return 2
 
-    _print_rollout(Path(args.repo).resolve())
+    if (args.json or args.format == "md") and selected != ["log"]:
+        print("--json and --format md print the log alone: use `--only log`", file=sys.stderr)
+        return 2
+
+    # Machine output stays parseable: the level notice goes to stderr beside it.
+    _print_rollout(Path(args.repo).resolve(), sys.stderr if args.json or args.format == "md" else sys.stdout)
 
     rc = 0
     if "policies" in selected:

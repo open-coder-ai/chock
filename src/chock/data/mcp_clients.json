@@ -1,0 +1,7 @@
+{
+  "claude_code": {"path": ".mcp.json", "format": "json", "key": "mcpServers", "extra": {}},
+  "cursor": {"path": ".cursor/mcp.json", "format": "json", "key": "mcpServers", "extra": {}},
+  "vscode_copilot": {"path": ".vscode/mcp.json", "format": "json", "key": "servers", "extra": {"type": "stdio"}},
+  "gemini_cli": {"path": ".gemini/settings.json", "format": "json", "key": "mcpServers", "extra": {}},
+  "codex_cli": {"path": ".codex/config.toml", "format": "toml", "key": "mcp_servers", "extra": {}}
+}

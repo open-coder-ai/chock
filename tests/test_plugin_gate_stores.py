@@ -22,6 +22,7 @@ from test_plugin_gate import POLICY_ID, SCRIPT, _manifest
 from test_plugin_gate import policy as shared_policy
 
 from chock.gate import runtime_bundle
+from chock.gate.stop_reentry import REENTRY_CAP
 from chock.plugin import codex, copilot, cursor, devin
 from chock.plugin.gate_package import gate_reach, gate_reaches
 
@@ -113,14 +114,15 @@ def _run_cursor_hook(out: Path, repo: Path, payload: str) -> subprocess.Complete
 
 
 def test_the_cursor_package_gates_the_write_flat_and_reports_at_stop(gate_policy, tmp_path: Path) -> None:
-    """Cursor's hooks file is its own shape: flat entries, no matcher, no failClosed, `version: 1`."""
+    """Cursor's hooks file is its own shape: flat entries, no matcher, failClosed on the pre-tool gate, `version: 1`."""
     manifest = _manifest()
     out = tmp_path / "dist" / "cursor" / POLICY_ID
     cursor.build_cursor_plugin(gate_policy(manifest), manifest, tmp_path, out)
     doc = json.loads((out / cursor.HOOKS_REL).read_text(encoding="utf-8"))
     assert doc["version"] == 1 and set(doc["hooks"]) == {"preToolUse", "stop"}
-    for entries in doc["hooks"].values():
-        assert set(entries[0]) == {"command", "timeout"}, "flat, unmatched, and never failClosed"
+    for event, entries in doc["hooks"].items():
+        expected = {"command", "timeout", "failClosed"} if event == "preToolUse" else {"command", "timeout"}
+        assert set(entries[0]) == expected, "flat, unmatched, failClosed on the pre-tool gate only"
     description = json.loads((out / ".cursor-plugin" / "plugin.json").read_text(encoding="utf-8"))["description"]
     assert "PreToolUse and Stop hooks" in description and "follow-up message" in description
     assert cursor.POSTURE_ADVISORY not in description
@@ -148,7 +150,11 @@ def test_the_cursor_package_runs_against_the_witnessed_payloads(gate_policy, tmp
     assert stop.returncode == 0, stop.stderr
     assert "Leak.java" in json.loads(stop.stdout)["followup_message"]
     again = _run_cursor_hook(out, repo, _cursor_payload(repo, hook_event_name="stop", status="completed", loop_count=1))
-    assert again.returncode == 0 and again.stdout.strip() == "", "a follow-up that re-entered once is not sent twice"
+    assert "Leak.java" in json.loads(again.stdout)["followup_message"], "the secret is still there"
+    last = _cursor_payload(repo, hook_event_name="stop", status="completed", loop_count=REENTRY_CAP + 1)
+    ended = _run_cursor_hook(out, repo, last)
+    assert ended.returncode == 0 and ended.stdout.strip() == "", "past the cap no follow-up: the turn ends"
+    assert "still on disk" in ended.stderr
 
 
 @pytest.mark.parametrize("store", sorted(STORES))

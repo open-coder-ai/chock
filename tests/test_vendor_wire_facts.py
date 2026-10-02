@@ -114,7 +114,8 @@ def test_cursor_fail_closed_is_set_only_where_a_gate_must_refuse() -> None:
     chock's pre-tool and shell entries set it (a hook that cannot start must block); stop
     entries do not. The key chock writes is the one agentseam's renderer writes for the flag.
     """
-    assert "failClosed" not in json.dumps(in_agent_hooks.cursor_hooks_file("CMD"))
+    (shell_entry,) = in_agent_hooks.cursor_hooks_file("CMD")["hooks"]["beforeShellExecution"]
+    assert shell_entry.get("failClosed") is True
     assert "failClosed" not in json.dumps(in_agent_hooks.cursor_entry("CMD"))
     ours = in_agent_hooks.cursor_entry("CMD", fail_closed=True)
     rendered = adapters.get("cursor").hook_config(("pre_tool",), "CMD", fail_closed=True)

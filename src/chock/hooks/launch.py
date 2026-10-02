@@ -28,6 +28,12 @@ _MISSING = f"test -f {LAUNCHER_REL} || {{ echo chock: no {LAUNCHER_REL} here, ru
 #: No `$`, no backslash, no single quote: bash, PowerShell and cmd.exe read it identically.
 _PREFIX = f'git -c "alias.{ALIAS}=!{_MISSING}; sh {LAUNCHER_REL}" {ALIAS}'
 
+
+def launcher_argv(*args: str) -> list[str]:
+    """`hook_command` as an argv, for clients that take a command and an args list (MCP configs)."""
+    return ["git", "-c", f"alias.{ALIAS}=!{_MISSING}; sh {LAUNCHER_REL}", ALIAS, *args]
+
+
 #: A plugin has no repository root to resolve against, so its alias carries nothing but `sh`: git
 #: supplies a POSIX sh under bash, PowerShell and cmd.exe alike, and the launcher's path is an
 #: argument the client expands in its plugin-root token, as it did for `python3 "<path>"`.
@@ -45,9 +51,19 @@ def hook_command(runtime: str, *args: str) -> str:
     return " ".join([_PREFIX, runtime, *words])
 
 
+#: A missing plugin launcher (root unset or wrong) refuses with exit 2 inside git's sh. The path is
+#: never spliced in: git appends the launcher as "$1", read unquoted with no splitting or globbing.
+#: Single-quoted, with no double quote or backslash, it reads the same to bash and PowerShell (Windows PowerShell drops
+#: embedded double quotes); cmd.exe does not treat ' as a quote, and no plugin client runs it.
+_PLUGIN_MISSING = (
+    "set -f; IFS=; test -f $1 || "
+    "{ echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }"
+)
+
+
 def plugin_interpreter(launcher: str) -> str:
-    """What stands where a plugin hook said `python3`: git's sh running the shipped launcher."""
-    return f'git -c "alias.{PLUGIN_ALIAS}=!sh" {PLUGIN_ALIAS} {launcher}'
+    """What stands where a plugin hook said `python3`: git's sh running the shipped launcher at path `launcher`."""
+    return f"git -c 'alias.{PLUGIN_ALIAS}=!{_PLUGIN_MISSING}; sh' {PLUGIN_ALIAS} \"{launcher}\""
 
 
 def launcher_text() -> str:

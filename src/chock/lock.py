@@ -16,6 +16,8 @@ LOCKFILE_NAME = "chock.lock"
 LOCKFILE_VERSION = "1"
 ENGINE_CONSTRAINT = ">=0.1,<0.2"
 POLICIES_REL = Path(".agents") / "policies"
+LOCAL_SOURCE = "local"
+_PROVENANCE_KEYS = ("source", "source_commit", "source_ref")
 
 
 class LockError(RuntimeError):
@@ -88,8 +90,39 @@ def _pack_rel(entry: dict[str, Any]) -> Path:
     return Path(entry["path"]) if entry.get("path") else POLICIES_REL / entry["id"]
 
 
+def is_local_source(source: object, repo_root: Path) -> bool:
+    """True for every spelling of "this repo itself": `local`, `.`, or a path that resolves to the repo root."""
+    if not isinstance(source, str) or not source:
+        return False
+    if source in {LOCAL_SOURCE, "."}:
+        return True
+    try:
+        return Path(source).expanduser().resolve() == repo_root.resolve()
+    except (OSError, RuntimeError):
+        return False
+
+
+def _prior_provenance(repo_root: Path) -> dict[str, dict[str, Any]]:
+    """Catalog provenance recorded by `chock add`, by pack path; local spellings are dropped (canonical form)."""
+    try:
+        packs = read_lock(repo_root).get("packs", [])
+    except LockError:
+        return {}
+    found: dict[str, dict[str, Any]] = {}
+    for entry in packs:
+        if not isinstance(entry, dict) or "id" not in entry or is_local_source(entry.get("source"), repo_root):
+            continue
+        found[_pack_rel(entry).as_posix()] = entry
+    return found
+
+
 def build_lock(repo_root: Path) -> dict[str, Any]:
-    """Build a lockfile from the policies installed in a repo: every pack `sync` compiles."""
+    """Build a lockfile from the policies installed in a repo: every pack `sync` compiles.
+
+    A local pack is `source: local` with no `source_commit`. Catalog provenance survives while the pack
+    still hashes to what was fetched; an edited pack is local again.
+    """
+    prior = _prior_provenance(repo_root)
     lock: dict[str, Any] = {
         "lockfile_version": LOCKFILE_VERSION,
         "engine": ENGINE_CONSTRAINT,
@@ -101,10 +134,13 @@ def build_lock(repo_root: Path) -> dict[str, Any]:
             "version": "0.0.1",
             "managed": False,
             "sha256": compute_pack_hash(pack_dir),
-            "source": "local",
+            "source": LOCAL_SOURCE,
         }
         if pack_dir.parent != repo_root / POLICIES_REL:
             entry["path"] = pack_dir.relative_to(repo_root).as_posix()
+        fetched = prior.get(pack_dir.relative_to(repo_root).as_posix())
+        if fetched and fetched.get("sha256") == entry["sha256"]:
+            entry.update({k: fetched[k] for k in _PROVENANCE_KEYS if k in fetched})
         artifacts = compute_artifacts_hash(repo_root, pack_dir.name)
         if artifacts is not None:
             entry["artifacts_sha256"] = artifacts

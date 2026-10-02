@@ -86,6 +86,50 @@ yields none); `prior(session)` drops the current call; `matching(records, tool=,
 outcome=, path=, command=, url=)` filters; `count` and `failed` are built on it. A script may also
 read the JSON lines directly.
 
+## Stop ledger
+
+A separate file, `.chock/state/<session_id>.stop.jsonl`, counts a turn's Stops so a client that
+re-enters its Stop hook is refused at most 3 times while findings remain, then warned (see
+`gate-dsl.md`). Every Stop gate writes one record per Stop, whatever policies are installed; it is
+not part of the tool-call log above, and `chock_session.py` does not read it. Bounded and pruned
+like the tool-call log (500 records, 7 days).
+
+```json
+{"anchor": false, "findings": ["3f2a9c0d1e4b5a67"], "phase": "stop", "policy": "scan-secrets", "reentry": 1, "session_id": "s1", "ts": "2026-09-29T10:15:00Z", "turn": "t1", "verdict": "block"}
+```
+
+| key | type | notes |
+|-----|------|-------|
+| `ts`, `session_id` | string | as above |
+| `phase` | string | `stop` |
+| `policy` | string | the Stop gate's policy id |
+| `turn` | string or null | the vendor's turn id: Codex `turn_id`, Cursor `generation_id`; records of other turns are ignored |
+| `reentry` | integer | `0` for a turn's first Stop, then one more per re-entry |
+| `anchor` | boolean | on a re-entry: the count restarted here because the earlier records were missing or damaged |
+| `findings` | list of strings | one 16-hex digest per flagged file, of its path and content; never either one |
+| `verdict` | string | `block`, `allow` or `warn` |
+
+A re-entry counts only an unbroken run of well-formed records of this session and policy (and
+turn) back to a `reentry: 0` or `anchor` record. Anything else is `untracked`: refused again and
+anchored, or, when the ledger cannot be written and the client sends no count of its own, the turn
+ends at once with the warning. Cursor's `loop_count` is believed over the ledger.
+
+The warning goes out as `systemMessage` (Claude Code, Codex, VS Code Copilot) and on stderr (every
+vendor). Each re-entry is a gate-log record under surface `stop-reentry`, `kind: reentry`, with
+`reentry` (its index), `verdict` (`block`, `allow`, `warn`) and `reentry_verdict` (`refused`,
+`clean`, `cap-reached`, `untracked`). The warn is held (`would_block: true`, `would_action:
+block`), so it is written even with `CHOCK_GATE_LOG=0`.
+
+### A Stop whose payload cannot be read
+
+No session id is readable then, so `unreadable-stop.jsonl` beside the session files in `.chock/state/` counts the repository's refusals
+instead: records `{"phase": "unreadable-stop", "verdict", "at" (epoch seconds), "reentry"}`. Refusals
+inside a 600 second window count; 3 are refused, the next ends the turn with a
+stderr warning (`systemMessage` only where the vendor documents one) and a held `warn` record (`reentry_verdict: unreadable`), until the oldest refusal
+ages out. A record that does not parse counts as none. A ledger, the state directory under `.chock/` or `.chock` that is a
+symlink or not a regular file or directory is never opened, and one that cannot be written keeps refusing;
+this holds for `<session_id>.stop.jsonl` too.
+
 ## Privacy
 
 Nothing leaves the machine: the log is a local file in the repository's own `.chock/state/`,

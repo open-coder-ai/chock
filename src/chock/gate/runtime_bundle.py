@@ -7,10 +7,10 @@ import functools
 import inspect
 import re
 
-from agentseam import bundler
+from agentseam import adapters, bundler, contract
 
 from chock.resources import package_data_dir
-from chock.vendors import in_agent_vendors
+from chock.vendors import entry, in_agent_vendors
 
 from . import (
     edit_image,
@@ -20,7 +20,9 @@ from . import (
     patch_image,
     session_log,
     sessionstart,
+    stop_reentry,
     tool_call_gate,
+    unreadable_stop,
     write_gate,
 )
 
@@ -36,6 +38,7 @@ _IMPORTS = _DATA_DIR.joinpath("imports.py.tmpl").read_text(encoding="utf-8")
 
 _RENAME = {
     "fnmatch": "_chock_fnmatch",
+    "hashlib": "_chock_hashlib",
     "re": "_chock_re",
     "os": "_chock_os",
     "shlex": "_chock_shlex",
@@ -84,6 +87,56 @@ def _extract(module) -> str:
 _DISPATCH = _DATA_DIR.joinpath("dispatch.py.tmpl").read_text(encoding="utf-8")
 _DISPATCH_BRANCH_TOKEN = "# __SESSION_START_BRANCH__\n"  # noqa: S105 -- a template marker, not a credential
 
+_UNREADABLE = _DATA_DIR.joinpath("unreadable_payload.py.tmpl").read_text(encoding="utf-8")
+_WIRE_RAW_TOKENS = {"__PRE_TOOL_RAW__": contract.PRE_TOOL, "__STOP_RAW__": contract.STOP}
+#: Where a vendor's payload names its event, after the vendor's own recorded `event_key`.
+_EVENT_KEYS = ("hook_event_name", "hookEventName", "agent_action_name")
+
+
+def _wire_raw(agent: str, canonical: str) -> dict[str, str]:
+    """The smallest payload `agent` parses back to `canonical`; {} where none does."""
+    adapter = adapters.get(agent)
+    wire = adapter.REVERSE_EVENT_MAP.get(canonical)
+    keys = (*entry(agent)["claims"].get("event_key", ()), *_EVENT_KEYS)
+    return next(({key: wire} for key in keys if wire and adapter.parse({key: wire}).event == canonical), {})
+
+
+def _warn_answer(agent: str) -> str:
+    """The respond function that carries a warning's words in `agent`'s client, as the dispatch routes it."""
+    if agent in _COPILOT_RESPOND_AGENTS:
+        return "_chock_copilot_respond"
+    if agent in _WARN_RESPOND_AGENTS:
+        return "_chock_warn_respond"
+    return "_chock_stop_warn_respond" if agent in _STOP_WARN_RESPOND_AGENTS else "respond"
+
+
+def _unreadable_source(agent: str) -> str:
+    """The unreadable-payload refusal, in `agent`'s own pre-tool and stop event names and answer."""
+    answer = "_chock_copilot_respond" if agent in _COPILOT_RESPOND_AGENTS else "respond"
+    source = _UNREADABLE.replace("__WARN_RESPOND__", _warn_answer(agent)).replace("__RESPOND__", answer)
+    for token, canonical in _WIRE_RAW_TOKENS.items():
+        source = source.replace(token, repr(_wire_raw(agent, canonical)))
+    return source
+
+
+#: agentseam's `main` allows a payload it cannot read; the replacement refuses in the client's dialect.
+_UNREADABLE_BRANCH = """    except Exception:
+        # Malformed input is not the agent's fault to pay for: allow, stay silent.
+        if exit:
+            sys.exit(0)
+        return 0
+"""
+_UNREADABLE_REFUSAL = """    except Exception:
+        raw = None
+    if not isinstance(raw, dict):
+        text, code = _chock_unreadable()
+        if text:
+            _emit(out, text)
+        if exit:
+            sys.exit(code)
+        return code
+"""
+
 _SESSION_START_BRANCH = _DATA_DIR.joinpath("session_start_branch.py.tmpl").read_text(encoding="utf-8")
 
 _SESSION_START_ORCHESTRATION = _DATA_DIR.joinpath("session_start_orchestration.py.tmpl").read_text(encoding="utf-8")
@@ -102,6 +155,13 @@ _WARN_RESPOND_AGENTS = frozenset({"claude_code"})
 _WARN_RESPOND_CALL = "return _chock_warn_respond(degrade(decision, event), event)"
 _WARN_RESPOND = _DATA_DIR.joinpath("warn_respond.py.tmpl").read_text(encoding="utf-8")
 
+#: Vendors that document `systemMessage` as a warning shown to the user, at Stop too.
+_STOP_WARN_AGENTS = frozenset({"claude_code", "codex_cli", "vscode_copilot"})
+_STOP_WARN = _DATA_DIR.joinpath("stop_warn.py.tmpl").read_text(encoding="utf-8")
+#: Of those, the ones no other respond wrapper routes: their stop warning is routed on its own.
+_STOP_WARN_RESPOND_AGENTS = _STOP_WARN_AGENTS - _COPILOT_RESPOND_AGENTS - _WARN_RESPOND_AGENTS
+_STOP_WARN_RESPOND_CALL = "return _chock_stop_warn_respond(degrade(decision, event), event)"
+
 
 def _handler_source(agent: str) -> str:
     """The full handler-block body for `agent`: extracted guard logic, optionally extracted"""
@@ -118,6 +178,10 @@ def _handler_source(agent: str) -> str:
         "\n",
         _extract(session_log),
         "\n",
+        _extract(stop_reentry),
+        "\n",
+        _extract(unreadable_stop),
+        "\n",
         _extract(write_gate),
         "\n",
         _extract(tool_call_gate),
@@ -127,11 +191,14 @@ def _handler_source(agent: str) -> str:
         parts.append(_extract(sessionstart))
         parts.append(_SESSION_START_ORCHESTRATION)
     branch = _SESSION_START_BRANCH if agent in _SESSION_START_AGENTS else ""
+    parts.append(_unreadable_source(agent))
     parts.append(_DISPATCH.replace(_DISPATCH_BRANCH_TOKEN, branch))
     if agent in _COPILOT_RESPOND_AGENTS:
         parts.append(_COPILOT_RESPOND)
     if agent in _WARN_RESPOND_AGENTS:
         parts.append(_WARN_RESPOND)
+    if agent in _STOP_WARN_AGENTS:
+        parts.append(_STOP_WARN)
     return "".join(parts)
 
 
@@ -185,12 +252,17 @@ def render(agent: str) -> str:
     _, sep2, tail = rest.partition(END)
     if not sep2:
         raise ValueError("%s: bundle() output has no %r marker" % (agent, END))
-    if agent in _COPILOT_RESPOND_AGENTS:
-        if _RESPOND_CALL not in tail:
-            raise ValueError("%s: bundle() output has no %r call to route" % (agent, _RESPOND_CALL))
-        tail = tail.replace(_RESPOND_CALL, _COPILOT_RESPOND_CALL)
-    if agent in _WARN_RESPOND_AGENTS:
-        if _RESPOND_CALL not in tail:
-            raise ValueError("%s: bundle() output has no %r call to route" % (agent, _RESPOND_CALL))
-        tail = tail.replace(_RESPOND_CALL, _WARN_RESPOND_CALL)
+    routes = (
+        (_COPILOT_RESPOND_AGENTS, _COPILOT_RESPOND_CALL),
+        (_WARN_RESPOND_AGENTS, _WARN_RESPOND_CALL),
+        (_STOP_WARN_RESPOND_AGENTS, _STOP_WARN_RESPOND_CALL),
+    )
+    for agents, call in routes:
+        if agent in agents:
+            if _RESPOND_CALL not in tail:
+                raise ValueError("%s: bundle() output has no %r call to route" % (agent, _RESPOND_CALL))
+            tail = tail.replace(_RESPOND_CALL, call)
+    if _UNREADABLE_BRANCH not in tail:
+        raise ValueError("%s: bundle() output has no unreadable-payload branch to refuse on" % agent)
+    tail = tail.replace(_UNREADABLE_BRANCH, _UNREADABLE_REFUSAL)
     return "%s%s\n%s%s%s" % (head, BEGIN, handler, END, tail)

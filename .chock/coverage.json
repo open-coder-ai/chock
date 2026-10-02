@@ -3,1541 +3,1840 @@
     "aider": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "claude": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "codex": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "copilot": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "cursor": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "devin": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "gemini": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "grok": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "kimi-code": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "replit": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "tabnine": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "vscode": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "windsurf": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     }
   },
   "block-destructive-commands": {
     "aider": {
-      "level": "enforced-at-commit",
+      "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "claude": {
       "level": "best-effort",
       "basis": "live-run",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "codex": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "copilot": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": true
+      "witnessed": true,
+      "at_commit": false
     },
     "cursor": {
       "level": "enforceable",
       "basis": "live-run-partial",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "devin": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "gemini": {
       "level": "best-effort",
       "basis": "vendor-source",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "grok": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "kimi-code": {
-      "level": "enforced-at-commit",
+      "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "replit": {
-      "level": "enforced-at-commit",
+      "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "tabnine": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "vscode": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": true
+      "witnessed": true,
+      "at_commit": false
     },
     "windsurf": {
       "level": "best-effort",
       "basis": "third-party-install",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     }
   },
   "block-invisible-unicode": {
     "aider": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "claude": {
       "level": "best-effort",
       "basis": "live-run",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "codex": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "copilot": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": true
+      "witnessed": true,
+      "at_commit": true
     },
     "cursor": {
       "level": "enforceable",
       "basis": "live-run-partial",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "devin": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "gemini": {
       "level": "best-effort",
       "basis": "vendor-source",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "grok": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "kimi-code": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "replit": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "tabnine": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "vscode": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": true
+      "witnessed": true,
+      "at_commit": true
     },
     "windsurf": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     }
   },
   "block-no-verify": {
     "aider": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "claude": {
       "level": "best-effort",
       "basis": "live-run",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "codex": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "copilot": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": true
+      "witnessed": true,
+      "at_commit": false
     },
     "cursor": {
       "level": "enforceable",
       "basis": "live-run-partial",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "devin": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "gemini": {
       "level": "best-effort",
       "basis": "vendor-source",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "grok": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "kimi-code": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "replit": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "tabnine": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "vscode": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": true
+      "witnessed": true,
+      "at_commit": false
     },
     "windsurf": {
       "level": "best-effort",
       "basis": "third-party-install",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     }
   },
   "block-wildcard-agent-permissions": {
     "aider": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "claude": {
       "level": "best-effort",
       "basis": "live-run",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "codex": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "copilot": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": true
+      "witnessed": true,
+      "at_commit": true
     },
     "cursor": {
       "level": "enforceable",
       "basis": "live-run-partial",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "devin": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "gemini": {
       "level": "best-effort",
       "basis": "vendor-source",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "grok": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "kimi-code": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "replit": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "tabnine": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "vscode": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": true
+      "witnessed": true,
+      "at_commit": true
     },
     "windsurf": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     }
   },
   "code-safety": {
     "aider": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "claude": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "codex": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "copilot": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "cursor": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "devin": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "gemini": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "grok": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "kimi-code": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "replit": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "tabnine": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "vscode": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "windsurf": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     }
   },
   "context-hygiene": {
     "aider": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "claude": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "codex": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "copilot": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "cursor": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "devin": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "gemini": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "grok": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "kimi-code": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "replit": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "tabnine": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "vscode": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "windsurf": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     }
   },
   "git-safety": {
     "aider": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "claude": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "codex": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "copilot": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "cursor": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "devin": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "gemini": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "grok": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "kimi-code": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "replit": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "tabnine": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "vscode": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "windsurf": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     }
   },
   "injection-defense": {
     "aider": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "claude": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "codex": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "copilot": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "cursor": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "devin": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "gemini": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "grok": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "kimi-code": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "replit": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "tabnine": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "vscode": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "windsurf": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     }
   },
   "memory-discipline": {
     "aider": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "claude": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "codex": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "copilot": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "cursor": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "devin": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "gemini": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "grok": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "kimi-code": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "replit": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "tabnine": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "vscode": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "windsurf": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     }
   },
   "minimal-content": {
     "aider": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "claude": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "codex": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "copilot": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "cursor": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "devin": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "gemini": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "grok": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "kimi-code": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "replit": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "tabnine": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "vscode": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "windsurf": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     }
   },
   "pin-github-actions": {
     "aider": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "claude": {
       "level": "best-effort",
       "basis": "live-run",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "codex": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "copilot": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": true
+      "witnessed": true,
+      "at_commit": true
     },
     "cursor": {
       "level": "enforceable",
       "basis": "live-run-partial",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "devin": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "gemini": {
       "level": "best-effort",
       "basis": "vendor-source",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "grok": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "kimi-code": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "replit": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "tabnine": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "vscode": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": true
+      "witnessed": true,
+      "at_commit": true
     },
     "windsurf": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     }
   },
   "pre-generated-scripts": {
     "aider": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "claude": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "codex": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "copilot": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "cursor": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "devin": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "gemini": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "grok": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "kimi-code": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "replit": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "tabnine": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "vscode": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "windsurf": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     }
   },
   "protect-agent-config": {
     "aider": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "claude": {
       "level": "best-effort",
       "basis": "live-run",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "codex": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "copilot": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": true
+      "witnessed": true,
+      "at_commit": false
     },
     "cursor": {
       "level": "enforceable",
       "basis": "live-run-partial",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "devin": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "gemini": {
       "level": "best-effort",
       "basis": "vendor-source",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "grok": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "kimi-code": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "replit": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "tabnine": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "vscode": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": true
+      "witnessed": true,
+      "at_commit": false
     },
     "windsurf": {
       "level": "best-effort",
       "basis": "third-party-install",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     }
   },
   "protect-commit-privacy": {
     "aider": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "claude": {
       "level": "best-effort",
       "basis": "live-run",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "codex": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "copilot": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": true
+      "witnessed": true,
+      "at_commit": true
     },
     "cursor": {
       "level": "enforceable",
       "basis": "live-run-partial",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "devin": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "gemini": {
       "level": "best-effort",
       "basis": "vendor-source",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "grok": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "kimi-code": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "replit": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "tabnine": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "vscode": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": true
+      "witnessed": true,
+      "at_commit": true
     },
     "windsurf": {
       "level": "best-effort",
       "basis": "third-party-install",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     }
   },
   "protect-main-branch": {
     "aider": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "claude": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "codex": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "copilot": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "cursor": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "devin": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "gemini": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "grok": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "kimi-code": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "replit": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "tabnine": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "vscode": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "windsurf": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     }
   },
   "require-review-evidence": {
     "aider": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "claude": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "codex": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "copilot": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "cursor": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "devin": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "gemini": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "grok": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "kimi-code": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "replit": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "tabnine": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "vscode": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "windsurf": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     }
   },
   "scan-secrets": {
     "aider": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "claude": {
       "level": "best-effort",
       "basis": "live-run",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "codex": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "copilot": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": true
+      "witnessed": true,
+      "at_commit": true
     },
     "cursor": {
       "level": "enforceable",
       "basis": "live-run-partial",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "devin": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "gemini": {
       "level": "best-effort",
       "basis": "vendor-source",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "grok": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "kimi-code": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "replit": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "tabnine": {
       "level": "best-effort",
       "basis": "vendor-docs",
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "vscode": {
       "level": "best-effort",
       "basis": "live-run-partial",
-      "witnessed": true
+      "witnessed": true,
+      "at_commit": true
     },
     "windsurf": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     }
   },
   "test-integrity": {
     "aider": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "claude": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "codex": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "copilot": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "cursor": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "devin": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "gemini": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "grok": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "kimi-code": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "replit": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "tabnine": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "vscode": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     },
     "windsurf": {
       "level": "enforced-at-commit",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": true
     }
   },
   "token-efficiency": {
     "aider": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "claude": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "codex": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "copilot": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "cursor": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "devin": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "gemini": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "grok": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "kimi-code": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "replit": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "tabnine": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "vscode": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "windsurf": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     }
   },
   "verify-dependency-exists": {
     "aider": {
       "level": "disabled",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "claude": {
       "level": "disabled",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "codex": {
       "level": "disabled",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "copilot": {
       "level": "disabled",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "cursor": {
       "level": "disabled",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "devin": {
       "level": "disabled",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "gemini": {
       "level": "disabled",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "grok": {
       "level": "disabled",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "kimi-code": {
       "level": "disabled",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "replit": {
       "level": "disabled",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "tabnine": {
       "level": "disabled",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "vscode": {
       "level": "disabled",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "windsurf": {
       "level": "disabled",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     }
   },
   "verify-framework-conformance": {
     "aider": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "claude": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "codex": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "copilot": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "cursor": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "devin": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "gemini": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "grok": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "kimi-code": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "replit": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "tabnine": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "vscode": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "windsurf": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     }
   },
   "yagni": {
     "aider": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "claude": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "codex": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "copilot": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "cursor": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "devin": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "gemini": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "grok": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "kimi-code": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "replit": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "tabnine": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "vscode": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     },
     "windsurf": {
       "level": "advisory",
       "basis": null,
-      "witnessed": false
+      "witnessed": false,
+      "at_commit": false
     }
   }
 }

@@ -15,6 +15,15 @@ SHIM_TEMPLATE = DATA_DIR.joinpath("git_hook_shim.sh").read_text(encoding="utf-8"
 SCRIPT_SHIM_TEMPLATE = DATA_DIR.joinpath("git_hook_script_shim.sh").read_text(encoding="utf-8")
 
 
+#: The shims git runs at commit time; a pre-push shim runs later, so it earns no commit-time credit.
+COMMIT_TIME_SHIMS = frozenset(f"git-{segment}.sh" for event, segment in SCRIPT_EVENTS.items() if event != "push")
+
+
+def runs_at_commit(emitted: list[Path]) -> bool:
+    """Whether any emitted git-hook artifact is a shim git runs when a commit is made."""
+    return any(Path(path).name in COMMIT_TIME_SHIMS for path in emitted)
+
+
 def _emit_shims(output_dir: Path, policy_id: str, events: list[str]) -> list[Path]:
     emitted: list[Path] = []
     for event in events:

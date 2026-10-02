@@ -17,7 +17,7 @@ from types import SimpleNamespace
 
 import pytest
 import yaml
-from conftest import init_repo
+from conftest import guarded_launch, init_repo
 
 from chock.gate import runner, runtime_bundle
 from chock.plugin.claude import (
@@ -102,13 +102,13 @@ def test_a_tool_use_gate_ships_hooks_runner_gate_and_its_program(policy, tmp_pat
 
     hooks = json.loads((out / "hooks" / "hooks.json").read_text(encoding="utf-8"))["hooks"]
     command = (
-        'git -c "alias.chock-sh=!sh" chock-sh "${CLAUDE_PLUGIN_ROOT}/scripts/launch.sh" '
-        '"${CLAUDE_PLUGIN_ROOT}/scripts/claude_code.py" --gate "${CLAUDE_PLUGIN_ROOT}/scripts/gate.json"'
+        guarded_launch("${CLAUDE_PLUGIN_ROOT}/scripts/launch.sh")
+        + '"${CLAUDE_PLUGIN_ROOT}/scripts/claude_code.py" --gate "${CLAUDE_PLUGIN_ROOT}/scripts/gate.json"'
     )
     assert hooks["PreToolUse"][0]["matcher"] == "Write|Edit|MultiEdit|NotebookEdit"
     assert hooks["PreToolUse"][0]["hooks"][0]["command"] == command
     assert "matcher" not in hooks["Stop"][0]
-    assert hooks["Stop"][0]["hooks"][0]["command"] == command
+    assert hooks["Stop"][0]["hooks"][0]["command"] == command + " --stop"
 
     gate = json.loads((out / "scripts" / "gate.json").read_text(encoding="utf-8"))
     assert gate["kind"] == "script"

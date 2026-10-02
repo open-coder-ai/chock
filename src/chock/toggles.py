@@ -24,7 +24,7 @@ from chock.scaffold.recompile import BookkeepingError, compiled_differences, rec
 
 def _cell(value: Any) -> str:
     """One coverage cell as a table prints it; a pre-cell coverage.json still reads as its word."""
-    return value if isinstance(value, str) else render_grade(Grade(**value))
+    return value if isinstance(value, str) else render_grade(Grade.read(value))
 
 
 def _parser_fail(parser: argparse.ArgumentParser, message: str) -> NoReturn:

@@ -19,6 +19,9 @@ FIELDS = {
     "kind": ("manifest.hook.json", ("properties", "gate", "properties", "kind")),
 }
 
+# (field, spec file, value) claims about a different record that shares the token: a gate-log record's kind.
+OTHER_RECORDS = {("kind", "session-log.md", "reentry")}
+
 
 def _allowed(schema_file: str, path: tuple[str, ...]) -> set[str]:
     node = json.loads((SCHEMA_DIR / schema_file).read_text(encoding="utf-8"))
@@ -51,7 +54,7 @@ def test_spec_field_values_are_accepted_by_the_schema(field: str) -> None:
     bad = [
         f"{path.name}:{number} claims `{field}: {value}`"
         for path, number, value in _claims(field)
-        if value not in allowed
+        if value not in allowed and (field, path.name, value) not in OTHER_RECORDS
     ]
     assert not bad, (
         f"The spec asserts a `{field}` value the schema cannot express: {bad}. "

@@ -60,6 +60,7 @@ def test_wheel_contains_emitted_artifact_templates(built_wheel: Path) -> None:
         "chock.compile.emitters": "chock/compile/emitters/data",
         "chock.scaffold": "chock/scaffold/data",
         "chock.gate": "chock/gate/data",
+        "chock.guidance": "chock/guidance/data",
     }
     with zipfile.ZipFile(built_wheel) as whl:
         names = set(whl.namelist())

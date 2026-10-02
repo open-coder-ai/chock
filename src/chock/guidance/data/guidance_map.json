@@ -1,0 +1,68 @@
+{
+  "limits": {
+    "plan_chars": 4000,
+    "paths": 50,
+    "path_chars": 512,
+    "line_bytes": 1048576,
+    "file_bytes": 524288,
+    "rules": 12,
+    "response_bytes": 4000,
+    "constraint_chars": 300,
+    "min_score": 4.3,
+    "min_words": 2,
+    "body_share": 0.4,
+    "generic_share": 0.2
+  },
+  "policies": {
+    "java-security": {
+      "selection": ".chock/security.json",
+      "pack_globs": {
+        "java": ["*.java", "*.kt"],
+        "crypto": ["*.java", "*.kt", "*.properties", "*.yml", "*.yaml"],
+        "spring": ["*.java", "*.kt", "application*.properties", "application*.yml", "application*.yaml", "bootstrap*.properties", "bootstrap*.yml"],
+        "jakarta": ["*.java", "*.kt", "web.xml", "*.xhtml", "struts*.xml", "*.properties"],
+        "persistence": ["*.java", "*.kt", "*.xml", "*.sql", "*.properties"],
+        "templates": ["*.html", "*.jsp", "*.jspx", "*.ftl", "*.vm", "*.peb", "*.mustache", "*.hbs", "*.xhtml"],
+        "logging": ["*.java", "*.kt", "log4j*.xml", "log4j*.properties", "logback*.xml"],
+        "build": ["pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle"],
+        "android": ["*.java", "*.kt", "AndroidManifest.xml"],
+        "bugs": ["*.java", "*.kt"],
+        "concurrency": ["*.java", "*.kt"],
+        "resources": ["*.java", "*.kt"],
+        "exceptions": ["*.java", "*.kt"],
+        "performance": ["*.java", "*.kt"],
+        "style": ["*.java", "*.kt"],
+        "testing": ["*.java", "*.kt"]
+      }
+    }
+  },
+  "synonyms": {
+    "download": ["file", "path", "traversal"],
+    "upload": ["file", "path"],
+    "unzip": ["archive", "zip"],
+    "extract": ["archive", "zip"],
+    "login": ["password", "session", "jwt"],
+    "token": ["jwt"],
+    "query": ["sql"],
+    "database": ["sql", "jdbc"],
+    "fetch": ["url", "request", "ssrf"],
+    "proxy": ["url", "ssrf"],
+    "url": ["ssrf"],
+    "webhook": ["url", "ssrf"],
+    "redirect": ["redirect"],
+    "shell": ["command"],
+    "exec": ["command"],
+    "encrypt": ["cipher", "crypto"],
+    "hash": ["digest", "password"],
+    "xml": ["xxe", "parser"],
+    "serialize": ["deserialization"],
+    "cors": ["cors"]
+  },
+  "stopwords": [
+    "a", "add", "an", "and", "app", "are", "as", "at", "be", "box", "build", "by", "can", "change", "class", "code",
+    "create", "endpoint", "feature", "fix", "for", "from", "function", "get", "handle", "has", "have", "implement",
+    "in", "into", "is", "it", "list", "make", "method", "new", "of", "on", "or", "our", "read", "return", "search", "send",
+    "service", "should", "show", "support", "that", "the", "then", "this", "to", "update", "use", "user", "we",
+    "when", "will", "with", "write"
+  ]
+}

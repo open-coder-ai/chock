@@ -18,6 +18,7 @@ from conftest import run_hook_command
 from chock.compile.compiler import compile_policy
 from chock.compile.emitters.in_agent import COPILOT_WRITE_MATCHER, SHELL_MATCHER, emit_agent_hooks
 from chock.gate import runtime_bundle
+from chock.gate.stop_reentry import REENTRY_CAP
 from chock.hooks.in_agent_install import agent_hooks_rel, install_hooks, installed_policy_ids, uninstall_hooks
 
 SECRET = "AKIA" + "1234567890ABCDEF"  # pragma: allowlist secret
@@ -236,12 +237,16 @@ def test_a_turn_that_left_a_denied_construct_on_disk_is_blocked_at_its_end(tmp_p
     assert (nested["hookEventName"], nested["decision"], nested["reason"]) == ("Stop", "block", body["reason"])
 
 
-def test_a_clean_turn_and_a_re_entered_stop_are_allowed_silently(tmp_path: Path) -> None:
+def test_a_clean_turn_is_allowed_silently_and_a_re_entry_ends_in_a_warning_not_a_loop(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     (repo / "Fine.java").write_text("class Fine { }\n", encoding="utf-8")
     assert _run(repo, "Stop", _stop(repo)).stdout.strip() == ""
     (repo / "Leak.java").write_text(f'String k = "{SECRET}";\n', encoding="utf-8")
-    assert _run(repo, "Stop", _stop(repo, active=True)).stdout.strip() == "", "no loop on the retry"
+    assert json.loads(_run(repo, "Stop", _stop(repo)).stdout)["decision"] == "block"
+    for _ in range(REENTRY_CAP):
+        assert json.loads(_run(repo, "Stop", _stop(repo, active=True)).stdout)["decision"] == "block"
+    body = json.loads(_run(repo, "Stop", _stop(repo, active=True)).stdout)
+    assert set(body) == {"systemMessage"} and "still on disk" in body["systemMessage"], "no loop past the cap"
 
 
 def test_only_the_copilot_runtime_carries_the_top_level_answer() -> None:

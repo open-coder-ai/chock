@@ -17,6 +17,7 @@ import yaml
 
 from chock import vendors
 from chock.compile.compiler import compile_policy
+from chock.gate.stop_reentry import REENTRY_CAP
 from chock.hooks.in_agent_generic import FRAGMENT_SURFACES
 from chock.hooks.in_agent_install import WIRED_VENDORS, install_hooks, installed_policy_ids
 from chock.hooks.in_agent_merged import MERGED
@@ -156,12 +157,18 @@ def test_a_turn_that_wrote_a_secret_by_any_means_is_blocked(tmp_path: Path) -> N
     assert "leak.py" in decision["reason"]
 
 
-def test_a_stop_hook_that_already_fired_does_not_fire_again(tmp_path: Path) -> None:
-    """Refusing a turn re-enters this hook. Without the guard the refusal would never terminate."""
+def test_a_stop_hook_that_already_fired_refuses_until_the_cap_then_warns(tmp_path: Path) -> None:
+    """Refusing a turn re-enters this hook. The secret is still on disk, so the re-entry is refused
+    again; the cap ends the turn with a warning rather than a loop (tests/test_stop_reentry_wire.py)."""
     repo = _repo(tmp_path)
     install_hooks(repo, "claude_code")
     (repo / "leak.py").write_text(f'aws = "{SECRET}"\n', encoding="utf-8")
+    assert json.loads(_fire(repo, {"hook_event_name": "Stop"}).stdout)["decision"] == "block"
+    for _ in range(REENTRY_CAP):
+        assert (
+            json.loads(_fire(repo, {"hook_event_name": "Stop", "stop_hook_active": True}).stdout)["decision"] == "block"
+        )
 
     result = _fire(repo, {"hook_event_name": "Stop", "stop_hook_active": True})
     assert result.returncode == 0
-    assert not (result.stdout or "").strip()
+    assert "still on disk" in json.loads(result.stdout)["systemMessage"]
