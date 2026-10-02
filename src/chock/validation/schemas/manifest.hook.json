@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.hook.json",
   "title": "ChockHookPayload",
-  "description": "V3 hook payload: the compiled gate DSL under 'hook.gate', the event declaration under 'hook.script' for a check no declarative kind can express, or both -- the same control on its git events and its tool_use surface.",
+  "description": "V3 hook payload: the compiled gate DSL under 'hook.gate', the event declaration under 'hook.script' for a check no declarative kind can express, or both -- the same control on its git events and its tool_use surface. A script and a shell guard (implementations/<policy_id>.{sh,py}, found by name) never see an Edit/Write; their write-path door is a hook.gate whose 'on' includes tool_use: kind script for logic, or a path gate (content_regex, forbidden_path_regex, content_pattern '(?!)'). DET-6, spec/script-backed-gates.md.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -72,7 +72,7 @@
     "script": {
       "type": "object",
       "additionalProperties": false,
-      "description": "A check that cannot be expressed as a gate kind, run by the installed hook from implementations/<policy_id>-<event>.{sh,py}. No kind and no params: the behaviour is the script's. No message either -- the script prints its own refusal, with the detail only it has. 'on' is authoritative: the compiler wires exactly these events, and the validator fails when a declared event has no script or a script is undeclared.",
+      "description": "A check that cannot be expressed as a gate kind, run by the installed hook from implementations/<policy_id>-<event>.{sh,py}. No kind and no params: the behaviour is the script's. No message either -- the script prints its own refusal, with the detail only it has. 'on' is authoritative: the compiler wires exactly these events, and the validator fails when a declared event has no script or a script is undeclared. Git events only: a script never runs at tool_use, tool_call, stop or in CI; declare the write path as a hook.gate (DET-6).",
       "required": [
         "on"
       ],
