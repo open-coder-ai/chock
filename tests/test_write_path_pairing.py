@@ -158,7 +158,7 @@ def test_a_path_gate_with_no_path_can_never_refuse(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("paths", ["", None])
 def test_an_empty_path_regex_is_no_path(tmp_path: Path, paths: str | None) -> None:
-    """An empty regex matches every path; a null one none. Neither is a path gate."""
+    """The runner ignores an empty or null regex; neither is a path gate."""
     params = {"scan": "added_lines", "content_pattern": NEVER_MATCHES, "forbidden_path_regex": paths}
     found = _pairing(tmp_path, {"gate": {**PATH_GATE, "params": params}})
     assert any("forbidden_path_regex" in f for f in found), found
@@ -209,3 +209,27 @@ def test_the_shipped_pairing_policy_validates_clean(tmp_path: Path) -> None:
     report = Report()
     check_write_path_pairing(policy, manifest, "rule", report)
     assert [*report.errors, *report.warnings, *report.infos] == []
+
+
+@pytest.mark.parametrize("pattern", [" (?!) ", "(?!)\n"])
+def test_whitespace_around_the_idiom_is_still_the_idiom(tmp_path: Path, pattern: str) -> None:
+    params = {"scan": "added_lines", "content_pattern": pattern}
+    assert _pairing(tmp_path, {"gate": {**PATH_GATE, "params": params}})
+
+
+@pytest.mark.parametrize(
+    "hook",
+    [
+        {"script": {"on": [{"a": 1}]}},
+        {"script": {"on": [["tool_use"]]}},
+        {"script": {"on": "tool_use"}},
+        {"gate": {**PATH_GATE, "on": "tool_use"}},
+        {"gate": {**PATH_GATE, "params": {"content_pattern": ["(?!)"]}}},
+    ],
+    ids=["dict-event", "list-event", "string-on", "string-gate-on", "list-pattern"],
+)
+def test_malformed_shapes_do_not_crash_the_validator(tmp_path: Path, hook: dict) -> None:
+    """Wrong types are the schema's or the params check's error; neither new code path may raise."""
+    errors = _validate(tmp_path, hook, GUARD, PRE_COMMIT)
+    assert any(e.startswith(("schema: ", "manifest_gate_params: ")) for e in errors), errors
+    assert not any("lacks tool_use" in e for e in errors), errors

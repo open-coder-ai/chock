@@ -48,7 +48,7 @@ def check_script_events(artifact_dir: Path, manifest: dict[str, Any], _artifact_
     policy_id = str(manifest.get("id") or Path(artifact_dir).name)
     hook = manifest.get("hook") or {}
     # An event outside SCRIPT_EVENTS is checks_write_path's finding, not a crash here.
-    declared = set((hook.get("script") or {}).get("on") or []) & SCRIPT_EVENTS.keys()
+    declared = {e for e in (hook.get("script") or {}).get("on") or [] if isinstance(e, str)} & SCRIPT_EVENTS.keys()
     _check_gate_overlap(artifact_dir, hook, declared, report)
     shipped = shipped_events(artifact_dir, policy_id)
     if not declared and not shipped:

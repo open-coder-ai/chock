@@ -13,7 +13,7 @@ from chock.validation.report import Finding, Report
 _CATEGORY = "manifest_write_path"
 
 #: The documented path-only idiom: a content pattern that matches nothing, so only
-#: `forbidden_path_regex` can refuse. Exact text only; other never-matching patterns are not
+#: `forbidden_path_regex` can refuse. Exact text (outer whitespace ignored) only; other never-matching patterns are not
 #: recognised (spec/script-backed-gates.md, "Write-path door").
 NEVER_MATCHES = "(?!)"
 
@@ -38,14 +38,15 @@ def _script_event_problems(script: dict[str, Any]) -> list[str]:
         f"hook.script cannot run at '{event}': a script runs only from the git hook "
         f"({', '.join(SCRIPT_EVENTS)}), never in the agent or CI; {_REMEDY}"
         for event in _list(script.get("on"))
-        if event not in SCRIPT_EVENTS
+        if not isinstance(event, str) or event not in SCRIPT_EVENTS
     ]
 
 
 def _path_gate_problems(gate: dict[str, Any], guard: str | None) -> list[str]:
     """A path-only gate needs a path; next to a guard it is the write-path door, so needs tool_use."""
     params = _dict(gate.get("params"))
-    if gate.get("kind") != "content_regex" or params.get("content_pattern") != NEVER_MATCHES:
+    pattern = params.get("content_pattern")
+    if gate.get("kind") != "content_regex" or not isinstance(pattern, str) or pattern.strip() != NEVER_MATCHES:
         return []
     if not params.get("forbidden_path_regex"):
         return [
@@ -53,7 +54,8 @@ def _path_gate_problems(gate: dict[str, Any], guard: str | None) -> list[str]:
             "missing or empty, so this gate can never refuse anything; name the protected paths "
             "in forbidden_path_regex, or use a content_pattern that can match"
         ]
-    if guard and TOOL_USE not in _list(gate.get("on")):
+    on = gate.get("on")
+    if guard and isinstance(on, list) and TOOL_USE not in on:  # a non-list "on" is the schema's error
         return [
             f"this path gate pairs with the shell guard implementations/{guard}, which sees shell "
             'commands only, but its "on" lacks tool_use, so Edit/Write to the protected paths '

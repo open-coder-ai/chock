@@ -72,7 +72,7 @@ agent's Edit or Write, and `hook.script` has no `tool_use` event: the write path
 ```yaml
 hook:
   gate:                  # beside implementations/<id>.{sh,py} (guard) or hook.script
-    kind: content_regex  # path gate: refuses any write to a matching path
+    kind: content_regex  # path gate: refuses any write to a matching path (allowlist_pragma waives)
     "on": [tool_use]     # add commit/push when no hook.script holds that event
     action: block        # or ask
     message: ...
@@ -91,7 +91,8 @@ written files). The guard is found by name, as above.
 | a guard plus a `'(?!)'` path gate whose `"on"` lacks `tool_use` | error: Edit/Write to the paths go unchecked |
 | guard alone; script alone; path gate alone; guard plus a content gate | valid |
 
-Limits: only the exact text `(?!)` is read as path-only; a guard plus a content gate is not
+Limits: only the text `(?!)` (outer whitespace ignored) is read as path-only, so another
+never-matching pattern (`(?!x)x`) with no path passes; a guard plus a content gate is not
 checked for a write door, because a shell-only guard (no-verify, destructive commands) protects
 no file and needs none.
 
