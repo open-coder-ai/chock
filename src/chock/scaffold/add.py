@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -23,6 +24,14 @@ from chock.scaffold.recompile import BookkeepingError, recompile
 class IntegrityError(RuntimeError):
     """Fetched content did not match the hash the caller required."""
 
+
+class PinError(RuntimeError):
+    """A catalog ref was refused: not a commit the remote can prove."""
+
+
+_FULL_SHA = re.compile(r"[0-9a-fA-F]{40}")
+_SHORT_SHA = re.compile(r"[0-9a-fA-F]{7,39}")
+_SAFE_REF = re.compile(r"[A-Za-z0-9._/+-]+")
 
 DEFAULT_CATALOG = "https://github.com/open-coder-ai/chock-catalog"
 
@@ -45,18 +54,48 @@ def _run(args: list[str], cwd: Path | None = None) -> subprocess.CompletedProces
     )
 
 
-def _fetch_commit(remote: str, ref: str, into: Path) -> str | None:
-    """`git clone --branch` takes a branch or tag only; a commit id is fetched by name instead."""
+def _pin_error(source: str, ref: str, why: str) -> PinError:
+    return PinError(f"chock add: refusing catalog {source} at {ref!r}: {why} (nothing installed)")
+
+
+def _check_ref_syntax(source: str, ref: str) -> None:
+    """A ref is never an option and never outside git's ref rules."""
+    if ref.startswith("-") or not _SAFE_REF.fullmatch(ref):
+        raise _pin_error(source, ref, "not a valid git ref name")
+    if _run(["git", "check-ref-format", "--allow-onelevel", ref]).returncode != 0:
+        raise _pin_error(source, ref, "not a valid git ref name")
+
+
+def _fetch_commit(source: str, remote: str, sha: str, into: Path) -> str:
+    """Fetch exactly the commit object `sha` and prove HEAD is it before any file is read."""
     into.mkdir(parents=True, exist_ok=True)
-    for args in (
+    steps = (
         ["git", "init", "--quiet", str(into)],
-        ["git", "-C", str(into), "fetch", "--quiet", "--depth", "1", remote, ref],
-        ["git", "-C", str(into), "checkout", "--quiet", "FETCH_HEAD"],
-    ):
+        ["git", "-C", str(into), "fetch", "--quiet", "--depth", "1", "--", remote, sha],
+        ["git", "-C", str(into), "rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"],
+        ["git", "-C", str(into), "checkout", "--quiet", "--detach", sha],
+    )
+    for args in steps:
         result = _run(args)
         if result.returncode != 0:
-            return result.stderr.strip() or f"{' '.join(args[:2])} failed"
-    return None
+            detail = result.stderr.strip() or f"{args[0]} {' '.join(args[1:3])} failed"
+            raise _pin_error(source, sha, f"commit not available from the remote by id ({detail})")
+    head = _run(["git", "rev-parse", "HEAD"], cwd=into)
+    if head.returncode != 0 or head.stdout.strip().lower() != sha:
+        raise _pin_error(source, sha, "the checked-out commit is not the pinned commit")
+    return sha
+
+
+def _clone_ref(source: str, remote: str, ref: str | None, into: Path) -> str | None:
+    args = ["git", "clone", "--quiet", "--depth", "1"]
+    if ref:
+        args += ["--branch", ref]
+    result = _run([*args, "--", remote, str(into)])
+    if result.returncode != 0:
+        msg = f"could not fetch catalog {source}" + (f" at {ref}" if ref else "") + f":\n{result.stderr.strip()}"
+        raise RuntimeError(msg)
+    resolved = _run(["git", "rev-parse", "HEAD"], cwd=into)
+    return (resolved.stdout.strip() or None) if resolved.returncode == 0 else None
 
 
 def fetch_catalog(source: str, ref: str | None, into: Path) -> tuple[Path, str | None]:
@@ -66,21 +105,17 @@ def fetch_catalog(source: str, ref: str | None, into: Path) -> tuple[Path, str |
         return local.resolve(), None
     remote = str(local.resolve()) if local.exists() else source
 
-    args = ["git", "clone", "--quiet", "--depth", "1"]
+    if ref and _FULL_SHA.fullmatch(ref):
+        return into, _fetch_commit(source, remote, ref.lower(), into)
+    if ref and _SHORT_SHA.fullmatch(ref):
+        raise _pin_error(source, ref, "a short hex ref is ambiguous; pin a full 40-character commit SHA")
     if ref:
-        args += ["--branch", ref]
-    args += [remote, str(into)]
-    result = _run(args)
-    failure = result.stderr.strip() if result.returncode != 0 else None
-    if failure is not None and ref:
-        shutil.rmtree(into, ignore_errors=True)
-        failure = _fetch_commit(remote, ref, into)
-    if failure is not None:
-        msg = f"could not fetch catalog {source}" + (f" at {ref}" if ref else "") + f":\n{failure}"
-        raise RuntimeError(msg)
-
-    resolved = _run(["git", "rev-parse", "HEAD"], cwd=into)
-    return into, (resolved.stdout.strip() or None) if resolved.returncode == 0 else None
+        _check_ref_syntax(source, ref)
+        print(
+            f"chock add: warning: {ref!r} is a branch or tag, which can move. Pin a full commit SHA instead.",
+            file=sys.stderr,
+        )
+    return into, _clone_ref(source, remote, ref, into)
 
 
 def _reject_unsafe_id(artifact_id: str) -> None:
@@ -211,7 +246,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("artifact_id", help="Policy or skill id, e.g. protect-main-branch")
     parser.add_argument("--repo", default=".", help="Target repo root")
     parser.add_argument("--from", dest="source", default=DEFAULT_CATALOG, help="Catalog URL or local path")
-    parser.add_argument("--ref", default=None, help="Catalog branch or tag")
+    parser.add_argument("--ref", default=None, help="Full 40-hex commit SHA (recommended), or a branch/tag (mutable)")
     parser.add_argument("--force", action="store_true", help="Replace an artifact that is already installed")
     parser.add_argument("--skip-compile", action="store_true", help="Copy only; do not compile or install hooks")
     parser.add_argument(
@@ -225,6 +260,9 @@ def main(argv: list[str] | None = None) -> int:
     repo_root = Path(args.repo).resolve()
     try:
         added = add(repo_root, args.artifact_id, args.source, args.ref, force=args.force, verify_sha=args.verify_sha)
+    except PinError as exc:
+        print(exc, file=sys.stderr)
+        return 2
     except (RuntimeError, ValueError, FileNotFoundError, FileExistsError) as exc:
         print(f"chock add: {exc}", file=sys.stderr)
         return 1

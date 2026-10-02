@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **Security: `chock add --ref` resolves a 40-hex pin as a commit object only.** A pin that looked
+  like a SHA was first tried as a branch or tag name (`git clone --branch`), so anyone able to create
+  a branch or tag with that name in the catalog remote could substitute different content under the
+  pin; `--verify-sha` is a content hash and did not catch it. A 40-hex ref (upper case is lowered) is
+  now fetched by id into an empty repo, must resolve to a commit, and `HEAD` must equal it before any
+  catalog file is read; otherwise `add` exits 2 and installs nothing, and a remote that will not serve
+  a commit by id is refused rather than retried as a branch. A short hex ref (7-39 characters) is
+  refused as ambiguous: pin the full SHA. A ref starting with `-` or outside git's ref rules is
+  refused, and `--` ends git's options. Branch and tag refs still work, record the resolved commit,
+  and print a warning that they can move.
 - **`chock add` and `chock sync` write one spelling of a local pack to `chock.lock`.** A pack added
   from the repo itself was recorded as `"source": "."` with `"source_commit": null`, and the next
   `sync` rewrote it as `"source": "local"` with no `source_commit`, so a clean tree kept producing a
