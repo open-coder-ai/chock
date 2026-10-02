@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
@@ -17,6 +16,7 @@ from chock import yamlio
 from chock.config import agents_from_config as _agents_from_config
 from chock.lock import LOCAL_SOURCE, compute_pack_hash, is_local_source, read_lock, write_lock
 from chock.output import error
+from chock.scaffold.pin import PinError, fetch_catalog
 from chock.scaffold.recompile import BookkeepingError, recompile
 
 
@@ -31,56 +31,6 @@ _AREAS = {
     "policies": Path(".agents") / "policies",
     "skills": Path(".agents") / "skills",
 }
-
-
-def _run(args: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess:
-    return subprocess.run(  # noqa: S603 -- running git to fetch the requested catalog is this command's job
-        args,
-        cwd=str(cwd) if cwd else None,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-
-
-def _fetch_commit(remote: str, ref: str, into: Path) -> str | None:
-    """`git clone --branch` takes a branch or tag only; a commit id is fetched by name instead."""
-    into.mkdir(parents=True, exist_ok=True)
-    for args in (
-        ["git", "init", "--quiet", str(into)],
-        ["git", "-C", str(into), "fetch", "--quiet", "--depth", "1", remote, ref],
-        ["git", "-C", str(into), "checkout", "--quiet", "FETCH_HEAD"],
-    ):
-        result = _run(args)
-        if result.returncode != 0:
-            return result.stderr.strip() or f"{' '.join(args[:2])} failed"
-    return None
-
-
-def fetch_catalog(source: str, ref: str | None, into: Path) -> tuple[Path, str | None]:
-    """Make the catalog available locally. Returns (root, resolved commit or None)."""
-    local = Path(source).expanduser()
-    if local.exists() and not ref:
-        return local.resolve(), None
-    remote = str(local.resolve()) if local.exists() else source
-
-    args = ["git", "clone", "--quiet", "--depth", "1"]
-    if ref:
-        args += ["--branch", ref]
-    args += [remote, str(into)]
-    result = _run(args)
-    failure = result.stderr.strip() if result.returncode != 0 else None
-    if failure is not None and ref:
-        shutil.rmtree(into, ignore_errors=True)
-        failure = _fetch_commit(remote, ref, into)
-    if failure is not None:
-        msg = f"could not fetch catalog {source}" + (f" at {ref}" if ref else "") + f":\n{failure}"
-        raise RuntimeError(msg)
-
-    resolved = _run(["git", "rev-parse", "HEAD"], cwd=into)
-    return into, (resolved.stdout.strip() or None) if resolved.returncode == 0 else None
 
 
 def _reject_unsafe_id(artifact_id: str) -> None:
@@ -211,7 +161,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("artifact_id", help="Policy or skill id, e.g. protect-main-branch")
     parser.add_argument("--repo", default=".", help="Target repo root")
     parser.add_argument("--from", dest="source", default=DEFAULT_CATALOG, help="Catalog URL or local path")
-    parser.add_argument("--ref", default=None, help="Catalog branch or tag")
+    parser.add_argument("--ref", default=None, help="Full 40-hex commit SHA (recommended), or a branch/tag (mutable)")
     parser.add_argument("--force", action="store_true", help="Replace an artifact that is already installed")
     parser.add_argument("--skip-compile", action="store_true", help="Copy only; do not compile or install hooks")
     parser.add_argument(
@@ -225,6 +175,9 @@ def main(argv: list[str] | None = None) -> int:
     repo_root = Path(args.repo).resolve()
     try:
         added = add(repo_root, args.artifact_id, args.source, args.ref, force=args.force, verify_sha=args.verify_sha)
+    except PinError as exc:
+        print(exc, file=sys.stderr)
+        return 2
     except (RuntimeError, ValueError, FileNotFoundError, FileExistsError) as exc:
         print(f"chock add: {exc}", file=sys.stderr)
         return 1

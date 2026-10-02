@@ -9,6 +9,27 @@
   chock's own CI already ran it; adopters now get it on their next `chock sync --ci`. A
   `pull_request` run uses the pull request's own copy of the workflow, so a pull request that also
   deletes the step is not caught by it; nothing yet checks the installed workflow against the template.
+- **Security: `chock add --ref` resolves a 40-hex pin as a commit object only.** A pin that looked
+  like a SHA was first tried as a branch or tag name (`git clone --branch`), so anyone able to create
+  a branch or tag with that name in the catalog remote could substitute different content under the
+  pin; `--verify-sha` is a content hash and did not catch it. A 40-hex ref (upper case is lowered) is
+  now fetched by id into an empty repo, must resolve to a commit, and `HEAD` must equal it before any
+  catalog file is read; otherwise `add` exits 2 and installs nothing. A remote that will not serve
+  the commit by id is refused rather than retried as a branch; over git protocol v2 a remote may serve
+  an unreachable commit, and whatever is served must still be exactly the pinned commit. A short hex
+  ref (7-39 characters) is refused as ambiguous: pin the full SHA. A ref starting with `-` or outside
+  git's ref rules is refused, and `--` ends git's options. Exit 2 applies to SHA pins and invalid
+  refs; a branch or tag that cannot be fetched still exits 1. Branch and tag refs still work, record
+  the resolved commit, and print a warning that they can move.
+- **Security: `chock add` runs its git commands isolated from the caller's environment.** An inherited
+  `GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE` or similar variable made the temp-repo commands act on
+  the caller's own repo. Fetch and clone now drop the variables that redirect git (repository,
+  object-store, config-injection and exec/template paths), bind every command to the temp repo with
+  `--git-dir`/`--work-tree`, create it with an empty template, and run with `core.hooksPath=/dev/null`
+  and `core.fsmonitor=false`, so no hook or fsmonitor from a template or user config runs.
+  `GIT_ALLOW_PROTOCOL` is set to `https:ssh:file:git` (no `ext::`/`fd::` helpers), system config is
+  ignored, and each git call has a timeout (600s fetch/clone, 60s local) that fails cleanly with
+  nothing installed. The user's global config, ssh settings and proxy/CA variables are kept.
 - **`chock add` and `chock sync` write one spelling of a local pack to `chock.lock`.** A pack added
   from the repo itself was recorded as `"source": "."` with `"source_commit": null`, and the next
   `sync` rewrote it as `"source": "local"` with no `source_commit`, so a clean tree kept producing a
