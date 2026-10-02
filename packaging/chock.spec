@@ -25,11 +25,12 @@ datas += collect_data_files("agentseam")
 datas += copy_metadata("chock")
 # Fallback for version lookup: the root pyproject.toml travels with the binary.
 datas += [("../pyproject.toml", ".")]
-# `gate/runner.py` is vendored into consumer repos as .chock/bin/gate.py, so it must
+# `gate/runner/*.py` is assembled into consumer repos as .chock/bin/gate.py, so it must
 # exist on disk as READABLE SOURCE at runtime — not just as compiled bytecode inside the
 # binary. collect_data_files() skips .py by design, so add it explicitly or `chock
-# init` fails with FileNotFoundError from vendor_runner().
-datas += [("../src/chock/gate/runner.py", "chock/gate")]
+# init` fails with FileNotFoundError from vendor_runner(). Its prelude is a .tmpl,
+# which collect_data_files() above already ships.
+datas += [("../src/chock/gate/runner/*.py", "chock/gate/runner")]
 # `gate/session_reader.py` is vendored the same way, as .chock/bin/chock_session.py.
 datas += [("../src/chock/gate/session_reader.py", "chock/gate")]
 

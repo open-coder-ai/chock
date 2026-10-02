@@ -16,6 +16,7 @@ from types import SimpleNamespace
 import pytest
 
 from chock.gate import edit_image, write_gate
+from chock.gate.assemble import runner_source
 
 REPO = "src/Repo.java"
 BEFORE = "import db.Jdbc;\n\nclass Repo {\n    void all() {}\n}\n"
@@ -177,8 +178,7 @@ def _installed(root: Path, scan: str, pattern: str) -> Path:
     gate.write_text(json.dumps(spec), encoding="utf-8")
     runner = root / ".chock" / "bin" / "gate.py"
     runner.parent.mkdir(parents=True)
-    source = Path(__file__).resolve().parents[1] / "src" / "chock" / "gate" / "runner.py"
-    runner.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    runner.write_text(runner_source(), encoding="utf-8")
     return gate
 
 

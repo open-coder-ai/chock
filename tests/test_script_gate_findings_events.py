@@ -89,11 +89,11 @@ def test_a_waiver_in_head_is_honoured_from_a_repo_root_below_the_git_top_level(t
     assert run(sub / "gate.json", "stop", None, sub, writes={"app.py": waived + "z = 1\n"}) == 0
 
 
-def test_the_agent_runner_names_paths_from_the_directory_it_works_in(tmp_path: Path) -> None:
+def test_the_agent_runner_names_paths_from_the_directory_it_works_in(tmp_path: Path, gate_py: Path) -> None:
     sub = _nested(tmp_path, OLD)
     make_gate(sub)
     proc = subprocess.run(
-        [sys.executable, str(Path(runner.__file__)), "run", "--gate", str(sub / "gate.json"), "--event", "stop"],
+        [sys.executable, str(gate_py), "run", "--gate", str(sub / "gate.json"), "--event", "stop"],
         input=json.dumps({"writes": {"app.py": OLD + "y = 1\n"}}),
         cwd=sub,
         capture_output=True,
@@ -108,7 +108,7 @@ def test_a_missing_git_or_repo_means_no_baseline(tmp_path: Path, monkeypatch: py
     plain.mkdir()
     gate = make_gate(plain)
     assert judge_write(gate, plain, OLD, event="stop") == 1
-    monkeypatch.setattr(runner, "_GIT", str(tmp_path / "no-git"))
+    monkeypatch.setattr(runner.context, "_GIT", str(tmp_path / "no-git"))
     assert judge_write(gate, plain, OLD, event="stop") == 1
 
 

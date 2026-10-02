@@ -77,7 +77,7 @@ def test_an_annotation_failure_is_reported_and_changes_nothing(tmp_path, step: P
     def broken(*_args: object) -> None:
         raise RuntimeError
 
-    monkeypatch.setattr(runner, "_annotate", broken)
+    monkeypatch.setattr(runner.report, "_annotate", broken)
     assert judge(gate, "ci", None, repo, base="HEAD~1") == (1, "block")
     err = capsys.readouterr().err
     assert "GitHub annotations skipped: RuntimeError" in err and "src/f01.py" in err

@@ -77,7 +77,7 @@ def test_a_baseline_that_outruns_the_shared_budget_blocks(tmp_path: Path, monkey
 
     repo = repo_with(tmp_path, **{"app.py": OLD})
     gate = make_gate(repo)
-    monkeypatch.setattr(runner, "_SCRIPT_TIMEOUT_SECONDS", 2)
+    monkeypatch.setattr(runner.script, "_SCRIPT_TIMEOUT_SECONDS", 2)
     monkeypatch.setenv("TOY_SLEEP", "1.2")
     assert judge_write(gate, repo, OLD + "y = 1\n") == 1
 

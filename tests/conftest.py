@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from chock.gate.assemble import runner_source
 from chock.gate.guard_runner import bash_candidates
 
 FRAMEWORK_ROOT = Path(__file__).resolve().parents[1]
@@ -149,3 +150,11 @@ def toy_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Callable[[], li
     log = tmp_path.parent / f"{tmp_path.name}-toy.log"
     monkeypatch.setenv("TOY_LOG", str(log))
     return lambda: log.read_text(encoding="utf-8").split() if log.exists() else []
+
+
+@pytest.fixture(scope="session")
+def gate_py(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """The single-file gate runner as `chock sync` vendors it, assembled from chock.gate.runner."""
+    path = tmp_path_factory.mktemp("vendored") / "gate.py"
+    path.write_text(runner_source(), encoding="utf-8", newline="\n")
+    return path

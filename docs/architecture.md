@@ -81,10 +81,10 @@ each — falling back to advisory prose only when nothing stronger exists.
 │        │               │                │              │          │
 │        └───────────────┴────────────────┴──────────────┘          │
 │                                    │                                │
-│                         src/chock/gate/runner.py             │
+│                         src/chock/gate/runner/               │
 │                                    │                                │
 └────────────────────────────────────┼────────────────────────────────┘
-                                     │ copied verbatim at compile time
+                                     │ assembled into one file at compile time
                                      ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Consumer repo  (no package install required at enforcement time)    │
@@ -118,7 +118,7 @@ so adapters never have to be rewritten when rules change.
 | **Lockfile** | `src/chock/lock.py` | Reproducible, hash-pinned installs |
 | **Hooks installer** | `src/chock/hooks/` | Git dispatcher + policy wrappers |
 | **Gate build** | `src/chock/gate/build.py` | Loads `hook.gate` from `manifest.yaml` and bakes `gate.json` |
-| **Vendored runner** | `src/chock/gate/runner.py` | Self-contained runtime copied to `.chock/bin/gate.py` |
+| **Vendored runner** | `src/chock/gate/runner/` | Self-contained runtime that `chock.gate.assemble` builds into one file, `.chock/bin/gate.py` |
 | **CI installer** | `src/chock/scaffold/install_ci.py` | Writes the GitHub Actions workflow that runs `ci-gate` |
 | **Policies** | `.agents/policies/<id>/` | Installed from a catalog; owned by the adopter, never shipped |
 | **Spec** | `spec/` | Neutral format, JSON schemas, enforcement matrix |
