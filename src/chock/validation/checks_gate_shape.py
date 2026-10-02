@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from chock.gate.runner import KINDS
+from chock.gate.runner import KINDS, WRITE_PATH_KINDS
 from chock.gate.schema import GATEWAY_ONLY_KINDS, KIND_PARAM_SCHEMAS, TOOL_CALL_EVENT, TOOL_CALL_KINDS
 from chock.validation.loading import schema_validator
 from chock.validation.report import Finding, Report
@@ -89,6 +89,8 @@ def _validate_in_agent_events(gate: dict[str, Any], events: list[str], gate_ref:
     outside = gate.get("outside_repo") or []
     if outside and "tool_use" not in events:
         problems.append("outside_repo is judged at PreToolUse: 'on' must include tool_use")
+    if outside and kind not in WRITE_PATH_KINDS:
+        problems.append(f"outside_repo needs a kind that judges a write; {kind} never sees one")
     problems += [
         f"outside_repo glob {glob!r} must be absolute or start with ~"
         for glob in outside
