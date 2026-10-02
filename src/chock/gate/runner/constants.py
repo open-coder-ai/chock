@@ -4,6 +4,54 @@ from __future__ import annotations
 
 import re
 
+#: The vocabulary its sibling modules import (header only: gate.py, one module, needs no `__all__`).
+__all__ = [
+    "ACTION_ASK",
+    "ACTION_BLOCK",
+    "ACTION_WARN",
+    "AGENT_COMMIT_ENV",
+    "AGENT_COMMIT_EVENT",
+    "AGENT_EVENTS",
+    "AI_AGENT_ENV",
+    "ALLOW_ENV",
+    "CLAUDECODE_ENV",
+    "COMPILED_PREFIX",
+    "CONFIG_AGENT_ENV_KEY",
+    "EXIT_ASK",
+    "EXIT_WARN",
+    "GATE_LOG_ENV",
+    "HEAD_WAIVER_EVENTS",
+    "POLICIES_PREFIX",
+    "ROLLOUT_ASK",
+    "ROLLOUT_ENFORCE",
+    "ROLLOUT_ENV",
+    "ROLLOUT_OBSERVE",
+    "ROLLOUT_RANK",
+    "SCRIPT_BASE_GATE",
+    "STOP_EVENT",
+    "TOOL_USE_EVENT",
+    "VERDICT_ERROR",
+    "WAIVABLE_EVENTS",
+    "WRITE_PATH_KINDS",
+    "_ACTION_RANK",
+    "_AGENT_COMMIT_NOTE",
+    "_CONFIG_ITEM_RE",
+    "_CONFIG_KEY_RE",
+    "_CONFIG_PATH",
+    "_CONFIG_ROLLOUT_RE",
+    "_DEPENDENCY_KIND",
+    "_ENV_NAME_RE",
+    "_EVENT_NAME",
+    "_GIT_EVENTS",
+    "_HUMAN_ENV",
+    "_LOG_MATCH_CAP",
+    "_LOG_MAX_BYTES",
+    "_MIN_COMPILED_PATH_DEPTH",
+    "_OBSERVE_NOTE",
+    "_PUSH_LINE_MIN_PARTS",
+    "_ROLLOUT_CEILING",
+]
+
 # >>> gate.py 02
 #: Kinds whose question a write can answer. A branch name is not in a tool call, so
 #: forbidden_ref has nothing to read here; saying so beats passing it empty and calling

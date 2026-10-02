@@ -40,12 +40,35 @@ def test_every_module_contributes_and_the_entry_points_do_not() -> None:
         assert not MARKER.search((PACKAGE / name).read_text(encoding="utf-8")), f"{name} must stay out of gate.py"
 
 
+def _is_export_list(node: ast.stmt) -> bool:
+    """`__all__ = [<string literals>]`: package metadata only, which gate.py has no use for."""
+    return (
+        isinstance(node, ast.Assign)
+        and [getattr(target, "id", None) for target in node.targets] == ["__all__"]
+        and isinstance(node.value, ast.List)
+        and all(isinstance(item, ast.Constant) and isinstance(item.value, str) for item in node.value.elts)
+    )
+
+
 def test_a_header_holds_only_its_docstring_and_imports() -> None:
     """Code above the first marker would run in the package but never in gate.py."""
     for path in _modules():
         for node in ast.parse(_header(path)).body:
             docstring = isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant)
-            assert docstring or isinstance(node, ast.Import | ast.ImportFrom), f"{path.name}:{node.lineno}"
+            allowed = docstring or _is_export_list(node) or isinstance(node, ast.Import | ast.ImportFrom)
+            assert allowed, f"{path.name}:{node.lineno}"
+
+
+def test_an_export_list_names_only_what_the_module_defines() -> None:
+    for path in _modules():
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        assigned = (target for node in tree.body if isinstance(node, ast.Assign) for target in node.targets)
+        defined = {name.id for target in assigned for name in ast.walk(target) if isinstance(name, ast.Name)}
+        defined |= {node.name for node in tree.body if isinstance(node, ast.FunctionDef | ast.ClassDef)}
+        for node in tree.body:
+            if _is_export_list(node):
+                exported = {item.value for item in node.value.elts}
+                assert exported <= defined - {"__all__"}, f"{path.name} exports {sorted(exported - defined)}"
 
 
 def test_a_header_imports_only_the_stdlib_and_its_siblings() -> None:
