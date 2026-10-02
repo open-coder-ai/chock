@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **`egress_allowlist` is a hook kind the manifest schema accepts.** The engine validates,
+  compiles and evaluates it at the mcp-gateway, but `manifest.hook.json` left it out of the
+  `hook.gate.kind` enum, so `chock validate` refused every manifest using it (a schema error,
+  exit 1). The enum now lists it; the gateway-only rule (no `commit`/`push` in `on`) and its
+  closed `params` still apply. A test pins the enum to the engine's kinds and param schemas, and
+  `spec/` prose quoting a `` `kind: <value>` `` must name one the schema accepts.
 - **A watch-only rollout mode.** `rollout: observe | ask | enforce` in `.chock/config.yaml` caps
   how far compiled gates escalate: observe turns a block or ask into a warning, ask caps at ask
   (and an ask does not fail CI), enforce (the default, and what an absent, repeated, unreadable,

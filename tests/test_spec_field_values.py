@@ -16,6 +16,7 @@ SCHEMA_DIR = ROOT / "src" / "chock" / "validation" / "schemas"
 FIELDS = {
     "action": ("manifest.hook.json", ("properties", "gate", "properties", "action")),
     "enforcement": ("manifest.schema.json", ("properties", "enforcement")),
+    "kind": ("manifest.hook.json", ("properties", "gate", "properties", "kind")),
 }
 
 
