@@ -16,7 +16,11 @@ SCHEMA_DIR = ROOT / "src" / "chock" / "validation" / "schemas"
 FIELDS = {
     "action": ("manifest.hook.json", ("properties", "gate", "properties", "action")),
     "enforcement": ("manifest.schema.json", ("properties", "enforcement")),
+    "kind": ("manifest.hook.json", ("properties", "gate", "properties", "kind")),
 }
+
+# (field, spec file, value) claims about a different record that shares the token: a gate-log record's kind.
+OTHER_RECORDS = {("kind", "session-log.md", "reentry")}
 
 
 def _allowed(schema_file: str, path: tuple[str, ...]) -> set[str]:
@@ -38,9 +42,10 @@ def _claims(field: str) -> list[tuple[Path, int, str]]:
     return found
 
 
-def test_the_spec_makes_such_claims_at_all() -> None:
+@pytest.mark.parametrize("field", sorted(FIELDS))
+def test_the_spec_makes_such_claims_at_all(field: str) -> None:
     """A regex that matched nothing would make the test below vacuously green."""
-    assert any(_claims(field) for field in FIELDS), "no `field: value` claims found in spec/"
+    assert _claims(field), f"no `{field}: value` claims found in spec/"
 
 
 @pytest.mark.parametrize("field", sorted(FIELDS))
@@ -49,7 +54,7 @@ def test_spec_field_values_are_accepted_by_the_schema(field: str) -> None:
     bad = [
         f"{path.name}:{number} claims `{field}: {value}`"
         for path, number, value in _claims(field)
-        if value not in allowed
+        if value not in allowed and (field, path.name, value) not in OTHER_RECORDS
     ]
     assert not bad, (
         f"The spec asserts a `{field}` value the schema cannot express: {bad}. "
