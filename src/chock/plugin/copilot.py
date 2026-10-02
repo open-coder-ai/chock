@@ -8,10 +8,9 @@ from typing import Any
 
 from agentseam import packaging
 
-from chock.compile.emitters.in_agent import _guard_script, tool_use_gate_spec
 from chock.compile.emitters.in_agent_hooks import hooks_map_file
 from chock.hooks import launch
-from chock.plugin import gate_package, store
+from chock.plugin import gate_package, guard_gate, store
 from chock.plugin.build import (
     LICENSE_REL,
     NAMESPACE,
@@ -86,17 +85,19 @@ def _gate_command() -> str:
     return _root_guarded("gate.json", "--gate")
 
 
-def manifest_posture(*, enforced: bool, gate: bool = False) -> str:
-    """The posture sentence a package's description ends with."""
-    return (POSTURE_GATE_COPILOT if gate else POSTURE_ENFORCED_COPILOT) if enforced else POSTURE_ADVISORY
+def manifest_posture(*, enforced: bool, gate: bool = False, guard: bool = False) -> str:
+    """The posture sentence a package's description ends with; `guard` with `gate` states both halves."""
+    if not enforced:
+        return POSTURE_ADVISORY
+    return guard_gate.posture(POSTURE_ENFORCED_COPILOT, POSTURE_GATE_COPILOT, guard=guard or not gate, gate=gate)
 
 
 def build_copilot_manifest(
-    manifest: dict[str, Any], policy_dir: Path, *, enforced: bool, gate: bool = False
+    manifest: dict[str, Any], policy_dir: Path, *, enforced: bool, gate: bool = False, guard: bool = False
 ) -> dict[str, Any]:
     """Derive the root `plugin.json` from a policy manifest."""
     data = build_manifest(manifest, policy_dir)
-    posture = manifest_posture(enforced=enforced, gate=gate)
+    posture = manifest_posture(enforced=enforced, gate=gate, guard=guard)
     data["description"] = f"{data['description']} [{posture}]".strip()
     extension = data["extensions"][NAMESPACE]
     del extension["manifest"]
@@ -111,24 +112,24 @@ def copilot_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: 
     policy_dir = Path(policy_dir)
     policy_id = manifest.get("id") or policy_dir.name
     name = plugin_name(str(policy_id))
-    script = _guard_script(policy_dir, str(policy_id))
-    gate = (
-        None
-        if script or not gate_package.gate_reaches("vscode_copilot")
-        else tool_use_gate_spec(policy_dir, Path(repo_root))
-    )
-    enforced = script is not None or gate is not None
+    parts = guard_gate.halves("vscode_copilot", policy_dir, str(policy_id), Path(repo_root))
+    script, gate, enforced = parts.script, parts.gate, parts.enforced
 
     skill = build_skill(policy_dir, manifest, Path(repo_root), hooks=HOOKS_REL if enforced else None)
     generic = advisory_note(policy_dir, manifest)
-    if script:
-        skill = skill.replace(generic, _COPILOT_ENFORCED_NOTE)
-    elif gate:
-        skill = skill.replace(generic, gate_package.gate_skill_note("vscode_copilot", gate.get("action")))
+    note = guard_gate.skill_note(
+        _COPILOT_ENFORCED_NOTE if script else None,
+        gate_package.gate_skill_note("vscode_copilot", gate.get("action")) if gate else None,
+    )
+    if note:
+        skill = skill.replace(generic, note)
 
     files: dict[Path, str] = {
         Path(_LAYOUT["manifest"]): json.dumps(
-            build_copilot_manifest(manifest, policy_dir, enforced=enforced, gate=gate is not None), indent=2
+            build_copilot_manifest(
+                manifest, policy_dir, enforced=enforced, gate=gate is not None, guard=script is not None
+            ),
+            indent=2,
         )
         + "\n",
         Path(packaging.supports("copilot", packaging.SKILL).format(name=name)): skill,
@@ -138,16 +139,17 @@ def copilot_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: 
     licence = license_text(manifest)
     if licence:
         files[LICENSE_REL] = licence
+    hooks = guard_gate.merge_hooks(
+        hooks_map_file("vscode_copilot", _hook_command(script)) if script else None,
+        gate_package.gate_hooks_file("vscode_copilot", _gate_command()) if gate else None,
+    )
+    if hooks is not None:
+        files[Path(HOOKS_REL)] = json.dumps(hooks, indent=2) + "\n"
+        files.update(_runtime_files("vscode_copilot"))
     if script:
-        files[Path(HOOKS_REL)] = json.dumps(hooks_map_file("vscode_copilot", _hook_command(script)), indent=2) + "\n"
-        files.update(_runtime_files("vscode_copilot"))
-        files.update(store.guard_files(policy_dir, script))
-    elif gate:
-        files[Path(HOOKS_REL)] = (
-            json.dumps(gate_package.gate_hooks_file("vscode_copilot", _gate_command()), indent=2) + "\n"
-        )
-        files.update(_runtime_files("vscode_copilot"))
-        files.update(gate_package.packaged_gate_files(policy_dir, gate, _SCRIPTS_TEMPLATE))
+        guard_gate.place(files, store.guard_files(policy_dir, script))
+    if gate:
+        guard_gate.place(files, gate_package.packaged_gate_files(policy_dir, gate, _SCRIPTS_TEMPLATE))
     return files
 
 

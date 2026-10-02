@@ -1,0 +1,64 @@
+{
+  "gate/claude": {
+    ".claude-plugin/plugin.json": "3affd0358b1d338ba6e7e3804c4e2ff063c9dcfee065846755dad754e5109bed",
+    "hooks/hooks.json": "1b473133a144fc974dd09e052b67bb47a6bfd22151daf2e07c7d1cfa1b560d8e",
+    "scripts/gate.json": "850040cbcc0f7dfe457a0c4bd47d3221a5e5503d70b94615eeac1ff5fa6fbbbd",
+    "skills/protect-config/SKILL.md": "f05d88380a69a52cbd0a780557153993ab9d61bbbea58cf469a877b36b2f98c8"
+  },
+  "gate/codex": {
+    ".codex-plugin/plugin.json": "8aad660e87fde92f0c1490aa81fa2d20e2221d7499f7fd8c931d1cb1696f55bc",
+    "assets/icon.svg": "644e02a804786acd2be4a8cb8ff779a39ebab356cdafe897f5c76f2d225524e1",
+    "hooks/hooks.json": "89993871622ccfe3dec3715ad45c4e9dc11543fefa52c4837d08ef647602e08c",
+    "scripts/gate.json": "850040cbcc0f7dfe457a0c4bd47d3221a5e5503d70b94615eeac1ff5fa6fbbbd",
+    "skills/protect-config/SKILL.md": "f05d88380a69a52cbd0a780557153993ab9d61bbbea58cf469a877b36b2f98c8"
+  },
+  "gate/copilot": {
+    "com.github.copilot/hooks/hooks.json": "2972782377f5d3ed442826706678998b72878414aa041dc9b86308d80fcfc13a",
+    "plugin.json": "08cea90a52b3f3726834f4b094ecef54fab320c0e61bdd7dd280c3f32ec51103",
+    "scripts/gate.json": "850040cbcc0f7dfe457a0c4bd47d3221a5e5503d70b94615eeac1ff5fa6fbbbd",
+    "skills/protect-config/SKILL.md": "b90a44c889a4cb18db0bb1e0fc6a5c1def940211864706848c706de43e7749a0"
+  },
+  "gate/cursor": {
+    ".cursor-plugin/plugin.json": "ff4a1ba0150c0f94fd0716125f4697c1311859ff0988112ac8f31a4bd6445173",
+    "hooks/hooks.json": "217f295e820cf7940d9dc128675d9f8a48e46c0d95b592527e3489d56c31ab07",
+    "scripts/gate.json": "850040cbcc0f7dfe457a0c4bd47d3221a5e5503d70b94615eeac1ff5fa6fbbbd",
+    "skills/protect-config/SKILL.md": "f05d88380a69a52cbd0a780557153993ab9d61bbbea58cf469a877b36b2f98c8"
+  },
+  "gate/devin": {
+    ".devin-plugin/plugin.json": "766c9fca665e1a664be647b1924e5ca16cedffeb5f97f7d51772183716ebe929",
+    "hooks.json": "43bcab991aa9f45310f5a7a5b7e35ad6922a11837de13f47eaca99b93401756b",
+    "scripts/gate.json": "850040cbcc0f7dfe457a0c4bd47d3221a5e5503d70b94615eeac1ff5fa6fbbbd",
+    "skills/protect-config/SKILL.md": "2a79dd8a98db0b28afd3bfbe9de83019963af5503c11ce2e0dce929735774b7d"
+  },
+  "guard/claude": {
+    ".claude-plugin/plugin.json": "5cb3e175b99e4b0f230de21241e24840487eccc775d7ada3a44491509ff325d4",
+    "hooks/hooks.json": "170b10cfa09f1ebf9a5c4d4c941835c973ee3860a4ee68873f46e7a293190f9f",
+    "scripts/protect-config.py": "1a8f6f596cef71e3f3657c903b9a8fff3e48df700f49aa4ec42a0361c8d21914",
+    "skills/protect-config/SKILL.md": "f0df56fc6215c10a260de1c750dd333131cdf958322c8822fb1c6ccbd1da2186"
+  },
+  "guard/codex": {
+    ".codex-plugin/plugin.json": "9992a2f413622b518e970896f7cc3e085d26c1b2889f6cd23e27a3ee949c54e8",
+    "assets/icon.svg": "644e02a804786acd2be4a8cb8ff779a39ebab356cdafe897f5c76f2d225524e1",
+    "hooks/hooks.json": "33ff292c6604a92490a2067fdc144b2fa6ed0109d8d45cf88e43880ebe89db97",
+    "scripts/protect-config.py": "1a8f6f596cef71e3f3657c903b9a8fff3e48df700f49aa4ec42a0361c8d21914",
+    "skills/protect-config/SKILL.md": "4369fd9a8f4f3c448e84e9038a67008062e1f87b713cfec1dd95ae92e677b03e"
+  },
+  "guard/copilot": {
+    "com.github.copilot/hooks/hooks.json": "cadbbfc84a411433bae125616db37032b33bddacf2f702d9a392bc80cb36e5b9",
+    "plugin.json": "4ea161c9655f879b9b5534f9aa6ddaa6b95514d7435a66bc0e0d0dd249a2c581",
+    "scripts/protect-config.py": "1a8f6f596cef71e3f3657c903b9a8fff3e48df700f49aa4ec42a0361c8d21914",
+    "skills/protect-config/SKILL.md": "d96c32f5cc1bc44096832d48a98281fa58934d0226dc8703260d21895a0d3e12"
+  },
+  "guard/cursor": {
+    ".cursor-plugin/plugin.json": "7b81e8ff1706809457a0d3c98b0c9b21bf31fc74f6d6a32f4b275284e1f1b67d",
+    "hooks/hooks.json": "d20efc8dccd9a2fbb83fe007320f050298e1228a2912347e91e42f0489e752d3",
+    "scripts/protect-config.py": "1a8f6f596cef71e3f3657c903b9a8fff3e48df700f49aa4ec42a0361c8d21914",
+    "skills/protect-config/SKILL.md": "02fe6c6e3410f7f8e80b2730b2f478a550eec14ef8ece84cad4557889fd39b78"
+  },
+  "guard/devin": {
+    ".devin-plugin/plugin.json": "fd7cb5f9308d731df51d07441f25f5f09baebede9bf13b546788e6af0491657b",
+    "hooks.json": "8575a205648ee025fdea1eac560ec783db19b0e34ee53a7c887ab68d5b72b793",
+    "scripts/protect-config.py": "1a8f6f596cef71e3f3657c903b9a8fff3e48df700f49aa4ec42a0361c8d21914",
+    "skills/protect-config/SKILL.md": "735981b8389ec7f004b5d52ff7360b8f3c876d8ded4d525f7b22e1716e7edc3c"
+  }
+}

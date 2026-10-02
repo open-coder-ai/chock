@@ -8,9 +8,8 @@ from typing import Any
 
 from agentseam import packaging
 
-from chock.compile.emitters.in_agent import _guard_script, tool_use_gate_spec
 from chock.compile.emitters.in_agent_hooks import hooks_map_file
-from chock.plugin import gate_package, posture, store
+from chock.plugin import gate_package, guard_gate, posture, store
 from chock.plugin.build import (
     _author,
     _keywords,
@@ -73,18 +72,20 @@ def _gate_command() -> str:
     return f'{_interpreter("codex_cli")} "{adapter}" --gate "{gate}"'
 
 
-def manifest_posture(*, enforced: bool, gate: bool = False) -> str:
-    """The posture sentence a package's description ends with."""
-    return (POSTURE_GATE_CODEX if gate else POSTURE_ENFORCED_CODEX) if enforced else POSTURE_ADVISORY
+def manifest_posture(*, enforced: bool, gate: bool = False, guard: bool = False) -> str:
+    """The posture sentence a package's description ends with; `guard` with `gate` states both halves."""
+    if not enforced:
+        return POSTURE_ADVISORY
+    return guard_gate.posture(POSTURE_ENFORCED_CODEX, POSTURE_GATE_CODEX, guard=guard or not gate, gate=gate)
 
 
 def build_codex_manifest(
-    manifest: dict[str, Any], policy_dir: Path, *, enforced: bool, gate: bool = False
+    manifest: dict[str, Any], policy_dir: Path, *, enforced: bool, gate: bool = False, guard: bool = False
 ) -> dict[str, Any]:
     """Derive `.codex-plugin/plugin.json` from a policy manifest."""
     policy_id = str(manifest.get("id") or Path(policy_dir).name)
     provenance = manifest.get("provenance") or {}
-    posture = manifest_posture(enforced=enforced, gate=gate)
+    posture = manifest_posture(enforced=enforced, gate=gate, guard=guard)
 
     description = _one_line(manifest.get("description"))
 
@@ -114,24 +115,24 @@ def codex_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
     policy_dir = Path(policy_dir)
     policy_id = str(manifest.get("id") or policy_dir.name)
     name = plugin_name(policy_id)
-    script = _guard_script(policy_dir, policy_id)
-    gate = (
-        None
-        if script or not gate_package.gate_reaches("codex_cli")
-        else tool_use_gate_spec(policy_dir, Path(repo_root))
-    )
-    enforced = script is not None or gate is not None
+    parts = guard_gate.halves("codex_cli", policy_dir, str(policy_id), Path(repo_root))
+    script, gate, enforced = parts.script, parts.gate, parts.enforced
 
     skill = build_skill(policy_dir, manifest, Path(repo_root), hooks=HOOKS_REL if enforced else None)
     generic = advisory_note(policy_dir, manifest)
-    if script:
-        skill = skill.replace(generic, _ENFORCED_NOTE_CODEX)
-    elif gate:
-        skill = skill.replace(generic, gate_package.gate_skill_note("codex_cli", gate.get("action")))
+    note = guard_gate.skill_note(
+        _ENFORCED_NOTE_CODEX if script else None,
+        gate_package.gate_skill_note("codex_cli", gate.get("action")) if gate else None,
+    )
+    if note:
+        skill = skill.replace(generic, note)
 
     files: dict[Path, str] = {
         Path(_LAYOUT["manifest"]): json.dumps(
-            build_codex_manifest(manifest, policy_dir, enforced=enforced, gate=gate is not None), indent=2
+            build_codex_manifest(
+                manifest, policy_dir, enforced=enforced, gate=gate is not None, guard=script is not None
+            ),
+            indent=2,
         )
         + "\n",
         Path(packaging.supports("codex_cli", packaging.SKILL).format(name=name)): skill,
@@ -142,14 +143,17 @@ def codex_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
     licence = license_text(manifest)
     if licence:
         files[LICENSE_REL] = licence
+    hooks = guard_gate.merge_hooks(
+        hooks_map_file("codex_cli", _hook_command(script)) if script else None,
+        gate_package.gate_hooks_file("codex_cli", _gate_command()) if gate else None,
+    )
+    if hooks is not None:
+        files[Path(HOOKS_REL)] = json.dumps(hooks, indent=2) + "\n"
+        files.update(_runtime_files("codex_cli"))
     if script:
-        files[Path(HOOKS_REL)] = json.dumps(hooks_map_file("codex_cli", _hook_command(script)), indent=2) + "\n"
-        files.update(_runtime_files("codex_cli"))
-        files.update(store.guard_files(policy_dir, script))
-    elif gate:
-        files[Path(HOOKS_REL)] = json.dumps(gate_package.gate_hooks_file("codex_cli", _gate_command()), indent=2) + "\n"
-        files.update(_runtime_files("codex_cli"))
-        files.update(gate_package.packaged_gate_files(policy_dir, gate, _SCRIPTS_TEMPLATE))
+        guard_gate.place(files, store.guard_files(policy_dir, script))
+    if gate:
+        guard_gate.place(files, gate_package.packaged_gate_files(policy_dir, gate, _SCRIPTS_TEMPLATE))
     return files
 
 
