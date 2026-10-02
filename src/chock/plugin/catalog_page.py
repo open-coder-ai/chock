@@ -14,7 +14,7 @@ from typing import Any
 from agentseam import packaging
 
 from chock import evidence, vendors
-from chock.plugin.bundle_grade import _GATE_FLAG, _GUARD_FLAG, ADVISORY, _hook_commands, _hook_events, grade_of
+from chock.plugin.bundle_grade import _GATE_FLAG, _GUARD_FLAG, ADVISORY, events_for, grade_of
 from chock.plugin.bundle_index import read_bundles_index
 from chock.plugin.marketplace_core import CLAUDE_TREE, NEWLINE, _manifest_rel
 from chock.vendors import CHOCK_AGENT
@@ -59,15 +59,14 @@ _DEFAULT_CATALOG_WORDS = {
 }
 
 
-def _package_kind(hooks_path: Path) -> tuple[str | None, list[str]]:
-    """('gate' | 'guard' | None, the events wired) for one published package's hooks file."""
+_KINDS = {"gate": _GATE_FLAG, "guard": _GUARD_FLAG}
+
+
+def _package_kinds(hooks_path: Path) -> dict[str, list[str]]:
+    """{'guard' | 'gate': the events that half is wired at} for one published package's hooks file."""
     doc = json.loads(hooks_path.read_text(encoding="utf-8"))
-    commands = _hook_commands(doc)
-    if any(_GATE_FLAG in command for command in commands):
-        return "gate", _hook_events(doc)
-    if any(_GUARD_FLAG in command for command in commands):
-        return "guard", _hook_events(doc)
-    return None, _hook_events(doc)
+    found = {kind: events_for(doc, flag) for kind, flag in _KINDS.items()}
+    return {kind: events for kind, events in found.items() if events}
 
 
 def _event_list(events: list[str]) -> str:
@@ -86,8 +85,9 @@ def _on_crash(tree: str) -> str:
     return "refuses the command: this client cannot prompt for confirmation"
 
 
-def _explain(tree: str, guards: int, guard_events: list[str], gates: int, gate_events: list[str]) -> str:
+def _explain(tree: str, guard: tuple[int, list[str]], gate: tuple[int, list[str]], both: int = 0) -> str:
     """What an enforcing package here ships and does, derived from what was published."""
+    (guards, guard_events), (gates, gate_events) = guard, gate
     parts: list[str] = []
     if guards:
         parts.append(
@@ -106,10 +106,15 @@ def _explain(tree: str, guards: int, guard_events: list[str], gates: int, gate_e
             "vocabulary, so the write itself is not judged"
         )
         parts.append(
-            f"A gate package ships the policy's gate and a stdlib-only runner instead, hooked at "
+            f"A gate package ships the policy's gate and a stdlib-only runner{'' if both else ' instead'}, hooked at "
             f"{_event_list(gate_events)}, {reach}. It needs `git` and a Python 3.11+; with no working "
             "Python it exits 2, without git a fail-open client allows silently, and a gate that cannot reach a decision refuses rather than allowing "
             "one it never judged."
+        )
+    if both:
+        parts.append(
+            f"{both} of these packages ship{'s' if both == 1 else ''} both: the policy has a guard and a gate, "
+            "and each runs at its own hooks as described."
         )
     parts.append("An advisory package ships skill text; nothing stops a violation.")
     caveat = _CATALOG_WORDS.get(tree, _DEFAULT_CATALOG_WORDS)["caveat"]
@@ -169,7 +174,7 @@ def render_catalog_page(dist_root: Path, tree: str = CLAUDE_TREE) -> str:
     rows = []
     bundle_rows = []
     bundle_members = {b["id"]: b["members"] for b in read_bundles_index(dist_root)}
-    enforcing = guards = gates = 0
+    enforcing = guards = gates = both = 0
     guard_events: list[str] = []
     gate_events: list[str] = []
     manifest_rel = _manifest_rel(tree)
@@ -184,13 +189,14 @@ def render_catalog_page(dist_root: Path, tree: str = CLAUDE_TREE) -> str:
         has_hook = hooks_path.exists()
         if has_hook:
             enforcing += 1
-            kind, events = _package_kind(hooks_path)
-            if kind == "gate":
+            kinds = _package_kinds(hooks_path)
+            both += len(kinds) == len(_KINDS)
+            if "gate" in kinds:
                 gates += 1
-                _merge_events(gate_events, events)
-            elif kind == "guard":
+                _merge_events(gate_events, kinds["gate"])
+            if "guard" in kinds:
                 guards += 1
-                _merge_events(guard_events, events)
+                _merge_events(guard_events, kinds["guard"])
         posture = words["row"] if has_hook else "advisory"
         name = data["name"]
         rows.append(
@@ -207,7 +213,7 @@ def render_catalog_page(dist_root: Path, tree: str = CLAUDE_TREE) -> str:
         "",
         f"**{total} policies are published here: {summary}.**",
         "",
-        _explain(tree, guards, guard_events, gates, gate_events),
+        _explain(tree, (guards, guard_events), (gates, gate_events), both),
         "",
         *_bundle_section(bundle_rows),
         "| plugin | version | in this client | what it does |",
