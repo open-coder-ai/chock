@@ -16,8 +16,6 @@ from conftest import init_repo, write_gate
 
 from chock.gate.runner import AGENT_EVENTS, WRITE_PATH_KINDS, WriteContext, run
 
-RUNNER = Path(__file__).resolve().parents[1] / "src" / "chock" / "gate" / "runner.py"
-
 # AWS's own published example key, the same fixture tests/test_gate_core.py uses. It is the
 # string under test here, so the gate's documented per-line waiver applies rather than a
 # change to the gate.
@@ -169,9 +167,9 @@ def test_the_context_still_knows_where_the_repository_is(tmp_path: Path) -> None
 # --- the wire the hook actually uses ----------------------------------------------------------------
 
 
-def _cli(gate: Path, event: str, payload: dict, cwd: Path):
+def _cli(runner: Path, gate: Path, event: str, payload: dict, cwd: Path):
     return subprocess.run(
-        [sys.executable, str(RUNNER), "run", "--gate", str(gate), "--event", event],
+        [sys.executable, str(runner), "run", "--gate", str(gate), "--event", event],
         input=json.dumps(payload),
         capture_output=True,
         text=True,
@@ -180,21 +178,21 @@ def _cli(gate: Path, event: str, payload: dict, cwd: Path):
     )
 
 
-def test_the_runner_reads_the_writes_from_stdin(tmp_path: Path) -> None:
+def test_the_runner_reads_the_writes_from_stdin(tmp_path: Path, gate_py: Path) -> None:
     init_repo(tmp_path)
     gate = _gate(tmp_path)
-    assert _cli(gate, "pre-tool-use", {"writes": {"app.py": SECRET}}, tmp_path).returncode == 1
-    assert _cli(gate, "pre-tool-use", {"writes": {"app.py": CLEAN}}, tmp_path).returncode == 0
+    assert _cli(gate_py, gate, "pre-tool-use", {"writes": {"app.py": SECRET}}, tmp_path).returncode == 1
+    assert _cli(gate_py, gate, "pre-tool-use", {"writes": {"app.py": CLEAN}}, tmp_path).returncode == 0
 
 
-def test_every_agent_event_is_reachable_from_the_command_line(tmp_path: Path) -> None:
+def test_every_agent_event_is_reachable_from_the_command_line(tmp_path: Path, gate_py: Path) -> None:
     init_repo(tmp_path)
     gate = _gate(tmp_path)
     for event in AGENT_EVENTS:
-        assert _cli(gate, event, {"writes": {"app.py": SECRET}}, tmp_path).returncode == 1
+        assert _cli(gate_py, gate, event, {"writes": {"app.py": SECRET}}, tmp_path).returncode == 1
 
 
-def test_unreadable_stdin_judges_nothing_rather_than_guessing(tmp_path: Path) -> None:
+def test_unreadable_stdin_judges_nothing_rather_than_guessing(tmp_path: Path, gate_py: Path) -> None:
     init_repo(tmp_path)
-    result = _cli(_gate(tmp_path), "pre-tool-use", {}, tmp_path)
+    result = _cli(gate_py, _gate(tmp_path), "pre-tool-use", {}, tmp_path)
     assert result.returncode == 0

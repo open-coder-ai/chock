@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Internal: the gate runner is a package, `chock.gate.runner`, no longer one 1,482-line file.**
+  Ten modules (constants, context, actor, kinds, script, log, material, report, verdict, cli), each
+  under 300 lines and with no import cycle; `from chock.gate.runner import ...` keeps working and
+  `python -m chock.gate.runner` still runs the command line. The vendored `.chock/bin/gate.py` stays
+  one stdlib-only file: `chock.gate.assemble` builds it from a prelude and the modules' numbered
+  fragments, and it is byte-identical to the old `runner.py`. No behaviour change.
 - **`chock add` and `chock sync` write one spelling of a local pack to `chock.lock`.** A pack added
   from the repo itself was recorded as `"source": "."` with `"source_commit": null`, and the next
   `sync` rewrote it as `"source": "local"` with no `source_commit`, so a clean tree kept producing a

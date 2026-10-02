@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import contextlib
-import shutil
 from pathlib import Path
 from typing import Any
 
 from chock.compile.emitters import policy_rel_path
 from chock.config import load_config
+from chock.emit import write_generated
+from chock.gate.assemble import runner_source
 from chock.manifest import load_manifest
 
 
@@ -70,17 +71,10 @@ def build_gate_json(policy_dir: Path, repo_root: Path) -> dict[str, Any] | None:
 
 
 def vendor_runner(artifact_root: Path) -> Path:
-    """Copy the stdlib-only runner into `<artifact_root>/bin/gate.py`."""
-    source = Path(__file__).resolve().parent / "runner.py"
-    if not source.exists():
-        msg = (
-            f"Vendored gate runner source not found at {source}. "
-            "If this is a packaged binary, ensure gate/runner.py is bundled as a data file."
-        )
-        raise FileNotFoundError(msg)
+    """Write the stdlib-only runner, assembled from chock.gate.runner, to `<artifact_root>/bin/gate.py`."""
     dest = Path(artifact_root) / "bin" / "gate.py"
     dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source, dest)
+    write_generated(dest, runner_source())
     with contextlib.suppress(OSError):
         dest.chmod(0o755)
     return dest

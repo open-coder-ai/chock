@@ -18,7 +18,7 @@ from agentseam import contract, matrix
 from chock import vendors
 from chock.compile.emitters.in_agent import GATE_FILE
 from chock.compile.emitters.in_agent_hooks import cursor_entry, hook_entry
-from chock.gate import runtime_bundle
+from chock.gate import assemble
 from chock.gate.runner import SCRIPT_BASE_GATE
 from chock.gate.write_gate import STOP_FLAG
 
@@ -110,7 +110,7 @@ def gate_skill_note(vendor: str, action: str | None = None) -> str:
 
 def runner_source() -> str:
     """The stdlib-only gate runner, verbatim -- the one `chock sync` vendors under .chock/bin."""
-    return (Path(runtime_bundle.__file__).resolve().parent / "runner.py").read_text(encoding="utf-8")
+    return assemble.runner_source()
 
 
 def packaged_gate_files(policy_dir: Path, spec: dict[str, Any], scripts_template: str) -> dict[Path, str]:

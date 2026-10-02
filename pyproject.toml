@@ -226,7 +226,7 @@ max-statements = 50
 "src/chock/compile/compiler.py" = ["T201"]
 "src/chock/eval/cli.py" = ["T201"]
 "src/chock/gate/guard_runner.py" = ["T201", "PLR0911"]
-"src/chock/gate/runner.py" = ["T201", "PLR0913", "PLR0917", "PLR0911"]
+"src/chock/gate/runner/*.py" = ["T201", "PLR0913", "PLR0917", "PLR0911"]
 "src/chock/gateway/__main__.py" = ["T201"]
 "src/chock/guidance/cli.py" = ["T201"]
 # History scan: its print() is the report; `chock check` imports it lazily so the other checks stay import-light.

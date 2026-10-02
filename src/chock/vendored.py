@@ -6,16 +6,22 @@ from importlib import resources
 from pathlib import Path
 
 from chock.gate import runtime_bundle
+from chock.gate.assemble import runner_source
 from chock.vendors import in_agent_vendors
 
 VENDORED_RUNTIMES = {
-    "gate.py": ("static", ("chock.gate", "runner.py")),
+    "gate.py": ("assembled", None),
     "chock_session.py": ("static", ("chock.gate", "session_reader.py")),
     **{f"{agent}.py": ("bundle", agent) for agent in in_agent_vendors()},
 }
 
 
 def _expected_bytes(kind: str, source) -> bytes | None:
+    if kind == "assembled":
+        try:
+            return runner_source().encode("utf-8")
+        except (OSError, ValueError):  # pragma: no cover - packaging failure
+            return None
     if kind == "static":
         package, source_name = source
         try:

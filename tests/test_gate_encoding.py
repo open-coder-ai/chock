@@ -13,6 +13,7 @@ import pytest
 from conftest import init_repo, stage
 
 from chock.gate import sessionstart, write_gate
+from chock.gate.assemble import runner_source
 from chock.gate.runner import GateContext, run
 
 HOSTILE = {
@@ -69,9 +70,6 @@ def test_a_secret_next_to_hostile_bytes_is_still_caught(tmp_path: Path) -> None:
 # --- the agent-side callers, under a Windows console code page -----------------------------------
 
 
-RUNNER = Path(__file__).resolve().parents[1] / "src" / "chock" / "gate" / "runner.py"
-
-
 @pytest.fixture
 def cp1252(monkeypatch: pytest.MonkeyPatch) -> None:
     """What subprocess decodes text-mode output with on a Western-European Windows console."""
@@ -90,7 +88,7 @@ def test_the_runners_reason_reaches_the_client_intact(tmp_path: Path, cp1252) ->
     gate.parent.mkdir(parents=True)
     gate.write_text(_gate(tmp_path, "BAD").read_text(encoding="utf-8").replace('"commit"', '"tool_use"'), "utf-8")
     (tmp_path / ".chock" / "bin").mkdir()
-    (tmp_path / ".chock" / "bin" / "gate.py").write_text(RUNNER.read_text(encoding="utf-8"), encoding="utf-8")
+    (tmp_path / ".chock" / "bin" / "gate.py").write_text(runner_source(), encoding="utf-8")
     event = SimpleNamespace(event="pre_tool", path="café.py", content="BAD\n", raw={})
     verdict = write_gate.evaluate_gate(["--gate", str(gate)], event)
     assert verdict is not None and "café.py" in verdict[1]
@@ -104,13 +102,13 @@ def test_the_hooks_path_survives_a_non_ascii_directory(tmp_path: Path, cp1252) -
     assert sessionstart._hooks_pre_commit(repo) == hooks / "pre-commit"
 
 
-def test_a_match_cannot_crash_the_runner_on_a_narrow_console(tmp_path: Path) -> None:
+def test_a_match_cannot_crash_the_runner_on_a_narrow_console(tmp_path: Path, gate_py: Path) -> None:
     """Printing a non-ASCII match to a cp1252/ascii stderr raised, and exit 1 read as a verdict."""
     repo = init_repo(tmp_path)
     stage(repo, "設定.md", "BAD\n")
     env = {**os.environ, "PYTHONIOENCODING": "ascii", "CHOCK_GATE_LOG": "0"}
     proc = subprocess.run(
-        [sys.executable, str(RUNNER), "run", "--gate", str(_gate(tmp_path, "BAD")), "--event", "pre-commit"],
+        [sys.executable, str(gate_py), "run", "--gate", str(_gate(tmp_path, "BAD")), "--event", "pre-commit"],
         cwd=repo,
         capture_output=True,
         env=env,

@@ -10,6 +10,7 @@ from conftest import baseline_policy
 
 from chock.compile.compiler import compile_policy
 from chock.compile.surfaces import Surface
+from chock.gate.assemble import runner_source
 from chock.gate.build import build_gate_json
 
 
@@ -40,14 +41,13 @@ def test_compile_declarative_emits_gate_json_and_shims(tmp_path: Path) -> None:
 
 
 def test_vendored_runner_is_byte_identical_to_source(tmp_path: Path) -> None:
-    """The compiled .chock/bin/gate.py must be a verbatim copy of runner.py."""
-    source = _framework_root() / "src" / "chock" / "gate" / "runner.py"
+    """The compiled .chock/bin/gate.py must be the runner package assembled, byte for byte."""
     output_root = tmp_path / ".chock" / "compiled"
     policy_dir = baseline_policy("scan-secrets")
     compile_policy(policy_dir, targets=[Surface.GIT_HOOK.value], output_root=output_root)
 
     vendored = tmp_path / ".chock" / "bin" / "gate.py"
-    assert vendored.read_bytes() == source.read_bytes()
+    assert vendored.read_bytes() == runner_source().encode("utf-8")
 
 
 def test_config_key_resolves_refs(tmp_path: Path) -> None:

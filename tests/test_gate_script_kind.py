@@ -162,7 +162,7 @@ def test_a_script_that_is_not_installed_refuses(tmp_path: Path, capsys: pytest.C
 def test_a_script_that_never_answers_refuses(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
 ) -> None:
-    monkeypatch.setattr(runner, "_SCRIPT_TIMEOUT_SECONDS", 1)
+    monkeypatch.setattr(runner.script, "_SCRIPT_TIMEOUT_SECONDS", 1)
     init_repo(tmp_path)
     gate = _gate(tmp_path)
     assert run(gate, "pre-tool-use", None, tmp_path, writes={"App.java": "HANG"}) == 1

@@ -11,8 +11,8 @@ import pytest
 from conftest import init_repo
 
 from chock.gate import runtime_bundle
+from chock.gate.assemble import runner_source
 
-RUNNER = Path(__file__).resolve().parents[1] / "src" / "chock" / "gate" / "runner.py"
 POLICY = "demo-policy"
 BAD = "BAD = 1\n"
 
@@ -21,7 +21,7 @@ def _install(repo: Path, action: str) -> None:
     """A repo laid out as `chock sync` leaves one: the vendored runtime, the runner, a compiled gate."""
     bin_dir = repo / ".chock" / "bin"
     bin_dir.mkdir(parents=True)
-    (bin_dir / "gate.py").write_text(RUNNER.read_text(encoding="utf-8"), encoding="utf-8")
+    (bin_dir / "gate.py").write_text(runner_source(), encoding="utf-8")
     (bin_dir / "claude_code.py").write_text(runtime_bundle.render("claude_code"), encoding="utf-8")
     gate = repo / ".chock" / "compiled" / POLICY / "pre-tool-use" / "gate.json"
     gate.parent.mkdir(parents=True)
