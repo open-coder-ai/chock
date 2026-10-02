@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
-import re
 import shutil
-import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
@@ -18,20 +16,13 @@ from chock import yamlio
 from chock.config import agents_from_config as _agents_from_config
 from chock.lock import LOCAL_SOURCE, compute_pack_hash, is_local_source, read_lock, write_lock
 from chock.output import error
+from chock.scaffold.pin import PinError, fetch_catalog
 from chock.scaffold.recompile import BookkeepingError, recompile
 
 
 class IntegrityError(RuntimeError):
     """Fetched content did not match the hash the caller required."""
 
-
-class PinError(RuntimeError):
-    """A catalog ref was refused: not a commit the remote can prove."""
-
-
-_FULL_SHA = re.compile(r"[0-9a-fA-F]{40}")
-_SHORT_SHA = re.compile(r"[0-9a-fA-F]{7,39}")
-_SAFE_REF = re.compile(r"[A-Za-z0-9._/+-]+")
 
 DEFAULT_CATALOG = "https://github.com/open-coder-ai/chock-catalog"
 
@@ -40,82 +31,6 @@ _AREAS = {
     "policies": Path(".agents") / "policies",
     "skills": Path(".agents") / "skills",
 }
-
-
-def _run(args: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess:
-    return subprocess.run(  # noqa: S603 -- running git to fetch the requested catalog is this command's job
-        args,
-        cwd=str(cwd) if cwd else None,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-
-
-def _pin_error(source: str, ref: str, why: str) -> PinError:
-    return PinError(f"chock add: refusing catalog {source} at {ref!r}: {why} (nothing installed)")
-
-
-def _check_ref_syntax(source: str, ref: str) -> None:
-    """A ref is never an option and never outside git's ref rules."""
-    if ref.startswith("-") or not _SAFE_REF.fullmatch(ref):
-        raise _pin_error(source, ref, "not a valid git ref name")
-    if _run(["git", "check-ref-format", "--allow-onelevel", ref]).returncode != 0:
-        raise _pin_error(source, ref, "not a valid git ref name")
-
-
-def _fetch_commit(source: str, remote: str, sha: str, into: Path) -> str:
-    """Fetch exactly the commit object `sha` and prove HEAD is it before any file is read."""
-    into.mkdir(parents=True, exist_ok=True)
-    steps = (
-        ["git", "init", "--quiet", str(into)],
-        ["git", "-C", str(into), "fetch", "--quiet", "--depth", "1", "--", remote, sha],
-        ["git", "-C", str(into), "rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"],
-        ["git", "-C", str(into), "checkout", "--quiet", "--detach", sha],
-    )
-    for args in steps:
-        result = _run(args)
-        if result.returncode != 0:
-            detail = result.stderr.strip() or f"{args[0]} {' '.join(args[1:3])} failed"
-            raise _pin_error(source, sha, f"commit not available from the remote by id ({detail})")
-    head = _run(["git", "rev-parse", "HEAD"], cwd=into)
-    if head.returncode != 0 or head.stdout.strip().lower() != sha:
-        raise _pin_error(source, sha, "the checked-out commit is not the pinned commit")
-    return sha
-
-
-def _clone_ref(source: str, remote: str, ref: str | None, into: Path) -> str | None:
-    args = ["git", "clone", "--quiet", "--depth", "1"]
-    if ref:
-        args += ["--branch", ref]
-    result = _run([*args, "--", remote, str(into)])
-    if result.returncode != 0:
-        msg = f"could not fetch catalog {source}" + (f" at {ref}" if ref else "") + f":\n{result.stderr.strip()}"
-        raise RuntimeError(msg)
-    resolved = _run(["git", "rev-parse", "HEAD"], cwd=into)
-    return (resolved.stdout.strip() or None) if resolved.returncode == 0 else None
-
-
-def fetch_catalog(source: str, ref: str | None, into: Path) -> tuple[Path, str | None]:
-    """Make the catalog available locally. Returns (root, resolved commit or None)."""
-    local = Path(source).expanduser()
-    if local.exists() and not ref:
-        return local.resolve(), None
-    remote = str(local.resolve()) if local.exists() else source
-
-    if ref and _FULL_SHA.fullmatch(ref):
-        return into, _fetch_commit(source, remote, ref.lower(), into)
-    if ref and _SHORT_SHA.fullmatch(ref):
-        raise _pin_error(source, ref, "a short hex ref is ambiguous; pin a full 40-character commit SHA")
-    if ref:
-        _check_ref_syntax(source, ref)
-        print(
-            f"chock add: warning: {ref!r} is a branch or tag, which can move. Pin a full commit SHA instead.",
-            file=sys.stderr,
-        )
-    return into, _clone_ref(source, remote, ref, into)
 
 
 def _reject_unsafe_id(artifact_id: str) -> None:
