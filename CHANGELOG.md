@@ -11,6 +11,14 @@
   refuse), and a guard's path gate without `tool_use`. The validator no longer crashes with a
   `KeyError` on `hook.script.on: [tool_use]`. Schema descriptions and `spec/script-backed-gates.md`
   state the pairing.
+- **`egress_allowlist` is a hook kind the manifest schema accepts.** The engine validates,
+  compiles and evaluates it at the mcp-gateway, but `manifest.hook.json` left it out of the
+  `hook.gate.kind` enum, so `chock validate` refused every manifest using it (a schema error,
+  exit 1). The enum now lists it; the gateway-only rule (no `commit`/`push` in `on`) and its
+  closed `params` still apply, and `outside_repo` is now refused on any kind that never judges a
+  write (it was accepted and ignored). Only the MCP gateway evaluates the kind, so a policy using
+  it earns `advisory` coverage per agent. A test pins the enum to the engine's kinds and param
+  schemas, and `spec/` prose quoting a `` `kind: <value>` `` must name one the schema accepts.
 - **Security: `chock add --ref` resolves a 40-hex pin as a commit object only.** A pin that looked
   like a SHA was first tried as a branch or tag name (`git clone --branch`), so anyone able to create
   a branch or tag with that name in the catalog remote could substitute different content under the

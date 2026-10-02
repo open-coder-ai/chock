@@ -24,7 +24,8 @@
             "forbidden_ref",
             "dependency_allowlist",
             "test_integrity",
-            "script"
+            "script",
+            "egress_allowlist"
           ]
         },
         "on": {
