@@ -1301,7 +1301,7 @@ def evaluate(
     try:
         spec = json.loads(gate_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:
-        print(f"gate: cannot read {gate_path}: {exc}", file=sys.stderr)
+        print(f"gate: cannot read the compiled gate this hook names: {type(exc).__name__}", file=sys.stderr)
         return 2, VERDICT_ERROR
     if event == "ci":
         name, covered = "ci", "commit" in spec.get("on", [])

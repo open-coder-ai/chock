@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Security: the gate names no path when its compiled file cannot be read.** The message now carries the exception type, not the path or the raw error text; the gate still exits 2.
 - **Security: `chock add --ref` resolves a 40-hex pin as a commit object only.** A pin that looked
   like a SHA was first tried as a branch or tag name (`git clone --branch`), so anyone able to create
   a branch or tag with that name in the catalog remote could substitute different content under the
