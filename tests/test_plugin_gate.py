@@ -20,6 +20,7 @@ import yaml
 from conftest import guarded_launch, init_repo
 
 from chock.gate import runner, runtime_bundle
+from chock.gate.assemble import runner_source
 from chock.plugin.claude import (
     POSTURE_ADVISORY,
     POSTURE_ENFORCED_GATE,
@@ -115,7 +116,7 @@ def test_a_tool_use_gate_ships_hooks_runner_gate_and_its_program(policy, tmp_pat
     assert gate["script_base"] == runner.SCRIPT_BASE_GATE
     assert gate["params"]["script"] == f"implementations/{SCRIPT}"
 
-    runner_src = Path(runner.__file__).read_text(encoding="utf-8")
+    runner_src = runner_source()
     assert (out / "scripts" / "gate.py").read_text(encoding="utf-8") == runner_src
     assert (out / "scripts" / "implementations" / SCRIPT).read_text(encoding="utf-8") == GATE_SCRIPT
     assert (out / "scripts" / "implementations" / "helper.py").read_text(encoding="utf-8") == HELPER

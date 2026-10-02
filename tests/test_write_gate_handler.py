@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from conftest import init_repo
 
 from chock.gate import write_gate
+from chock.gate.assemble import runner_source
 from chock.gate.stop_reentry import REENTRY_CAP
 
 SECRET = 'KEY = "AKIAIOSFODNN7EXAMPLE"\n'  # pragma: allowlist secret -- the string under test
@@ -38,8 +39,7 @@ def _installed(tmp_path: Path) -> Path:
     gate.write_text(json.dumps(SPEC), encoding="utf-8")
     runner = tmp_path / ".chock" / "bin" / "gate.py"
     runner.parent.mkdir(parents=True)
-    source = Path(__file__).resolve().parents[1] / "src" / "chock" / "gate" / "runner.py"
-    runner.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    runner.write_text(runner_source(), encoding="utf-8")
     return gate
 
 

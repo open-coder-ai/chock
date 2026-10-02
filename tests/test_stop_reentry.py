@@ -15,6 +15,7 @@ import pytest
 from conftest import init_repo
 
 from chock.gate import stop_reentry, write_gate
+from chock.gate.assemble import runner_source
 
 SECRET = "AKIA" + "1234567890ABCDEF"  # pragma: allowlist secret
 OTHER = "AKIA" + "ZZZZZZZZZZZZZZZZ"  # pragma: allowlist secret
@@ -47,7 +48,7 @@ def make_repo(tmp_path: Path) -> Path:
     gate.write_text(json.dumps(SPEC), encoding="utf-8")
     runner = tmp_path / ".chock" / "bin" / "gate.py"
     runner.parent.mkdir(parents=True)
-    runner.write_text((Path(write_gate.__file__).parent / "runner.py").read_text(encoding="utf-8"), encoding="utf-8")
+    runner.write_text(runner_source(), encoding="utf-8")
     return tmp_path
 
 

@@ -160,7 +160,7 @@ def test_logging_failure_does_not_change_the_verdict(tmp_path: Path, monkeypatch
         def now(*args, **kwargs):
             raise OSError("log device on fire")
 
-    monkeypatch.setattr(gate_runner, "datetime", Exploding)
+    monkeypatch.setattr(gate_runner.log, "datetime", Exploding)
 
     assert run(gate, "pre-commit", None, tmp_path) == 1
     assert read_log(tmp_path) == []
