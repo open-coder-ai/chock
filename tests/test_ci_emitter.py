@@ -43,7 +43,7 @@ def test_gate_json_is_written_alongside_the_step(tmp_path: Path) -> None:
 
 
 def test_push_only_gate_emits_nothing() -> None:
-    """A gate scoped to `push` only has no CI meaning (see runner.py); emitting a step that"""
+    """A gate scoped to `push` only has no CI meaning (see chock.gate.runner); emitting a step that"""
     import tempfile
 
     from chock.compile.emitters import ci as ci_emitter

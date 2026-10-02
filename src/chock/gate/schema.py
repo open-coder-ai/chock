@@ -7,7 +7,7 @@ from chock.gate.runner import EXTRACTORS
 SUPPORTED_MANIFESTS = sorted(EXTRACTORS)
 
 #: Gate kind name -- shared with eval/derive.py, which cannot import this framework-side
-#: module's sibling (the vendored, stdlib-only gate/runner.py duplicates it independently).
+#: module's sibling (the vendored, stdlib-only gate/runner/ package duplicates it independently).
 DEPENDENCY_ALLOWLIST_KIND = "dependency_allowlist"
 
 #: The in-agent event that gates a tool call by name (`params.tools`), and the kinds able to judge one:

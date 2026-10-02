@@ -71,12 +71,18 @@ def test_the_assembled_runner_is_one_compilable_file() -> None:
 
 
 def _package(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, modules: dict[str, str]) -> None:
+    """A stand-in package declaring modules `a` and `b`, holding only the files given."""
     pkg = tmp_path / "runner"
     pkg.mkdir()
     for name, text in modules.items():
         (pkg / name).write_text(text, encoding="utf-8")
     real = assemble.package_data_dir
     monkeypatch.setattr(assemble, "package_data_dir", lambda package, *sub: pkg if not sub else real(package, *sub))
+    monkeypatch.setattr(assemble, "MODULES", ("a", "b"))
+
+
+def test_the_declared_modules_are_exactly_the_package_s() -> None:
+    assert set(assemble.MODULES) == {path.stem for path in _modules()}
 
 
 def test_fragments_join_in_number_order_whatever_module_holds_them(tmp_path: Path, monkeypatch) -> None:
@@ -86,18 +92,23 @@ def test_fragments_join_in_number_order_whatever_module_holds_them(tmp_path: Pat
     assert runner_source() == PRELUDE.read_text(encoding="utf-8") + "A = 1\n\n\nB = 2\n"
 
 
+ONE = "# >>> gate.py 1\nA = 1\n"
+
+
 @pytest.mark.parametrize(
     ("modules", "error"),
     [
-        ({"a.py": "# >>> gate.py 1\nA = 1\n", "b.py": "# >>> gate.py 1\nB = 1\n"}, ValueError),
-        ({"a.py": "# >>> gate.py 1\nA = 1\n# >>> gate.py 3\nC = 1\n"}, ValueError),
-        ({"a.py": "# >>> gate.py 2\nB = 1\n"}, ValueError),
-        ({"a.py": "A = 1\n"}, FileNotFoundError),
+        ({"a.py": ONE, "b.py": "# >>> gate.py 1\nB = 1\n"}, ValueError),
+        ({"a.py": ONE, "b.py": "# >>> gate.py 3\nC = 1\n"}, ValueError),
+        ({"a.py": "# >>> gate.py 2\nB = 1\n", "b.py": "# >>> gate.py 3\nC = 1\n"}, ValueError),
+        ({"a.py": ONE, "b.py": "B = 1\n"}, ValueError),
+        ({"a.py": ONE}, FileNotFoundError),
         ({}, FileNotFoundError),
     ],
-    ids=["repeat", "gap", "no-first", "no-marker", "no-module"],
+    ids=["repeat", "gap", "no-first", "no-marker", "lost-last-module", "no-module"],
 )
 def test_a_fragment_set_that_cannot_be_ordered_refuses(tmp_path, monkeypatch, modules, error) -> None:
+    """A lost module or marker never yields a shorter gate.py: the build refuses instead."""
     _package(tmp_path, monkeypatch, modules)
     with pytest.raises(error):
         runner_source()

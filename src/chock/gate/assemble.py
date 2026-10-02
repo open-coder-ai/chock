@@ -8,6 +8,10 @@ from chock.resources import package_data_dir
 
 RUNNER_PACKAGE = "chock.gate.runner"
 
+#: Every module gate.py is built from. Each must exist and contribute a fragment, so a module lost
+#: from an install fails the build rather than vendoring a runner without it.
+MODULES = ("actor", "cli", "constants", "context", "kinds", "log", "material", "report", "script", "verdict")
+
 #: A module's text after its header is fragments, each opened by this line; fragment numbers set
 #: their order in gate.py and run 1..N across the package with no gap and no repeat.
 _MARKER_RE = re.compile(r"^# >>> gate\.py (\d+)\n", re.MULTILINE)
@@ -21,11 +25,15 @@ def _prelude() -> str:
 
 def _fragments() -> dict[int, str]:
     found: dict[int, str] = {}
-    for module in sorted(package_data_dir(RUNNER_PACKAGE).glob("*.py")):
-        parts = _MARKER_RE.split(module.read_text(encoding="utf-8"))
+    package = package_data_dir(RUNNER_PACKAGE)
+    for name in MODULES:
+        parts = _MARKER_RE.split(package.joinpath(f"{name}.py").read_text(encoding="utf-8"))
+        if len(parts) < 3:  # noqa: PLR2004 -- header, then at least one (number, body) pair
+            msg = f"{name}.py has no gate.py fragment"
+            raise ValueError(msg)
         for number, body in zip(parts[1::2], parts[2::2], strict=True):
             if int(number) in found:
-                msg = f"gate.py fragment {number} appears twice (again in {module.name})"
+                msg = f"gate.py fragment {number} appears twice (again in {name}.py)"
                 raise ValueError(msg)
             found[int(number)] = body.strip("\n")
     return found
@@ -34,9 +42,6 @@ def _fragments() -> dict[int, str]:
 def runner_source() -> str:
     """The vendored gate runner: the prelude, then every fragment in number order. Raises on a gap."""
     found = _fragments()
-    if not found:
-        msg = f"no gate.py fragments under {package_data_dir(RUNNER_PACKAGE)}; a binary must bundle its .py as data"
-        raise FileNotFoundError(msg)
     if sorted(found) != list(range(1, len(found) + 1)):
         msg = f"gate.py fragments must run 1..N without a gap; found {sorted(found)}"
         raise ValueError(msg)

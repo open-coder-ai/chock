@@ -20,7 +20,7 @@ def _expected_bytes(kind: str, source) -> bytes | None:
     if kind == "assembled":
         try:
             return runner_source().encode("utf-8")
-        except (OSError, ValueError):  # pragma: no cover - packaging failure
+        except OSError:  # pragma: no cover - packaging failure
             return None
     if kind == "static":
         package, source_name = source

@@ -109,7 +109,7 @@ def gate_skill_note(vendor: str, action: str | None = None) -> str:
 
 
 def runner_source() -> str:
-    """The stdlib-only gate runner, verbatim -- the one `chock sync` vendors under .chock/bin."""
+    """The stdlib-only gate runner, assembled byte for byte as `chock sync` vendors it under .chock/bin."""
     return assemble.runner_source()
 
 
