@@ -153,7 +153,7 @@ it merges, in a PR a human approves for that reason (`review/policy.py`).
 ### Wiring it as a required status check
 
 `require` depends on `chock.review`, so it runs as a CLI subcommand in your own CI step -- **not**
-a compiled git-hook or ci-gate. (`gate/runner.py` is vendored stdlib-only and must never import
+a compiled git-hook or ci-gate. (`gate/runner/` is vendored stdlib-only and must never import
 `chock.review`; re-implementing `verify` there would fork the logic that exists specifically to be
 un-forkable.) Add a step using this repository's `action.yml`:
 
