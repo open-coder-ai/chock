@@ -82,7 +82,7 @@ def test_catalog_page_tells_a_gate_from_a_guard(gate_dist: Path) -> None:
 
 def test_catalog_page_says_when_a_client_cannot_judge_the_write() -> None:
     """A gate published at the turn's end only says so; no page tree is stop-only since agentseam 0.3.4."""
-    body = catalog_page._explain("codex", 0, [], 1, ["Stop"])
+    body = catalog_page._explain("codex", (0, []), (1, ["Stop"]))
 
     assert "hooked at `Stop`, re-reading what the turn left on disk" in body
     assert "so the write itself is not judged" in body

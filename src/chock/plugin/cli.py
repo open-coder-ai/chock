@@ -244,5 +244,7 @@ def main(argv: list[str] | None = None) -> int:
         print("  .codex-plugin/plugin.json + hooks/ (PreToolUse per guard policy; Stop per gate)")
     if "devin" in formats:
         print("  .devin-plugin/plugin.json + hooks.json (PreToolUse per guard policy; Stop per gate; best-effort)")
+    if HOOK_FORMATS.intersection(formats):
+        print("  A policy with both a guard and a tool_use gate ships both, where the client runs the gate.")
     print("  Skills are advisory in any client. Repo-level enforcement still needs `chock sync`.")
     return 0

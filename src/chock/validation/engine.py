@@ -54,6 +54,7 @@ from chock.validation.checks_security import (
     check_effects_and_approval,
     check_security_baseline,
 )
+from chock.validation.checks_write_path import check_write_path_pairing
 from chock.validation.frontier import check_frontier_mode
 from chock.validation.loading import (
     MANIFEST_SCHEMA,
@@ -124,6 +125,7 @@ def validate_artifact(
     check_manifest_schema(artifact_dir, manifest, artifact_type, report)
     check_manifest_advice(artifact_dir, manifest, artifact_type, report)
     check_script_events(artifact_dir, manifest, artifact_type, report)
+    check_write_path_pairing(artifact_dir, manifest, artifact_type, report)
 
     if registry_check:
         check_script_integrity(artifact_dir, manifest, artifact_type, root, report)

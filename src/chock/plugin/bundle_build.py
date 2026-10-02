@@ -143,11 +143,12 @@ def _describe(client: Client, bundle: dict[str, Any], packages: list, note: str)
     return f"{text} {note}".strip(), min(grade for _m, _f, grade, _w in packages)
 
 
-def _weakest_flags(packages: list, grade: int) -> tuple[bool, bool]:
-    """(enforced, gate) of the first member at the weakest grade: what the client's posture text keys on."""
+def _weakest_flags(packages: list, grade: int, hooks_rel: Path) -> tuple[bool, bool, bool]:
+    """(enforced, gate, guard) of the first member at the weakest grade: what the client's posture keys on."""
     member_files = next(files for _m, files, g, _w in packages if g == grade)
     gated = Path(SCRIPTS_TEMPLATE.format(name="gate.json")) in member_files
-    return grade != bundle_grade.ADVISORY, gated
+    guarded = bundle_grade.carries_guard(member_files.get(hooks_rel))
+    return grade != bundle_grade.ADVISORY, gated, guarded
 
 
 def _bundle_manifest(
@@ -155,10 +156,12 @@ def _bundle_manifest(
 ) -> dict[str, Any]:
     """The client's own manifest for the bundle, its posture sentence the weakest member's."""
     text, grade = _describe(client, bundle, packages, note)
-    weak_enforced, weak_gate = _weakest_flags(packages, grade)
+    hooks_rel = Path(packaging.supports(client.package_agent, packaging.HOOKS))
+    weak_enforced, weak_gate, weak_guard = _weakest_flags(packages, grade, hooks_rel)
     synthetic = _synthetic_manifest(bundle, [m for m, *_ in packages], text, grade)
-    manifest = client.manifest(synthetic, Path(bundle["id"]), enforced=carries_hooks, gate=weak_gate)
-    manifest["description"] = f"{text} [{client.posture(enforced=weak_enforced, gate=weak_gate)}]"
+    manifest = client.manifest(synthetic, Path(bundle["id"]), enforced=carries_hooks, gate=weak_gate, guard=weak_guard)
+    posture = client.posture(enforced=weak_enforced, gate=weak_gate, guard=weak_guard)
+    manifest["description"] = f"{text} [{posture}]"
     return manifest
 
 

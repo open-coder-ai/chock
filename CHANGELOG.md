@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Entries for unreleased changes now live in `changelog.d/` (one file per change); see
+  `changelog.d/README.md`.
 - **`egress_allowlist` is a hook kind the manifest schema accepts.** The engine validates,
   compiles and evaluates it at the mcp-gateway, but `manifest.hook.json` left it out of the
   `hook.gate.kind` enum, so `chock validate` refused every manifest using it (a schema error,

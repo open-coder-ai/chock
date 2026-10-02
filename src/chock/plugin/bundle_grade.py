@@ -21,6 +21,7 @@ ADVISORY, WARNS, ASKS, STOP_ONLY, BLOCKS = range(5)
 #: Keyword a bundle's weakest member lends it, in the manifest's own `enforcement` vocabulary.
 _ENFORCEMENT = {ADVISORY: "advise", WARNS: "warn", ASKS: "ask", STOP_ONLY: "block", BLOCKS: "block"}
 ADVISORY_SAYS = "advisory only: skill text, nothing stops a violation"
+_GUARD_SAYS = "refuses a matched shell command before it runs"
 _GATE_ACTION_GRADE = {"warn": WARNS, "ask": ASKS}
 _GATE_VERBS = {"block": "blocks", "ask": "asks", "warn": "warns"}
 
@@ -35,10 +36,17 @@ def _hook_commands(node: Any) -> list[str]:
     return []
 
 
-def _hook_events(doc: Any) -> list[str]:
-    """The events a hooks document wires, in the order it wires them."""
+def events_for(doc: Any, flag: str) -> list[str]:
+    """The events whose entries run a command carrying `flag`, in the order the document wires them."""
     events = doc.get("hooks", doc) if isinstance(doc, dict) else {}
-    return [event for event, entries in events.items() if isinstance(entries, list)] if isinstance(events, dict) else []
+    if not isinstance(events, dict):
+        return []
+    return [e for e, entries in events.items() if any(flag in c for c in _hook_commands(entries))]
+
+
+def carries_guard(hooks_text: str | None) -> bool:
+    """Whether a package's hooks document runs a shell guard."""
+    return hooks_text is not None and any(_GUARD_FLAG in c for c in _hook_commands(json.loads(hooks_text)))
 
 
 def grade_of(hooks_text: str | None, gate_text: str | None, agent: str) -> tuple[int, str]:
@@ -49,16 +57,18 @@ def grade_of(hooks_text: str | None, gate_text: str | None, agent: str) -> tuple
     commands = _hook_commands(doc)
     if any(_GATE_FLAG in c for c in commands):
         action = str((json.loads(gate_text) if gate_text else {}).get("action") or "block")
-        writes = vendors.pre_tool_event(agent) in _hook_events(doc)
+        writes = vendors.pre_tool_event(agent) in events_for(doc, _GATE_FLAG)
         reach = (
             "on an agent's file writes and at turn end"
             if writes
             else "at turn end only; the write itself is not judged"
         )
         grade = _GATE_ACTION_GRADE.get(action, BLOCKS if writes else STOP_ONLY)
-        return grade, f"{_GATE_VERBS.get(action, 'blocks')} {reach}"
+        gate_says = f"{_GATE_VERBS.get(action, 'blocks')} {reach}"
+        # A guard beside the gate blocks outright, so the gate's grade stays the package's floor.
+        return grade, f"{_GUARD_SAYS}; {gate_says}" if any(_GUARD_FLAG in c for c in commands) else gate_says
     if any(_GUARD_FLAG in c for c in commands):
-        return BLOCKS, "refuses a matched shell command before it runs"
+        return BLOCKS, _GUARD_SAYS
     return ADVISORY, ADVISORY_SAYS
 
 
