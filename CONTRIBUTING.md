@@ -67,7 +67,7 @@ If those are green, you're ready to build. 🚀
 Version is single-sourced in `pyproject.toml`.
 
 1. Bump `version` in `pyproject.toml`.
-2. Update the top `## X.Y.Z` entry in `CHANGELOG.md`.
+2. Run `python tools/changelog.py --assemble --write` to fold `changelog.d/` fragments into `## Unreleased`, then rename that heading to `## X.Y.Z` in `CHANGELOG.md` and delete the folded fragments.
 3. Commit, then `git tag vX.Y.Z && git push origin vX.Y.Z`.
 4. The `release` workflow builds the wheel/sdist, publishes to PyPI via Trusted Publishing,
    builds one-file binaries for Ubuntu, macOS, and Windows, and creates a GitHub Release with
@@ -205,7 +205,7 @@ When you add or change a policy, include all of these:
 1. **Manifest** (`manifest.yaml`) — id, `artifact` type, `enforcement`, `effects`, and a clear `description`.
 2. **Implementation** (for hooks) — declarative policies ship no scripts: the `hook.gate` block in `manifest.yaml` is the implementation. Scripts under `implementations/` exist only for guards that the declarative gate DSL cannot express.
 3. **Evals** (`evals/suite.yaml`) — at least one `trigger`, one `negative_trigger`, one `behavior`, and one adversarial case. See the [Evals guide](docs/evals.md).
-4. **Housekeeping** — bump the manifest `version` + changelog entry, regenerate derived artifacts (`chock registry scan`), and keep the spec/matrix in the same PR as the behavior.
+4. **Housekeeping** — bump the manifest `version` + a `changelog.d/<slug>.md` fragment (never edit `CHANGELOG.md` in a PR; see `changelog.d/README.md`), regenerate derived artifacts (`chock registry scan`), and keep the spec/matrix in the same PR as the behavior.
 5. **Green checks** — `chock check` and `pytest` pass clean. The reference repo must validate under its own tooling.
 
 ## 🔄 Artifact lifecycle

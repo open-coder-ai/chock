@@ -13,7 +13,7 @@
 - [ ] `pytest acceptance/ -c acceptance/pytest.ini --rootdir=acceptance` green if packaging,
       `init`, `add` or hook installation changed
 - [ ] Existing artifacts migrated in this PR if a check was added/extended
-- [ ] Touched manifests: version bump + changelog entry
+- [ ] Touched manifests: version bump + a `changelog.d/<slug>.md` fragment (not a `CHANGELOG.md` edit)
 - [ ] `ruff check .` and `ruff format --check .` clean
 
 ## Claims
