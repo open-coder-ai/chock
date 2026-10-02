@@ -15,7 +15,7 @@ import yaml
 
 from chock import yamlio
 from chock.config import agents_from_config as _agents_from_config
-from chock.lock import compute_pack_hash, read_lock, write_lock
+from chock.lock import LOCAL_SOURCE, compute_pack_hash, is_local_source, read_lock, write_lock
 from chock.output import error
 from chock.scaffold.recompile import BookkeepingError, recompile
 
@@ -191,10 +191,15 @@ def record_provenance(repo_root: Path, artifact_id: str, source: str, ref: str |
     for entry in lock.get("packs", []):
         if entry.get("id") != artifact_id:
             continue
-        entry["source"] = source
-        entry["source_commit"] = added.commit
-        if ref:
-            entry["source_ref"] = ref
+        if is_local_source(source, repo_root):
+            entry["source"] = LOCAL_SOURCE
+            entry.pop("source_commit", None)
+            entry.pop("source_ref", None)
+        else:
+            entry["source"] = source
+            entry["source_commit"] = added.commit
+            if ref:
+                entry["source_ref"] = ref
         write_lock(lock, repo_root)
         return
 

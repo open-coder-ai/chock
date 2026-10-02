@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **`chock add` and `chock sync` write one spelling of a local pack to `chock.lock`.** A pack added
+  from the repo itself was recorded as `"source": "."` with `"source_commit": null`, and the next
+  `sync` rewrote it as `"source": "local"` with no `source_commit`, so a clean tree kept producing a
+  lockfile diff. A local pack is now always `"source": "local"` with no `source_commit`; an old
+  lockfile converges on its next `sync` and is then stable. Catalog provenance (`source`,
+  `source_commit`, `source_ref`) is kept across `sync` while the pack still hashes to what was
+  fetched; an edited pack is local again.
 - **`chock check --event ci --base <ref> --format sarif` writes the ci gates' findings as SARIF 2.1.0.**
   One `run` (driver `chock`, version, `informationUri`) with a rule per policy rule of each gated
   policy's shipped setup contract (`<policy>/<rule>`, title, constraint, first https reference as
