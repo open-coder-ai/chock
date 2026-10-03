@@ -4,7 +4,8 @@
       "hooks": [
         {
           "type": "command",
-          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive-commands.py\""
+          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive-commands.py\"",
+          "timeout": 45
         }
       ]
     },
@@ -12,7 +13,8 @@
       "hooks": [
         {
           "type": "command",
-          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.py\""
+          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.py\"",
+          "timeout": 45
         }
       ]
     },
@@ -20,7 +22,8 @@
       "hooks": [
         {
           "type": "command",
-          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.py\""
+          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.py\"",
+          "timeout": 45
         }
       ]
     },
@@ -28,7 +31,8 @@
       "hooks": [
         {
           "type": "command",
-          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.py\""
+          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.py\"",
+          "timeout": 45
         }
       ]
     }
@@ -38,7 +42,8 @@
       "hooks": [
         {
           "type": "command",
-          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --gate \".chock/compiled/block-invisible-unicode/stop/gate.json\""
+          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --gate \".chock/compiled/block-invisible-unicode/stop/gate.json\"",
+          "timeout": 45
         }
       ]
     },
@@ -46,7 +51,8 @@
       "hooks": [
         {
           "type": "command",
-          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --gate \".chock/compiled/block-wildcard-agent-permissions/stop/gate.json\""
+          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --gate \".chock/compiled/block-wildcard-agent-permissions/stop/gate.json\"",
+          "timeout": 45
         }
       ]
     },
@@ -54,7 +60,8 @@
       "hooks": [
         {
           "type": "command",
-          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --gate \".chock/compiled/pin-github-actions/stop/gate.json\""
+          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --gate \".chock/compiled/pin-github-actions/stop/gate.json\"",
+          "timeout": 45
         }
       ]
     },
@@ -62,7 +69,8 @@
       "hooks": [
         {
           "type": "command",
-          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --gate \".chock/compiled/protect-agent-config/stop/gate.json\""
+          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --gate \".chock/compiled/protect-agent-config/stop/gate.json\"",
+          "timeout": 45
         }
       ]
     },
@@ -70,7 +78,8 @@
       "hooks": [
         {
           "type": "command",
-          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --gate \".chock/compiled/scan-secrets/stop/gate.json\""
+          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --gate \".chock/compiled/scan-secrets/stop/gate.json\"",
+          "timeout": 45
         }
       ]
     }

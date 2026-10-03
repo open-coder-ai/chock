@@ -21,6 +21,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+#: One hook invocation's time budget, in seconds (chock.gate.budget).
+ENGINE_BUDGET_SECONDS = 30
+
+
 _GIT = shutil.which("git") or "git"
 
 
@@ -608,7 +612,7 @@ def _kind_test_integrity(ctx: GateContext, params: dict, event: str) -> GateResu
 
 #: A script gate's budget to answer. Past it the script has not decided, and an undecided
 #: gate refuses.
-_SCRIPT_TIMEOUT_SECONDS = 30
+_SCRIPT_TIMEOUT_SECONDS = ENGINE_BUDGET_SECONDS
 
 #: The exit codes a script gate speaks, the command-guard contract's: 0 allows, 1 blocks, 3 asks,
 #: 4 warns. Anything else is not a verdict. The gate's declared action caps what a script may choose.
