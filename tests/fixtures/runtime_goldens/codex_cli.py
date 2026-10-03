@@ -23,6 +23,7 @@ import os as _chock_os
 import shlex as _chock_shlex
 import shutil as _chock_shutil
 import subprocess as _chock_subprocess
+import time as _chock_time
 from datetime import datetime as _chock_datetime, timezone as _chock_timezone
 from pathlib import Path as _chock_Path
 from pathlib import PurePosixPath as _chock_PurePosixPath, PureWindowsPath as _chock_PureWindowsPath
@@ -704,6 +705,23 @@ def degrade(decision, event):
 
 
 # >>> agentseam handler >>>
+ENGINE_BUDGET_SECONDS = 30
+
+def engine_deadline():
+    """The monotonic instant this invocation's budget runs out."""
+    return _chock_time.monotonic() + ENGINE_BUDGET_SECONDS
+
+def engine_remaining(deadline):
+    """Seconds left before `deadline`, never negative."""
+    return max(deadline - _chock_time.monotonic(), 0.0)
+
+def time_left(deadline, cmd):
+    """Seconds left for a subprocess; raises TimeoutExpired when none are, so the caller's timeout path runs."""
+    left = deadline - _chock_time.monotonic()
+    if left <= 0:
+        raise _chock_subprocess.TimeoutExpired(cmd, 0)
+    return left
+
 GUARD_VIOLATION = 1
 
 GUARD_ASK_EXIT = 3
@@ -736,7 +754,7 @@ GATE_LOG_ENV = 'CHOCK_GATE_LOG'
 
 _LOG_MAX_BYTES = 1048576
 
-_GUARD_TIMEOUT_SECONDS = 30
+_BASH_PROBE_SECONDS = 10
 
 GUARD_BLOCKED = 'blocked'
 
@@ -787,25 +805,29 @@ def interpreter_env(interpreter: str) -> dict[str, str]:
         env['PATH'] = str(usr_bin) + _chock_os.pathsep + env.get('PATH', '')
     return env
 
-def find_bash(guard: _chock_Path) -> str | None:
-    """First bash that can actually see `guard`, probed once per process; None when none can."""
+def find_bash(guard: _chock_Path, deadline: float | None=None) -> str | None:
+    """First bash that can actually see `guard`, probed once per process; the probes draw on `deadline`."""
     if 'bash' in _FOUND_BASH:
         return _FOUND_BASH['bash']
     for candidate in bash_candidates():
+        argv = [candidate, '-c', f'test -f "{guard.as_posix()}"']
         try:
-            proc = _chock_subprocess.run([candidate, '-c', f'test -f "{guard.as_posix()}"'], capture_output=True, timeout=10, check=False)
+            limit = _BASH_PROBE_SECONDS if deadline is None else min(_BASH_PROBE_SECONDS, time_left(deadline, argv))
+            proc = _chock_subprocess.run(argv, capture_output=True, timeout=limit, check=False)
         except (OSError, _chock_subprocess.SubprocessError):
+            if deadline is not None and engine_remaining(deadline) <= 0:
+                return None
             continue
         if proc.returncode == 0:
             _FOUND_BASH['bash'] = candidate
             return candidate
     return None
 
-def find_interpreter(guard: _chock_Path) -> str | None:
+def find_interpreter(guard: _chock_Path, deadline: float | None=None) -> str | None:
     """The interpreter that can run `guard`: this Python for `.py`, otherwise a usable bash."""
     if guard.suffix == PYTHON_SUFFIX:
         return sys.executable or None
-    return find_bash(guard)
+    return find_bash(guard, deadline)
 
 def normalize_tool(tool: str | None) -> str:
     """The hook payload's tool name as `bash` | `powershell` | `shell` | `unknown`."""
@@ -834,23 +856,31 @@ def run_guard(guard: _chock_Path, command: str, tool: str='') -> str:
     """`GUARD_BLOCKED` / `GUARD_ASKED` / `GUARD_CLEAN` when the guard ran, otherwise why it did not."""
     return run_guard_detailed(guard, command, tool)[0]
 
+def _no_interpreter(guard: _chock_Path, deadline: float) -> tuple[str, str]:
+    """The ask a guard earns when no shell could run it: the budget ran out probing, or none can see it."""
+    if engine_remaining(deadline) <= 0:
+        print(f'chock: guard timed out after {ENGINE_BUDGET_SECONDS}s finding a shell, not checked', file=sys.stderr)
+        return (GUARD_ERRORED, '')
+    reason = f'no usable bash was found to run {guard.name}; on Windows install Git for Windows (it ships bash), elsewhere put bash on PATH'
+    print(f'chock: {reason}', file=sys.stderr)
+    return (GUARD_ERRORED, reason)
+
 def run_guard_detailed(guard: _chock_Path, command: str, tool: str='') -> tuple[str, str]:
     """`run_guard`'s verdict plus the guard's own first line, which an ask carries to the user."""
     args, fallback = split_command(command)
     if not args:
         return (GUARD_UNCHECKED, '')
-    interpreter = find_interpreter(guard)
+    deadline = engine_deadline()
+    interpreter = find_interpreter(guard, deadline)
     if interpreter is None:
-        reason = f'no usable bash was found to run {guard.name}; on Windows install Git for Windows (it ships bash), elsewhere put bash on PATH'
-        print(f'chock: {reason}', file=sys.stderr)
-        return (GUARD_ERRORED, reason)
+        return _no_interpreter(guard, deadline)
     try:
         env = {**interpreter_env(interpreter), 'CHOCK_RAW_COMMAND': command, 'CHOCK_TOOL': normalize_tool(tool)}
         if fallback:
             env[ARGV_FALLBACK_ENV] = '1'
-        proc = _chock_subprocess.run([interpreter, str(guard), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=_GUARD_TIMEOUT_SECONDS, check=False)
+        proc = _chock_subprocess.run([interpreter, str(guard), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=time_left(deadline, [interpreter, str(guard)]), check=False)
     except _chock_subprocess.TimeoutExpired:
-        print(f'chock: guard timed out after {_GUARD_TIMEOUT_SECONDS}s, not checked', file=sys.stderr)
+        print(f'chock: guard timed out after {ENGINE_BUDGET_SECONDS}s, not checked', file=sys.stderr)
         return (GUARD_ERRORED, '')
     except (OSError, UnicodeError) as exc:
         print(f'chock: guard could not run, not checked: {exc}', file=sys.stderr)
@@ -1661,8 +1691,6 @@ GATE_FLAG = '--gate'
 
 STOP_FLAG = '--stop'
 
-_GATE_TIMEOUT_SECONDS = 30
-
 _GATE_DEPTH_TO_CHOCK = 3
 
 _RUNNER_PARTS = ('bin', 'gate.py')
@@ -1766,10 +1794,15 @@ def repo_paths(path, root):
         return (lexical,)
     return tuple(dict.fromkeys((lexical, resolved)))
 
-def changed_paths(repo_root):
-    """Every uncommitted path in the worktree. Outside a repository there is nothing to list."""
+def changed_paths(repo_root, deadline=None):
+    """Every uncommitted path in the worktree; None when git ran out of the budget (not an empty worktree)."""
+    deadline = engine_deadline() if deadline is None else deadline
+    argv = [_GIT, '-C', str(repo_root), 'status', '--porcelain=v1', '--untracked-files=all', '-z']
     try:
-        proc = _chock_subprocess.run([_GIT, '-C', str(repo_root), 'status', '--porcelain=v1', '--untracked-files=all', '-z'], capture_output=True, text=True, encoding=_UTF8, errors=_PATH_ERRORS, timeout=_GATE_TIMEOUT_SECONDS, check=False)
+        proc = _chock_subprocess.run(argv, capture_output=True, text=True, encoding=_UTF8, errors=_PATH_ERRORS, timeout=time_left(deadline, argv), check=False)
+    except _chock_subprocess.TimeoutExpired:
+        sys.stderr.write(f'chock: git status did not finish within {ENGINE_BUDGET_SECONDS}s, worktree not checked\n')
+        return None
     except (OSError, _chock_subprocess.SubprocessError):
         return []
     if proc.returncode != 0:
@@ -1788,32 +1821,40 @@ def changed_paths(repo_root):
         paths.append(path)
     return paths
 
-def writes_from_worktree(repo_root):
-    """What this turn actually left on disk, however it was written.
+def writes_from_worktree(repo_root, deadline=None):
+    """What this turn actually left on disk, however it was written; None when it could not be listed.
 
     The write path sees only writes it recognises; a shell heredoc carries no file argument.
     Reading final state is what makes that stop mattering, so this deliberately does not care
     which tool produced the bytes.
     """
+    paths = changed_paths(repo_root, deadline)
+    if paths is None:
+        return None
     writes = {}
-    for path in changed_paths(repo_root):
+    for path in paths:
         try:
             writes[path] = _chock_Path(repo_root, path).read_text(encoding='utf-8')
         except (OSError, UnicodeDecodeError):
             continue
     return writes
 
-def run_gate(gate, writes, event, root=None, extra=None):
+def run_gate(gate, writes, event, run_in, deadline):
     """Ask the vendored runner. Returns (outcome, message) and never decides for itself.
 
-    `extra` adds stdin keys: `added` (per edited path, only the text the edit introduces; a runner
-    that predates it judges the whole file, which only ever refuses more) and the script `session`.
+    `run_in` is (root, extra): the working directory, and the stdin keys `extra` adds: `added` (per
+    edited path, only the text the edit introduces; a runner that predates it judges the whole file,
+    which only ever refuses more) and the script `session`. The runner gets what is left of `deadline`.
     """
+    root, extra = run_in
     runner = runner_for(gate)
     if runner is None:
         return (GATE_ERRORED, 'the vendored gate runner is not installed beside this gate')
+    argv = [sys.executable, str(runner), 'run', '--gate', str(gate), '--event', event]
     try:
-        proc = _chock_subprocess.run([sys.executable, str(runner), 'run', '--gate', str(gate), '--event', event], input=json.dumps({'writes': writes, **(extra or {})}), capture_output=True, text=True, encoding=_UTF8, errors='replace', timeout=_GATE_TIMEOUT_SECONDS, check=False, cwd=str(root) if root is not None else None)
+        proc = _chock_subprocess.run(argv, input=json.dumps({'writes': writes, **(extra or {})}), capture_output=True, text=True, encoding=_UTF8, errors='replace', timeout=time_left(deadline, argv), check=False, cwd=str(root) if root is not None else None)
+    except _chock_subprocess.TimeoutExpired:
+        return (GATE_ERRORED, f'the gate runner gave no verdict within {ENGINE_BUDGET_SECONDS}s')
     except (OSError, _chock_subprocess.SubprocessError) as exc:
         return (GATE_ERRORED, str(exc))
     return runner_outcome(proc.returncode, proc.stderr)
@@ -1839,30 +1880,33 @@ def repo_root_for(event, gate):
     cwd = getattr(event, 'cwd', None)
     return _chock_Path(cwd) if cwd else _chock_Path.cwd()
 
-def writes_for(event, gate):
-    """What this event puts under judgement: the call's own text, or what the turn left behind."""
+def writes_for(event, gate, deadline=None):
+    """What this event puts under judgement: the call's own text, or what the turn left behind (None: unlisted)."""
     if event.event == PRE_TOOL:
         return writes_from_event(event, repo_root_for(event, gate))
-    return writes_from_worktree(repo_root_for(event, gate))
+    return writes_from_worktree(repo_root_for(event, gate), deadline)
 
 def _missing_gate(gate):
     """A gate the hook names but that is not on disk: a broken install, so a refusal that says so."""
     return (VERDICT_DENY, f'chock gate {gate} is missing, so this write cannot be checked. Run `chock sync --repo .` to rebuild the compiled gates.')
 
-def _gate_says(gate, event, name):
+def _gate_says(gate, event, name, deadline):
     """(decision, judged files): what the compiled gate says about this event, before a re-entered stop is weighed."""
     if not gate.exists():
         return (_missing_gate(gate), {})
     root = repo_root_for(event, gate)
     outside = outside_globs(gate)
-    writes = judged_files(writes_for(event, gate), root, outside, lambda path: repo_paths(path, root))
+    listed = writes_for(event, gate, deadline)
+    if listed is None:
+        return (gate_decision(GATE_ERRORED, f'git status gave no answer in {ENGINE_BUDGET_SECONDS}s', gate), {})
+    writes = judged_files(listed, root, outside, lambda path: repo_paths(path, root))
     if not writes:
         return (None, writes)
     added = {**patch_added(event), **added_from_event(event)} if event.event == PRE_TOOL else {}
     added = judged_files(added, root, outside, lambda path: repo_paths(path, root))
     added = {path: text for path, text in added.items() if path in writes}
     extra = {**({'added': added} if added else {}), 'session': session_for(event, root)}
-    outcome, message = run_gate(gate, writes, name, root, extra)
+    outcome, message = run_gate(gate, writes, name, (root, extra), deadline)
     return (gate_decision(outcome, message, gate), writes)
 
 def evaluate_gate(argv, event):
@@ -1871,7 +1915,7 @@ def evaluate_gate(argv, event):
     name = _EVENT_ARG.get(getattr(event, 'event', ''))
     if gate is None or name is None:
         return None
-    decision, judged = _gate_says(gate, event, name)
+    decision, judged = _gate_says(gate, event, name, engine_deadline())
     if event.event == PRE_TOOL:
         return decision
     return settle_stop(event, repo_root_for(event, gate), gate, decision, judged)
@@ -1885,8 +1929,6 @@ TOOL_CALL_EVENT = 'tool_call'
 _TOOL_CALL_PRE = 'pre_tool'
 
 _TOOL_CALL_POST = ('post_tool', 'tool_failure')
-
-_TOOL_CALL_TIMEOUT_SECONDS = 30
 
 _TOOL_CALL_SCRIPT_KIND = 'script'
 
@@ -1925,16 +1967,18 @@ def _tool_call_regex(spec, tool_input):
         return ('deny', _tool_call_refusal(spec, ''))
     return None
 
-def _tool_call_script(spec, root, payload):
+def _tool_call_script(spec, root, payload, deadline=None):
     """Run the policy's script on `payload`; a missing script, crash or timeout refuses."""
     named = str((spec.get('params') or {}).get('script', ''))
     script = _chock_Path(root) / named
     if not script.is_file():
         return ('deny', f'script gate: {named!r} is not installed{_TOOL_CALL_UNDECIDED}')
+    deadline = engine_deadline() if deadline is None else deadline
+    argv = [sys.executable, str(script)]
     try:
-        proc = _chock_subprocess.run([sys.executable, str(script)], input=json.dumps(payload), capture_output=True, text=True, encoding='utf-8', errors='replace', cwd=str(root), timeout=_TOOL_CALL_TIMEOUT_SECONDS, check=False)
+        proc = _chock_subprocess.run(argv, input=json.dumps(payload), capture_output=True, text=True, encoding='utf-8', errors='replace', cwd=str(root), timeout=time_left(deadline, argv), check=False)
     except _chock_subprocess.TimeoutExpired:
-        budget = f'gave no verdict within {_TOOL_CALL_TIMEOUT_SECONDS}s'
+        budget = f'gave no verdict within {ENGINE_BUDGET_SECONDS}s'
         return ('deny', f'script gate: {script.name} {budget}{_TOOL_CALL_UNDECIDED}')
     except OSError as exc:
         return ('deny', f'script gate: {script.name} could not run ({exc}){_TOOL_CALL_UNDECIDED}')
@@ -1946,7 +1990,7 @@ def _tool_call_script(spec, root, payload):
     detail = f': {first}' if first else ''
     return ('deny', f'script gate: {script.name} exited {proc.returncode}{detail}{_TOOL_CALL_UNDECIDED}')
 
-def _tool_call_verdict(spec, root, event):
+def _tool_call_verdict(spec, root, event, deadline):
     """None to allow, else (verdict, message) for this call; a kind a tool call cannot answer refuses."""
     tool, tool_input = (str(event.tool or ''), tool_call_input(event))
     kind = spec.get('kind')
@@ -1954,7 +1998,7 @@ def _tool_call_verdict(spec, root, event):
         return _tool_call_regex(spec, tool_input)
     if kind == _TOOL_CALL_SCRIPT_KIND:
         payload = {'event': TOOL_CALL_EVENT, 'repo_root': str(root), 'tool': tool, 'input': tool_input, 'session': session_for(event, root)}
-        return _tool_call_script(spec, root, payload)
+        return _tool_call_script(spec, root, payload, deadline)
     return ('deny', f'chock tool_call gate: kind {kind!r} cannot judge a tool call{_TOOL_CALL_UNDECIDED}')
 
 def _tool_call_capped(spec, verdict):
@@ -1994,7 +2038,7 @@ def evaluate_tool_call(argv, event):
     root = repo_root_for(event, gate)
     verdict = None
     if TOOL_CALL_EVENT in spec.get('on', []) and tool_call_matches((spec.get('params') or {}).get('tools', []), str(event.tool or '')):
-        verdict = _tool_call_capped(spec, _tool_call_verdict(spec, root, event))
+        verdict = _tool_call_capped(spec, _tool_call_verdict(spec, root, event, engine_deadline()))
     if spec.get('kind') in _TOOL_CALL_NEEDS_SESSION:
         session_record(root, event, 'pre', _TOOL_CALL_BLOCKED if verdict and verdict[0] == 'deny' else None)
     return verdict

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from chock.gate import guard_runner, runner
+from chock.gate import budget, guard_runner, runner
 
 GATE_LOG_ENV = guard_runner.GATE_LOG_ENV
 
@@ -162,7 +162,7 @@ def test_a_timed_out_guard_does_not_echo_the_command_to_stderr(
 ) -> None:
     """The log's redaction rule applies to stderr too, and the timeout branch broke it."""
     guard = make_guard(tmp_path, HANGING_GUARD)
-    monkeypatch.setattr(guard_runner, "_GUARD_TIMEOUT_SECONDS", 1)
+    monkeypatch.setattr(budget, "ENGINE_BUDGET_SECONDS", 1)
 
     verdict = guard_runner.run_guard(guard, SECRET_COMMAND)
     assert verdict == guard_runner.GUARD_ERRORED, "a timeout is the guard failing to decide, not a precondition"

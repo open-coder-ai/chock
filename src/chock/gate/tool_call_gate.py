@@ -16,6 +16,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .budget import ENGINE_BUDGET_SECONDS, engine_deadline, time_left
 from .session_log import (
     session_for,
     session_outcome,
@@ -29,7 +30,6 @@ RECORD_FLAG = "--record"
 TOOL_CALL_EVENT = "tool_call"
 _TOOL_CALL_PRE = "pre_tool"
 _TOOL_CALL_POST = ("post_tool", "tool_failure")
-_TOOL_CALL_TIMEOUT_SECONDS = 30
 _TOOL_CALL_SCRIPT_KIND = "script"
 _TOOL_CALL_REGEX_KIND = "content_regex"
 _TOOL_CALL_BLOCKED = "blocked"
@@ -68,26 +68,28 @@ def _tool_call_regex(spec, tool_input):
     return None
 
 
-def _tool_call_script(spec, root, payload):
+def _tool_call_script(spec, root, payload, deadline=None):
     """Run the policy's script on `payload`; a missing script, crash or timeout refuses."""
     named = str((spec.get("params") or {}).get("script", ""))
     script = Path(root) / named
     if not script.is_file():
         return ("deny", f"script gate: {named!r} is not installed{_TOOL_CALL_UNDECIDED}")
+    deadline = engine_deadline() if deadline is None else deadline
+    argv = [sys.executable, str(script)]
     try:
         proc = subprocess.run(  # noqa: S603 -- the script is the policy's own, named in its manifest
-            [sys.executable, str(script)],
+            argv,
             input=json.dumps(payload),
             capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
             cwd=str(root),
-            timeout=_TOOL_CALL_TIMEOUT_SECONDS,
+            timeout=time_left(deadline, argv),
             check=False,
         )
     except subprocess.TimeoutExpired:
-        budget = f"gave no verdict within {_TOOL_CALL_TIMEOUT_SECONDS}s"
+        budget = f"gave no verdict within {ENGINE_BUDGET_SECONDS}s"
         return ("deny", f"script gate: {script.name} {budget}{_TOOL_CALL_UNDECIDED}")
     except OSError as exc:
         return ("deny", f"script gate: {script.name} could not run ({exc}){_TOOL_CALL_UNDECIDED}")
@@ -100,7 +102,7 @@ def _tool_call_script(spec, root, payload):
     return ("deny", f"script gate: {script.name} exited {proc.returncode}{detail}{_TOOL_CALL_UNDECIDED}")
 
 
-def _tool_call_verdict(spec, root, event):
+def _tool_call_verdict(spec, root, event, deadline):
     """None to allow, else (verdict, message) for this call; a kind a tool call cannot answer refuses."""
     tool, tool_input = str(event.tool or ""), tool_call_input(event)
     kind = spec.get("kind")
@@ -114,7 +116,7 @@ def _tool_call_verdict(spec, root, event):
             "input": tool_input,
             "session": session_for(event, root),
         }
-        return _tool_call_script(spec, root, payload)
+        return _tool_call_script(spec, root, payload, deadline)
     return ("deny", f"chock tool_call gate: kind {kind!r} cannot judge a tool call{_TOOL_CALL_UNDECIDED}")
 
 
@@ -165,7 +167,7 @@ def evaluate_tool_call(argv, event):
     if TOOL_CALL_EVENT in spec.get("on", []) and tool_call_matches(
         (spec.get("params") or {}).get("tools", []), str(event.tool or "")
     ):
-        verdict = _tool_call_capped(spec, _tool_call_verdict(spec, root, event))
+        verdict = _tool_call_capped(spec, _tool_call_verdict(spec, root, event, engine_deadline()))
     if spec.get("kind") in _TOOL_CALL_NEEDS_SESSION:
         session_record(root, event, "pre", _TOOL_CALL_BLOCKED if verdict and verdict[0] == "deny" else None)
     return verdict

@@ -1,7 +1,12 @@
-- **A client's hook timeout can no longer fire before chock's own guard timer.** Emitted hook configs
-  (Claude Code, Codex, Cursor, Copilot, Devin and the other hooks-map clients) set `timeout` to 30 s, equal to
-  the guard's 30 s timer, which starts only after interpreter start-up. The client's timeout could fire first,
-  and a client hook timeout fails OPEN (the command runs), whereas the guard's own timeout asks a person. The
-  emitted timeout is now the guard budget plus a 15 s start-up margin (45 s), derived from one constant. Run
-  `chock sync` to rewrite installed hook configs. Clients whose entry carries no
-  `timeout` key (Windsurf, Grok, Tabnine, Gemini, Antigravity) still run on the client's own default.
+- **The engine's time limits now always fire before the client's hook timeout, on every hook path.** A client's
+  hook timeout fails OPEN (the command runs); chock's own limits ask a person or deny. One budget,
+  `ENGINE_BUDGET_SECONDS` (30 s), is now shared by the guard, the write gate, tool-call scripts and script gates,
+  and one hook invocation spends it once: the bash probes, `git status` and the gate runner each get what is
+  left, where a turn's end could take 30 s of `git status` then 30 s of gate (60 s) against a 45 s client
+  timeout. A `git status` that does not finish at Stop now refuses with a reason on stderr, instead of reading as
+  a clean worktree and allowing. The emitted timeout is the budget plus a 15 s start-up margin (45 s), in each
+  client's own unit, and now also reaches the in-agent entries of Antigravity, Codex, Devin, Gemini CLI (45000 ms),
+  Grok and Tabnine (45000 ms), which carried no key and ran on the client's default (Grok 5 s, Antigravity 30 s,
+  Gemini 60 s, Codex 600 s). Windsurf's documented hook entry has no timeout field, so it still runs on its own
+  undocumented default. Plugin packages (Claude Code, Codex, Copilot, Cursor, Devin) always carried the key. Run
+  `chock sync` to rewrite installed hook configs.

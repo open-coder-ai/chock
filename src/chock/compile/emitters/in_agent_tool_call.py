@@ -15,7 +15,14 @@ from typing import Any
 
 from chock import vendors
 from chock.compile.emitters.advisory import repo_root_from_output
-from chock.compile.emitters.in_agent_hooks import adapter_rel, copilot_entry, cursor_entry, hook_entry
+from chock.compile.emitters.in_agent_hooks import (
+    adapter_rel,
+    copilot_entry,
+    cursor_entry,
+    generic_post_tool_config,
+    generic_pre_tool_config,
+    hook_entry,
+)
 from chock.emit import write_generated_json
 from chock.gate.build import build_gate_json
 from chock.gate.schema import TOOL_CALL_EVENT, TOOL_CALL_KINDS, TOOL_CALL_SESSION_KINDS
@@ -102,9 +109,9 @@ def _cursor(output_dir: Path, policy_id: str, spec: dict[str, Any], written: lis
 def _generic(vendor: str, output_dir: Path, policy_id: str, spec: dict[str, Any], written: list[Path]) -> None:
     """agentseam's own rendering: the PreToolUse gate and, for a session gate, the after-tool recorder."""
     pre, record = _commands(vendor, policy_id, PRE_SURFACE)
-    doc = vendors.pre_tool_hook_config(vendor, pre, matcher=_matcher(spec))
+    doc = generic_pre_tool_config(vendor, pre, _matcher(spec))
     if records_session(spec):
-        doc["hooks"] = {**doc["hooks"], **vendors.post_tool_hook_config(vendor, record)["hooks"]}
+        doc["hooks"] = {**doc["hooks"], **generic_post_tool_config(vendor, record)["hooks"]}
     _write(output_dir, f"{vendor}{GENERIC_SUFFIX}", doc, written)
 
 

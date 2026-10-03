@@ -2,15 +2,25 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from chock import vendors
-from chock.gate import guard_runner
+from chock.gate.budget import ENGINE_BUDGET_SECONDS
+from chock.resources import package_data_dir
 
-#: Interpreter start-up the guard's own timer does not cover; the client's timeout must outlast it.
+#: Interpreter start-up the engine's own timers do not cover; the client's timeout must outlast it.
 STARTUP_MARGIN_SECONDS = 15
-#: A client hook timeout fails OPEN, so it must fire after the guard's own (ask-a-person) timer.
-TIMEOUT_SECONDS = guard_runner._GUARD_TIMEOUT_SECONDS + STARTUP_MARGIN_SECONDS
+#: A client hook timeout fails OPEN, so it must fire after the engine's own (ask-a-person) timers.
+TIMEOUT_SECONDS = ENGINE_BUDGET_SECONDS + STARTUP_MARGIN_SECONDS
+
+_MS_PER_SECOND = 1000
+#: The hooks-schema timeout field and unit of each generic vendor, with the doc it was read from.
+VENDOR_TIMEOUTS: dict[str, dict[str, Any]] = json.loads(
+    package_data_dir("chock", "data").joinpath("hook_timeouts.json").read_text(encoding="utf-8")
+)
+#: Vendors whose documented hook schema has no timeout field: the client's own, undocumented default applies.
+NO_TIMEOUT_KEY_VENDORS = frozenset(v for v, facts in VENDOR_TIMEOUTS.items() if facts["field"] is None)
 
 #: `exit $LASTEXITCODE` alone exits 0 when no native command ran (git or sh not on PATH):
 #: $LASTEXITCODE is $null then, and 0 is an allow; nothing judged the call, so refuse (2).
@@ -45,13 +55,57 @@ def copilot_entry(bash: str, *, matcher: str | None = None) -> dict[str, Any]:
     return entry
 
 
+def vendor_timeout(vendor: str) -> tuple[str, int] | None:
+    """(field, value in the vendor's own unit) of the timeout `vendor`'s hook schema documents, else None."""
+    facts = VENDOR_TIMEOUTS.get(vendor)
+    if facts is None or facts["field"] is None:
+        return None
+    return facts["field"], TIMEOUT_SECONDS * (_MS_PER_SECOND if facts["unit"] == "ms" else 1)
+
+
+def with_timeout(vendor: str, doc: dict[str, Any]) -> dict[str, Any]:
+    """`doc` (agentseam's rendering) with `vendor`'s timeout on every hook entry; unchanged where it has no key."""
+    timeout = vendor_timeout(vendor)
+    if timeout is not None:
+        field, value = timeout
+        _stamp(doc, field, value)
+    return doc
+
+
+def _stamp(node: Any, field: str, value: int) -> None:
+    """Set `field` on every hook entry under `node`: each dict carrying a `command` string."""
+    if isinstance(node, dict):
+        if isinstance(node.get("command"), str):
+            node[field] = value
+        for child in node.values():
+            _stamp(child, field, value)
+    elif isinstance(node, list):
+        for child in node:
+            _stamp(child, field, value)
+
+
 def generic_hooks_file(vendor: str, command: str) -> dict[str, Any]:
-    """`vendor`'s full hook-config document for one guard command, agentseam's rendering.
+    """`vendor`'s full hook-config document for one guard command, agentseam's rendering plus its timeout.
 
     Paths inside `command` are repo-relative and resolve wherever the session started: the
     launcher form has git run them from the repository's top level.
     """
-    return vendors.pre_tool_hook_config(vendor, command, matcher=vendors.shell_matcher(vendor))
+    return generic_pre_tool_config(vendor, command, vendors.shell_matcher(vendor))
+
+
+def generic_pre_tool_config(vendor: str, command: str, matcher: str | None) -> dict[str, Any]:
+    """The vendor's pre-tool hook-config document running `command`, with its timeout."""
+    return with_timeout(vendor, vendors.pre_tool_hook_config(vendor, command, matcher=matcher))
+
+
+def generic_stop_config(vendor: str, command: str) -> dict[str, Any]:
+    """The vendor's turn-end hook-config document running `command`, with its timeout."""
+    return with_timeout(vendor, vendors.stop_hook_config(vendor, command))
+
+
+def generic_post_tool_config(vendor: str, command: str) -> dict[str, Any]:
+    """The vendor's after-tool hook-config document running `command`, with its timeout."""
+    return with_timeout(vendor, vendors.post_tool_hook_config(vendor, command))
 
 
 def hook_entry(command: str, *, matcher: str | None = None) -> dict[str, Any]:

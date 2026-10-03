@@ -225,7 +225,23 @@ distinguishes six such causes and answers only one of them with an allow.
 
 A guard that fails refuses or asks; it never reports an allow it never established.
 
-The hook timeout chock writes into a client's config (45 s: the 30 s guard budget plus a 15 s interpreter start-up margin) always outlasts the guard's own timer, because a client's hook timeout fails open. Clients whose hook entry chock writes with no `timeout` key (Windsurf, Grok, Tabnine, Gemini, Antigravity) use the client's own default, which chock does not know.
+**The engine's time limits always fire before the client's.** A client's hook timeout fails **open** (the command runs); the engine's own limits ask a person or deny. So chock keeps one budget, `ENGINE_BUDGET_SECONDS` (30 s, `gate/budget.py`), per hook invocation: the bash probes, `git status`, the guard, the gate runner and a tool-call script all draw on the same deadline, and each subprocess gets only what is left. A `git status` that does not finish at the turn's end is a refusal, never a clean worktree. The timeout written into the client's hook config is that budget plus a 15 s interpreter start-up margin (`TIMEOUT_SECONDS`, 45 s), in each client's own unit.
+
+| Surface | Clients | Timeout written |
+| :--- | :--- | :--- |
+| In-agent (`chock sync`: `.claude/`, `.cursor/`, `.codex/`, `.github/hooks/`, ...) | Claude Code, Codex, Copilot, Cursor, Devin, Antigravity, Gemini CLI, Grok, Tabnine | yes, every hook entry |
+| In-agent | Windsurf | **no key**: its documented hook entry takes `command`, `powershell`, `show_output` and `working_directory` only, so its own default (not documented) applies |
+| Plugin package (`hooks.json`) | Claude Code, Codex, Copilot, Cursor, Devin | yes, every hook entry |
+
+| Client | Field | Unit | Written | Client default when the key is absent |
+| :--- | :--- | :--- | :--- | :--- |
+| Claude Code, Codex, Devin, Antigravity, Grok | `timeout` | seconds | 45 | Codex 600 s; Devin 600 s (command hooks); Antigravity 30 s; Grok 5 s |
+| Gemini CLI, Tabnine | `timeout` | milliseconds | 45000 | 60000 (60 s) both |
+| Copilot | `timeout` and `timeoutSec` | seconds | 45 | not checked |
+| Cursor | `timeout` (with `failClosed`) | seconds | 45 | not checked |
+| Windsurf | none | n/a | n/a | undocumented |
+
+A default below 45 s is exactly the hole this closes: Grok's 5 s and Antigravity's 30 s would end the hook before the engine's own 30 s limit and the command would run unchecked. `tests/test_hook_timeout_budget.py` walks every emitted hooks document and fails on a hook entry that lacks a timeout above the budget, unless its client is in the no-key allow-list (`NO_TIMEOUT_KEY_VENDORS`). Sources are in `src/chock/data/hook_timeouts.json`.
 
 **What an `ask` becomes depends on the client, and no client turns it into a silent allow.**
 

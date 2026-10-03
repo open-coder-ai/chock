@@ -1,0 +1,44 @@
+{
+  "antigravity": {
+    "field": "timeout",
+    "unit": "s",
+    "default_seconds": 30,
+    "source": "https://antigravity.google/docs/hooks"
+  },
+  "codex_cli": {
+    "field": "timeout",
+    "unit": "s",
+    "default_seconds": 600,
+    "source": "https://developers.openai.com/codex/hooks"
+  },
+  "devin": {
+    "field": "timeout",
+    "unit": "s",
+    "default_seconds": 600,
+    "source": "https://docs.devin.ai/cli/extensibility/hooks/overview"
+  },
+  "gemini_cli": {
+    "field": "timeout",
+    "unit": "ms",
+    "default_seconds": 60,
+    "source": "https://github.com/google-gemini/gemini-cli/blob/main/docs/hooks/reference.md"
+  },
+  "grok": {
+    "field": "timeout",
+    "unit": "s",
+    "default_seconds": 5,
+    "source": "https://docs.x.ai/build/features/hooks"
+  },
+  "tabnine": {
+    "field": "timeout",
+    "unit": "ms",
+    "default_seconds": 60,
+    "source": "https://docs.tabnine.com/main/getting-started/tabnine-cli/features/hooks/configuration"
+  },
+  "windsurf": {
+    "field": null,
+    "unit": null,
+    "default_seconds": null,
+    "source": "https://docs.devin.ai/desktop/cascade/hooks (a hook entry takes command, powershell, show_output, working_directory; no timeout field, default undocumented)"
+  }
+}

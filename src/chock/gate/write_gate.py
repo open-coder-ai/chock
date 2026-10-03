@@ -17,6 +17,7 @@ import subprocess
 import sys
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
+from .budget import ENGINE_BUDGET_SECONDS, engine_deadline, time_left
 from .edit_image import added_from_event, edited_text
 from .gate_outcome import GATE_ERRORED, gate_decision, runner_outcome
 from .outside_repo import judged_files, outside_globs
@@ -27,8 +28,6 @@ from .stop_reentry import settle_stop
 GATE_FLAG = "--gate"
 #: A plugin's Stop hook shares the pre-tool `gate.json`; this flag tells the runtime which event it serves.
 STOP_FLAG = "--stop"
-
-_GATE_TIMEOUT_SECONDS = 30
 
 #: A compiled gate sits at <root>/.chock/compiled/<id>/<surface>/gate.json, so the root is
 #: four parents up and the vendored runner is its sibling. Derived rather than searched for:
@@ -140,18 +139,23 @@ def repo_paths(path, root):
     return tuple(dict.fromkeys((lexical, resolved)))
 
 
-def changed_paths(repo_root):
-    """Every uncommitted path in the worktree. Outside a repository there is nothing to list."""
+def changed_paths(repo_root, deadline=None):
+    """Every uncommitted path in the worktree; None when git ran out of the budget (not an empty worktree)."""
+    deadline = engine_deadline() if deadline is None else deadline
+    argv = [_GIT, "-C", str(repo_root), "status", "--porcelain=v1", "--untracked-files=all", "-z"]
     try:
         proc = subprocess.run(  # noqa: S603 -- enumerating the worktree is this function's job
-            [_GIT, "-C", str(repo_root), "status", "--porcelain=v1", "--untracked-files=all", "-z"],
+            argv,
             capture_output=True,
             text=True,
             encoding=_UTF8,
             errors=_PATH_ERRORS,
-            timeout=_GATE_TIMEOUT_SECONDS,
+            timeout=time_left(deadline, argv),
             check=False,
         )
+    except subprocess.TimeoutExpired:
+        sys.stderr.write(f"chock: git status did not finish within {ENGINE_BUDGET_SECONDS}s, worktree not checked\n")
+        return None
     except (OSError, subprocess.SubprocessError):
         return []
     if proc.returncode != 0:
@@ -171,15 +175,18 @@ def changed_paths(repo_root):
     return paths
 
 
-def writes_from_worktree(repo_root):
-    """What this turn actually left on disk, however it was written.
+def writes_from_worktree(repo_root, deadline=None):
+    """What this turn actually left on disk, however it was written; None when it could not be listed.
 
     The write path sees only writes it recognises; a shell heredoc carries no file argument.
     Reading final state is what makes that stop mattering, so this deliberately does not care
     which tool produced the bytes.
     """
+    paths = changed_paths(repo_root, deadline)
+    if paths is None:
+        return None
     writes = {}
-    for path in changed_paths(repo_root):
+    for path in paths:
         try:
             writes[path] = Path(repo_root, path).read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
@@ -187,27 +194,32 @@ def writes_from_worktree(repo_root):
     return writes
 
 
-def run_gate(gate, writes, event, root=None, extra=None):
+def run_gate(gate, writes, event, run_in, deadline):
     """Ask the vendored runner. Returns (outcome, message) and never decides for itself.
 
-    `extra` adds stdin keys: `added` (per edited path, only the text the edit introduces; a runner
-    that predates it judges the whole file, which only ever refuses more) and the script `session`.
+    `run_in` is (root, extra): the working directory, and the stdin keys `extra` adds: `added` (per
+    edited path, only the text the edit introduces; a runner that predates it judges the whole file,
+    which only ever refuses more) and the script `session`. The runner gets what is left of `deadline`.
     """
+    root, extra = run_in
     runner = runner_for(gate)
     if runner is None:
         return GATE_ERRORED, "the vendored gate runner is not installed beside this gate"
+    argv = [sys.executable, str(runner), "run", "--gate", str(gate), "--event", event]
     try:
         proc = subprocess.run(  # noqa: S603 -- invoking the vendored runner is this function's job
-            [sys.executable, str(runner), "run", "--gate", str(gate), "--event", event],
+            argv,
             input=json.dumps({"writes": writes, **(extra or {})}),
             capture_output=True,
             text=True,
             encoding=_UTF8,
             errors="replace",
-            timeout=_GATE_TIMEOUT_SECONDS,
+            timeout=time_left(deadline, argv),
             check=False,
             cwd=str(root) if root is not None else None,
         )
+    except subprocess.TimeoutExpired:
+        return GATE_ERRORED, f"the gate runner gave no verdict within {ENGINE_BUDGET_SECONDS}s"
     except (OSError, subprocess.SubprocessError) as exc:
         return GATE_ERRORED, str(exc)
     return runner_outcome(proc.returncode, proc.stderr)
@@ -240,11 +252,11 @@ def repo_root_for(event, gate):
     return Path(cwd) if cwd else Path.cwd()
 
 
-def writes_for(event, gate):
-    """What this event puts under judgement: the call's own text, or what the turn left behind."""
+def writes_for(event, gate, deadline=None):
+    """What this event puts under judgement: the call's own text, or what the turn left behind (None: unlisted)."""
     if event.event == PRE_TOOL:
         return writes_from_event(event, repo_root_for(event, gate))
-    return writes_from_worktree(repo_root_for(event, gate))
+    return writes_from_worktree(repo_root_for(event, gate), deadline)
 
 
 def _missing_gate(gate):
@@ -256,20 +268,23 @@ def _missing_gate(gate):
     )
 
 
-def _gate_says(gate, event, name):
+def _gate_says(gate, event, name, deadline):
     """(decision, judged files): what the compiled gate says about this event, before a re-entered stop is weighed."""
     if not gate.exists():
         return _missing_gate(gate), {}
     root = repo_root_for(event, gate)
     outside = outside_globs(gate)
-    writes = judged_files(writes_for(event, gate), root, outside, lambda path: repo_paths(path, root))
+    listed = writes_for(event, gate, deadline)
+    if listed is None:  # never judged: refused, not read as a clean worktree
+        return gate_decision(GATE_ERRORED, f"git status gave no answer in {ENGINE_BUDGET_SECONDS}s", gate), {}
+    writes = judged_files(listed, root, outside, lambda path: repo_paths(path, root))
     if not writes:
         return None, writes
     added = {**patch_added(event), **added_from_event(event)} if event.event == PRE_TOOL else {}
     added = judged_files(added, root, outside, lambda path: repo_paths(path, root))
     added = {path: text for path, text in added.items() if path in writes}
     extra = {**({"added": added} if added else {}), "session": session_for(event, root)}
-    outcome, message = run_gate(gate, writes, name, root, extra)
+    outcome, message = run_gate(gate, writes, name, (root, extra), deadline)
     return gate_decision(outcome, message, gate), writes
 
 
@@ -279,7 +294,7 @@ def evaluate_gate(argv, event):
     name = _EVENT_ARG.get(getattr(event, "event", ""))
     if gate is None or name is None:
         return None
-    decision, judged = _gate_says(gate, event, name)
+    decision, judged = _gate_says(gate, event, name, engine_deadline())
     if event.event == PRE_TOOL:
         return decision
     return settle_stop(event, repo_root_for(event, gate), gate, decision, judged)
