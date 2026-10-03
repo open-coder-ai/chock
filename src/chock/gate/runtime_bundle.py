@@ -13,6 +13,7 @@ from chock.resources import package_data_dir
 from chock.vendors import entry, in_agent_vendors
 
 from . import (
+    budget,
     edit_image,
     gate_outcome,
     guard_runner,
@@ -44,6 +45,7 @@ _RENAME = {
     "shlex": "_chock_shlex",
     "shutil": "_chock_shutil",
     "subprocess": "_chock_subprocess",
+    "time": "_chock_time",
     "datetime": "_chock_datetime",
     "timezone": "_chock_timezone",
     "Path": "_chock_Path",
@@ -166,6 +168,8 @@ _STOP_WARN_RESPOND_CALL = "return _chock_stop_warn_respond(degrade(decision, eve
 def _handler_source(agent: str) -> str:
     """The full handler-block body for `agent`: extracted guard logic, optionally extracted"""
     parts = [
+        _extract(budget),
+        "\n",
         _extract(guard_runner),
         "\n",
         _extract(edit_image),

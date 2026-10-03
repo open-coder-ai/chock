@@ -122,7 +122,7 @@ def _degradation(evaluate_result) -> str:
 
 def test_chocks_degradation_constant_is_derived_from_the_running_guard(tmp_path: Path, monkeypatch) -> None:
     """`CONTROL_DEGRADES_TO` is checked by running the mechanism, not by reading the constant."""
-    from chock.gate import guard_runner
+    from chock.gate import budget, guard_runner
 
     assert guard_runner.evaluate(_guard(tmp_path, "exit 1"), "rm -rf /", "Bash") is not None
 
@@ -134,10 +134,10 @@ def test_chocks_degradation_constant_is_derived_from_the_running_guard(tmp_path:
         "empty command": _degradation(guard_runner.evaluate(crashing, "   ", "Bash")),
     }
     with monkeypatch.context() as no_bash:
-        no_bash.setattr(guard_runner, "find_bash", lambda _: None)
+        no_bash.setattr(guard_runner, "find_bash", lambda *_: None)
         observed["no bash"] = _degradation(guard_runner.evaluate(crashing, "rm -rf /", "Bash"))
     with monkeypatch.context() as impatient:
-        impatient.setattr(guard_runner, "_GUARD_TIMEOUT_SECONDS", 1)
+        impatient.setattr(budget, "ENGINE_BUDGET_SECONDS", 1)
         observed["timeout"] = _degradation(guard_runner.evaluate(_guard(tmp_path, "sleep 30"), "rm -rf /", "Bash"))
 
     weakest = min(observed.values(), key=DEGRADATION_MODES.index)

@@ -10,6 +10,7 @@ import pytest
 
 from chock.gate import assemble
 from chock.gate.assemble import runner_source
+from chock.gate.budget import ENGINE_BUDGET_SECONDS
 
 PACKAGE = Path(assemble.__file__).resolve().parent / "runner"
 PRELUDE = Path(assemble.__file__).resolve().parent / "data" / "gate_prelude.py.tmpl"
@@ -112,7 +113,8 @@ def test_fragments_join_in_number_order_whatever_module_holds_them(tmp_path: Pat
     _package(
         tmp_path, monkeypatch, {"a.py": "import os\n# >>> gate.py 2\nB = 2\n", "b.py": "# >>> gate.py 1\nA = 1\n\n"}
     )
-    assert runner_source() == PRELUDE.read_text(encoding="utf-8") + "A = 1\n\n\nB = 2\n"
+    budget = f"#: One hook invocation's time budget, in seconds (chock.gate.budget).\nENGINE_BUDGET_SECONDS = {ENGINE_BUDGET_SECONDS}"
+    assert runner_source() == PRELUDE.read_text(encoding="utf-8") + budget + "\n\n\nA = 1\n\n\nB = 2\n"
 
 
 ONE = "# >>> gate.py 1\nA = 1\n"

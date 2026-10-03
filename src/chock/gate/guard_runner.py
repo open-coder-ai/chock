@@ -11,6 +11,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .budget import ENGINE_BUDGET_SECONDS, engine_deadline, engine_remaining, time_left
+
 GUARD_VIOLATION = 1
 #: A guard that wants the user asked before the command runs, with its own reason.
 GUARD_ASK_EXIT = 3
@@ -43,7 +45,7 @@ _FOUND_BASH = {}
 GATE_LOG_ENV = "CHOCK_GATE_LOG"
 _LOG_MAX_BYTES = 1_048_576
 
-_GUARD_TIMEOUT_SECONDS = 30
+_BASH_PROBE_SECONDS = 10
 
 GUARD_BLOCKED = "blocked"
 GUARD_CLEAN = "clean"
@@ -94,19 +96,18 @@ def interpreter_env(interpreter: str) -> dict[str, str]:
     return env
 
 
-def find_bash(guard: Path) -> str | None:
-    """First bash that can actually see `guard`, probed once per process; None when none can."""
+def find_bash(guard: Path, deadline: float | None = None) -> str | None:
+    """First bash that can actually see `guard`, probed once per process; the probes draw on `deadline`."""
     if "bash" in _FOUND_BASH:
         return _FOUND_BASH["bash"]
     for candidate in bash_candidates():
+        argv = [candidate, "-c", f'test -f "{guard.as_posix()}"']
         try:
-            proc = subprocess.run(  # noqa: S603 -- probing candidate shells is this function's job
-                [candidate, "-c", f'test -f "{guard.as_posix()}"'],
-                capture_output=True,
-                timeout=10,
-                check=False,
-            )
+            limit = _BASH_PROBE_SECONDS if deadline is None else min(_BASH_PROBE_SECONDS, time_left(deadline, argv))
+            proc = subprocess.run(argv, capture_output=True, timeout=limit, check=False)  # noqa: S603 -- probing is the job
         except (OSError, subprocess.SubprocessError):
+            if deadline is not None and engine_remaining(deadline) <= 0:
+                return None
             continue
         if proc.returncode == 0:
             _FOUND_BASH["bash"] = candidate
@@ -114,11 +115,11 @@ def find_bash(guard: Path) -> str | None:
     return None
 
 
-def find_interpreter(guard: Path) -> str | None:
+def find_interpreter(guard: Path, deadline: float | None = None) -> str | None:
     """The interpreter that can run `guard`: this Python for `.py`, otherwise a usable bash."""
     if guard.suffix == PYTHON_SUFFIX:
         return sys.executable or None
-    return find_bash(guard)
+    return find_bash(guard, deadline)
 
 
 def normalize_tool(tool: str | None) -> str:
@@ -152,20 +153,26 @@ def run_guard(guard: Path, command: str, tool: str = "") -> str:
     return run_guard_detailed(guard, command, tool)[0]
 
 
+def _no_interpreter(guard: Path, deadline: float) -> tuple[str, str]:
+    """The ask a guard earns when no shell could run it: the budget ran out probing, or none can see it."""
+    if engine_remaining(deadline) <= 0:
+        print(f"chock: guard timed out after {ENGINE_BUDGET_SECONDS}s finding a shell, not checked", file=sys.stderr)
+        return GUARD_ERRORED, ""
+    reason = f"no usable bash was found to run {guard.name}; on Windows install Git for Windows (it ships bash), elsewhere put bash on PATH"
+    print(f"chock: {reason}", file=sys.stderr)
+    return GUARD_ERRORED, reason
+
+
 def run_guard_detailed(guard: Path, command: str, tool: str = "") -> tuple[str, str]:
     """`run_guard`'s verdict plus the guard's own first line, which an ask carries to the user."""
     args, fallback = split_command(command)
     if not args:
         return GUARD_UNCHECKED, ""
 
-    interpreter = find_interpreter(guard)
+    deadline = engine_deadline()
+    interpreter = find_interpreter(guard, deadline)
     if interpreter is None:
-        reason = (
-            f"no usable bash was found to run {guard.name}; on Windows install Git for Windows "
-            "(it ships bash), elsewhere put bash on PATH"
-        )
-        print(f"chock: {reason}", file=sys.stderr)
-        return GUARD_ERRORED, reason
+        return _no_interpreter(guard, deadline)
 
     try:
         env = {**interpreter_env(interpreter), "CHOCK_RAW_COMMAND": command, "CHOCK_TOOL": normalize_tool(tool)}
@@ -178,12 +185,12 @@ def run_guard_detailed(guard: Path, command: str, tool: str = "") -> tuple[str, 
             encoding="utf-8",
             errors="replace",
             env=env,
-            timeout=_GUARD_TIMEOUT_SECONDS,
+            timeout=time_left(deadline, [interpreter, str(guard)]),
             check=False,
         )
     except subprocess.TimeoutExpired:
         print(
-            f"chock: guard timed out after {_GUARD_TIMEOUT_SECONDS}s, not checked",
+            f"chock: guard timed out after {ENGINE_BUDGET_SECONDS}s, not checked",
             file=sys.stderr,
         )
         return GUARD_ERRORED, ""

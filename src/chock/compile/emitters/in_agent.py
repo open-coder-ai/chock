@@ -15,6 +15,8 @@ from chock.compile.emitters.in_agent_hooks import (
     copilot_entry,
     cursor_entry,
     generic_hooks_file,
+    generic_pre_tool_config,
+    generic_stop_config,
     hook_entry,
 )
 from chock.emit import write_generated_json
@@ -156,7 +158,7 @@ def _gate_fragments(policy_id: str, spec: dict[str, Any], output_dir: Path) -> l
         elif vendor in GENERIC_VENDORS:
             # The generic installer merges whole config documents; a bare entry was never merged,
             # so a vendor with a recorded write vocabulary (gemini_cli) got no write gate at all.
-            doc = vendors.pre_tool_hook_config(vendor, command, matcher=matcher)
+            doc = generic_pre_tool_config(vendor, command, matcher)
         else:
             doc = hook_entry(command, matcher=matcher)
         write_generated_json(dest, doc)
@@ -199,7 +201,7 @@ def _stop_fragments(policy_id: str, spec: dict[str, Any], output_dir: Path) -> l
             # chock's own hooks file: the same witnessed entry keys its guard entries carry.
             dest, doc = output_dir / f"{vendor}-hooks.json", {vendors.stop_event(vendor): [copilot_entry(command)]}
         else:
-            dest, doc = output_dir / f"{vendor}-hooks.json", vendors.stop_hook_config(vendor, command)
+            dest, doc = output_dir / f"{vendor}-hooks.json", generic_stop_config(vendor, command)
         write_generated_json(dest, doc)
         written.append(dest)
     return written

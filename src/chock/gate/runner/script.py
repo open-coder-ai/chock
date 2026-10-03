@@ -10,12 +10,13 @@ import time
 from collections import Counter
 from pathlib import Path
 
+from ..budget import ENGINE_BUDGET_SECONDS
 from .context import GateContext, GateResult
 
 # >>> gate.py 07
 #: A script gate's budget to answer. Past it the script has not decided, and an undecided
 #: gate refuses.
-_SCRIPT_TIMEOUT_SECONDS = 30
+_SCRIPT_TIMEOUT_SECONDS = ENGINE_BUDGET_SECONDS
 
 #: The exit codes a script gate speaks, the command-guard contract's: 0 allows, 1 blocks, 3 asks,
 #: 4 warns. Anything else is not a verdict. The gate's declared action caps what a script may choose.

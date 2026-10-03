@@ -12,7 +12,7 @@ import pytest
 from agentseam import contract as _contract
 
 from chock import evidence
-from chock.gate import guard_runner, runtime_bundle
+from chock.gate import budget, guard_runner, runtime_bundle
 
 
 @pytest.fixture(scope="module")
@@ -203,7 +203,7 @@ def test_an_unparseable_command_still_reaches_the_guard(agent: str, tmp_path: Pa
 def test_a_missing_bash_asks_and_names_what_to_install(tmp_path: Path, monkeypatch) -> None:
     """No bash means no guard ran; the old silent allow hid the reason on a stderr nobody reads."""
     guard = make_guard(tmp_path, "clean.sh", "exit 0")
-    monkeypatch.setattr(guard_runner, "find_bash", lambda _: None)
+    monkeypatch.setattr(guard_runner, "find_bash", lambda *_: None)
 
     assert guard_runner.run_guard(guard, "ls -la") == guard_runner.GUARD_ERRORED
     outcome, reason = guard_runner.evaluate(["--guard", str(guard)], "ls -la", "Bash")
@@ -214,7 +214,7 @@ def test_a_missing_bash_asks_and_names_what_to_install(tmp_path: Path, monkeypat
 def test_a_timed_out_guard_asks(tmp_path: Path, monkeypatch) -> None:
     """The timeout really elapses; the runner's real `TimeoutExpired` handler really runs."""
     guard = make_guard(tmp_path, "hang.sh", "sleep 30")
-    monkeypatch.setattr(guard_runner, "_GUARD_TIMEOUT_SECONDS", 1)
+    monkeypatch.setattr(budget, "ENGINE_BUDGET_SECONDS", 1)
 
     assert guard_runner.run_guard(guard, "ls -la") == guard_runner.GUARD_ERRORED
     outcome, reason = guard_runner.evaluate(["--guard", str(guard)], "ls -la", "Bash")

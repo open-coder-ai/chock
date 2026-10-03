@@ -6,7 +6,8 @@
           {
             "type": "command",
             "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/tabnine.py --gate \".chock/compiled/stability-script/stop/gate.json\"",
-            "name": "agentseam"
+            "name": "agentseam",
+            "timeout": 45000
           }
         ]
       }

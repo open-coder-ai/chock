@@ -2,8 +2,8 @@
   "Stop": [
     {
       "type": "command",
-      "timeout": 30,
-      "timeoutSec": 30,
+      "timeout": 45,
+      "timeoutSec": 45,
       "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/block-wildcard-agent-permissions/stop/gate.json\"",
       "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/block-wildcard-agent-permissions/stop/gate.json\"",
       "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --gate \".chock/compiled/block-wildcard-agent-permissions/stop/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",

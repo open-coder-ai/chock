@@ -6,6 +6,8 @@ import re
 
 from chock.resources import package_data_dir
 
+from .budget import ENGINE_BUDGET_SECONDS
+
 RUNNER_PACKAGE = "chock.gate.runner"
 
 #: Every module gate.py is built from. Each must exist and contribute a fragment, so a module lost
@@ -45,4 +47,6 @@ def runner_source() -> str:
     if sorted(found) != list(range(1, len(found) + 1)):
         msg = f"gate.py fragments must run 1..N without a gap; found {sorted(found)}"
         raise ValueError(msg)
-    return _prelude() + _SEPARATOR.join(found[number] for number in sorted(found)) + "\n"
+    budget = f"#: One hook invocation's time budget, in seconds (chock.gate.budget).\nENGINE_BUDGET_SECONDS = {ENGINE_BUDGET_SECONDS}"
+    body = _SEPARATOR.join([budget, *(found[number] for number in sorted(found))])
+    return _prelude() + body + "\n"
