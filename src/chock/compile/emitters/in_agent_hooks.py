@@ -5,8 +5,12 @@ from __future__ import annotations
 from typing import Any
 
 from chock import vendors
+from chock.gate import guard_runner
 
-TIMEOUT_SECONDS = 30
+#: Interpreter start-up the guard's own timer does not cover; the client's timeout must outlast it.
+STARTUP_MARGIN_SECONDS = 15
+#: A client hook timeout fails OPEN, so it must fire after the guard's own (ask-a-person) timer.
+TIMEOUT_SECONDS = guard_runner._GUARD_TIMEOUT_SECONDS + STARTUP_MARGIN_SECONDS
 
 #: `exit $LASTEXITCODE` alone exits 0 when no native command ran (git or sh not on PATH):
 #: $LASTEXITCODE is $null then, and 0 is an allow; nothing judged the call, so refuse (2).

@@ -225,6 +225,8 @@ distinguishes six such causes and answers only one of them with an allow.
 
 A guard that fails refuses or asks; it never reports an allow it never established.
 
+The hook timeout chock writes into a client's config (45 s: the 30 s guard budget plus a 15 s interpreter start-up margin) always outlasts the guard's own timer, because a client's hook timeout fails open. Clients whose hook entry chock writes with no `timeout` key (Windsurf, Grok, Tabnine, Gemini, Antigravity) use the client's own default, which chock does not know.
+
 **What an `ask` becomes depends on the client, and no client turns it into a silent allow.**
 
 | Client | Gate chock installs | An `ask` on the wire |
