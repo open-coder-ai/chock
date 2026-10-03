@@ -31,3 +31,8 @@ def time_left(deadline, cmd):
     if left <= 0:
         raise subprocess.TimeoutExpired(cmd, 0)
     return left
+
+
+def allowed_seconds(expired):
+    """The time a timed-out call was actually given, as text (what the deadline left it, not the full budget)."""
+    return f"{max(float(expired.timeout or 0), 0.0):.1f}s"

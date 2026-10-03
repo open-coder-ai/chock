@@ -134,3 +134,50 @@ def test_a_guard_run_gets_only_what_the_probe_left(tmp_path, monkeypatch, clock)
     assert guard_runner.run_guard(guard, "ls") == guard_runner.GUARD_ERRORED
     assert [timeout for _, timeout in spawned] == [10, pytest.approx(ENGINE_BUDGET - 8)]
     assert clock.now - 1000.0 <= ENGINE_BUDGET
+
+
+def _git_says(monkeypatch, returncode=None, stderr="", raises=None):
+    def run(argv, **kwargs):
+        if raises is not None:
+            raise raises
+        return subprocess.CompletedProcess(argv, returncode, stdout="", stderr=stderr)
+
+    monkeypatch.setattr(subprocess, "run", run)
+
+
+def test_a_git_failure_at_stop_blocks_with_its_reason(tmp_path, monkeypatch, capsys) -> None:
+    gate = _stop_gate(tmp_path)
+    _git_says(monkeypatch, 128, "fatal: detected dubious ownership in repository\nhint: more\n")
+
+    decision = write_gate.evaluate_gate(["--gate", str(gate)], _stop_event())
+
+    assert decision is not None and decision[0] == write_gate.VERDICT_DENY
+    assert "git status failed (exit 128): fatal: detected dubious ownership" in decision[1]
+    assert "git status failed (exit 128)" in capsys.readouterr().err
+    assert write_gate.changed_paths(tmp_path) is None
+
+
+def test_git_missing_at_stop_blocks(tmp_path, monkeypatch) -> None:
+    gate = _stop_gate(tmp_path)
+    _git_says(monkeypatch, raises=FileNotFoundError("git"))
+
+    decision = write_gate.evaluate_gate(["--gate", str(gate)], _stop_event())
+
+    assert decision is not None and decision[0] == write_gate.VERDICT_DENY
+    assert "git status could not run" in decision[1]
+    assert write_gate.changed_paths(tmp_path) is None
+
+
+def test_a_directory_that_is_not_a_repository_is_still_an_empty_worktree(tmp_path, monkeypatch) -> None:
+    _git_says(monkeypatch, 128, "fatal: not a git repository (or any of the parent directories): .git\n")
+    assert write_gate.changed_paths(tmp_path) == []
+
+
+def test_a_timeout_reports_the_time_it_was_actually_allowed(tmp_path, monkeypatch, clock) -> None:
+    gate = _stop_gate(tmp_path)
+    monkeypatch.setattr(subprocess, "run", _slow(clock, lambda argv: 20 if "status" in argv else 3600, []))
+
+    decision = write_gate.evaluate_gate(["--gate", str(gate)], _stop_event())
+
+    assert decision is not None and "within 10.0s" in decision[1]
+    assert f"within {ENGINE_BUDGET}" not in decision[1]

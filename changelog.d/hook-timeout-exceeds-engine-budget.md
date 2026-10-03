@@ -10,3 +10,6 @@
   Gemini 60 s, Codex 600 s). Windsurf's documented hook entry has no timeout field, so it still runs on its own
   undocumented default. Plugin packages (Claude Code, Codex, Copilot, Cursor, Devin) always carried the key. Run
   `chock sync` to rewrite installed hook configs.
+  A `git status` that fails for any other reason at Stop (exit 128 "dubious ownership", git missing from PATH) now
+  refuses with that reason too, where it used to read as a clean worktree and allow; only "not a git repository"
+  still reads as empty. Timeout messages now report the time the call was actually allowed, not the full budget.

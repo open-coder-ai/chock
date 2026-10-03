@@ -16,7 +16,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .budget import ENGINE_BUDGET_SECONDS, engine_deadline, time_left
+from .budget import allowed_seconds, engine_deadline, time_left
 from .session_log import (
     session_for,
     session_outcome,
@@ -88,8 +88,8 @@ def _tool_call_script(spec, root, payload, deadline=None):
             timeout=time_left(deadline, argv),
             check=False,
         )
-    except subprocess.TimeoutExpired:
-        budget = f"gave no verdict within {ENGINE_BUDGET_SECONDS}s"
+    except subprocess.TimeoutExpired as exc:
+        budget = f"gave no verdict within {allowed_seconds(exc)}"
         return ("deny", f"script gate: {script.name} {budget}{_TOOL_CALL_UNDECIDED}")
     except OSError as exc:
         return ("deny", f"script gate: {script.name} could not run ({exc}){_TOOL_CALL_UNDECIDED}")
