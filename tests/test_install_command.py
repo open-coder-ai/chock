@@ -82,16 +82,32 @@ def test_the_installed_plugin_denies_what_its_members_deny(catalog, tmp_path: Pa
     assert not blocked(CLEAN)
 
 
-def test_grades_and_warnings_are_printed(catalog, tmp_path: Path, capsys) -> None:
+def test_each_policy_is_labelled_and_no_aggregate_grade_is_printed(catalog, tmp_path: Path, capsys) -> None:
     root, ref = catalog
     assert _run(tmp_path, selection(root, ref), tmp_path / "market") == 0
     out = capsys.readouterr().out
-    assert f"{GUARD_ID}  block" in out
-    assert f"{GATE_ID}   block" in out
-    assert f"{ADVISORY_ID}       advise" in out
-    assert "Plugin grade (the weakest member): advise" in out
+    assert f"{GUARD_ID}  blocks    refuses a matched shell command" in out
+    assert f"{GATE_ID}   blocks    blocks on an agent's file writes" in out
+    assert f"{ADVISORY_ID}       advisory  advisory only" in out
+    for policy_id in (GUARD_ID, GATE_ID, ADVISORY_ID):
+        assert f"{policy_id} stands in for a policy." in out
+    assert "weakest" not in out.lower()
     assert f"warning: {ADVISORY_ID} is text only" in out
     assert package.settings()["disclaimer"] in out
+
+
+def test_the_plugin_manifest_labels_each_member_with_no_aggregate_posture(catalog, tmp_path: Path) -> None:
+    root, ref = catalog
+    dest = tmp_path / "market"
+    assert _run(tmp_path, selection(root, ref), dest) == 0
+    manifest = json.loads((_plugin(dest) / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    text = manifest["description"]
+    assert f"{GUARD_ID}: refuses a matched shell command before it runs" in text
+    assert f"{ADVISORY_ID}: advisory only" in text
+    assert "[" not in text
+    assert not {"advise", "warn", "ask", "block"} & set(manifest["keywords"])
+    index = json.loads((dest / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
+    assert index["plugins"][0]["description"] == text
 
 
 @pytest.mark.parametrize(

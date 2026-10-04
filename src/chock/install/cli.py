@@ -31,13 +31,13 @@ def _commands(dest: Path) -> list[list[str]]:
     return out
 
 
-def _report(grades: list[package.Grade], lines: list[str]) -> None:
-    width = max(len(g.policy_id) for g in grades)
-    print("Claude Code grade per policy:")
-    for g in grades:
-        print(f"  {g.policy_id:{width}}  {g.keyword:6}  {g.says}")
-    weakest = min(grades, key=lambda g: g.level)
-    print(f"Plugin grade (the weakest member): {weakest.keyword}")
+def _report(labels: list[package.Label], lines: list[str]) -> None:
+    words = package.settings()["labels"]
+    width = max(len(label.policy_id) for label in labels)
+    print("Each policy, on Claude Code:")
+    for label in labels:
+        print(f"  {label.policy_id:{width}}  {words[label.keyword]:8}  {label.says}")
+        print(f"  {'':{width}}  {'':8}  {label.description}")
     for line in lines:
         print(f"warning: {line}")
     print(package.settings()["disclaimer"])
@@ -60,18 +60,18 @@ def _apply(commands: list[list[str]]) -> int:
     return 0
 
 
-def install(chosen: dict[str, Any], dest: Path) -> tuple[list[package.Grade], list[str]]:
-    """Fetch, verify, grade and build; returns (grades, warnings)."""
+def install(chosen: dict[str, Any], dest: Path) -> tuple[list[package.Label], list[str]]:
+    """Fetch, verify, label and build; returns (labels, warnings)."""
     catalog_spec = chosen["catalog"]
     with tempfile.TemporaryDirectory(prefix="chock-install-") as tmp:
         catalog, _commit = fetch_catalog(catalog_spec["source"], catalog_spec["ref"], Path(tmp) / "catalog")
         members = resolve.members(catalog, chosen)
-        grades = package.grades(members, catalog)
-        keywords = {g.policy_id: g.keyword for g in grades}
+        labels = package.labels(members, catalog)
+        keywords = {label.policy_id: label.keyword for label in labels}
         lines = warnings.warnings_for([m.id for m in members], keywords, Path.cwd(), warnings.load_rules())
         version = f"{package.settings()['version']}+{selection.digest(chosen)[:12]}"
         package.replace(dest, lambda into: package.stage(members, catalog, chosen, into, version))
-    return grades, lines
+    return labels, lines
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -86,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
     dest = Path(args.dest).expanduser().resolve()
     try:
         chosen = selection.load(args.selection)
-        grades, lines = install(chosen, dest)
+        labels, lines = install(chosen, dest)
     except PinError as exc:
         print(exc, file=sys.stderr)
         return 2
@@ -94,9 +94,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"chock install: {exc}", file=sys.stderr)
         return 1
 
-    print(f"Built {package.settings()['plugin']} ({len(grades)} policies) in {dest}")
+    print(f"Built {package.settings()['plugin']} ({len(labels)} policies) in {dest}")
     print(f"  from {chosen['catalog']['source']} at {chosen['catalog']['ref']}")
-    _report(grades, lines)
+    _report(labels, lines)
     commands = _commands(dest)
     print("Next:" if not args.apply else "Running:")
     for command in commands:

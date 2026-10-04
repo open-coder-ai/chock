@@ -19,5 +19,11 @@
       "install",
       "__PLUGIN__@__MARKETPLACE__"
     ]
-  ]
+  ],
+  "labels": {
+    "block": "blocks",
+    "ask": "asks",
+    "warn": "warns",
+    "advise": "advisory"
+  }
 }

@@ -13,6 +13,7 @@ from agentseam import packaging
 
 from chock.emit import write_generated
 from chock.plugin import bundle_build, bundle_grade, marketplace_core
+from chock.plugin.build import _one_line
 from chock.plugin.bundle_build import Member
 from chock.plugin.store import build_store_plugin
 from chock.resources import package_data_dir
@@ -28,21 +29,21 @@ def settings() -> dict[str, Any]:
 
 
 @dataclass(frozen=True)
-class Grade:
-    """One member's Claude Code grade: the manifest keyword and what its hooks do."""
+class Label:
+    """One member's own label: its enforcement on Claude Code, what its hooks do, and its description."""
 
     policy_id: str
     keyword: str
     says: str
-    level: int
+    description: str
 
 
-def grades(members: list[Member], catalog: Path) -> list[Grade]:
-    """Each member's grade from the hooks its own Claude package ships (`bundle_grade`)."""
+def labels(members: list[Member], catalog: Path) -> list[Label]:
+    """Each member's label from the hooks its own Claude package ships (`bundle_grade`); never an aggregate."""
     client = bundle_build.CLIENTS[CLIENT]
     hooks_rel = packaging.supports(client.package_agent, packaging.HOOKS)
     return [
-        Grade(m.id, bundle_grade.enforcement_keyword(level), says, level)
+        Label(m.id, bundle_grade.enforcement_keyword(level), says, _one_line(m.manifest.get("description")))
         for m, _files, level, says in bundle_build._member_packages(client, members, catalog, hooks_rel)
     ]
 
@@ -64,7 +65,7 @@ def stage(members: list[Member], catalog: Path, selection: dict[str, Any], into:
     target = into / CLIENT / record["id"]
 
     def files_fn(_dir: Path, _manifest: dict[str, Any], root: Path) -> dict[Path, str]:
-        return bundle_build.merged_files(CLIENT, record, members, root)
+        return bundle_build.merged_files(CLIENT, record, members, root, aggregate=False)
 
     build_store_plugin(CLIENT, files_fn, Path(record["id"]), {"id": record["id"]}, catalog, target)
     index = json.dumps(marketplace_core.build_index(into, settings()["marketplace"]), indent=2) + "\n"
