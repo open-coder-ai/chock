@@ -5,11 +5,12 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
 from bundle_fixtures import ADVISORY_ID, GATE_ID, GUARD_ID, MARKER, denies, hook_commands, project, run_command
-from install_fixtures import make_catalog, selection, write_selection
+from install_fixtures import make_catalog, selection, side_commit, write_selection
 
 from chock.install import cli, package
 
@@ -25,9 +26,11 @@ def catalog(tmp_path: Path) -> tuple[Path, str]:
     return make_catalog(tmp_path)
 
 
-def _run(tmp_path: Path, data: dict, dest: Path, *extra: str) -> int:
+def _run(tmp_path: Path, data: dict, dest: Path, *extra: str, trusted: bool = True) -> int:
+    """Run the command; the fixture catalog is a local path, so it is allowed explicitly unless `trusted` is off."""
     path = write_selection(tmp_path / "chock.selection.yaml", data)
-    return cli.main(["--selection", str(path), "--dest", str(dest), *extra])
+    allow = ["--allow-source", data["catalog"]["source"]] if trusted else []
+    return cli.main(["--selection", str(path), "--dest", str(dest), *allow, *extra])
 
 
 def _plugin(dest: Path) -> Path:
@@ -212,3 +215,35 @@ def test_apply_stops_at_the_first_failing_client_command(catalog, tmp_path: Path
     assert _run(tmp_path, selection(root, ref), tmp_path / "market", "--apply") == 3
     assert len(log.read_text(encoding="utf-8").splitlines()) == 1
     assert "exited 3" in capsys.readouterr().err
+
+
+def test_an_untrusted_source_is_refused_without_the_flag(catalog, tmp_path: Path, capsys) -> None:
+    root, ref = catalog
+    dest = tmp_path / "market"
+    assert _run(tmp_path, selection(root, ref), dest, trusted=False) == 1
+    out, err = capsys.readouterr()
+    assert out.splitlines()[:2] == [f"Catalog source: {root}", f"Catalog ref:    {ref}"]
+    assert "is not trusted" in err
+    assert "--allow-source" in err
+    assert not dest.exists()
+
+
+def test_the_default_trusted_source_is_the_official_catalog_only() -> None:
+    assert package.settings()["trusted_sources"] == ["https://github.com/open-coder-ai/chock-catalog"]
+
+
+def test_a_commit_not_on_the_published_branch_is_refused(catalog, tmp_path: Path, capsys) -> None:
+    root, _ref = catalog
+    sha = side_commit(root)
+    dest = tmp_path / "market"
+    assert _run(tmp_path, selection(root, sha), dest) == 1
+    assert f"commit {sha} is not on {root}'s main branch. Nothing was installed." in capsys.readouterr().err
+    assert not dest.exists()
+
+
+def test_a_commit_behind_the_tip_of_main_is_accepted(catalog, tmp_path: Path) -> None:
+    root, ref = catalog
+    (root / "LATER.md").write_text("later\n", encoding="utf-8")
+    for args in (("add", "-A"), ("-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-qm", "later")):
+        subprocess.run(["git", *args], cwd=root, check=True, capture_output=True)
+    assert _run(tmp_path, selection(root, ref), tmp_path / "market") == 0

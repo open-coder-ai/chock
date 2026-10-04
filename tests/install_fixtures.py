@@ -31,10 +31,21 @@ def make_catalog(tmp_path: Path) -> tuple[Path, str]:
         shutil.copytree(member.policy_dir, root / "base" / member.id)
         entries.append({"id": member.id, "path": f"base/{member.id}", "version": VERSION})
     (root / "registry.yaml").write_text(yaml.safe_dump({"policies": entries}), encoding="utf-8")
-    _git(root, "init", "--quiet")
+    _git(root, "init", "--quiet", "--initial-branch=main")
     _git(root, "add", "-A")
     _git(root, "-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "--quiet", "-m", "catalog")
     return root, _git(root, "rev-parse", "HEAD")
+
+
+def side_commit(root: Path) -> str:
+    """A commit on a branch other than main, as a fork's commit looks to the source: (sha)."""
+    _git(root, "switch", "--quiet", "-c", "side")
+    (root / "SIDE.md").write_text("side\n", encoding="utf-8")
+    _git(root, "add", "-A")
+    _git(root, "-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "--quiet", "-m", "side")
+    sha = _git(root, "rev-parse", "HEAD")
+    _git(root, "switch", "--quiet", "main")
+    return sha
 
 
 def selection(root: Path, ref: str, ids: tuple[str, ...] = IDS, **overrides: Any) -> dict[str, Any]:

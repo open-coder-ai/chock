@@ -25,5 +25,9 @@
     "ask": "asks",
     "warn": "warns",
     "advise": "advisory"
-  }
+  },
+  "trusted_sources": [
+    "https://github.com/open-coder-ai/chock-catalog"
+  ],
+  "published_branch": "main"
 }

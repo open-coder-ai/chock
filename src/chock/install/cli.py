@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from chock.install import package, resolve, selection, warnings
+from chock.install import package, resolve, selection, trust, warnings
 from chock.scaffold.pin import PinError, fetch_catalog
 
 DEFAULT_DEST = Path("~/.chock/marketplace")
@@ -60,11 +60,13 @@ def _apply(commands: list[list[str]]) -> int:
     return 0
 
 
-def install(chosen: dict[str, Any], dest: Path) -> tuple[list[package.Label], list[str]]:
-    """Fetch, verify, label and build; returns (labels, warnings)."""
-    catalog_spec = chosen["catalog"]
+def install(chosen: dict[str, Any], dest: Path, allowed: list[str]) -> tuple[list[package.Label], list[str]]:
+    """Trust, fetch, verify, label and build; returns (labels, warnings)."""
+    source, ref = chosen["catalog"]["source"], chosen["catalog"]["ref"]
+    trust.check_source(source, allowed)
     with tempfile.TemporaryDirectory(prefix="chock-install-") as tmp:
-        catalog, _commit = fetch_catalog(catalog_spec["source"], catalog_spec["ref"], Path(tmp) / "catalog")
+        catalog, _commit = fetch_catalog(source, ref, Path(tmp) / "catalog")
+        trust.require_on_branch(source, ref, Path(tmp) / "published")
         members = resolve.members(catalog, chosen)
         labels = package.labels(members, catalog)
         keywords = {label.policy_id: label.keyword for label in labels}
@@ -81,12 +83,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--selection", required=True, help="chock.selection.yaml, a URL with #s=..., or the bare code")
     parser.add_argument("--dest", default=str(DEFAULT_DEST), help=f"Marketplace directory (default {DEFAULT_DEST})")
     parser.add_argument("--apply", action="store_true", help="Also run the two `claude plugin` commands")
+    parser.add_argument(
+        "--allow-source",
+        action="append",
+        default=[],
+        metavar="SOURCE",
+        help="Also trust this exact catalog source (the selection itself can never widen trust)",
+    )
     args = parser.parse_args(argv)
 
     dest = Path(args.dest).expanduser().resolve()
     try:
         chosen = selection.load(args.selection)
-        labels, lines = install(chosen, dest)
+        print(f"Catalog source: {chosen['catalog']['source']}")
+        print(f"Catalog ref:    {chosen['catalog']['ref']}", flush=True)
+        labels, lines = install(chosen, dest, args.allow_source)
     except PinError as exc:
         print(exc, file=sys.stderr)
         return 2
@@ -95,7 +106,6 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     print(f"Built {package.settings()['plugin']} ({len(labels)} policies) in {dest}")
-    print(f"  from {chosen['catalog']['source']} at {chosen['catalog']['ref']}")
     _report(labels, lines)
     commands = _commands(dest)
     print("Next:" if not args.apply else "Running:")
