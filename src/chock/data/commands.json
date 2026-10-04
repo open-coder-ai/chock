@@ -8,6 +8,10 @@
       "module": "chock.scaffold.add",
       "help": "Install a policy or skill from a catalog and compile it"
     },
+    "install": {
+      "module": "chock.install.cli",
+      "help": "Build a chock.sh selection into one Claude Code plugin (install --selection <file>)"
+    },
     "remove": {
       "module": "chock.scaffold.remove",
       "help": "Remove an installed policy and resync"
