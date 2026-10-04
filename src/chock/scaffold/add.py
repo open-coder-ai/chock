@@ -94,6 +94,18 @@ def locate(catalog_root: Path, artifact_id: str) -> tuple[Path, Path]:
     raise FileNotFoundError(msg)
 
 
+def verified_pack(catalog: Path, artifact_id: str, verify_sha: str | None) -> tuple[Path, Path, str]:
+    """Locate one artifact in a fetched catalog, refuse an unsafe pack, check its hash: (source, area, sha256)."""
+    src, area = locate(catalog, artifact_id)
+    _reject_symlinks(src, artifact_id)
+    _reject_foreign_id(src, artifact_id)
+    digest = compute_pack_hash(src)
+    if verify_sha and digest != verify_sha:
+        msg = f"{artifact_id}: expected sha256 {verify_sha}, got {digest}. Nothing was installed."
+        raise IntegrityError(msg)
+    return src, area, digest
+
+
 @dataclass
 class Added:
     """Where an artifact landed, and the provenance worth recording about it."""
@@ -115,14 +127,7 @@ def add(
     """Copy one artifact into the repo. Returns where it landed and what it hashed to."""
     with tempfile.TemporaryDirectory(prefix="chock-add-") as tmp:
         catalog, commit = fetch_catalog(source, ref, Path(tmp) / "catalog")
-        src, area = locate(catalog, artifact_id)
-        _reject_symlinks(src, artifact_id)
-        _reject_foreign_id(src, artifact_id)
-
-        digest = compute_pack_hash(src)
-        if verify_sha and digest != verify_sha:
-            msg = f"{artifact_id}: expected sha256 {verify_sha}, got {digest}. Nothing was installed."
-            raise IntegrityError(msg)
+        src, area, digest = verified_pack(catalog, artifact_id, verify_sha)
 
         dest = repo_root / area / artifact_id
         if dest.exists() and not force:

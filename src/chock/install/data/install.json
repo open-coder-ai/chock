@@ -1,0 +1,33 @@
+{
+  "plugin": "chock-guardrails",
+  "marketplace": "chock-local",
+  "version": "1.0.0",
+  "description": "Policies chosen in one chock selection, packaged as one plugin. Friction, not a security boundary.",
+  "disclaimer": "These policies add friction to an agent's mistakes; they are not a security boundary.",
+  "reload": "Both commands are safe to repeat. The plugin loads in place from the directory: restart the Claude Code session, or run /reload-plugins in it, to pick up a rebuild.",
+  "commands": [
+    [
+      "claude",
+      "plugin",
+      "marketplace",
+      "add",
+      "__DEST__"
+    ],
+    [
+      "claude",
+      "plugin",
+      "install",
+      "__PLUGIN__@__MARKETPLACE__"
+    ]
+  ],
+  "labels": {
+    "block": "blocks",
+    "ask": "asks",
+    "warn": "warns",
+    "advise": "advisory"
+  },
+  "trusted_sources": [
+    "https://github.com/open-coder-ai/chock-catalog"
+  ],
+  "published_branch": "main"
+}

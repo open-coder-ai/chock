@@ -254,3 +254,16 @@ def test_bundle_output_is_byte_reproducible(tmp_path: Path, client: str) -> None
     first = write(tmp_path / "one", bundle_files(client, bundle(members), members, tmp_path))
     second = write(tmp_path / "two", bundle_files(client, bundle(list(members)), list(members), tmp_path))
     assert tree_bytes(first) == tree_bytes(second)
+
+
+def test_a_merged_bundle_without_aggregate_keeps_each_member_label_and_drops_the_posture(tmp_path: Path) -> None:
+    members = make_members(tmp_path, with_advisory=True)
+    manifest_rel = Path(".claude-plugin/plugin.json")
+    default = json.loads(bundle_build.merged_files("claude", bundle(members), members, tmp_path)[manifest_rel])
+    per_member = json.loads(
+        bundle_build.merged_files("claude", bundle(members), members, tmp_path, aggregate=False)[manifest_rel]
+    )
+    assert default["description"].endswith("]")
+    assert per_member["description"] == default["description"].rsplit(" [", 1)[0]
+    assert "advise" in default["keywords"]
+    assert "advise" not in per_member["keywords"]

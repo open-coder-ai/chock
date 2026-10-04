@@ -1,0 +1,36 @@
+{
+  "rules": [
+    {
+      "kind": "missing_partner",
+      "policies": ["block-wildcard-agent-permissions", "agent-permissions-scan"],
+      "says": "__PRESENT__ is selected without its twin __ABSENT__: the two cover one rule by different means; select both."
+    },
+    {
+      "kind": "all_present",
+      "policies": ["rtk-dangerous-actions-blocker", "block-destructive-commands"],
+      "says": "__PRESENT__ judge the same commands from one shared table: keep one, or a command is judged twice."
+    },
+    {
+      "kind": "file_absent",
+      "policies": ["verify-dependency-exists"],
+      "file": ".chock/dependency-allowlist.txt",
+      "says": "__PRESENT__ refuses every new dependency until __FILE__ exists (not found in the current directory); create it first."
+    },
+    {
+      "kind": "file_absent",
+      "policies": ["verify-mcp-allowlist"],
+      "file": ".chock/mcp-allowlist.json",
+      "says": "__PRESENT__ refuses every MCP server until __FILE__ exists (not found in the current directory); create it first."
+    },
+    {
+      "kind": "grade",
+      "grade": "warn",
+      "says": "__PRESENT__ warns only, being measured (observe): nothing is refused."
+    },
+    {
+      "kind": "grade",
+      "grade": "advise",
+      "says": "__PRESENT__ is text only: nothing stops a violation (advisory)."
+    }
+  ]
+}

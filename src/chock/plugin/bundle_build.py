@@ -165,6 +165,13 @@ def _bundle_manifest(
     return manifest
 
 
+def _per_member(manifest: dict[str, Any], client: Client, bundle: dict[str, Any], packages: list) -> dict[str, Any]:
+    """`manifest` labelling each member only: no weakest-member posture suffix or enforcement keyword."""
+    text, grade = _describe(client, bundle, packages, "")
+    keywords = [k for k in manifest.get("keywords", []) if k != bundle_grade.enforcement_keyword(grade)]
+    return {**manifest, "description": text, "keywords": keywords}
+
+
 _META_NOTE = "This plugin carries no hooks of its own: it installs each member as a dependency, and each member enforces as stated."
 
 
@@ -234,8 +241,10 @@ def _place(into: dict[Path, str], rel: Path, content: str) -> None:
     into[rel] = content
 
 
-def merged_files(client_name: str, bundle: dict[str, Any], members: list[Member], repo_root: Path) -> dict[Path, str]:
-    """One plugin carrying every member's skills, hooks, scripts and sibling packages, per member."""
+def merged_files(
+    client_name: str, bundle: dict[str, Any], members: list[Member], repo_root: Path, *, aggregate: bool = True
+) -> dict[Path, str]:
+    """One plugin carrying every member's skills, hooks, scripts and packages; `aggregate=False` drops the bundle claim."""
     client = CLIENTS[client_name]
     hooks_rel = Path(packaging.supports(client.package_agent, packaging.HOOKS))
     manifest_rel = Path(packaging.layout(client.package_agent)["manifest"])
@@ -259,6 +268,8 @@ def merged_files(client_name: str, bundle: dict[str, Any], members: list[Member]
             else:
                 _place(files, rel, content)
     manifest = _bundle_manifest(client, bundle, packages, carries_hooks=bool(hooks))
+    if not aggregate:
+        manifest = _per_member(manifest, client, bundle, packages)
     files[manifest_rel] = json.dumps(manifest, indent=2) + "\n"
     if hooks:
         files[hooks_rel] = json.dumps(hooks, indent=2) + "\n"

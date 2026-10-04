@@ -115,6 +115,7 @@ where = ["src"]
 # required; verified by tests/test_wheel_install.py against a real wheel install.
 "chock.packs" = ["**/*", "**/.*", "**/.*/**/*", "**/.*/**/.*"]
 "chock.authoring" = ["data/*.json"]
+"chock.install" = ["data/*.json"]
 # The per-package LICENSE text and icon `chock plugin build` emits into every published
 # package, plus each store's owned-subtrees data `plugin/store.py` reads at emit time.
 # Not `data/*.json` like the line above: these are a .txt and a .svg, and a json-only
@@ -225,6 +226,7 @@ max-statements = 50
 "src/chock/authoring/matrix.py" = ["T201"]
 "src/chock/compile/compiler.py" = ["T201"]
 "src/chock/eval/cli.py" = ["T201"]
+"src/chock/install/cli.py" = ["T201"]
 "src/chock/gate/guard_runner.py" = ["T201", "PLR0911"]
 "src/chock/gate/runner/*.py" = ["T201", "PLR0913", "PLR0917", "PLR0911"]
 "src/chock/gateway/__main__.py" = ["T201"]
