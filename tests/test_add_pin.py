@@ -9,46 +9,19 @@ import time
 from pathlib import Path
 
 import pytest
+from add_pin_support import ID, make_remote
+from add_pin_support import git as _git
 
 from chock.scaffold import pin
 from chock.scaffold.add import PinError, add, main
 
 pytestmark = pytest.mark.skipif(shutil.which("git") is None, reason="git required")
 
-ID = "demo-skill"
-
-
-def _git(cwd: Path, *args: str) -> str:
-    done = subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True)
-    return done.stdout.strip()
-
-
-def _commit(root: Path, body: str) -> str:
-    skill = root / "skills" / ID
-    skill.mkdir(parents=True, exist_ok=True)
-    (skill / "SKILL.md").write_text(f"---\nname: {ID}\ndescription: demo\n---\n\n{body}\n", encoding="utf-8")
-    _git(root, "add", "-A")
-    _git(root, "commit", "--quiet", "-m", body)
-    return _git(root, "rev-parse", "HEAD")
-
 
 @pytest.fixture
 def remote(tmp_path: Path) -> tuple[Path, str, str]:
     """A catalog repo: (path, pinned good commit, a different commit)."""
-    root = tmp_path / "catalog"
-    root.mkdir()
-    for args in (
-        ("init", "--quiet", "-b", "main"),
-        ("config", "user.email", "c@example.invalid"),
-        ("config", "user.name", "Catalog"),
-        ("config", "uploadpack.allowAnySHA1InWant", "true"),
-    ):
-        _git(root, *args)
-    good = _commit(root, "good")
-    _git(root, "checkout", "--quiet", "-b", "other")
-    evil = _commit(root, "evil")
-    _git(root, "checkout", "--quiet", "main")
-    return root, good, evil
+    return make_remote(tmp_path)
 
 
 @pytest.fixture
@@ -296,63 +269,3 @@ def test_git_env_drops_redirecting_variables_and_keeps_ssh_and_proxy(monkeypatch
     assert not {"GIT_DIR", "GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_0", "GIT_CONFIG_PARAMETERS", "GIT_EXEC_PATH"} & set(env)
     assert env["GIT_SSH_COMMAND"] == env["HTTPS_PROXY"] == env["GIT_SSL_CAINFO"] == "keep"
     assert env["GIT_ALLOW_PROTOCOL"] == pin.ALLOWED_PROTOCOLS
-
-
-def _only_under(root: Path, ref: str, body: str) -> str:
-    """A commit reachable from `ref` alone: made on a throwaway branch, then the branch is deleted."""
-    _git(root, "checkout", "--quiet", "-b", "scratch", "main")
-    sha = _commit(root, body)
-    _git(root, "update-ref", ref, sha)
-    _git(root, "checkout", "--quiet", "main")
-    _git(root, "branch", "-D", "scratch")
-    return sha
-
-
-def test_a_commit_on_a_branch_of_the_source_is_accepted(remote, repo: Path) -> None:
-    root, good, _ = remote
-    added = add(repo, ID, _src(root), good, force=False)
-    assert added.commit == good
-    assert "good" in (added.path / "SKILL.md").read_text(encoding="utf-8")
-
-
-def test_a_commit_reachable_only_from_a_tag_is_accepted(remote, repo: Path) -> None:
-    root, _, _ = remote
-    tagged = _only_under(root, "refs/tags/v1", "tagged")
-    added = add(repo, ID, _src(root), tagged, force=False)
-    assert added.commit == tagged
-    assert "tagged" in (added.path / "SKILL.md").read_text(encoding="utf-8")
-
-
-def test_a_commit_only_under_a_pull_request_ref_is_refused(remote, repo: Path) -> None:
-    root, _, _ = remote
-    pulled = _only_under(root, "refs/pull/1/head", "pulled")
-    with pytest.raises(PinError) as caught:
-        add(repo, ID, _src(root), pulled, force=False)
-    assert (
-        f"commit {pulled} is not on any branch or tag of {_src(root)}; a fork's or a pull request's commit is refused"
-        in str(caught.value)
-    )
-    assert not _installed(repo)
-
-
-def test_a_commit_from_an_unrelated_repository_is_refused_as_unavailable(remote, repo: Path, tmp_path: Path) -> None:
-    root, _, _ = remote
-    other = tmp_path / "other"
-    other.mkdir()
-    for args in (
-        ("init", "--quiet", "-b", "main"),
-        ("config", "user.email", "o@example.invalid"),
-        ("config", "user.name", "O"),
-    ):
-        _git(other, *args)
-    stranger = _commit(other, "stranger")
-    with pytest.raises(PinError, match="commit not available from the remote by id"):
-        add(repo, ID, _src(root), stranger, force=False)
-    assert not _installed(repo)
-
-
-def test_a_local_directory_source_is_not_checked_for_published_refs(remote, repo: Path) -> None:
-    root, _, _ = remote
-    pulled = _only_under(root, "refs/pull/1/head", "pulled")
-    added = add(repo, ID, str(root), pulled, force=False)
-    assert added.commit == pulled
