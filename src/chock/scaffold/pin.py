@@ -32,6 +32,9 @@ _DROPPED_ENV = frozenset(
 )
 _DROPPED_PREFIXES = ("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_")
 
+PUBLISHED = "refs/chock-published"
+_PUBLISHED_REFSPECS = (f"+refs/heads/*:{PUBLISHED}/heads/*", f"+refs/tags/*:{PUBLISHED}/tags/*")
+
 _FULL_SHA = re.compile(r"[0-9a-fA-F]{40}")
 _SHORT_SHA = re.compile(r"[0-9a-fA-F]{7,39}")
 _SAFE_REF = re.compile(r"[A-Za-z0-9._/+-]+")
@@ -107,6 +110,23 @@ def _fetch_commit(source: str, remote: str, sha: str, into: Path) -> str:
     return sha
 
 
+def _require_published(source: str, remote: str, sha: str, into: Path) -> None:
+    """Refuse a commit that is on no branch or tag the remote publishes (a fork's or a pull request's)."""
+    try:
+        fetched = _run(
+            _in(into, "fetch", "--quiet", "--filter=blob:none", "--", remote, *_PUBLISHED_REFSPECS), REMOTE_TIMEOUT
+        )
+        if fetched.returncode != 0:
+            detail = fetched.stderr.strip() or "git step failed"
+            raise _pin_error(source, sha, f"could not list the branches and tags the source publishes ({detail})")
+        found = _run(_in(into, "for-each-ref", "--count=1", f"--contains={sha}", "--format=%(refname)", PUBLISHED))
+    except RuntimeError as exc:
+        raise _pin_error(source, sha, str(exc)) from exc
+    if found.returncode != 0 or not found.stdout.strip():
+        why = f"commit {sha} is not on any branch or tag of {source}; a fork's or a pull request's commit is refused"
+        raise _pin_error(source, sha, why)
+
+
 def _clone_ref(source: str, remote: str, ref: str | None, into: Path) -> str | None:
     args = ["git", *INERT, "clone", "--quiet", "--depth", "1", "--template="]
     if ref:
@@ -127,7 +147,10 @@ def fetch_catalog(source: str, ref: str | None, into: Path) -> tuple[Path, str |
     remote = str(local.resolve()) if local.exists() else source
 
     if ref and _FULL_SHA.fullmatch(ref):
-        return into, _fetch_commit(source, remote, ref.lower(), into)
+        sha = _fetch_commit(source, remote, ref.lower(), into)
+        if not local.exists():
+            _require_published(source, remote, sha, into)
+        return into, sha
     if ref and _SHORT_SHA.fullmatch(ref):
         raise _pin_error(source, ref, "a short hex ref is ambiguous; pin a full 40-character commit SHA")
     if ref:

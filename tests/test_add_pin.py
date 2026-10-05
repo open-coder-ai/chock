@@ -9,46 +9,19 @@ import time
 from pathlib import Path
 
 import pytest
+from add_pin_support import ID, make_remote
+from add_pin_support import git as _git
 
 from chock.scaffold import pin
 from chock.scaffold.add import PinError, add, main
 
 pytestmark = pytest.mark.skipif(shutil.which("git") is None, reason="git required")
 
-ID = "demo-skill"
-
-
-def _git(cwd: Path, *args: str) -> str:
-    done = subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True)
-    return done.stdout.strip()
-
-
-def _commit(root: Path, body: str) -> str:
-    skill = root / "skills" / ID
-    skill.mkdir(parents=True, exist_ok=True)
-    (skill / "SKILL.md").write_text(f"---\nname: {ID}\ndescription: demo\n---\n\n{body}\n", encoding="utf-8")
-    _git(root, "add", "-A")
-    _git(root, "commit", "--quiet", "-m", body)
-    return _git(root, "rev-parse", "HEAD")
-
 
 @pytest.fixture
 def remote(tmp_path: Path) -> tuple[Path, str, str]:
     """A catalog repo: (path, pinned good commit, a different commit)."""
-    root = tmp_path / "catalog"
-    root.mkdir()
-    for args in (
-        ("init", "--quiet", "-b", "main"),
-        ("config", "user.email", "c@example.invalid"),
-        ("config", "user.name", "Catalog"),
-        ("config", "uploadpack.allowAnySHA1InWant", "true"),
-    ):
-        _git(root, *args)
-    good = _commit(root, "good")
-    _git(root, "checkout", "--quiet", "-b", "other")
-    evil = _commit(root, "evil")
-    _git(root, "checkout", "--quiet", "main")
-    return root, good, evil
+    return make_remote(tmp_path)
 
 
 @pytest.fixture
