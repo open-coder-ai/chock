@@ -68,11 +68,14 @@ def test_every_vendor_ships_the_guards_sibling_package(tmp_path: Path, vendor: s
     assert (scripts / PKG / "deep" / "__init__.py").read_text(encoding="utf-8") == "REASON = 'no rm -rf'\n"
 
 
-def test_only_importable_packages_are_shipped_without_caches(tmp_path: Path) -> None:
+def test_the_whole_implementations_tree_is_shipped_without_caches(tmp_path: Path) -> None:
     pack, manifest = _policy(tmp_path)
     impl = pack / "implementations"
     (impl / "notpkg").mkdir()
     (impl / "notpkg" / "helper.py").write_text("X = 1\n", encoding="utf-8")
+    (impl / "flat_helper.py").write_text("Y = 1\n", encoding="utf-8")
+    (impl / "data").mkdir()
+    (impl / "data" / "table.json").write_text("{}\n", encoding="utf-8")
     (impl / PKG / "__pycache__").mkdir()
     (impl / PKG / "__pycache__" / "x.cpython-311.pyc").write_bytes(b"\0\1")
     (impl / PKG / "__pycache__" / "stray.py").write_text("X = 1\n", encoding="utf-8")
@@ -80,8 +83,9 @@ def test_only_importable_packages_are_shipped_without_caches(tmp_path: Path) -> 
     out = tmp_path / "dist"
     build_claude_plugin(pack, manifest, tmp_path, out)
     shipped = {p.relative_to(out / "scripts").as_posix() for p in (out / "scripts").rglob("*") if p.is_file()}
-    assert {f"{PKG}/__init__.py", f"{PKG}/deep/__init__.py", f"{POLICY_ID}.py"} <= shipped
-    assert not [name for name in shipped if name.startswith("notpkg") or "__pycache__" in name or name.endswith(".pyc")]
+    wanted = {f"{PKG}/__init__.py", f"{PKG}/deep/__init__.py", f"{POLICY_ID}.py"}
+    assert wanted | {"notpkg/helper.py", "flat_helper.py", "data/table.json"} <= shipped
+    assert not [name for name in shipped if "__pycache__" in name or name.endswith(".pyc")]
 
 
 def test_stale_and_differences_cover_the_package(tmp_path: Path) -> None:
