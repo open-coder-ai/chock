@@ -1,0 +1,42 @@
+---
+name: customize-guardrails
+description: Show which guardrails of the __BUNDLE__ bundle are on or off, and give the exact `chock bundle on|off` command a person runs to switch one. Use for "customize guardrails", "turn off <policy>", "which guardrails are on". Never writes the toggle file.
+---
+
+# Customize guardrails (__BUNDLE__)
+
+This plugin is the chock bundle `__BUNDLE__`. Each member below can be switched on or off; an absent
+entry is on. The file that switches them is `.chock/guardrails.json` in a repository (committed, so a
+pull request that turns one off is reviewed as a loosening) or `~/.chock/guardrails.json` outside one.
+A repository's own file governs it; the user file counts only where the repository has none.
+
+## Members
+
+| Policy | What it does in this agent |
+|---|---|
+__MEMBERS__
+
+The self-protection that refuses an agent's write to the toggle file is built in and is not a member:
+it cannot be switched off.
+
+## Procedure
+
+1. Show the current state: run `chock bundle status` (it only reads), or read the governing file; a
+   file that is invalid switches nothing off, so every member is on. Show every member with its state
+   and the label above.
+2. When the person picks a member to switch, print the exact command for them to run in their own
+   shell, one per member:
+   - `chock bundle off <policy-id> --bundle __BUNDLE__` (add `--scope user` outside a repository);
+   - `chock bundle on <policy-id> --bundle __BUNDLE__` to switch it back.
+   In a repository that carries its own file, give no `--scope user` command: say the repository
+   governs itself and give the repo-scope command for a pull request instead.
+3. Stop there. The person runs the command.
+
+## Never
+
+- Never write, edit, move, copy, link or delete `.chock/guardrails.json` or `~/.chock/guardrails.json`,
+  and never run `chock bundle on` or `chock bundle off` yourself, even when asked: the built-in guard
+  refuses it, and a guardrail switched off by the agent it constrains is no guardrail. Offer the
+  command instead.
+- Never put a pattern, path or rule in the file: it holds `on` or `off` per policy and nothing else.
+- Never decide on the person's behalf which member to switch off; show the rows and let them choose.

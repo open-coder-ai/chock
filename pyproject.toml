@@ -122,6 +122,8 @@ where = ["src"]
 # glob would ship neither -- the emitter would then work from a source checkout and
 # raise FileNotFoundError from a `pip install`. Pinned by tests/test_wheel_install.py.
 "chock.plugin" = ["data/*", "data/stores/*"]
+# The toggle wrapper's skill template and evals, and the built-in self-protection policy every merged plugin carries.
+"chock.guardrails" = ["data/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -227,6 +229,7 @@ max-statements = 50
 "src/chock/compile/compiler.py" = ["T201"]
 "src/chock/eval/cli.py" = ["T201"]
 "src/chock/install/cli.py" = ["T201"]
+"src/chock/guardrails/cli.py" = ["T201"]
 "src/chock/gate/guard_runner.py" = ["T201", "PLR0911"]
 "src/chock/gate/runner/*.py" = ["T201", "PLR0913", "PLR0917", "PLR0911"]
 "src/chock/gateway/__main__.py" = ["T201"]

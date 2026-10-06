@@ -17,6 +17,7 @@ from typing import Any, Callable
 
 from agentseam import packaging
 
+from chock.guardrails import plugin as guardrails
 from chock.plugin import bundle_grade, bundles, claude, codex, copilot, cursor, devin
 from chock.plugin.listing import LICENSE_REL, license_text
 from chock.plugin.store import SCRIPTS_TEMPLATE
@@ -220,6 +221,44 @@ def _place(into: dict[Path, str], rel: Path, content: str) -> None:
     into[rel] = content
 
 
+def _merge_member(
+    client: Client, member_id: str, member_files: dict[Path, str], files: dict[Path, str], special: tuple[Path, ...]
+) -> dict[str, Any] | None:
+    """Place one member's files in `files`, its scripts under `scripts/<member>/`; return its repointed hooks."""
+    shared = set(claude._runtime_files(client.agent))
+    moved = {
+        rel.as_posix(): f"{SCRIPTS_DIR}{member_id}/{rel.relative_to(SCRIPTS_DIR).as_posix()}"
+        for rel in member_files
+        if rel.as_posix().startswith(SCRIPTS_DIR) and rel not in shared
+    }
+    doc = None
+    for rel, content in member_files.items():
+        if rel in (*special[1:], LICENSE_REL):
+            continue
+        if rel == special[0]:
+            doc = _repoint(json.loads(content), moved)
+        elif rel.as_posix() in moved:
+            _place(files, Path(moved[rel.as_posix()]), content)
+        else:
+            _place(files, rel, content)
+    return doc
+
+
+def _scripts_only(member_files: dict[Path, str], hooks_rel: Path) -> dict[Path, str]:
+    """The built-in protection's hooks and scripts: no skill, manifest or licence of its own."""
+    return {rel: c for rel, c in member_files.items() if rel == hooks_rel or rel.as_posix().startswith(SCRIPTS_DIR)}
+
+
+def _rows(client: Client, bundle: dict[str, Any], packages: list) -> list[tuple[str, str]]:
+    """(policy id, label) per member: the install's own labels when given, else what its hooks do here."""
+    given = bundle.get("labels") or {}
+    qualifier = _QUALIFIER.get(client.package_agent, "")
+    return [
+        (m.id, given.get(m.id) or (what if g == bundle_grade.ADVISORY else f"{qualifier}{what}"))
+        for m, _f, g, what in packages
+    ]
+
+
 def merged_files(
     client_name: str, bundle: dict[str, Any], members: list[Member], repo_root: Path, *, aggregate: bool = True
 ) -> dict[Path, str]:
@@ -228,24 +267,19 @@ def merged_files(
     hooks_rel = Path(packaging.supports(client.package_agent, packaging.HOOKS))
     manifest_rel = Path(packaging.layout(client.package_agent)["manifest"])
     packages = _member_packages(client, members, repo_root, hooks_rel.as_posix())
-    shared = set(claude._runtime_files(client.agent))
     files: dict[Path, str] = {}
     hooks: dict[str, Any] = {}
     for member, member_files, _grade, _what in packages:
-        moved = {
-            rel.as_posix(): f"{SCRIPTS_DIR}{member.id}/{rel.relative_to(SCRIPTS_DIR).as_posix()}"
-            for rel in member_files
-            if rel.as_posix().startswith(SCRIPTS_DIR) and rel not in shared
-        }
-        for rel, content in member_files.items():
-            if rel in (manifest_rel, LICENSE_REL):
-                continue
-            if rel == hooks_rel:
-                _merge_docs(hooks, _repoint(json.loads(content), moved))
-            elif rel.as_posix() in moved:
-                _place(files, Path(moved[rel.as_posix()]), content)
-            else:
-                _place(files, rel, content)
+        doc = _merge_member(client, member.id, member_files, files, (hooks_rel, manifest_rel))
+        if doc is not None:
+            _merge_docs(hooks, guardrails.wrap_doc(doc, client.agent, bundle["id"], member.id))
+    protect = Member(guardrails.protect_dir(), guardrails.protect_manifest())
+    protect_files = client.files(protect.policy_dir, protect.manifest, repo_root)
+    protect_doc = _merge_member(client, protect.id, _scripts_only(protect_files, hooks_rel), files, (hooks_rel,))
+    _merge_docs(hooks, guardrails.without_stop(protect_doc))
+    skill_rel = packaging.supports(client.package_agent, packaging.SKILL)
+    for rel, content in guardrails.files(bundle["id"], _rows(client, bundle, packages), skill_rel).items():
+        _place(files, rel, content)
     manifest = _bundle_manifest(client, bundle, packages, carries_hooks=bool(hooks))
     if not aggregate:
         manifest = _per_member(manifest, client, bundle, packages)

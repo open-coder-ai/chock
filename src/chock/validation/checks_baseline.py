@@ -13,9 +13,10 @@ import yaml
 from chock import yamlio
 from chock.config import policy_status
 from chock.gate.runner import ROLLOUT_RANK, committed_rollout, rollout_from_text
+from chock.validation.guardrails_baseline import check_guardrails
 from chock.validation.report import Finding, Report, emit
 from chock.validation.selection_baseline import KINDS, SelectionInvalidError, loosened
-from chock.validation.selection_source import selection_text
+from chock.validation.selection_source import NOT_COMPARED, selection_text
 
 CONFIG_REL = Path(".chock") / "config.yaml"
 _CATEGORY = "policy_baseline"
@@ -129,7 +130,7 @@ def check_selections(repo_root: Path, base: str, report: Report) -> None:
             head_text = selection_text(repo_root, kind, None)
             found = loosened(kind, base_text, head_text)
         except (SelectionInvalidError, OSError, UnicodeDecodeError) as exc:
-            report.add(Finding(path, _CATEGORY, "error", f"{exc} -- nothing was compared"))
+            report.add(Finding(path, _CATEGORY, "error", f"{exc}{NOT_COMPARED}"))
             continue
         for item in found:
             msg = (
@@ -140,14 +141,14 @@ def check_selections(repo_root: Path, base: str, report: Report) -> None:
 
 
 def check_baseline(repo_root: Path, base: str, report: Report) -> None:
-    """One error per policy `.chock/config.yaml` weakens relative to `base`, a lowered rollout level, a loosened rule."""
+    """One error per policy `.chock/config.yaml` weakens against `base`, a lowered rollout, a loosened rule, a guardrail off."""
     repo_root = Path(repo_root)
     try:
         found = weakenings(config_at(repo_root, base), config_in_worktree(repo_root))
         lowered = rollout_weakening(repo_root, base)
         found = [lowered, *found] if lowered else found
     except BaselineError as exc:
-        report.add(Finding(str(repo_root / CONFIG_REL), _CATEGORY, "error", f"{exc} -- nothing was compared"))
+        report.add(Finding(str(repo_root / CONFIG_REL), _CATEGORY, "error", f"{exc}{NOT_COMPARED}"))
         return
     for weakening in found:
         report.add(
@@ -160,6 +161,7 @@ def check_baseline(repo_root: Path, base: str, report: Report) -> None:
             )
         )
     check_selections(repo_root, base, report)
+    check_guardrails(repo_root, base, report)
 
 
 def main(argv: list[str] | None = None) -> int:

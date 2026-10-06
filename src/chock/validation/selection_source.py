@@ -8,6 +8,9 @@ from pathlib import Path
 
 from chock.validation.selection_baseline import Kind, SelectionInvalidError
 
+#: Appended to a baseline finding whose file could not be read: the comparison did not happen.
+NOT_COMPARED = " -- nothing was compared"
+
 _TREE, _REGULAR = "040000", frozenset({"100644", "100755"})
 _MODES = {"120000": "a symlink", "040000": "a directory", "160000": "a submodule"}
 

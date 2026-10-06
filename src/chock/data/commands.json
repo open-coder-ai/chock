@@ -40,6 +40,10 @@
       "module": "chock.toggles",
       "fn": "disable_main",
       "help": "Disable a policy by id"
+    },
+    "bundle": {
+      "module": "chock.guardrails.cli",
+      "help": "Switch a member of an installed plugin bundle on or off (bundle on|off <id>, bundle status)"
     }
   },
   "authoring": {

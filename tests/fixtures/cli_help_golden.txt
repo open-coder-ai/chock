@@ -12,6 +12,7 @@ Everyday:
   status     Policy states and coverage (--only registry,log for more)
   enable     Enable a policy by id
   disable    Disable a policy by id
+  bundle     Switch a member of an installed plugin bundle on or off (bundle on|off <id>, bundle status)
 
 Authoring:
   new        Create a deterministic artifact skeleton

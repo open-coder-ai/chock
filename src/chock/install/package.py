@@ -69,6 +69,10 @@ def stage(members: list[Member], catalog: Path, chosen: dict[str, Any], into: Pa
     """Write the merged plugin for the selection's client into `into`, with the selection marker."""
     fmt = client(chosen["client"])["format"]
     record = bundle(members, chosen["bundle"]["name"], version)
+    words = settings()["labels"]
+    record["labels"] = {
+        label.policy_id: f"{words[label.keyword]}: {label.says}" for label in labels(members, catalog, chosen["client"])
+    }
 
     def files_fn(_dir: Path, _manifest: dict[str, Any], root: Path) -> dict[Path, str]:
         return bundle_build.merged_files(fmt, record, members, root, aggregate=False)

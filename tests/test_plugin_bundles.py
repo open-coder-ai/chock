@@ -25,6 +25,7 @@ from bundle_fixtures import (
 )
 from packaging_helpers import tree_bytes
 
+from chock.guardrails.plugin import PROTECT_ID
 from chock.plugin import bundle_build
 from chock.plugin.bundle_build import CLIENTS, MergeCollisionError, merged_files
 
@@ -131,9 +132,9 @@ def test_no_path_or_hook_command_collides_and_every_command_reaches_a_shipped_fi
     out, _ = _merged(tmp_path, client)
     commands = hook_commands(json.loads(_hooks_file(out).read_text(encoding="utf-8")))
     targets = {re.search(r"--(?:guard|gate) \"?[^\s\"]*?(scripts/[^\s\"]+)", c).group(1) for c in commands}
-    assert targets == {f"scripts/{GATE_ID}/gate.json", f"scripts/{GUARD_ID}/{GUARD_ID}.py"}, (
-        "one target per member, none shared"
-    )
+    protect = f"scripts/{PROTECT_ID}"
+    expected = {f"scripts/{GATE_ID}/gate.json", f"scripts/{GUARD_ID}/{GUARD_ID}.py", f"{protect}/{PROTECT_ID}.py"}
+    assert targets - {f"{protect}/gate.json"} == expected, "one target per member and the built-in, none shared"
     for command in commands:
         paths = re.findall(r"scripts/[\w./-]+", command)
         assert paths and all((out / p).is_file() for p in paths), (command, paths)
