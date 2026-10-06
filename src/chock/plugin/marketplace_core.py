@@ -13,7 +13,6 @@ from typing import Any
 from agentseam import packaging
 
 from chock.lock import compute_pack_hash
-from chock.plugin.bundle_index import bundles_first
 from chock.vendors import CHOCK_AGENT
 
 OWNER = {"name": "open-coder-ai", "url": "https://github.com/open-coder-ai"}
@@ -62,7 +61,7 @@ def collect_entries(dist_root: Path, tree: str = CLAUDE_TREE) -> list[dict[str, 
         if data.get("version"):
             entry["version"] = data["version"]
         entries.append(entry)
-    return bundles_first(entries, dist_root)
+    return entries
 
 
 DESCRIPTION = (

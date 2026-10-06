@@ -11,7 +11,7 @@ from typing import Any
 import yaml
 from conftest import init_repo, run_hook_command
 
-from chock.plugin.bundle_build import Member, bundle_files
+from chock.plugin.bundle_build import Member, merged_files
 from chock.plugin.claude import claude_plugin_files
 from chock.plugin.store import build_store_plugin
 
@@ -106,7 +106,7 @@ def build_claude_tree(root: Path, members: list[Member], out: Path) -> None:
     """Every member as its own Claude package under `out/<id>`, and the bundle beside them."""
     for member in members:
         build_store_plugin("claude", claude_plugin_files, member.policy_dir, member.manifest, root, out / member.id)
-    write(out / BUNDLE_ID, bundle_files("claude", bundle(members), members, root))
+    write(out / BUNDLE_ID, merged_files("claude", bundle(members), members, root))
 
 
 def hook_commands(doc: Any) -> list[str]:

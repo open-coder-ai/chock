@@ -2,23 +2,33 @@
   "rules": [
     {
       "kind": "missing_partner",
-      "policies": ["block-wildcard-agent-permissions", "agent-permissions-scan"],
+      "policies": [
+        "block-wildcard-agent-permissions",
+        "agent-permissions-scan"
+      ],
       "says": "__PRESENT__ is selected without its twin __ABSENT__: the two cover one rule by different means; select both."
     },
     {
       "kind": "all_present",
-      "policies": ["rtk-dangerous-actions-blocker", "block-destructive-commands"],
+      "policies": [
+        "rtk-dangerous-actions-blocker",
+        "block-destructive-commands"
+      ],
       "says": "__PRESENT__ judge the same commands from one shared table: keep one, or a command is judged twice."
     },
     {
       "kind": "file_absent",
-      "policies": ["verify-dependency-exists"],
+      "policies": [
+        "verify-dependency-exists"
+      ],
       "file": ".chock/dependency-allowlist.txt",
       "says": "__PRESENT__ refuses every new dependency until __FILE__ exists (not found in the current directory); create it first."
     },
     {
       "kind": "file_absent",
-      "policies": ["verify-mcp-allowlist"],
+      "policies": [
+        "verify-mcp-allowlist"
+      ],
       "file": ".chock/mcp-allowlist.json",
       "says": "__PRESENT__ refuses every MCP server until __FILE__ exists (not found in the current directory); create it first."
     },
@@ -31,6 +41,49 @@
       "kind": "grade",
       "grade": "advise",
       "says": "__PRESENT__ is text only: nothing stops a violation (advisory)."
+    },
+    {
+      "kind": "overlap",
+      "says": "__PRESENT__ is also in the chock plugin __PLUGIN__ (__PATH__): both copies fire; remove it from one of the two selections."
+    },
+    {
+      "kind": "client",
+      "clients": [
+        "codex"
+      ],
+      "says": "Codex skips a plugin's hooks until you review and trust them in /hooks, and asks again after a hook changes: until then every policy here is advisory."
+    },
+    {
+      "kind": "client",
+      "clients": [
+        "devin"
+      ],
+      "says": "Devin runs plugin hooks best-effort and fails open: a hook that errors or times out lets the action through."
+    },
+    {
+      "kind": "client",
+      "clients": [
+        "copilot",
+        "devin"
+      ],
+      "says": "This client names no file-write tool a hook can match, so a gate judges what a turn wrote only at turn end; the write itself is not held."
+    },
+    {
+      "kind": "client",
+      "clients": [
+        "cursor"
+      ],
+      "says": "On Cursor Teams and Enterprise an admin setting (Allow Local Plugin Imports) can turn local plugins off, and an installed marketplace plugin of the same name takes precedence over this one."
+    },
+    {
+      "kind": "client",
+      "clients": [
+        "copilot",
+        "codex",
+        "cursor",
+        "devin"
+      ],
+      "says": "Untested: chock has not witnessed an install in this client. Its steps, its hooks and the plugin version string (<bundle.version>+<digest12>) are unmeasured there."
     }
   ]
 }

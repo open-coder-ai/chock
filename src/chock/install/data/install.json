@@ -1,25 +1,7 @@
 {
-  "plugin": "chock-guardrails",
   "marketplace": "chock-local",
-  "version": "1.0.0",
   "description": "Policies chosen in one chock selection, packaged as one plugin. Friction, not a security boundary.",
   "disclaimer": "These policies add friction to an agent's mistakes; they are not a security boundary.",
-  "reload": "Both commands are safe to repeat. The plugin loads in place from the directory: restart the Claude Code session, or run /reload-plugins in it, to pick up a rebuild.",
-  "commands": [
-    [
-      "claude",
-      "plugin",
-      "marketplace",
-      "add",
-      "__DEST__"
-    ],
-    [
-      "claude",
-      "plugin",
-      "install",
-      "__PLUGIN__@__MARKETPLACE__"
-    ]
-  ],
   "labels": {
     "block": "blocks",
     "ask": "asks",
@@ -29,5 +11,85 @@
   "trusted_sources": [
     "https://github.com/open-coder-ai/chock-catalog"
   ],
-  "published_branch": "main"
+  "published_branch": "main",
+  "clients": {
+    "claude-code": {
+      "name": "Claude Code",
+      "format": "claude",
+      "layout": "marketplace",
+      "dest": "~/.chock/marketplace/claude-code",
+      "binary": "claude",
+      "index": [{"path": ".claude-plugin/marketplace.json", "style": "claude"}],
+      "label_prefix": "",
+      "gate_turn_end_only": false,
+      "steps": [
+        {"command": ["claude", "plugin", "marketplace", "add", "__DEST__"]},
+        {"command": ["claude", "plugin", "install", "__PLUGIN__@__MARKETPLACE__"]},
+        {"note": "Both commands are safe to repeat. The plugin loads in place from the directory: restart the Claude Code session, or run /reload-plugins in it, to pick up a rebuild."}
+      ]
+    },
+    "copilot": {
+      "name": "GitHub Copilot",
+      "format": "claude",
+      "layout": "marketplace",
+      "dest": "~/.chock/marketplace/copilot",
+      "binary": "copilot",
+      "index": [{"path": ".claude-plugin/marketplace.json", "style": "claude"}],
+      "label_prefix": "",
+      "gate_turn_end_only": true,
+      "steps": [
+        {"command": ["copilot", "plugin", "marketplace", "add", "__DEST__"]},
+        {"command": ["copilot", "plugin", "install", "__PLUGIN__@__MARKETPLACE__"]},
+        {"note": "VS Code finds plugins the Copilot CLI installed. Without the CLI, add the plugin folder to your VS Code user settings yourself:"},
+        {"settings": {"chat.pluginLocations": {"__PLUGIN_DIR__": true}}}
+      ]
+    },
+    "codex": {
+      "name": "Codex",
+      "format": "codex",
+      "layout": "marketplace",
+      "dest": "~/.chock/marketplace/codex",
+      "binary": "codex",
+      "index": [
+        {
+          "path": ".agents/plugins/marketplace.json",
+          "style": "codex",
+          "entry": {"policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"}, "category": "Productivity"}
+        }
+      ],
+      "label_prefix": "once its hooks are trusted in /hooks: ",
+      "gate_turn_end_only": false,
+      "steps": [
+        {"command": ["codex", "plugin", "marketplace", "add", "__DEST__"]},
+        {"note": "Then install __PLUGIN__ from the __MARKETPLACE__ marketplace in /plugins, and review and trust its hooks in /hooks: until you do, they do not run."}
+      ]
+    },
+    "cursor": {
+      "name": "Cursor",
+      "format": "cursor",
+      "layout": "plugin-dir",
+      "dest": "~/.cursor/plugins/local",
+      "binary": null,
+      "index": [],
+      "label_prefix": "",
+      "gate_turn_end_only": false,
+      "steps": [
+        {"note": "Cursor loads __PLUGIN_DIR__ as a local plugin: run \"Developer: Reload Window\" (or restart Cursor), then check it under Customize. There is no command to run."}
+      ]
+    },
+    "devin": {
+      "name": "Devin",
+      "format": "devin",
+      "layout": "plugin-dir",
+      "dest": "~/.chock/marketplace/devin",
+      "binary": "devin",
+      "index": [],
+      "label_prefix": "best-effort, fails open: ",
+      "gate_turn_end_only": true,
+      "steps": [
+        {"command": ["devin", "plugins", "install", "--local", "__PLUGIN_DIR__"]},
+        {"note": "The plugin is linked in place: a rebuild applies from the next Devin session."}
+      ]
+    }
+  }
 }

@@ -10,7 +10,7 @@
     },
     "install": {
       "module": "chock.install.cli",
-      "help": "Build a chock.sh selection into one Claude Code plugin (install --selection <file>)"
+      "help": "Build a chock.sh selection into one plugin for one agent (install --selection <file> [--client C])"
     },
     "remove": {
       "module": "chock.scaffold.remove",
