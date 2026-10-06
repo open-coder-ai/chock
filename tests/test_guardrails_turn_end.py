@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from bundle_fixtures import ALL_ROOTS, BUNDLE_ID, GUARD_ID
 from conftest import run_hook_command
-from guardrails_support import MERGED_CLIENTS, TOGGLE, build, outcomes
+from guardrails_support import MERGED_CLIENTS, TOGGLE, any_refused, build, outcomes, refused, set_toggles, shell
 
 from chock.guardrails import cli, toggle
 from chock.guardrails.plugin import WRAPPER
@@ -102,13 +102,29 @@ def test_the_user_file_is_checked_too(tmp_path: Path, home: Path, monkeypatch: p
     assert judge() == "refused"
 
 
-def test_a_mismatch_never_switches_a_guard_off_or_on_at_hook_time(tmp_path: Path, home: Path) -> None:
+def test_a_file_that_differs_from_its_record_switches_nothing_off(tmp_path: Path, home: Path) -> None:
     repo = tmp_path / "r"
     (repo / ".git").mkdir(parents=True)
-    (repo / ".chock").mkdir()
-    (repo / TOGGLE).write_text(json.dumps({"version": 1, "bundles": {BUNDLE_ID: {GUARD_ID: "off"}}}))
+    set_toggles(repo, {BUNDLE_ID: {GUARD_ID: "off"}}, recorded=False)
+    _path, _scope, toggles, warning = toggle.load(repo)
+    assert toggles == {} and toggle.DRIFTED in (warning or "")
+    set_toggles(repo, {BUNDLE_ID: {GUARD_ID: "off"}})
     _path, _scope, toggles, warning = toggle.load(repo)
     assert toggle.state(toggles, BUNDLE_ID, GUARD_ID) == toggle.OFF and warning is None
+
+
+@pytest.mark.parametrize("client", MERGED_CLIENTS)
+def test_an_agent_written_off_is_ignored_at_hook_time_until_a_person_adopts_it(
+    tmp_path: Path, home: Path, client: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plugin, repo, commands = build(tmp_path, client)
+    payload = shell(client, repo, "rm -rf /")
+    set_toggles(repo, {BUNDLE_ID: {GUARD_ID: "off"}}, recorded=False)
+    procs = outcomes(commands, plugin, repo, payload, home)
+    assert any(refused(p) for p in procs), "an unrecorded off switches nothing off"
+    assert any(toggle.DRIFTED in p.stderr for p in procs)
+    _switch(repo, monkeypatch, "status", "--adopt")
+    assert not any_refused(commands, plugin, repo, payload, home), "honoured once the person adopted it"
 
 
 def test_the_cli_refuses_to_build_on_a_file_it_did_not_record(

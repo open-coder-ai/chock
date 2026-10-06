@@ -22,7 +22,8 @@ it cannot be switched off.
 ## Procedure
 
 1. Show the current state: run `chock bundle status` (it only reads), or read the governing file; a
-   file that is invalid switches nothing off, so every member is on. Show every member with its state
+   file that is invalid, or that differs from what `chock bundle` last recorded, switches nothing off,
+   so every member is on. Show every member with its state
    and the label above.
 2. When the person picks a member to switch, print the exact command for them to run in their own
    shell, one per member:

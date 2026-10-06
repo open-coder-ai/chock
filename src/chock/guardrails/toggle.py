@@ -10,7 +10,7 @@ adapter with its args; off runs it with none, so the client still gets its own a
 
 `chock bundle on|off` records each file's sha256 in `.chock/state/guardrails.sha256` beside it. As the turn-end
 check, `chock_bundle.py --verify <adapter>` refuses a Stop while a toggle file differs from that record: it was
-changed outside `chock bundle`. A mismatch never switches a guard off; the lookup above ignores the record.
+changed outside `chock bundle`. The lookup honours a file only while it matches that record: otherwise all on.
 """
 
 from __future__ import annotations
@@ -33,14 +33,16 @@ STATES = (ON, OFF)
 NAME_RE = re.compile(r"^[a-z][a-z0-9-]{2,63}$")
 REPO, USER = "repo", "user"
 _TOP_KEYS = frozenset({"version", "bundles"})
-_LOG_PARTS = ("log", "gate-events.jsonl")
-_LOG_ROTATED = "gate-events.1.jsonl"
-_LOG_MAX_BYTES = 1_048_576
+_LOG_PARTS, _LOG_ROTATED, _LOG_MAX_BYTES = ("log", "gate-events.jsonl"), "gate-events.1.jsonl", 1_048_576
 _GATE_LOG_ENV = "CHOCK_GATE_LOG"
 _ARGC = 5
 #: The record `chock bundle` keeps of the file it last wrote, beside it under the engine's own state folder.
 RECORD_PARTS = ("state", "guardrails.sha256")
 VERIFY = "--verify"
+DRIFTED = (
+    "guardrails.json differs from the last `chock bundle` change; every guardrail stays on until the person "
+    "re-applies it or runs `chock bundle status --adopt`"
+)
 _VERDICT_DENY = "deny"
 
 
@@ -62,18 +64,13 @@ def repo_root(start: Path) -> Path | None:
     return None
 
 
-def _present(path: Path) -> bool:
-    """Whether anything is at `path`: a broken link or a folder governs too, and reads as all on."""
-    return os.path.lexists(path)
-
-
 def source(start: Path) -> tuple[Path | None, str | None]:
-    """(the file that governs at `start`, its scope); (None, None) when neither file exists."""
+    """(the file that governs at `start`, its scope); a broken link or a folder governs too, read as all on."""
     root = repo_root(start)
-    if root is not None and _present(root / FILENAME):
+    if root is not None and os.path.lexists(root / FILENAME):
         return root / FILENAME, REPO
     user = user_path()
-    return (user, USER) if _present(user) else (None, None)
+    return (user, USER) if os.path.lexists(user) else (None, None)
 
 
 def _require_object(value: object, where: str) -> dict:
@@ -129,6 +126,8 @@ def load(start: Path) -> tuple[Path | None, str | None, dict[str, dict[str, str]
     path, scope = source(start)
     if path is None:
         return None, None, {}, None
+    if drift(path):
+        return path, scope, {}, f"{path}: {DRIFTED}"
     try:
         return path, scope, read(path), None
     except ToggleError as exc:

@@ -10,6 +10,7 @@ from typing import Any
 from bundle_fixtures import ALL_ROOTS, BUNDLE_ID, MARKER, bundle, hook_commands, make_members, project, write
 from conftest import run_hook_command
 
+from chock.guardrails.cli import record
 from chock.plugin.bundle_build import CLIENTS, merged_files
 
 MERGED_CLIENTS = sorted(CLIENTS)
@@ -68,10 +69,12 @@ def any_refused(commands: list[str], plugin: Path, repo: Path, payload: dict, ho
     return any(refused(p) for p in outcomes(commands, plugin, repo, payload, home))
 
 
-def set_toggles(where: Path, bundles: dict[str, dict[str, str]] | str) -> Path:
-    """Write a toggle file at `where/.chock/guardrails.json`; a string is written as is."""
+def set_toggles(where: Path, bundles: dict[str, dict[str, str]] | str, *, recorded: bool = True) -> Path:
+    """Write a toggle file at `where/.chock/guardrails.json` (a string as is), recorded as `chock bundle` records it."""
     path = where / TOGGLE
     path.parent.mkdir(parents=True, exist_ok=True)
     text = bundles if isinstance(bundles, str) else json.dumps({"version": 1, "bundles": bundles})
     path.write_text(text, encoding="utf-8")
+    if recorded:
+        record(path)
     return path
