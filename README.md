@@ -116,7 +116,7 @@ To write your own, run `chock new policy <id>` (manifest, gate and evals), `choc
 - With Chock: the check runs as the agent writes, the refusal names the fix, and the agent corrects it in the same turn.
 - A check costs no tokens. A passing check adds nothing to the agent's context; a refusal adds one short reason.
 - Chock adds no new place your code goes: checks run where the agent writes, on the laptop, in the dev container or in the cloud agent's environment. The agent still sends context to its own model provider. Installing fetches policies once; enforcement makes no network calls.
-- Chock does not replace code review, your SAST suite or a penetration test. It removes the findings those stages keep repeating.
+- Chock does not replace code review, your SAST suite or a penetration test. It refuses known classes while the agent writes, so they are fixed before review.
 
 To estimate what a late finding costs you, fill in your own numbers: findings per release x share Chock covers x minutes to triage and fix x hourly rate, plus the days a security loop adds.
 
@@ -223,7 +223,7 @@ Full nine-surface matrix and per-agent caveats:
 
 **What does it cost?** Free and open source (Apache-2.0). A check costs no tokens.
 
-**Does it replace SAST or code review?** No. It removes the findings those stages keep repeating.
+**Does it replace SAST or code review?** No. It refuses known classes while the agent writes, so they are fixed before review.
 
 **Which OWASP and CWE items does it cover?** Partially. The OWASP Agentic mapping is above; Java rules name their CWE in each refusal.
 
