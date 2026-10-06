@@ -56,6 +56,11 @@ WRITES = [
     "chock bundle on block-destructive-commands --scope user",
     "python -m chock bundle off x",
     "git checkout HEAD -- .chock/guardrails.json",
+    # the record `chock bundle` keeps, and its adopt step
+    "echo abc > .chock/state/guardrails.sha256",
+    "sha256sum .chock/guardrails.json | cut -c1-64 > ~/.chock/state/GUARDRAILS.sha256",
+    "rm .chock/state/guardrails.sha256",
+    "chock bundle status --adopt",
 ]
 READS = [
     "cat .chock/guardrails.json",
@@ -66,6 +71,7 @@ READS = [
     "git add .chock/guardrails.json",
     "ls -la .chock",
     "chock bundle status",
+    "cat .chock/state/guardrails.sha256",
     "echo x > notes.md",
     "ls -la",
 ]
@@ -119,6 +125,8 @@ def test_the_shell_guard_follows_a_link_to_the_toggle_file(tmp_path: Path) -> No
         "nested/repo/.chock/guardrails.json",
         "/home/someone/.chock/guardrails.json",
         "C:\\Users\\someone\\.chock\\guardrails.json",
+        ".chock/state/guardrails.sha256",
+        "/home/someone/.chock/STATE/guardrails.sha256",
     ],
 )
 def test_the_write_gate_refuses_every_spelling(tmp_path: Path, path: str) -> None:

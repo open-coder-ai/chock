@@ -20,6 +20,7 @@ from conftest import run_hook_command
 from chock.gate import runtime_bundle
 from chock.gate.stop_reentry import REENTRY_CAP
 from chock.gate.unreadable_stop import UNREADABLE_STOP_LEDGER, UNREADABLE_STOP_WINDOW_SECONDS
+from chock.guardrails.plugin import PROTECT_ID
 from chock.plugin.bundle_build import CLIENTS, merged_files
 from chock.plugin.gate_package import gate_reach
 
@@ -52,7 +53,9 @@ STOP_REFUSALS = {
 
 def _stop_command(package: Path) -> str:
     (command,) = [
-        c for c in hook_commands(json.loads(next(package.rglob("hooks.json")).read_text("utf-8"))) if " --stop" in c
+        c
+        for c in hook_commands(json.loads(next(package.rglob("hooks.json")).read_text("utf-8")))
+        if " --stop" in c and PROTECT_ID not in c
     ]
     return command
 

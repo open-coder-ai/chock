@@ -17,12 +17,17 @@ import shlex
 from pathlib import Path
 
 NAME = "guardrails.json"
+#: The sha256 `chock bundle` records of the file it wrote, under `.chock/state/`: protected as the file is.
+RECORD = "guardrails.sha256"
+NAMES = (NAME, RECORD)
 FOLDER = ".chock"
 TOGGLE = f"{FOLDER}/{NAME}"
+PROTECTED = (TOGGLE, f"{FOLDER}/state/{RECORD}")
 
 REFUSED = (
-    "chock: an agent may not change .chock/guardrails.json or ~/.chock/guardrails.json, the files that switch "
-    "this bundle's guardrails on and off, nor run `chock bundle on|off`. Reading them is fine. Show the person "
+    "chock: an agent may not change .chock/guardrails.json or ~/.chock/guardrails.json (or their .chock/state "
+    "record), the files that switch "
+    "this bundle's guardrails on and off, nor run `chock bundle on|off` or `--adopt`. Reading is fine. Show the person "
     "the exact `chock bundle on|off <policy-id>` command to run in their own shell, and wait."
 )
 
@@ -94,9 +99,9 @@ def _real(token: str, cwd: Path) -> str:
 
 
 def names_toggle(token: str, cwd: Path) -> bool:
-    """Whether a shell word can name a toggle file: as written, folded, or through a link."""
-    folded = fold(token)
-    return NAME in folded or _base_is(folded, NAME) or _base_is(_real(token, cwd), NAME)
+    """Whether a shell word can name a toggle file or its record: as written, folded, or through a link."""
+    folded, real = fold(token), _real(token, cwd)
+    return any(name in folded or _base_is(folded, name) or _base_is(real, name) for name in NAMES)
 
 
 def names_folder(token: str, cwd: Path) -> bool:
@@ -105,8 +110,12 @@ def names_folder(token: str, cwd: Path) -> bool:
 
 
 def is_toggle_path(path: str, root: Path) -> bool:
-    """Whether a written path is a toggle file (`.chock/guardrails.json` anywhere), as written or through links."""
-    return any(folded == TOGGLE or folded.endswith("/" + TOGGLE) for folded in (fold(path), _real(path, root)))
+    """Whether a written path is a toggle file or its record (anywhere), as written or through links."""
+    return any(
+        folded == want or folded.endswith("/" + want)
+        for folded in (fold(path), _real(path, root))
+        for want in PROTECTED
+    )
 
 
 def _tokens(command: str) -> list[str]:
@@ -147,10 +156,12 @@ def _is_redirect(token: str) -> bool:
 
 
 def _bundle_switch(name: str, args: list[str]) -> bool:
-    """`chock ... bundle on|off`: the toggle file's writer, which only a person runs."""
+    """`chock ... bundle on|off` or `bundle status --adopt`: the toggle file's writers, which only a person runs."""
     words = [name, *(a.lower() for a in args)]
     if "chock" not in words and not any(w.endswith("/chock") for w in words):
         return False
+    if "bundle" in words and any(w.startswith("--adopt") for w in words):
+        return True
     return any(w == "bundle" and nxt in ("on", "off") for w, nxt in itertools.pairwise(words))
 
 
@@ -193,7 +204,7 @@ def refuses(command: str, cwd: Path) -> bool:
     segments = _segments(_tokens(command))
     if any(_segment_refused(words, cwd) for words in segments):
         return True
-    named = NAME in fold(command) or any(names_toggle(t, cwd) for s in segments for t in s)
+    named = any(name in fold(command) for name in NAMES) or any(names_toggle(t, cwd) for s in segments for t in s)
     if not named:
         return False
     return "$(" in command or "`" in command or any(_command(s)[0] in EXECUTORS for s in segments)

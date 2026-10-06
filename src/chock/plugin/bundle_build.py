@@ -276,7 +276,7 @@ def merged_files(
     protect = Member(guardrails.protect_dir(), guardrails.protect_manifest())
     protect_files = client.files(protect.policy_dir, protect.manifest, repo_root)
     protect_doc = _merge_member(client, protect.id, _scripts_only(protect_files, hooks_rel), files, (hooks_rel,))
-    _merge_docs(hooks, guardrails.without_stop(protect_doc))
+    _merge_docs(hooks, guardrails.verify_at_stop(protect_doc, client.agent))
     skill_rel = packaging.supports(client.package_agent, packaging.SKILL)
     for rel, content in guardrails.files(bundle["id"], _rows(client, bundle, packages), skill_rel).items():
         _place(files, rel, content)

@@ -11,6 +11,12 @@
   skill that shows the members and prints the command for a person to run; it never writes the file.
 - **Built-in self-protection, not switchable:** every merged plugin refuses an agent's write to either
   toggle file (shell guard, best effort, and an Edit/Write gate; case, `//`, `..`, backslashes and links
-  folded) and an agent's own `chock bundle on|off`. Reads pass.
+  folded) and an agent's own `chock bundle on|off` or `status --adopt`. Reads pass.
+- **Turn-end check of the toggle files:** `chock bundle on|off` records each file's sha256 in
+  `.chock/state/guardrails.sha256` beside it. Every merged plugin's Stop hook refuses a turn's end, in the
+  client's own words and with the usual re-entry cap, while a toggle file in scope (repo or user) differs from
+  that record: changed, deleted, or never recorded. That catches a write the best-effort shell guard missed,
+  including on Copilot and Devin, which judge no write tool. A file committed before this release is adopted
+  once, by a person, with `chock bundle status --adopt`. A mismatch never switches a guard off.
 - **`chock check --only baseline` reports a member switched off in `.chock/guardrails.json` against the
   base branch, or the committed file deleted, as a loosening.**

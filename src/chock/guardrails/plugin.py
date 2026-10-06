@@ -59,23 +59,22 @@ def wrap_doc(doc: Any, agent: str, bundle: str, member: str) -> Any:
     return [wrap_doc(v, agent, bundle, member) for v in doc] if isinstance(doc, list) else doc
 
 
-def _runs_at_stop(entry: Any) -> bool:
-    if isinstance(entry, dict):
-        command = entry.get("command")
-        return (isinstance(command, str) and command.endswith(f" {STOP_FLAG}")) or any(
-            _runs_at_stop(v) for v in entry.values()
-        )
-    return any(_runs_at_stop(v) for v in entry) if isinstance(entry, list) else False
+def verify_at_stop(doc: Any, agent: str) -> Any:
+    """The built-in protection's hooks with its Stop gate run as the turn-end check of the toggle files' records.
 
+    The adapter keeps its `--gate ... --stop` arguments, so an unreadable Stop payload is still refused in its grammar.
+    """
+    adapter = re.escape(SCRIPTS_TEMPLATE.format(name=f"{agent}.py"))
+    pattern = re.compile(rf'"([^"\s]*)({adapter}" --gate "[^"]*" {re.escape(STOP_FLAG)})$')
 
-def without_stop(doc: Any) -> Any:
-    """The built-in protection's hooks minus its turn-end entry: its gate allows at Stop, so that hook would only cost."""
+    def swap(command: str) -> str:
+        return pattern.sub(lambda m: f'"{m.group(1)}{WRAPPER}" {toggle.VERIFY} "{m.group(1)}{m.group(2)}', command)
+
     if isinstance(doc, dict):
-        kept = {k: without_stop(v) for k, v in doc.items()}
-        return {k: v for k, v in kept.items() if v != [] or doc[k] == []}
-    if isinstance(doc, list):
-        return [without_stop(v) for v in doc if not _runs_at_stop(v)]
-    return doc
+        return {
+            k: swap(v) if k == "command" and isinstance(v, str) else verify_at_stop(v, agent) for k, v in doc.items()
+        }
+    return [verify_at_stop(v, agent) for v in doc] if isinstance(doc, list) else doc
 
 
 def _cell(text: str) -> str:

@@ -31,11 +31,15 @@ it cannot be switched off.
    In a repository that carries its own file, give no `--scope user` command: say the repository
    governs itself and give the repo-scope command for a pull request instead.
 3. Stop there. The person runs the command.
+4. If a turn end is refused because a toggle file "was changed outside `chock bundle`", say so and give
+   the person both ways out: re-apply the intended state with `chock bundle on|off`, or review the file
+   and run `chock bundle status --adopt`. Do not repair or adopt it yourself.
 
 ## Never
 
 - Never write, edit, move, copy, link or delete `.chock/guardrails.json` or `~/.chock/guardrails.json`,
-  and never run `chock bundle on` or `chock bundle off` yourself, even when asked: the built-in guard
+  or its record under `.chock/state/`, and never run `chock bundle on`, `chock bundle off` or
+  `chock bundle status --adopt` yourself, even when asked: the built-in guard
   refuses it, and a guardrail switched off by the agent it constrains is no guardrail. Offer the
   command instead.
 - Never put a pattern, path or rule in the file: it holds `on` or `off` per policy and nothing else.

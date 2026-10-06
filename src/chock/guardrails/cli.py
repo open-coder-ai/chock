@@ -94,13 +94,27 @@ def _current(path: Path) -> dict[str, dict[str, str]]:
         raise SystemExit(msg) from exc
 
 
+def _atomic(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}-", dir=path.parent)
+    with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(text)
+    Path(tmp).replace(path)
+
+
+def record(path: Path) -> None:
+    """Record the sha256 of the toggle file as it now is, or drop the record when there is no file."""
+    now = toggle.digest(path)
+    if now is None:
+        toggle.record_path(path).unlink(missing_ok=True)
+    else:
+        _atomic(toggle.record_path(path), now + "\n")
+
+
 def _write(path: Path, toggles: dict[str, dict[str, str]]) -> None:
     document = {"version": toggle.VERSION, "bundles": toggles}
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(prefix=".guardrails-", suffix=".json", dir=path.parent)
-    with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as fh:
-        fh.write(json.dumps(document, indent=2, sort_keys=True) + "\n")
-    Path(tmp).replace(path)
+    _atomic(path, json.dumps(document, indent=2, sort_keys=True) + "\n")
+    record(path)
 
 
 def switch(policy_id: str, state: str, bundle: str | None, scope: str | None) -> int:
@@ -113,6 +127,10 @@ def switch(policy_id: str, state: str, bundle: str | None, scope: str | None) ->
         raise SystemExit(msg)
     name = _bundle_for(policy_id, bundle, installed())
     path, scope = _scope_path(scope)
+    why = toggle.drift(path)
+    if why:
+        msg = f"{path}: {why}. Review it, then run `chock bundle status --adopt` before switching anything."
+        raise SystemExit(msg)
     toggles = _current(path)
     toggles.setdefault(name, {})[policy_id] = state
     _write(path, toggles)
@@ -125,9 +143,31 @@ def switch(policy_id: str, state: str, bundle: str | None, scope: str | None) ->
     return 0
 
 
+def adopt() -> int:
+    """Show each toggle file in scope, then record it as the one `chock bundle` vouches for: a person's explicit step."""
+    for path in toggle.scopes(Path.cwd()):
+        why = toggle.drift(path)
+        if why is None:
+            continue
+        if toggle.digest(path) is None:
+            print(f"{path}: absent; its record is dropped.")
+        else:
+            print(f"{path} ({why}), adopted as it is now:")
+            print(path.read_text(encoding="utf-8", errors="replace"))
+        record(path)
+    print("Every toggle file in scope now matches its record.")
+    return 0
+
+
+def _drift_lines() -> None:
+    for line in toggle.drifted(Path.cwd()):
+        print(f"warning: {line}; turn ends refuse until a person re-applies it or runs `chock bundle status --adopt`")
+
+
 def status() -> int:
     """Every installed chock bundle, each member's state where you stand, and its label."""
     path, scope, toggles, warning = toggle.load(Path.cwd())
+    _drift_lines()
     print(f"Toggle file: {path} ({scope} scope)" if path else "Toggle file: none, so every member is on")
     if warning:
         print(f"warning: {warning}")
@@ -154,11 +194,14 @@ def main(argv: list[str] | None = None) -> int:
         one.add_argument("policy_id")
         one.add_argument("--bundle", help="bundle.name; needed when the policy is in several bundles")
         one.add_argument("--scope", choices=(toggle.REPO, toggle.USER), help="default: repo inside one, else user")
-    sub.add_parser("status", help="every installed bundle, each member's state and label")
+    shown = sub.add_parser("status", help="every installed bundle, each member's state and label")
+    shown.add_argument(
+        "--adopt", action="store_true", help="record each toggle file in scope as it is, after showing it"
+    )
     args = parser.parse_args(argv)
     try:
         if args.action == "status":
-            return status()
+            return adopt() if args.adopt else status()
         return switch(args.policy_id, args.action, args.bundle, args.scope)
     except SystemExit as exc:
         if isinstance(exc.code, str):

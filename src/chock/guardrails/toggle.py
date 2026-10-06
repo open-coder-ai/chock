@@ -7,10 +7,16 @@ A file that cannot be read or is invalid switches nothing off: every member stay
 
 As the hook wrapper: `chock_bundle.py --bundle <name> --member <id> <adapter> [adapter args...]`. On runs the
 adapter with its args; off runs it with none, so the client still gets its own allow, plus one log line.
+
+`chock bundle on|off` records each file's sha256 in `.chock/state/guardrails.sha256` beside it. As the turn-end
+check, `chock_bundle.py --verify <adapter>` refuses a Stop while a toggle file differs from that record: it was
+changed outside `chock bundle`. A mismatch never switches a guard off; the lookup above ignores the record.
 """
 
 from __future__ import annotations
 
+import hashlib
+import importlib.util
 import io
 import json
 import os
@@ -32,6 +38,10 @@ _LOG_ROTATED = "gate-events.1.jsonl"
 _LOG_MAX_BYTES = 1_048_576
 _GATE_LOG_ENV = "CHOCK_GATE_LOG"
 _ARGC = 5
+#: The record `chock bundle` keeps of the file it last wrote, beside it under the engine's own state folder.
+RECORD_PARTS = ("state", "guardrails.sha256")
+VERIFY = "--verify"
+_VERDICT_DENY = "deny"
 
 
 class ToggleError(ValueError):
@@ -167,6 +177,95 @@ def _where(payload: bytes) -> Path:
     return Path.cwd()
 
 
+def record_path(toggle_file: Path) -> Path:
+    """Where `chock bundle` records the sha256 of the toggle file it wrote."""
+    return Path(toggle_file).parent.joinpath(*RECORD_PARTS)
+
+
+def digest(path: Path) -> str | None:
+    """The sha256 of a file's bytes; None when nothing is there, `unreadable` when something is but cannot be read."""
+    if not os.path.lexists(path):
+        return None
+    try:
+        return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    except OSError:
+        return "unreadable"
+
+
+def recorded(toggle_file: Path) -> str | None:
+    """The sha256 `chock bundle` last recorded for `toggle_file`, or None when it recorded none."""
+    try:
+        return record_path(toggle_file).read_text(encoding="utf-8").strip() or None
+    except (OSError, UnicodeDecodeError):
+        return None
+
+
+def drift(toggle_file: Path) -> str | None:
+    """Why `toggle_file` is not what `chock bundle` last wrote, or None when it is (or neither exists)."""
+    now, then = digest(toggle_file), recorded(toggle_file)
+    if now == then:
+        return None
+    if now is None:
+        return "it was deleted after `chock bundle` wrote it"
+    if then is None:
+        return "`chock bundle` has no record of it"
+    return "it was changed outside `chock bundle`"
+
+
+def scopes(start: Path) -> list[Path]:
+    """Every toggle file that can govern work at `start`: the repository's, then the user's."""
+    root = repo_root(start)
+    return [*([root / FILENAME] if root else []), user_path()]
+
+
+def drifted(start: Path) -> list[str]:
+    """One line per toggle file in scope that differs from its record."""
+    return [f"{path}: {why}" for path in scopes(start) if (why := drift(path))]
+
+
+def refusal(lines: list[str]) -> str:
+    return (
+        "chock: a guardrails toggle file was changed outside `chock bundle`: "
+        + "; ".join(lines)
+        + ". Only a person changes it: they re-apply it with `chock bundle on|off <policy-id>`, or review it and run"
+        " `chock bundle status --adopt`. The agent does not."
+    )
+
+
+def _adapter(path: str):
+    """The client's adapter loaded as a module, its `main` not yet run."""
+    spec = importlib.util.spec_from_file_location("chock_adapter", path)
+    if spec is None or spec.loader is None:
+        msg = f"cannot load the adapter at {path}"
+        raise SystemExit(msg)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def verify(argv: list[str], payload: bytes) -> None:
+    """Turn-end check: the adapter answers in its client's own words, refusing a Stop while a toggle file drifted.
+
+    `argv` is the adapter and its own `--gate <gate> --stop`, which still decide how an unreadable payload is refused.
+    """
+    adapter_path, gate = argv[0], Path(argv[argv.index("--gate") + 1])
+    adapter = _adapter(adapter_path)
+    where = _where(payload)
+
+    def handle(event):
+        if getattr(event, "event", "") != "stop":
+            return None
+        lines = drifted(where)
+        if not lines:
+            return None
+        settled = adapter.settle_stop(event, repo_root(where) or where, gate, (_VERDICT_DENY, refusal(lines)), {})
+        return adapter._spoken(settled) if settled else None
+
+    adapter.handle = handle
+    sys.argv = list(argv)
+    adapter.main()
+
+
 def wrapped(argv: list[str], payload: bytes) -> list[str]:
     """The adapter argv this member runs with: its own when on, none when off. Any doubt is on."""
     if len(argv) < _ARGC or argv[0] != "--bundle" or argv[2] != "--member":
@@ -188,8 +287,11 @@ def wrapped(argv: list[str], payload: bytes) -> list[str]:
 def main() -> None:
     """Hook entry: decide on or off, then run the client's adapter in this process on the same payload."""
     payload = sys.stdin.buffer.read()
-    sys.argv = wrapped(sys.argv[1:], payload)
     sys.stdin = io.TextIOWrapper(io.BytesIO(payload), encoding="utf-8")
+    if sys.argv[1:2] == [VERIFY]:
+        verify(sys.argv[2:], payload)
+        return
+    sys.argv = wrapped(sys.argv[1:], payload)
     runpy.run_path(sys.argv[0], run_name="__main__")
 
 
