@@ -4,25 +4,56 @@ Carried byte-identically by four repositories; see palette.py on why every
 statement stays on one line under 88 characters.
 """
 
+import importlib
+import re
+import sys
+from pathlib import Path
+
 import palette as p
+
+ROOT = Path(__file__).resolve().parents[2]
+REGISTRY = ROOT / "registry.yaml"
+MATRIX_SRC = ROOT / "src"
 
 W, H = 800, 420
 NAME, ROLE = 13, 11
 WIDE, NARROW, ARM = 74, 34, 22
+
+
+def catalog_count():
+    """Policies in the catalog's registry.yaml, or None in a repo that carries none."""
+    if not REGISTRY.is_file():
+        return None
+    text = REGISTRY.read_text(encoding="utf-8").split("\nskills:\n", 1)[0]
+    return len(re.findall(r"^- id: \S+", text, re.MULTILINE)) or None
+
+
+def agent_count():
+    """Agents in agentseam's capability matrix, or None in a repo that has none."""
+    if not (MATRIX_SRC / "agentseam" / "matrix.py").is_file():
+        return None
+    sys.path.insert(0, str(MATRIX_SRC))
+    return len(importlib.import_module("agentseam.matrix").agents())
+
+
+# Only the repo holding each source names its count; the others say it without one.
+_N, _A = catalog_count(), agent_count()
+POLICIES = f"the policies \N{EM DASH} {_N}," if _N else "the policies \N{EM DASH}"
+AGENTS = f"across {_A} agents" if _A else "across the supported agents"
 
 # Split into fragments joined with a space: a magic trailing comma keeps each list
 # exploded, so `ruff format` leaves this alone at 88, 100 and 120 alike.
 ROLES = {
     "agentseam": [
         "the primitives — one handler API and a verified capability",
-        "matrix across 16 agents",
+        "matrix " + AGENTS,
     ],
     "chock": [
         "the compiler — one policy into git hooks, CI gates and",
         "native pre-tool hooks",
     ],
     "chock-catalog": [
-        "the policies — 42, each labelled enforced or advisory,",
+        POLICIES + " each labelled enforced or advisory,",
         "with replayed evals",
     ],
     "context-report": [
