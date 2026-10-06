@@ -1,14 +1,19 @@
 # chock
 
-> Governance-as-code for AI coding agents: write a rule once, enforce it on git hooks, CI,
-> and every agent.
+> Open-source guardrails for AI coding agents: rules the agent reads, checks that run as it
+> writes, and gates at commit and in CI. Chock compiles one policy into each of those.
 
 Chock compiles a policy you author once into the strongest enforcement surface each agent
 supports (git hook, CI gate, `AGENTS.md` rule, Claude Code / Cursor pre-tool-use hooks,
 Copilot / VS Code agent hooks, managed settings) and reports coverage per agent using an
-honest taxonomy: `enforced`, `enforced-at-commit`, `advisory`, `planned`, `out of scope`.
-An enforcement level is only claimed when there is an install witness for it — never
-because a rule merely compiled.
+honest taxonomy (`src/chock/compile/levels.py`): `none`, `best-effort`, `fail-to-ask`,
+`enforceable`, `enforced`, `enforced-at-commit`, `advisory`, `disabled`. An enforcement level
+is only claimed when there is an install witness for it — never because a rule merely compiled.
+No agent reaches `enforced`; the commit and CI gates are what enforce.
+
+Install: Chock is not on PyPI. Use the frozen engine,
+`pip install "chock @ git+https://github.com/open-coder-ai/chock@992711af4cf8d4fd9c4c861f10ef6e53374d75d7"`
+(Python 3.11 or newer).
 
 Chock is pre-1.0: the CLI surface, manifest schema, and compiled output can change between
 MINOR releases. See Compatibility below for what is actually guaranteed today.
@@ -22,7 +27,7 @@ MINOR releases. See Compatibility below for what is actually guaranteed today.
 ## What it enforces, honestly
 
 - [Agentic-Risk Coverage](https://github.com/open-coder-ai/chock/blob/main/docs/agentic-risk-coverage.md): problem-first index of what Chock stops, at which honest tier, and what it does not
-- [Enforcement Surfaces](https://github.com/open-coder-ai/chock/blob/main/docs/enforcement-surfaces.md): the eight surfaces and the per-agent coverage matrix
+- [Enforcement Surfaces](https://github.com/open-coder-ai/chock/blob/main/docs/enforcement-surfaces.md): the nine surfaces and the per-agent coverage matrix
 - [Compatibility](https://github.com/open-coder-ai/chock/blob/main/docs/compatibility.md): pre-1.0 stability guarantees — what may change between versions, and what pinning guarantees
 
 ## Policies and catalog
