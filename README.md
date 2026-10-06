@@ -71,7 +71,7 @@ To write your own, run `chock new policy <id>` (manifest, gate and evals), `choc
 
 Each refusal names the safe alternative, so the agent can fix it in the same turn. These three are quoted from the chock-catalog manifests of `block-unsafe-code-execution`, `block-unpinned-agent-components` and `block-wildcard-iam`, in that order, all refused at commit:
 
-<p><img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/refusal.png" alt="Three stacked cards, each holding one quoted refusal message." width="100%"></p>
+<p><img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/v2/refusal.png" alt="Three stacked cards, each holding one quoted refusal message." width="100%"></p>
 
 ## Quick start
 
@@ -175,7 +175,7 @@ Chock does not stop every attack. It closes common, known entry points before th
 
 ### What changes, by role
 
-<p><img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/roles.png" alt="Four role cards, each showing what the agent does, how Chock answers and what that role gets." width="100%"></p>
+<p><img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/v2/roles.png" alt="Four role cards, each showing what the agent does, how Chock answers and what that role gets." width="100%"></p>
 
 ### The catalog, in numbers
 
@@ -250,7 +250,7 @@ The 13 public repositories:
 
 New guardrails are content, not code: a policy is a manifest plus the evals that prove it fires, with no engine change and no plugin API to learn.
 
-<p><img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/contribute.png" alt="Three numbered contribution cards, each with a one-line how-to." width="100%"></p>
+<p><img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/v2/contribute.png" alt="Three numbered contribution cards, each with a one-line how-to." width="100%"></p>
 
 A policy manifest for the guardrail your stack needs is the contribution we want most; send it to the [catalog](https://github.com/open-coder-ai/chock-catalog). An evidence report on what your agent does, or a `policy wanted` entry in the [threat ledger](https://github.com/open-coder-ai/chock-threat-intel/blob/main/reference/agentic-threat-ledger.md), also counts; see [docs/ecosystem.md](docs/ecosystem.md). Run `pytest -q && ruff check . && ruff format --check . && chock check` before a pull request; [`good first issue`](https://github.com/open-coder-ai/chock/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) is where to start. Questions: [Discussions](https://github.com/open-coder-ai/chock/discussions).
 

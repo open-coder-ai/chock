@@ -1,7 +1,7 @@
 // Renders the dusk README panels to PNG. Numbers come from data.json (derive.py); nothing is typed here.
 // Usage: [ONLY=name,name] node docs/assets/readme/render.mjs   (needs `playwright`; CHROMIUM=/path to use a preinstalled Chromium)
 import { chromium } from 'playwright';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -214,7 +214,9 @@ const HONEST = SECTION('Guardrails, not guarantees', 'And we tell you <span clas
 ${grid(3, 16, [['commit', 'A git hook or CI gate that exits non-zero.'], ['in-agent', 'The agent\'s own pre-tool hook. Best-effort, and it fails open.'], ['advisory', 'Rule text the agent reads. Nothing makes the agent follow it.']].map(([t, p]) => `<div class="panel" style="padding:24px;display:flex;flex-direction:column;gap:12px">${tag(t)}<span style="font-size:17px;line-height:1.5;color:#D5DBE8">${p}</span></div>`))}
 ${grid(3, 16, [[A.grades.enforced, 'matrix cells graded &ldquo;enforced&rdquo;: no agent reaches it'], [`${D.asi.refused_at_commit.length} of ${D.asi.with_policy}`, 'OWASP Agentic risks with a slice refused at commit'], [D.asi.fully_covered, 'OWASP Agentic risks fully covered: every mapping is partial']].map(([n, l]) => stat(n, l)))}`);
 
-const ALL_NEW = { refusal: REFUSAL, layers: LAYERS, quickstart: QUICKSTART, matrix: MATRIX, catalog: CATALOG, family: FAMILY, contribute: CONTRIBUTE, honest: HONEST };
+const ALL_NEW = { layers: LAYERS, quickstart: QUICKSTART, matrix: MATRIX, catalog: CATALOG, family: FAMILY, honest: HONEST };
+// README v2 panels go under v2/; the titled refusal, roles and contribute PNGs at the old paths stay frozen until RW-7b.
+const V2 = { 'v2/refusal': REFUSAL, 'v2/roles': ROLES, 'v2/contribute': CONTRIBUTE };
 
 // 1280x640 social preview banners: the same specs as the covers, laid out for the fixed canvas.
 const social = ({ repo, title, sub, chips, right }) => `<div class="social" style="width:1280px;height:640px;padding:64px 72px;background:#222C44;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:48px;align-items:center;overflow:hidden">
@@ -225,7 +227,7 @@ const social = ({ repo, title, sub, chips, right }) => `<div class="social" styl
 <div>${right}</div></div>`;
 const SOCIALS = Object.fromEntries(SPECS.map((sp) => [`social-${sp.repo === 'open-coder-ai' ? 'org' : sp.repo}`, page(social(sp))]));
 
-const ALL = { ...COVERS, ...ALL_NEW, ...SOCIALS, appsec: APPSEC, adopt: ADOPT, roles: ROLES, compare: COMPARE, pipeline: PIPELINE };
+const ALL = { ...COVERS, ...ALL_NEW, ...V2, ...SOCIALS, appsec: APPSEC, adopt: ADOPT, compare: COMPARE, pipeline: PIPELINE };
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined, args: ['--no-sandbox'] });
 const pgPanel = await (await browser.newContext({ deviceScaleFactor: 2 })).newPage();
 const pgSocial = await (await browser.newContext({ deviceScaleFactor: 1 })).newPage();
@@ -242,6 +244,7 @@ for (const [name, html] of Object.entries(ALL)) {
     return fonts.map((f) => document.fonts.check(f));
   });
   if (!ok.every(Boolean)) throw new Error(`fonts missing (Instrument Sans / JetBrains Mono): ${ok}`);
+  mkdirSync(path.dirname(path.join(OUT, name)), { recursive: true });
   await pg.locator(isSocial ? '.social' : '.frame').screenshot({ path: path.join(OUT, `${name}.png`) });
   console.log(`${name}.png`);
 }
