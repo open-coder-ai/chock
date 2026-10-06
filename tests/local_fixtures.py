@@ -1,4 +1,4 @@
-"""Shared by the `from: local` install tests: a catalog, a throwaway HOME, a person's own guard, and helpers."""
+"""Shared by the `from: local` install tests: a throwaway HOME, a person's own guard, and helpers."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 
 import pytest
-from install_fixtures import make_catalog, write_selection
+from install_fixtures import write_selection
 
 from chock.install import cli, local, place
 from chock.lock import compute_pack_hash
@@ -18,13 +18,7 @@ ORIGIN = "custom, not reviewed"
 needs_git = pytest.mark.skipif(shutil.which("git") is None, reason="git required")
 
 
-@pytest.fixture
-def catalog(tmp_path: Path) -> tuple[Path, str]:
-    return make_catalog(tmp_path)
-
-
-@pytest.fixture
-def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+def make_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """A throwaway HOME and no terminal, unless a test says otherwise."""
     path = tmp_path / "home"
     path.mkdir()
@@ -34,8 +28,7 @@ def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return path
 
 
-@pytest.fixture
-def mine(tmp_path: Path) -> Path:
+def make_mine(tmp_path: Path) -> Path:
     """The folder a person keeps their selection and their own guard in."""
     folder = tmp_path / "mine"
     folder.mkdir()

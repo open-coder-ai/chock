@@ -7,16 +7,36 @@ import json
 import sys
 from pathlib import Path
 
-import local_fixtures
 import pytest
-from local_fixtures import MY, ORIGIN, REL, guard, install, needs_git, only_local, plugin, sha, trust
+from local_fixtures import (
+    MY,
+    ORIGIN,
+    REL,
+    guard,
+    install,
+    make_home,
+    make_mine,
+    needs_git,
+    only_local,
+    plugin,
+    sha,
+    trust,
+)
 
 from chock.install import local, package, place
 from chock.install import selection as sel
 
 pytestmark = needs_git
-#: The shared fixtures, by the names the tests ask for.
-catalog, home, mine = local_fixtures.catalog, local_fixtures.home, local_fixtures.mine
+
+
+@pytest.fixture
+def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    return make_home(tmp_path, monkeypatch)
+
+
+@pytest.fixture
+def mine(tmp_path: Path) -> Path:
+    return make_mine(tmp_path)
 
 
 # --- show and confirm ----------------------------------------------------------------------------

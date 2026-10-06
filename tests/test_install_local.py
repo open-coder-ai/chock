@@ -7,11 +7,24 @@ import json
 import shutil
 from pathlib import Path
 
-import local_fixtures
 import pytest
 from bundle_fixtures import GATE_ID, GUARD_ID, denies, hook_commands, project, run_command
-from install_fixtures import _git
-from local_fixtures import MY, ORIGIN, REL, guard, install, local_entry, needs_git, only_local, plugin, sha, trust
+from install_fixtures import _git, make_catalog
+from local_fixtures import (
+    MY,
+    ORIGIN,
+    REL,
+    guard,
+    install,
+    local_entry,
+    make_home,
+    make_mine,
+    needs_git,
+    only_local,
+    plugin,
+    sha,
+    trust,
+)
 from test_install_clients import CLIENTS, TREE, v2
 
 from chock.guardrails import cli as bundle_cli
@@ -19,8 +32,23 @@ from chock.install import cli, package, place
 from chock.lock import compute_pack_hash
 
 pytestmark = needs_git
-#: The shared fixtures, by the names the tests ask for.
-catalog, home, mine = local_fixtures.catalog, local_fixtures.home, local_fixtures.mine
+
+
+@pytest.fixture
+def catalog(tmp_path: Path) -> tuple[Path, str]:
+    return make_catalog(tmp_path)
+
+
+@pytest.fixture
+def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    return make_home(tmp_path, monkeypatch)
+
+
+@pytest.fixture
+def mine(tmp_path: Path) -> Path:
+    return make_mine(tmp_path)
+
+
 DESTROY = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "terraform destroy"}}
 PLAN = {**DESTROY, "tool_input": {"command": "terraform plan"}}
 
