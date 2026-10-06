@@ -1,0 +1,40 @@
+id: __ID__
+name: "__NAME__"
+version: "0.1.0"
+description: >
+  Refuses an added line that matches content_pattern, at commit and when the agent
+  writes a file. The example refuses a DO-NOT-COMMIT marker. Edit content_pattern
+  and the message; keep the pattern from matching its own text.
+artifact: hook
+enforcement: block
+effects:
+- read_only
+approval:
+  required: false
+
+hook:
+  gate:
+    kind: content_regex
+    "on": [commit, tool_use]
+    action: block
+    message: >
+      __ID__: this change adds a line marked DO NOT COMMIT. Remove the marker
+      or the line before committing.
+    params:
+      scan: added_lines
+      # [ ] matches a space, so this pattern does not match its own text.
+      content_pattern: 'DO[ ]NOT[ ]COMMIT'
+
+provenance:
+  author: "me"
+  created_at: "__DATE__T00:00:00Z"
+  source_repo: "local"
+  license: "proprietary"
+  trust_tier: "sandbox"
+
+lifecycle:
+  status: draft
+  reviewed_by: []
+
+security:
+  content_instructions: never-obey

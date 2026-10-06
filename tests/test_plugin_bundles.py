@@ -1,4 +1,4 @@
-"""A bundle installs once and denies what each member alone denies, without members colliding."""
+"""A bundle is one merged plugin per client: it denies what each member alone denies, without members colliding."""
 
 from __future__ import annotations
 
@@ -7,7 +7,6 @@ import re
 from pathlib import Path
 
 import pytest
-import yaml
 from bundle_fixtures import (
     ADVISORY_ID,
     BUNDLE_ID,
@@ -26,8 +25,9 @@ from bundle_fixtures import (
 )
 from packaging_helpers import tree_bytes
 
-from chock.plugin import bundle_build, bundles
-from chock.plugin.bundle_build import CLIENTS, DEPENDS, MERGED, MergeCollisionError, bundle_files
+from chock.guardrails.plugin import PROTECT_ID
+from chock.plugin import bundle_build
+from chock.plugin.bundle_build import CLIENTS, MergeCollisionError, merged_files
 
 WRITE = {
     "hook_event_name": "PreToolUse",
@@ -36,80 +36,22 @@ WRITE = {
 }
 CLEAN = {**WRITE, "tool_input": {"file_path": "src/App.java", "content": "class App {}"}}
 RM = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "rm -rf /"}}
-MERGED_CLIENTS = sorted(name for name, client in CLIENTS.items() if client.route == MERGED)
+MERGED_CLIENTS = sorted(CLIENTS)
 
 
-# --- the data and its schema ----------------------------------------------------------------------
+# --- one route for every client: the merged plugin -------------------------------------------------
+# The Claude dependency meta-plugin and bundles.yaml are retired (builder v2 design 2.1b):
+# a bundle is a selection, built by `chock install --selection`.
 
 
-def _bundles_file(tmp_path: Path, doc: object) -> Path:
-    path = tmp_path / "bundles.yaml"
-    path.write_text(yaml.safe_dump(doc), encoding="utf-8")
-    return path
-
-
-GOOD = {"id": "chock-java", "version": "0.1.0", "description": "Java.", "members": ["java-security", "scan-secrets"]}
-
-
-def test_a_well_formed_bundles_file_loads_in_file_order(tmp_path: Path) -> None:
-    other = {**GOOD, "id": "chock-other"}
-    loaded = bundles.load_bundles(_bundles_file(tmp_path, {"bundles": [GOOD, other]}))
-    assert [b["id"] for b in loaded] == ["chock-java", "chock-other"]
-
-
-@pytest.mark.parametrize(
-    ("change", "message"),
-    [
-        ({"members": ["only-one"]}, "members"),
-        ({"members": ["a-policy", "a-policy"]}, "members"),
-        ({"id": "Not_A_Name"}, "id"),
-        ({"version": "1.0"}, "version"),
-        ({"description": ""}, "description"),
-        ({"extra": 1}, "extra"),
-    ],
-)
-def test_a_malformed_bundle_is_refused_with_the_field_named(tmp_path: Path, change: dict, message: str) -> None:
-    with pytest.raises(bundles.BundleError, match=message):
-        bundles.load_bundles(_bundles_file(tmp_path, {"bundles": [{**GOOD, **change}]}))
-
-
-def test_a_missing_required_field_is_refused(tmp_path: Path) -> None:
-    incomplete = {k: v for k, v in GOOD.items() if k != "version"}
-    with pytest.raises(bundles.BundleError, match="version"):
-        bundles.load_bundles(_bundles_file(tmp_path, {"bundles": [incomplete]}))
-
-
-def test_duplicate_ids_and_nested_bundles_are_refused(tmp_path: Path) -> None:
-    with pytest.raises(bundles.BundleError, match="duplicate"):
-        bundles.load_bundles(_bundles_file(tmp_path, {"bundles": [GOOD, GOOD]}))
-    outer = {**GOOD, "id": "chock-outer", "members": ["chock-java", "scan-secrets"]}
-    with pytest.raises(bundles.BundleError, match="cannot contain a bundle"):
-        bundles.load_bundles(_bundles_file(tmp_path, {"bundles": [GOOD, outer]}))
-
-
-def test_members_must_be_known_policies_and_no_bundle_shadows_one() -> None:
-    bundles.check_members([GOOD], {"java-security", "scan-secrets"})
-    with pytest.raises(bundles.BundleError, match="unknown policies: java-security"):
-        bundles.check_members([GOOD], {"scan-secrets"})
-    with pytest.raises(bundles.BundleError, match="also a policy id"):
-        bundles.check_members([GOOD], {"java-security", "scan-secrets", "chock-java"})
-
-
-# --- the route each client takes ------------------------------------------------------------------
-
-
-def test_claude_takes_the_dependency_route_and_every_other_client_merges() -> None:
-    assert CLIENTS["claude"].route == DEPENDS
-    assert MERGED_CLIENTS == ["codex", "copilot", "cursor", "devin"]
-
-
-def test_the_claude_bundle_is_a_manifest_that_depends_on_its_members(tmp_path: Path) -> None:
+def test_every_client_merges_including_claude(tmp_path: Path) -> None:
+    assert MERGED_CLIENTS == ["claude", "codex", "copilot", "cursor", "devin"]
     members = make_members(tmp_path)
     out = tmp_path / "dist"
     build_claude_tree(tmp_path, members, out)
     manifest = json.loads((out / BUNDLE_ID / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
-    assert manifest["dependencies"] == [GATE_ID, GUARD_ID]
-    assert not (out / BUNDLE_ID / "hooks").exists() and not (out / BUNDLE_ID / "scripts").exists()
+    assert "dependencies" not in manifest
+    assert (out / BUNDLE_ID / "hooks" / "hooks.json").is_file()
 
 
 def _closure(out: Path, name: str) -> list[Path]:
@@ -147,7 +89,7 @@ def test_one_claude_bundle_install_denies_what_each_member_alone_denies(tmp_path
 def test_the_bundle_grades_no_stronger_than_its_weakest_member(tmp_path: Path) -> None:
     members = make_members(tmp_path, with_advisory=True)
     out = tmp_path / "dist"
-    write(out / BUNDLE_ID, bundle_files("claude", bundle(members), members, tmp_path))
+    write(out / BUNDLE_ID, merged_files("claude", bundle(members), members, tmp_path))
     text = json.loads((out / BUNDLE_ID / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["description"]
     assert f"{ADVISORY_ID}: advisory only" in text
     assert f"{GUARD_ID}: refuses a matched shell command before it runs" in text
@@ -156,11 +98,10 @@ def test_the_bundle_grades_no_stronger_than_its_weakest_member(tmp_path: Path) -
 
 def test_an_all_enforcing_bundle_states_the_enforcing_posture(tmp_path: Path) -> None:
     members = make_members(tmp_path)
-    text = json.loads(bundle_files("claude", bundle(members), members, tmp_path)[Path(".claude-plugin/plugin.json")])[
+    text = json.loads(merged_files("claude", bundle(members), members, tmp_path)[Path(".claude-plugin/plugin.json")])[
         "description"
     ]
     assert "Advisory skill only" not in text and "Session-enforced" in text
-    assert "installs each member as a dependency" in text
 
 
 # --- the merged route ----------------------------------------------------------------------------
@@ -169,7 +110,7 @@ def test_an_all_enforcing_bundle_states_the_enforcing_posture(tmp_path: Path) ->
 def _merged(tmp_path: Path, client: str, *, with_advisory: bool = False) -> tuple[Path, list]:
     members = make_members(tmp_path, with_advisory=with_advisory)
     out = tmp_path / "dist" / client / BUNDLE_ID
-    return write(out, bundle_files(client, bundle(members), members, tmp_path)), members
+    return write(out, merged_files(client, bundle(members), members, tmp_path)), members
 
 
 def _hooks_file(out: Path) -> Path:
@@ -191,9 +132,9 @@ def test_no_path_or_hook_command_collides_and_every_command_reaches_a_shipped_fi
     out, _ = _merged(tmp_path, client)
     commands = hook_commands(json.loads(_hooks_file(out).read_text(encoding="utf-8")))
     targets = {re.search(r"--(?:guard|gate) \"?[^\s\"]*?(scripts/[^\s\"]+)", c).group(1) for c in commands}
-    assert targets == {f"scripts/{GATE_ID}/gate.json", f"scripts/{GUARD_ID}/{GUARD_ID}.py"}, (
-        "one target per member, none shared"
-    )
+    protect = f"scripts/{PROTECT_ID}"
+    expected = {f"scripts/{GATE_ID}/gate.json", f"scripts/{GUARD_ID}/{GUARD_ID}.py", f"{protect}/{PROTECT_ID}.py"}
+    assert targets - {f"{protect}/gate.json"} == expected, "one target per member and the built-in, none shared"
     for command in commands:
         paths = re.findall(r"scripts/[\w./-]+", command)
         assert paths and all((out / p).is_file() for p in paths), (command, paths)
@@ -235,24 +176,14 @@ def test_a_hook_command_naming_no_member_script_is_refused() -> None:
         bundle_build._repoint_command("echo hi", {"scripts/a.py": "scripts/m/a.py"})
 
 
-# --- the generic format, reproducibility ----------------------------------------------------------
+# --- reproducibility ----------------------------------------------------------
 
 
-def test_the_agent_plugins_bundle_carries_every_members_skill(tmp_path: Path) -> None:
-    members = make_members(tmp_path)
-    files = bundle_files("agent-plugins", bundle(members), members, tmp_path)
-    assert {Path("plugin.json"), Path("skills") / GATE_ID / "SKILL.md", Path("skills") / GUARD_ID / "SKILL.md"} <= set(
-        files
-    )
-    manifest = json.loads(files[Path("plugin.json")])
-    assert manifest["name"] == BUNDLE_ID and "dependencies" not in manifest
-
-
-@pytest.mark.parametrize("client", ["claude", "agent-plugins", *MERGED_CLIENTS])
+@pytest.mark.parametrize("client", MERGED_CLIENTS)
 def test_bundle_output_is_byte_reproducible(tmp_path: Path, client: str) -> None:
     members = make_members(tmp_path)
-    first = write(tmp_path / "one", bundle_files(client, bundle(members), members, tmp_path))
-    second = write(tmp_path / "two", bundle_files(client, bundle(list(members)), list(members), tmp_path))
+    first = write(tmp_path / "one", merged_files(client, bundle(members), members, tmp_path))
+    second = write(tmp_path / "two", merged_files(client, bundle(list(members)), list(members), tmp_path))
     assert tree_bytes(first) == tree_bytes(second)
 
 

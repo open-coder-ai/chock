@@ -5,13 +5,14 @@ Usage: chock <command> [args]
 Everyday:
   init       Scaffold a consumer repo (wiring only -- no policies)
   add        Install a policy or skill from a catalog and compile it
-  install    Build a chock.sh selection into one Claude Code plugin (install --selection <file>)
+  install    Build a chock.sh selection into one plugin for one agent (install --selection <file> [--client C])
   remove     Remove an installed policy and resync
   sync       Recompile + rewire so the repo matches its policies (--ci/--skills for extras)
   check      Run every truth check: validate, verify, evals, matrix (--only to narrow; --history scans past commits)
   status     Policy states and coverage (--only registry,log for more)
   enable     Enable a policy by id
   disable    Disable a policy by id
+  bundle     Switch a member of an installed plugin bundle on or off (bundle on|off <id>, bundle status)
 
 Authoring:
   new        Create a deterministic artifact skeleton

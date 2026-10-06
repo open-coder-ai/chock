@@ -12,10 +12,12 @@ import pytest
 from bundle_fixtures import ADVISORY_ID, GATE_ID, GUARD_ID, MARKER, denies, hook_commands, project, run_command
 from install_fixtures import make_catalog, selection, side_commit, write_selection
 
-from chock.install import cli, package
+import chock
+from chock.install import cli, package, place
+from chock.install import selection as sel
 
 pytestmark = pytest.mark.skipif(shutil.which("git") is None, reason="git required")
-PLUGIN = package.settings()["plugin"]
+PLUGIN = sel.DEFAULT_BUNDLE
 WRITE = {"hook_event_name": "PreToolUse", "tool_name": "Write", "tool_input": {"file_path": "a.txt", "content": MARKER}}
 CLEAN = {**WRITE, "tool_input": {"file_path": "a.txt", "content": "fine"}}
 RM = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "rm -rf /"}}
@@ -34,7 +36,7 @@ def _run(tmp_path: Path, data: dict, dest: Path, *extra: str, trusted: bool = Tr
 
 
 def _plugin(dest: Path) -> Path:
-    return dest / package.CLIENT / PLUGIN
+    return dest / "claude" / PLUGIN
 
 
 def test_the_selection_builds_one_plugin_in_a_local_marketplace(catalog, tmp_path: Path, capsys) -> None:
@@ -44,13 +46,19 @@ def test_the_selection_builds_one_plugin_in_a_local_marketplace(catalog, tmp_pat
     index = json.loads((dest / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
     assert index["name"] == package.settings()["marketplace"]
     assert [p["name"] for p in index["plugins"]] == [PLUGIN]
-    assert index["plugins"][0]["source"] == f"./{package.CLIENT}/{PLUGIN}"
+    assert index["plugins"][0]["source"] == f"./claude/{PLUGIN}"
     manifest = json.loads((_plugin(dest) / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
     assert manifest["name"] == PLUGIN
     assert "dependencies" not in manifest
     for policy_id in (GUARD_ID, GATE_ID, ADVISORY_ID):
         assert (_plugin(dest) / "skills" / policy_id / "SKILL.md").is_file()
-    assert json.loads((dest / package.MARKER).read_text(encoding="utf-8")) == selection(root, ref)
+    marker = json.loads((_plugin(dest) / package.MARKER).read_text(encoding="utf-8"))
+    block = marker.pop(package.MARKER_KEY)
+    assert marker == sel.upgrade(selection(root, ref))
+    assert block["version"] == package.MARKER_VERSION
+    assert block["engine"]["version"] == chock.__version__
+    assert block["accepted_local"] == {}
+    assert json.loads((dest / place.MARKETPLACE_MARKER).read_text(encoding="utf-8"))["client"] == "claude-code"
     out = capsys.readouterr().out
     assert f"claude plugin install {PLUGIN}@{package.settings()['marketplace']}" in out
     assert "claude plugin marketplace add" in out
@@ -147,7 +155,7 @@ def test_a_rerun_replaces_the_build_and_says_to_reload(catalog, tmp_path: Path, 
     assert not (_plugin(dest) / "skills" / GATE_ID).exists()
     assert not (_plugin(dest) / "scripts" / GATE_ID).exists()
     assert "/reload-plugins" in capsys.readouterr().out
-    assert sorted(p.name for p in tmp_path.iterdir() if p.name.startswith(".market")) == []
+    assert [p.name for p in (dest / "claude").iterdir() if p.name.startswith(".")] == []
 
 
 def test_a_failed_rerun_leaves_the_previous_build_untouched(catalog, tmp_path: Path) -> None:
@@ -167,7 +175,7 @@ def test_a_directory_chock_did_not_build_is_never_replaced(catalog, tmp_path: Pa
     dest.mkdir()
     (dest / "notes.txt").write_text("keep", encoding="utf-8")
     assert _run(tmp_path, selection(root, ref), dest) == 1
-    assert "not a chock install directory" in capsys.readouterr().err
+    assert "is not a chock marketplace" in capsys.readouterr().err
     assert (dest / "notes.txt").read_text(encoding="utf-8") == "keep"
 
 

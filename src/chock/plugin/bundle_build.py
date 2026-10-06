@@ -1,4 +1,4 @@
-"""Package a bundle per client: a dependency meta-plugin where the client's manifest has one, else a merge.
+"""Package a bundle per client as one merged plugin: `chock install --selection` is the only bundle route.
 
 Merging reuses each member's own builder: a member's files come from the same `*_plugin_files` a
 stand-alone package uses, and are only placed under the bundle -- skills stay under the member's
@@ -17,15 +17,12 @@ from typing import Any, Callable
 
 from agentseam import packaging
 
+from chock.guardrails import plugin as guardrails
 from chock.plugin import bundle_grade, bundles, claude, codex, copilot, cursor, devin
-from chock.plugin.build import build_manifest, plugin_files, plugin_name
 from chock.plugin.listing import LICENSE_REL, license_text
 from chock.plugin.store import SCRIPTS_TEMPLATE
 
 SCRIPTS_DIR = "scripts/"
-#: Claude's manifest documents `dependencies` (code.claude.com/docs/en/plugins-reference), and
-#: installing a plugin installs them; the route is recorded here so nothing infers it.
-DEPENDS, MERGED = "dependencies", "merged"
 
 FilesFn = Callable[[Path, dict[str, Any], Path], dict[Path, str]]
 
@@ -36,14 +33,13 @@ class MergeCollisionError(bundles.BundleError):
 
 @dataclass(frozen=True)
 class Client:
-    """One format's packager, the agent its runtime is built for, and how a bundle reaches it."""
+    """One format's packager and the agent its runtime is built for."""
 
     files: FilesFn
     manifest: Callable[..., dict[str, Any]]
     posture: Callable[..., str]
     agent: str
     package_agent: str
-    route: str
 
 
 CLIENTS: dict[str, Client] = {
@@ -53,10 +49,9 @@ CLIENTS: dict[str, Client] = {
         claude.manifest_posture,
         "claude_code",
         "claude_code",
-        DEPENDS,
     ),
     "codex": Client(
-        codex.codex_plugin_files, codex.build_codex_manifest, codex.manifest_posture, "codex_cli", "codex_cli", MERGED
+        codex.codex_plugin_files, codex.build_codex_manifest, codex.manifest_posture, "codex_cli", "codex_cli"
     ),
     "copilot": Client(
         copilot.copilot_plugin_files,
@@ -64,25 +59,12 @@ CLIENTS: dict[str, Client] = {
         copilot.manifest_posture,
         "vscode_copilot",
         "copilot",
-        MERGED,
     ),
     "cursor": Client(
-        cursor.cursor_plugin_files, cursor.build_cursor_manifest, cursor.manifest_posture, "cursor", "cursor", MERGED
+        cursor.cursor_plugin_files, cursor.build_cursor_manifest, cursor.manifest_posture, "cursor", "cursor"
     ),
-    "devin": Client(
-        devin.devin_plugin_files, devin.build_devin_manifest, devin.manifest_posture, "devin", "devin", MERGED
-    ),
+    "devin": Client(devin.devin_plugin_files, devin.build_devin_manifest, devin.manifest_posture, "devin", "devin"),
 }
-#: The Agent Plugins 1.0.0 schema (`additionalProperties: false`, no dependency field) has no
-#: meta-plugin, so the generic format merges too.
-AGENT_PLUGINS = "agent-plugins"
-
-
-def manifest_rel(fmt: str) -> Path:
-    """Where a bundle's own manifest sits inside its package, per format."""
-    if fmt == AGENT_PLUGINS:
-        return Path("plugin.json")
-    return Path(packaging.layout(CLIENTS[fmt].package_agent)["manifest"])
 
 
 @dataclass(frozen=True)
@@ -131,6 +113,20 @@ def _member_packages(
     return out
 
 
+def member_grades(
+    client_name: str, members: list[Member], repo_root: Path, *, write_judged: bool = True
+) -> list[tuple[Member, int, str]]:
+    """(member, grade, what it does) for each member, read from the hooks its own package in `client_name` ships."""
+    client = CLIENTS[client_name]
+    hooks_rel = packaging.supports(client.package_agent, packaging.HOOKS)
+    out = []
+    for member in members:
+        files = client.files(member.policy_dir, member.manifest, repo_root)
+        grade, what = bundle_grade.grade_of_files(files, hooks_rel, client.agent, write_judged=write_judged)
+        out.append((member, grade, what))
+    return out
+
+
 #: Devin's own docs call plugin hooks best-effort and fail-open, so no member line may say it "refuses" flatly.
 _QUALIFIER = {"devin": "best-effort, fails open: "}
 
@@ -170,22 +166,6 @@ def _per_member(manifest: dict[str, Any], client: Client, bundle: dict[str, Any]
     text, grade = _describe(client, bundle, packages, "")
     keywords = [k for k in manifest.get("keywords", []) if k != bundle_grade.enforcement_keyword(grade)]
     return {**manifest, "description": text, "keywords": keywords}
-
-
-_META_NOTE = "This plugin carries no hooks of its own: it installs each member as a dependency, and each member enforces as stated."
-
-
-def meta_plugin_files(
-    client_name: str, bundle: dict[str, Any], members: list[Member], repo_root: Path
-) -> dict[Path, str]:
-    """A dependency meta-plugin: a manifest naming its members, nothing else to carry."""
-    client = CLIENTS[client_name]
-    hooks_rel = packaging.supports(client.package_agent, packaging.HOOKS)
-    packages = _member_packages(client, members, repo_root, hooks_rel)
-    manifest = _bundle_manifest(client, bundle, packages, carries_hooks=False, note=_META_NOTE)
-    manifest["dependencies"] = [plugin_name(m.id) for m in members]
-    files = {Path(packaging.layout(client.package_agent)["manifest"]): json.dumps(manifest, indent=2) + "\n"}
-    return _with_licence(files, bundle, members)
 
 
 def _with_licence(files: dict[Path, str], bundle: dict[str, Any], members: list[Member]) -> dict[Path, str]:
@@ -241,6 +221,44 @@ def _place(into: dict[Path, str], rel: Path, content: str) -> None:
     into[rel] = content
 
 
+def _merge_member(
+    client: Client, member_id: str, member_files: dict[Path, str], files: dict[Path, str], special: tuple[Path, ...]
+) -> dict[str, Any] | None:
+    """Place one member's files in `files`, its scripts under `scripts/<member>/`; return its repointed hooks."""
+    shared = set(claude._runtime_files(client.agent))
+    moved = {
+        rel.as_posix(): f"{SCRIPTS_DIR}{member_id}/{rel.relative_to(SCRIPTS_DIR).as_posix()}"
+        for rel in member_files
+        if rel.as_posix().startswith(SCRIPTS_DIR) and rel not in shared
+    }
+    doc = None
+    for rel, content in member_files.items():
+        if rel in (*special[1:], LICENSE_REL):
+            continue
+        if rel == special[0]:
+            doc = _repoint(json.loads(content), moved)
+        elif rel.as_posix() in moved:
+            _place(files, Path(moved[rel.as_posix()]), content)
+        else:
+            _place(files, rel, content)
+    return doc
+
+
+def _scripts_only(member_files: dict[Path, str], hooks_rel: Path) -> dict[Path, str]:
+    """The built-in protection's hooks and scripts: no skill, manifest or licence of its own."""
+    return {rel: c for rel, c in member_files.items() if rel == hooks_rel or rel.as_posix().startswith(SCRIPTS_DIR)}
+
+
+def _rows(client: Client, bundle: dict[str, Any], packages: list) -> list[tuple[str, str]]:
+    """(policy id, label) per member: the install's own labels when given, else what its hooks do here."""
+    given = bundle.get("labels") or {}
+    qualifier = _QUALIFIER.get(client.package_agent, "")
+    return [
+        (m.id, given.get(m.id) or (what if g == bundle_grade.ADVISORY else f"{qualifier}{what}"))
+        for m, _f, g, what in packages
+    ]
+
+
 def merged_files(
     client_name: str, bundle: dict[str, Any], members: list[Member], repo_root: Path, *, aggregate: bool = True
 ) -> dict[Path, str]:
@@ -249,24 +267,19 @@ def merged_files(
     hooks_rel = Path(packaging.supports(client.package_agent, packaging.HOOKS))
     manifest_rel = Path(packaging.layout(client.package_agent)["manifest"])
     packages = _member_packages(client, members, repo_root, hooks_rel.as_posix())
-    shared = set(claude._runtime_files(client.agent))
     files: dict[Path, str] = {}
     hooks: dict[str, Any] = {}
     for member, member_files, _grade, _what in packages:
-        moved = {
-            rel.as_posix(): f"{SCRIPTS_DIR}{member.id}/{rel.relative_to(SCRIPTS_DIR).as_posix()}"
-            for rel in member_files
-            if rel.as_posix().startswith(SCRIPTS_DIR) and rel not in shared
-        }
-        for rel, content in member_files.items():
-            if rel in (manifest_rel, LICENSE_REL):
-                continue
-            if rel == hooks_rel:
-                _merge_docs(hooks, _repoint(json.loads(content), moved))
-            elif rel.as_posix() in moved:
-                _place(files, Path(moved[rel.as_posix()]), content)
-            else:
-                _place(files, rel, content)
+        doc = _merge_member(client, member.id, member_files, files, (hooks_rel, manifest_rel))
+        if doc is not None:
+            _merge_docs(hooks, guardrails.wrap_doc(doc, client.agent, bundle["id"], member.id))
+    protect = Member(guardrails.protect_dir(), guardrails.protect_manifest())
+    protect_files = client.files(protect.policy_dir, protect.manifest, repo_root)
+    protect_doc = _merge_member(client, protect.id, _scripts_only(protect_files, hooks_rel), files, (hooks_rel,))
+    _merge_docs(hooks, guardrails.verify_at_stop(protect_doc, client.agent))
+    skill_rel = packaging.supports(client.package_agent, packaging.SKILL)
+    for rel, content in guardrails.files(bundle["id"], _rows(client, bundle, packages), skill_rel).items():
+        _place(files, rel, content)
     manifest = _bundle_manifest(client, bundle, packages, carries_hooks=bool(hooks))
     if not aggregate:
         manifest = _per_member(manifest, client, bundle, packages)
@@ -274,24 +287,3 @@ def merged_files(
     if hooks:
         files[hooks_rel] = json.dumps(hooks, indent=2) + "\n"
     return dict(sorted(_with_licence(files, bundle, members).items()))
-
-
-def agent_plugins_files(bundle: dict[str, Any], members: list[Member], repo_root: Path) -> dict[Path, str]:
-    """The generic format: every member's skill under its own name, and a manifest of the bundle's own."""
-    files: dict[Path, str] = {}
-    for member in members:
-        for rel, content in plugin_files(member.policy_dir, member.manifest, repo_root, packaged=True).items():
-            if rel not in (Path("plugin.json"), LICENSE_REL):
-                _place(files, rel, content)
-    text = bundles.bundle_description(bundle["description"], [(m.id, bundle_grade.ADVISORY_SAYS) for m in members])
-    synthetic = _synthetic_manifest(bundle, members, text, bundle_grade.ADVISORY)
-    files[Path("plugin.json")] = json.dumps(build_manifest(synthetic, Path(bundle["id"])), indent=2) + "\n"
-    return dict(sorted(_with_licence(files, bundle, members).items()))
-
-
-def bundle_files(fmt: str, bundle: dict[str, Any], members: list[Member], repo_root: Path) -> dict[Path, str]:
-    """The bundle's files in `fmt`, by the route that format's manifest allows."""
-    if fmt == AGENT_PLUGINS:
-        return agent_plugins_files(bundle, members, repo_root)
-    route = meta_plugin_files if CLIENTS[fmt].route == DEPENDS else merged_files
-    return route(fmt, bundle, members, repo_root)

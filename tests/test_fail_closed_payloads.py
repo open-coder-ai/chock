@@ -20,9 +20,9 @@ from test_unreadable_stop import STOP_REFUSALS
 
 from chock.gate import runtime_bundle
 from chock.hooks import launch
-from chock.plugin.bundle_build import CLIENTS, MERGED, bundle_files
+from chock.plugin.bundle_build import CLIENTS, merged_files
 
-CLIENTS_UNDER_TEST = sorted(name for name, client in CLIENTS.items() if client.route == MERGED)
+CLIENTS_UNDER_TEST = sorted(CLIENTS)
 MALFORMED = ("not json", "", "[1, 2]", '{"tool_name":', "null")
 #: The shells a client may hand a command to; bash-as-sh exits 127 on a missing file, dash 2.
 SHELLS = [s for s in ("dash", "bash --posix") if shutil.which(s.split()[0])]
@@ -87,7 +87,7 @@ def _run(command: str, repo: Path, payload: str, roots: Path | None) -> object:
 def installed(request, tmp_path: Path) -> tuple[str, Path, Path]:
     client = request.param
     members = make_members(tmp_path)
-    package = write(tmp_path / "dist" / client / BUNDLE_ID, bundle_files(client, bundle(members), members, tmp_path))
+    package = write(tmp_path / "dist" / client / BUNDLE_ID, merged_files(client, bundle(members), members, tmp_path))
     return client, package, project(tmp_path)
 
 
@@ -143,7 +143,7 @@ def test_an_unset_root_refuses_only_where_the_format_exports_one(installed) -> N
 def test_every_cursor_pre_tool_entry_sets_fail_closed_alone_and_merged(tmp_path: Path) -> None:
     members = make_members(tmp_path)
     packages = [
-        bundle_files("cursor", bundle(members), members, tmp_path),
+        merged_files("cursor", bundle(members), members, tmp_path),
         *(CLIENTS["cursor"].files(m.policy_dir, m.manifest, tmp_path) for m in members),
     ]
     for files in packages:

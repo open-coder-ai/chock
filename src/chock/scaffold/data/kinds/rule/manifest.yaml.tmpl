@@ -1,0 +1,32 @@
+id: __ID__
+name: "__NAME__"
+version: "0.1.0"
+description: >
+  A rule the agent reads in its context; nothing enforces it. Edit rule.text: at most
+  500 characters, one line per instruction. The example asks for a test with every fix.
+artifact: rule
+enforcement: advise
+rule:
+  text: |
+    on(fix): add(test that fails before the fix and passes after); never(commit): failing_tests
+effects:
+- read_only
+approval:
+  required: false
+
+provenance:
+  author: "me"
+  created_at: "__DATE__T00:00:00Z"
+  source_repo: "local"
+  license: "proprietary"
+  trust_tier: "sandbox"
+# The rule text enters the agent's context (SEC-5): a sandbox rule says why it is trusted without review.
+ambient_override: true
+ambient_override_reason: "authored by the installing user"
+
+lifecycle:
+  status: draft
+  reviewed_by: []
+
+security:
+  content_instructions: never-obey

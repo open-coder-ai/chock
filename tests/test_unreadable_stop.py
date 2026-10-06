@@ -20,7 +20,8 @@ from conftest import run_hook_command
 from chock.gate import runtime_bundle
 from chock.gate.stop_reentry import REENTRY_CAP
 from chock.gate.unreadable_stop import UNREADABLE_STOP_LEDGER, UNREADABLE_STOP_WINDOW_SECONDS
-from chock.plugin.bundle_build import CLIENTS, MERGED, bundle_files
+from chock.guardrails.plugin import PROTECT_ID
+from chock.plugin.bundle_build import CLIENTS, merged_files
 from chock.plugin.gate_package import gate_reach
 
 LEDGER = Path(".chock", "state", UNREADABLE_STOP_LEDGER)
@@ -52,7 +53,9 @@ STOP_REFUSALS = {
 
 def _stop_command(package: Path) -> str:
     (command,) = [
-        c for c in hook_commands(json.loads(next(package.rglob("hooks.json")).read_text("utf-8"))) if " --stop" in c
+        c
+        for c in hook_commands(json.loads(next(package.rglob("hooks.json")).read_text("utf-8")))
+        if " --stop" in c and PROTECT_ID not in c
     ]
     return command
 
@@ -68,10 +71,8 @@ def _clean_stop(client: str, repo: Path) -> str:
     return json.dumps({**raw, "cwd": str(repo), "session_id": "s", "conversation_id": "c", "generation_id": "g"})
 
 
-#: Every client's package as it ships: one member alone, and (where the client merges) the bundle.
-SHAPES = [(name, False) for name in sorted(CLIENTS)] + [
-    (n, True) for n, c in sorted(CLIENTS.items()) if c.route == MERGED
-]
+#: Every client's package as it ships: one member alone, and the merged bundle.
+SHAPES = [(name, merged) for merged in (False, True) for name in sorted(CLIENTS)]
 
 
 @pytest.fixture(params=SHAPES, ids=[f"{n}-{'bundle' if m else 'single'}" for n, m in SHAPES])
@@ -80,7 +81,7 @@ def installed(request, tmp_path: Path) -> tuple[str, Path, Path, str]:
     client, merged = request.param
     members = make_members(tmp_path / "m")
     if merged:
-        files = bundle_files(client, bundle(members), members, tmp_path)
+        files = merged_files(client, bundle(members), members, tmp_path)
     else:
         files = CLIENTS[client].files(members[0].policy_dir, members[0].manifest, tmp_path)
     package = write(tmp_path / "pkg", files)

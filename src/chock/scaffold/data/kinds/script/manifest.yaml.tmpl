@@ -1,0 +1,37 @@
+id: __ID__
+name: "__NAME__"
+version: "0.1.0"
+description: >
+  Runs implementations/check.py on every file a commit or an agent's write changes;
+  the script decides. The example refuses a .env file and asks before a change to a
+  lockfile. Edit check.py; it reads JSON on stdin and answers with its exit code.
+artifact: hook
+enforcement: block
+effects:
+- read_only
+approval:
+  required: false
+
+hook:
+  gate:
+    kind: script
+    "on": [commit, tool_use]
+    action: block
+    message: >
+      __ID__: implementations/check.py refused this change; its reason is above.
+    params:
+      script: check.py
+
+provenance:
+  author: "me"
+  created_at: "__DATE__T00:00:00Z"
+  source_repo: "local"
+  license: "proprietary"
+  trust_tier: "sandbox"
+
+lifecycle:
+  status: draft
+  reviewed_by: []
+
+security:
+  content_instructions: never-obey

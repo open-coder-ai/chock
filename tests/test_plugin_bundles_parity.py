@@ -1,4 +1,4 @@
-"""Every merged client's bundle refuses what its members refuse alone, and a changed bundle needs a new version."""
+"""Every client's merged bundle refuses exactly what its members refuse alone."""
 
 from __future__ import annotations
 
@@ -7,14 +7,12 @@ import os
 from pathlib import Path
 
 import pytest
-import yaml
 from bundle_fixtures import ALL_ROOTS, BUNDLE_ID, MARKER, bundle, hook_commands, make_members, project, write
 from conftest import run_hook_command
 
-from chock.plugin import cli as plugin_cli
-from chock.plugin.bundle_build import CLIENTS, MERGED, bundle_files
+from chock.plugin.bundle_build import CLIENTS, merged_files
 
-MERGED_CLIENTS = sorted(name for name, client in CLIENTS.items() if client.route == MERGED)
+MERGED_CLIENTS = sorted(CLIENTS)
 
 
 def _payload(client: str, repo: Path, tool: str, **tool_input: str) -> str:
@@ -51,7 +49,7 @@ def test_a_merged_bundle_refuses_exactly_what_its_members_refuse_alone(tmp_path:
     members = make_members(tmp_path)
     dist = tmp_path / "dist" / client
     alone = [write(dist / m.id, CLIENTS[client].files(m.policy_dir, m.manifest, tmp_path)) for m in members]
-    merged = write(dist / BUNDLE_ID, bundle_files(client, bundle(members), members, tmp_path))
+    merged = write(dist / BUNDLE_ID, merged_files(client, bundle(members), members, tmp_path))
     repo = project(tmp_path)
     cases = {
         "forbidden write": (_payload(client, repo, "Write", file_path="App.java", content=MARKER), True),
@@ -63,51 +61,3 @@ def test_a_merged_bundle_refuses_exactly_what_its_members_refuse_alone(tmp_path:
         by_members = any(_outcomes(package, repo, payload) for package in alone)
         assert by_members == refused, (client, case, "members alone")
         assert _outcomes(merged, repo, payload) == by_members, (client, case, "bundle")
-
-
-def _repo(tmp_path: Path) -> Path:
-    members = make_members(tmp_path)
-    (tmp_path / "bundles.yaml").write_text(yaml.safe_dump({"bundles": [bundle(members)]}), encoding="utf-8")
-    return tmp_path
-
-
-def _build(repo: Path, *extra: str) -> int:
-    return plugin_cli.main(["build", "--repo", str(repo), "--format", "all", "--out-dir", str(repo / "dist"), *extra])
-
-
-def _change_a_member(repo: Path) -> None:
-    skill = next((repo / ".agents" / "policies").rglob("SKILL.md"), None)
-    guard = next((repo / ".agents" / "policies").rglob("demo-shell-guard.py"))
-    target = skill or guard
-    target.write_text(target.read_text(encoding="utf-8") + "\n# changed\n", encoding="utf-8")
-
-
-def _bump(repo: Path) -> None:
-    doc = yaml.safe_load((repo / "bundles.yaml").read_text(encoding="utf-8"))
-    doc["bundles"][0]["version"] = "0.1.1"
-    (repo / "bundles.yaml").write_text(yaml.safe_dump(doc), encoding="utf-8")
-
-
-def test_a_bundle_whose_content_changes_must_change_its_version(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    repo = _repo(tmp_path)
-    assert _build(repo) == 0
-    _change_a_member(repo)
-    capsys.readouterr()
-
-    assert _build(repo, "--check") == 1
-    assert "unbumped:" in capsys.readouterr().out
-    assert _build(repo) == 2
-    assert "bump its version" in capsys.readouterr().err
-
-    _bump(repo)
-    assert _build(repo) == 0
-    assert _build(repo, "--check") == 0
-
-
-def test_an_unchanged_bundle_rebuilds_at_the_same_version(tmp_path: Path) -> None:
-    repo = _repo(tmp_path)
-    assert _build(repo) == 0
-    assert _build(repo) == 0
-    assert _build(repo, "--check") == 0

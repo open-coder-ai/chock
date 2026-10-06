@@ -1,1 +1,1 @@
-"""`chock install --selection`: one Claude Code plugin from a pinned catalog selection."""
+"""`chock install --selection`: one plugin for one agent from a pinned catalog selection."""

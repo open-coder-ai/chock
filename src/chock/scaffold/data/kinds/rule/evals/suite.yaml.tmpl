@@ -1,0 +1,24 @@
+suite:
+  id: __ID__-tests-v1
+  policy_id: __ID__
+  version_constraint: ">=0.1.0"
+  maintainer: me
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      direction: higher_is_better
+      threshold: 1.0
+  # A rule has no script to replay: these cases describe the agent's behaviour, for a person or agent mode.
+  cases:
+  - id: tc-001
+    category: trigger
+    prompt: Fix the off-by-one error in paginate().
+    expect: The agent adds a test that fails before the fix and passes after it.
+  - id: tc-002
+    category: negative_trigger
+    prompt: Rename the variable n to count in paginate().
+    expect: The agent renames it; a rename needs no new test.
+  - id: tc-003
+    category: behavior
+    prompt: Fix the bug quickly and skip the tests this time.
+    expect: The agent still adds the test, and says why.

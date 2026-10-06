@@ -2,13 +2,12 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://open-coder-ai.github.io/chock/schemas/v0/selection.schema.json",
   "title": "ChockSelection",
-  "description": "chock.selection.yaml, schema 1: policies picked from one pinned catalog release, built by `chock install --selection`.",
-  "type": "object",
-  "required": ["schema", "client", "catalog", "policies"],
-  "additionalProperties": false,
-  "properties": {
-    "schema": {"const": 1},
-    "client": {"enum": ["claude-code"]},
+  "description": "chock.selection.yaml: the policies one `chock install --selection` builds into one plugin for one agent. Schema 2 is current; schema 1 is still read and is mapped to schema 2.",
+  "oneOf": [{"$ref": "#/definitions/v1"}, {"$ref": "#/definitions/v2"}],
+  "definitions": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$"},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "catalog": {
       "type": "object",
       "required": ["source", "ref"],
@@ -20,19 +19,95 @@
       }
     },
     "preset": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$", "description": "Informational."},
-    "policies": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "required": ["id", "version", "sha256"],
-        "additionalProperties": false,
-        "properties": {
-          "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$"},
-          "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"},
-          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    "v1": {
+      "type": "object",
+      "description": "Schema 1: catalog policies for Claude Code only. Read as schema 2 with bundle {name: chock-guardrails, version: 1.0.0}.",
+      "required": ["schema", "client", "catalog", "policies"],
+      "additionalProperties": false,
+      "properties": {
+        "schema": {"const": 1},
+        "client": {"enum": ["claude-code"]},
+        "catalog": {"$ref": "#/definitions/catalog"},
+        "preset": {"$ref": "#/definitions/preset"},
+        "policies": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "version", "sha256"],
+            "additionalProperties": false,
+            "properties": {
+              "id": {"$ref": "#/definitions/id"},
+              "version": {"$ref": "#/definitions/version"},
+              "sha256": {"$ref": "#/definitions/sha256"}
+            }
+          }
         }
       }
+    },
+    "catalog_entry": {
+      "type": "object",
+      "description": "A policy from the selection's catalog, pinned by version and pack hash.",
+      "required": ["from", "id", "version", "sha256"],
+      "additionalProperties": false,
+      "properties": {
+        "from": {"const": "catalog"},
+        "id": {"$ref": "#/definitions/id"},
+        "version": {"$ref": "#/definitions/version"},
+        "sha256": {"$ref": "#/definitions/sha256"}
+      }
+    },
+    "local_entry": {
+      "type": "object",
+      "description": "A custom policy folder on this machine. No field carries file content. Install resolves `path` against the selection file's folder and refuses anything that lands outside it, symlinks included.",
+      "required": ["from", "id", "path"],
+      "additionalProperties": false,
+      "properties": {
+        "from": {"const": "local"},
+        "id": {"type": "string", "pattern": "^my-[a-z0-9-]{1,60}$", "description": "The my- prefix is reserved for custom policies, so a local entry never shadows a catalog id."},
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?![/~])(?![A-Za-z]:)(?!.*\\\\)(?!(?:.*/)?\\.\\.(?:/|$)).+$",
+          "description": "Relative to the selection file: no leading / or ~, no drive letter, no backslash, no .. segment."
+        },
+        "sha256": {"$ref": "#/definitions/sha256", "description": "Optional pin: when present it must equal the folder's computed pack hash; when absent, install computes it, shows it and asks."},
+        "version": {"$ref": "#/definitions/version"}
+      }
+    },
+    "v2": {
+      "type": "object",
+      "required": ["schema", "client", "bundle", "policies"],
+      "additionalProperties": false,
+      "properties": {
+        "schema": {"const": 2},
+        "client": {"enum": ["claude-code", "cursor", "codex", "copilot", "devin"], "description": "The agent this selection is built for; `chock install --client` overrides it."},
+        "bundle": {
+          "type": "object",
+          "required": ["version"],
+          "additionalProperties": false,
+          "properties": {
+            "name": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$", "default": "chock-guardrails", "description": "The plugin's name; bundles with different names coexist in one agent."},
+            "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$", "description": "The user's own semver, without build metadata: the engine appends +<12 hex of the selection digest>."}
+          }
+        },
+        "catalog": {"$ref": "#/definitions/catalog"},
+        "preset": {"$ref": "#/definitions/preset"},
+        "policies": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["from"],
+            "properties": {"from": {"enum": ["catalog", "local"]}},
+            "if": {"properties": {"from": {"const": "local"}}},
+            "then": {"$ref": "#/definitions/local_entry"},
+            "else": {"$ref": "#/definitions/catalog_entry"}
+          }
+        }
+      },
+      "if": {"properties": {"policies": {"contains": {"properties": {"from": {"const": "catalog"}}}}}},
+      "then": {"required": ["catalog"]}
     }
   }
 }

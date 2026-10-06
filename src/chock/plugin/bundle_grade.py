@@ -49,15 +49,20 @@ def carries_guard(hooks_text: str | None) -> bool:
     return hooks_text is not None and any(_GUARD_FLAG in c for c in _hook_commands(json.loads(hooks_text)))
 
 
-def grade_of(hooks_text: str | None, gate_text: str | None, agent: str) -> tuple[int, str]:
-    """(grade, what it does) of one published package, from the hooks it ships and nothing else."""
+def grade_of(
+    hooks_text: str | None, gate_text: str | None, agent: str, *, write_judged: bool = True
+) -> tuple[int, str]:
+    """(grade, what it does) of one published package, from the hooks it ships and nothing else.
+
+    `write_judged=False` is a client that runs the write hook but never names a write tool it matches.
+    """
     if hooks_text is None:
         return ADVISORY, ADVISORY_SAYS
     doc = json.loads(hooks_text)
     commands = _hook_commands(doc)
     if any(_GATE_FLAG in c for c in commands):
         action = str((json.loads(gate_text) if gate_text else {}).get("action") or "block")
-        writes = vendors.pre_tool_event(agent) in events_for(doc, _GATE_FLAG)
+        writes = write_judged and vendors.pre_tool_event(agent) in events_for(doc, _GATE_FLAG)
         reach = (
             "on an agent's file writes and at turn end"
             if writes
@@ -72,10 +77,10 @@ def grade_of(hooks_text: str | None, gate_text: str | None, agent: str) -> tuple
     return ADVISORY, ADVISORY_SAYS
 
 
-def grade_of_files(files: dict[Path, str], hooks_rel: str, agent: str) -> tuple[int, str]:
+def grade_of_files(files: dict[Path, str], hooks_rel: str, agent: str, *, write_judged: bool = True) -> tuple[int, str]:
     """`grade_of` for a package held in memory."""
     gate = files.get(Path(SCRIPTS_TEMPLATE.format(name=GATE_FILE)))
-    return grade_of(files.get(Path(hooks_rel)), gate, agent)
+    return grade_of(files.get(Path(hooks_rel)), gate, agent, write_judged=write_judged)
 
 
 def enforcement_keyword(grade: int) -> str:

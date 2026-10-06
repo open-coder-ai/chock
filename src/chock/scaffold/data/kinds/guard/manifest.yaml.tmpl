@@ -1,0 +1,33 @@
+id: __ID__
+name: "__NAME__"
+version: "0.1.0"
+description: >
+  Refuses a shell command before the agent runs it: edit BLOCK and ASK in
+  implementations/__ID__.py. The example refuses terraform destroy and asks before
+  terraform state rm. Best effort: a renamed binary or an alias gets past it.
+artifact: rule
+enforcement: advise
+rule:
+  text: |
+    never(run): terraform destroy; ask_first: terraform state rm
+effects:
+- read_only
+approval:
+  required: false
+
+provenance:
+  author: "me"
+  created_at: "__DATE__T00:00:00Z"
+  source_repo: "local"
+  license: "proprietary"
+  trust_tier: "sandbox"
+# The rule text enters the agent's context (SEC-5): a sandbox rule says why it is trusted without review.
+ambient_override: true
+ambient_override_reason: "authored by the installing user"
+
+lifecycle:
+  status: draft
+  reviewed_by: []
+
+security:
+  content_instructions: never-obey

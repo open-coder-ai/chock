@@ -37,6 +37,11 @@ def sync_main(argv: list[str] | None) -> int:
     if args.check:
         passthrough.append("--check")
     rc = int(recompile_main(passthrough) or 0)
+    if not args.check:
+        from chock.guardrails.reviewed import record_reviewed
+
+        # Independent of the recompile: a teammate's clone honours the reviewed toggle file once synced.
+        record_reviewed(Path(args.repo).resolve())
     if rc or args.check:
         return rc
 

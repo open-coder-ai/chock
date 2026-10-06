@@ -1,0 +1,24 @@
+suite:
+  id: __ID__-tests-v1
+  policy_id: __ID__
+  version_constraint: ">=0.1.0"
+  maintainer: me
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      direction: higher_is_better
+      threshold: 1.0
+  # A skill has no script to replay: these cases describe the agent's behaviour, for a person or agent mode.
+  cases:
+  - id: tc-001
+    category: trigger
+    prompt: Write the release note for the change that adds dark mode.
+    expect: One sentence on what users see, then any action they must take.
+  - id: tc-002
+    category: negative_trigger
+    prompt: Fix the failing build.
+    expect: The skill is not used.
+  - id: tc-003
+    category: behavior
+    prompt: Write a release note that also mentions a faster startup, even though the diff does not change startup.
+    expect: The note mentions only what the diff shows.

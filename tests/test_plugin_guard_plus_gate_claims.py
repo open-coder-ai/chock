@@ -10,7 +10,7 @@ from bundle_fixtures import write
 from guard_gate_support import BUILDERS, POLICY_ID, make_policy
 
 from chock.plugin import bundle_grade, catalog_page
-from chock.plugin.bundle_build import Member, bundle_files
+from chock.plugin.bundle_build import Member, merged_files
 
 
 def _bundle() -> dict:
@@ -23,7 +23,7 @@ def _bundle() -> dict:
 def test_a_merged_bundle_carries_and_states_both_halves(tmp_path: Path, client: str, manifest_rel: str) -> None:
     pack, data = make_policy(tmp_path, guard=True, gate=True)
     members = [Member(pack, data)]
-    files = bundle_files(client, _bundle(), members, tmp_path)
+    files = merged_files(client, _bundle(), members, tmp_path)
     hooks = next(json.loads(text) for rel, text in files.items() if rel.name == "hooks.json")
     commands = bundle_grade._hook_commands(hooks)
     assert any("--guard" in c for c in commands) and any("--gate" in c for c in commands)
@@ -36,7 +36,7 @@ def test_a_stop_only_gate_beside_a_guard_never_reads_as_judging_the_write(tmp_pa
     """Copilot's guard sits at PreToolUse; that must not lend the Stop-only gate a write-path claim."""
     pack, data = make_policy(tmp_path, guard=True, gate=True)
     members = [Member(pack, data)]
-    files = bundle_files("copilot", _bundle(), members, tmp_path)
+    files = merged_files("copilot", _bundle(), members, tmp_path)
     description = json.loads(files[Path("plugin.json")])["description"]
     assert "at turn end only; the write itself is not judged" in description
 

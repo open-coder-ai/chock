@@ -7,6 +7,7 @@ from typing import Any
 
 from chock import yamlio
 from chock.compile.compiler import _load_manifest
+from chock.install.selection import catalog_entries
 from chock.plugin.bundle_build import Member
 from chock.scaffold.add import IntegrityError, verified_pack
 
@@ -23,12 +24,17 @@ def _registry(catalog: Path, ref: str) -> dict[str, dict[str, Any]]:
     return {str(e.get("id")): e for e in data.get("policies", []) or [] if isinstance(e, dict)}
 
 
+def registry_ids(catalog: Path, ref: str) -> set[str]:
+    """Every policy id the catalog's registry lists at `ref`."""
+    return set(_registry(catalog, ref))
+
+
 def members(catalog: Path, selection: dict[str, Any]) -> list[Member]:
-    """One packaging member per selected policy; refuses on a missing id, a version or a hash mismatch."""
+    """One packaging member per catalog entry; refuses on a missing id, a version or a hash mismatch."""
     ref = selection["catalog"]["ref"]
     registry = _registry(catalog, ref)
     found = []
-    for pick in selection["policies"]:
+    for pick in catalog_entries(selection):
         policy_id = pick["id"]
         entry = registry.get(policy_id)
         if entry is None:

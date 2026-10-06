@@ -154,7 +154,7 @@ chock new {policy|skill|subagent} <id> [--root .]
 
 Creates a valid, empty artifact folder to fill in by hand or with the `policy-init` skill. `new policy` writes
 `manifest.yaml` (the gate is its `hook.gate` block) and `evals/suite.yaml`; `new skill` writes a `SKILL.md`, whose
-frontmatter *is* its manifest; `new subagent` writes `subagent.yaml`.
+frontmatter *is* its manifest; `new subagent` writes `subagent.yaml`. `new policy <id> --kind <kind>` starts from a tested template instead ([Custom Policies](custom-policies.md)).
 
 ### `compile` — low-level single-policy compile
 

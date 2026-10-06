@@ -1,0 +1,36 @@
+id: chock-guardrails-protect
+name: "Guardrails toggle protection"
+version: "1.1.0"
+description: >
+  Built into every chock bundle and never switched off: refuses an agent's write to .chock/guardrails.json
+  and ~/.chock/guardrails.json, the files that switch a bundle's guardrails on and off, through a shell
+  command (best effort) or an Edit/Write (links followed, case ignored), and an agent's `chock bundle on|off`.
+  Also refuses an agent's `chock install --trust-local` and its write to an install marker
+  (chock.selection.json), which would accept custom code for a person. Reads pass. A person changes the
+  file with `chock bundle on|off`, and accepts custom code, in their own shell.
+artifact: hook
+enforcement: block
+hook:
+  gate:
+    kind: script
+    "on": [tool_use]
+    outside_repo: ["/*", "?:/*"]
+    action: block
+    message: >
+      An agent may not change a guardrails toggle file or an install marker. Show the person the exact
+      `chock bundle on|off <policy-id>` or `chock install --selection <file> --trust-local <id>=<sha256>`
+      command to run in their own shell.
+    params:
+      script: chock-guardrails-protect-gate.py
+effects:
+- read_only
+provenance:
+  author: "chock-core"
+  created_at: "2026-10-06T00:00:00Z"
+  source_repo: "https://github.com/open-coder-ai/chock"
+  license: "Apache-2.0"
+  trust_tier: "community"
+lifecycle:
+  status: draft
+security:
+  content_instructions: never-obey

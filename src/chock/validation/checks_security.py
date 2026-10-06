@@ -207,8 +207,7 @@ def check_ambient_tier(artifact_dir: Path, manifest: dict[str, Any], artifact_ty
     if trust_tier in {"community", "verified", "certified"}:
         return
 
-    ambient_override = manifest.get("ambient_override", False)
-    if not ambient_override:
+    if manifest.get("ambient_override") is not True:
         manifest_path = find_manifest(artifact_dir, artifact_type) or (artifact_dir / CANONICAL_MANIFEST)
         report.add(
             Finding(
@@ -217,7 +216,7 @@ def check_ambient_tier(artifact_dir: Path, manifest: dict[str, Any], artifact_ty
                 "error",
                 "Rule is wired into ambient context (SEC-5). sandbox is the scaffold default and is fine "
                 "while drafting; before the rule ships, either set provenance.trust_tier >= community "
-                "(it has been reviewed) or ambient_override: true with a documented rationale "
+                "(it has been reviewed) or ambient_override: true with ambient_override_reason "
                 "(it is trusted without review, and the manifest says why).",
             )
         )
