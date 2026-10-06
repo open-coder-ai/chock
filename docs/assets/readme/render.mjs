@@ -25,7 +25,7 @@ h2{margin:0;font-size:36px;line-height:1.1;font-weight:600;letter-spacing:-.02em
 .panel{border:1px solid #3A4870;border-radius:16px;background:#263251}
 .term{border:1px solid #3A4870;border-radius:14px;background:#1A2238;padding:20px 22px;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:15px;line-height:1.7}
 .d{color:#F0B53C}.no{color:#F29B8A}.c{color:#7F8CA8}
-.tier{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;font-weight:600;padding:3px 8px;border-radius:5px;white-space:nowrap}
+.tier{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;font-weight:500;padding:3px 8px;border-radius:5px;white-space:nowrap}
 .tc{background:#F0B53C;color:#222C44}.ta{background:#8FB4F0;color:#222C44}.td{background:#3A4870;color:#EEF1F6}
 `;
 const MARK = `<svg width="46" height="46" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="104" fill="#263251"/><path d="M 210.1 183.2 L 156.2 256.0 L 210.1 328.8" fill="none" stroke="#F0B53C" stroke-width="24.76" stroke-linecap="round" stroke-linejoin="round"/><path d="M 301.9 183.2 L 355.8 256.0 L 301.9 328.8" fill="none" stroke="#F0B53C" stroke-width="24.76" stroke-linecap="round" stroke-linejoin="round"/><rect x="227.25" y="227.25" width="57.51" height="57.51" transform="rotate(45 256 256)" fill="#F0B53C"/></svg>`;
