@@ -59,18 +59,20 @@
     },
     "local_entry": {
       "type": "object",
-      "description": "A policy folder on this machine, relative to the selection file. No field carries file content.",
+      "description": "A custom policy folder on this machine. No field carries file content. Install resolves `path` against the selection file's folder and refuses anything that lands outside it, symlinks included.",
       "required": ["from", "id", "path"],
       "additionalProperties": false,
       "properties": {
         "from": {"const": "local"},
-        "id": {"$ref": "#/definitions/id"},
+        "id": {"type": "string", "pattern": "^my-[a-z0-9-]{1,60}$", "description": "The my- prefix is reserved for custom policies, so a local entry never shadows a catalog id."},
         "path": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^(?![/~\\\\])(?![A-Za-z]:)(?!(?:.*[/\\\\])?\\.\\.(?:[/\\\\]|$)).+$",
-          "description": "Relative, inside the selection's folder: no leading / or ~, no drive letter, no .. segment."
-        }
+          "pattern": "^(?![/~])(?![A-Za-z]:)(?!.*\\\\)(?!(?:.*/)?\\.\\.(?:/|$)).+$",
+          "description": "Relative to the selection file: no leading / or ~, no drive letter, no backslash, no .. segment."
+        },
+        "sha256": {"$ref": "#/definitions/sha256", "description": "Optional pin: when present it must equal the folder's computed pack hash; when absent, install computes it, shows it and asks."},
+        "version": {"$ref": "#/definitions/version"}
       }
     },
     "v2": {

@@ -119,11 +119,32 @@ def test_a_schema_2_catalog_entry_needs_its_pin_and_from(valid: dict) -> None:
         sel.check(data)
 
 
-def test_a_local_entry_is_valid_in_the_schema_and_needs_no_catalog(valid: dict) -> None:
-    local = {"from": "local", "id": "my-guard", "path": "policies/my-guard"}
+@pytest.mark.parametrize(
+    "local",
+    [
+        {"from": "local", "id": "my-guard", "path": "policies/my-guard"},
+        {"from": "local", "id": "my-guard", "path": "my-guard", "sha256": "a" * 64, "version": "0.1.0"},
+    ],
+    ids=["minimal", "full"],
+)
+def test_a_local_entry_is_valid_in_the_schema_and_needs_no_catalog(valid: dict, local: dict) -> None:
     data = v2(valid, policies=[local])
     del data["catalog"]
     assert sel.check(data)["policies"] == [local]
+
+
+@pytest.mark.parametrize("policy_id", ["guard", "scan-secrets", "my-", "my_guard", "My-guard", "my-" + "a" * 61])
+def test_a_local_id_needs_the_reserved_my_prefix(valid: dict, policy_id: str) -> None:
+    data = v2(valid, policies=[{"from": "local", "id": policy_id, "path": "p"}])
+    with pytest.raises(sel.SelectionError, match="policies/0/id"):
+        sel.check(data)
+
+
+@pytest.mark.parametrize(("field", "value"), [("sha256", "abc"), ("version", "1.0"), ("source", "x")])
+def test_a_local_pin_must_be_well_formed_and_no_other_key_is_allowed(valid: dict, field: str, value: str) -> None:
+    data = v2(valid, policies=[{"from": "local", "id": "my-guard", "path": "p", field: value}])
+    with pytest.raises(sel.SelectionError, match="policies/0"):
+        sel.check(data)
 
 
 def test_catalog_entries_need_the_catalog(valid: dict) -> None:
@@ -133,7 +154,9 @@ def test_catalog_entries_need_the_catalog(valid: dict) -> None:
         sel.check(data)
 
 
-@pytest.mark.parametrize("path", ["/abs/x", "~/x", "../x", "a/../../x", "a/..", "C:/x", "a\\..\\x", ""])
+@pytest.mark.parametrize(
+    "path", ["/abs/x", "~/x", "../x", "..", "a/../../x", "a/..", "C:/x", "c:x", "a\\b", "a\\..\\x", ""]
+)
 def test_a_local_path_outside_the_selection_folder_is_refused(valid: dict, path: str) -> None:
     data = v2(valid, policies=[{"from": "local", "id": "my-guard", "path": path}])
     with pytest.raises(sel.SelectionError, match="path"):
