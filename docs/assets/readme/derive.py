@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Derive data.json for the README panels: derive.py <chock-catalog checkout> <its commit sha>."""
+"""Derive data.json for the README panels. Each subcommand rewrites only its own keys.
+
+derive.py catalog   <chock-catalog checkout> <its commit sha>
+derive.py agentseam <agentseam checkout> <its commit sha>
+derive.py repos     (the public repo list, from repos.json)
+"""
 
 from __future__ import annotations
 
@@ -13,6 +18,9 @@ import yaml
 TIER = {"enforced-at-commit": "commit", "best-effort": "in-agent", "advisory": "advisory"}
 RANK = {"commit": 0, "in-agent": 1, "advisory": 2}
 LEVELS = ("commit", "in-agent", "warn-or-ask")
+GRADES = ("enforced", "enforceable", "best-effort", "detect", "none")
+OUT = Path(__file__).with_name("data.json")
+REPOS = Path(__file__).with_name("repos.json")
 ASI = [f"ASI{n:02d}" for n in range(1, 11)]
 INCIDENTS = [
     ("Log4Shell (CVE-2021-44228)", "java-security"),
@@ -41,7 +49,7 @@ def tier_of(entry: dict) -> str:
     return TIER[entry["enforces"].split(" ")[0]]
 
 
-def main(catalog: Path, sha: str, out: Path) -> None:
+def derive_catalog(catalog: Path, sha: str) -> dict:
     registry = yaml.safe_load((catalog / "registry.yaml").read_text(encoding="utf-8"))["policies"]
     by_id = {p["id"]: p for p in registry}
     tiers = Counter(tier_of(p) for p in registry)
@@ -57,7 +65,7 @@ def main(catalog: Path, sha: str, out: Path) -> None:
                 if isinstance(control, dict):
                     slices[key].add(slice_level(tier_of(by_id[data["id"]]), control.get("note") or ""))
     level = {c: next((lv for lv in LEVELS if lv in slices[c]), "advisory") for c in ASI if asi[c]}
-    data = {
+    return {
         "source": {"file": "chock-catalog registry.yaml and */*/manifest.yaml", "commit": sha},
         "policies": len(registry),
         "tiers": {k: tiers[k] for k in RANK},
@@ -77,9 +85,42 @@ def main(catalog: Path, sha: str, out: Path) -> None:
             for name, pid in INCIDENTS
         ],
     }
-    out.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    sys.stdout.write(json.dumps({k: v for k, v in data.items() if k != "incidents"}, indent=2) + "\n")
+
+
+def derive_agentseam(checkout: Path, sha: str) -> dict:
+    """Grade every (agent, event) cell with agentseam's own matrix.enforcement_level()."""
+    sys.path.insert(0, str(checkout / "src"))
+    from agentseam import contract, matrix  # noqa: PLC0415 -- importable only after the checkout joins sys.path
+
+    agents = matrix.agents()
+    grades = Counter(matrix.enforcement_level(a, e) for a in agents for e in contract.EVENTS)
+    return {
+        "agentseam": {
+            "source": {"file": "agentseam matrix.enforcement_level()", "commit": sha},
+            "agents": len(agents),
+            "adapted_agents": len(matrix.adapted_agents()),
+            "events": len(contract.EVENTS),
+            "cells": sum(grades.values()),
+            "grades": {g: grades[g] for g in GRADES},
+        }
+    }
+
+
+def derive_repos() -> dict:
+    return {"repos": json.loads(REPOS.read_text(encoding="utf-8"))}
+
+
+def main(argv: list[str]) -> None:
+    data = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
+    if argv[0] == "catalog":
+        data.update(derive_catalog(Path(argv[1]), argv[2]))
+    elif argv[0] == "agentseam":
+        data.update(derive_agentseam(Path(argv[1]), argv[2]))
+    else:
+        data.update(derive_repos())
+    OUT.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    sys.stdout.write(json.dumps({k: v for k, v in data.items() if k not in {"incidents", "repos"}}, indent=2) + "\n")
 
 
 if __name__ == "__main__":
-    main(Path(sys.argv[1]), sys.argv[2], Path(__file__).with_name("data.json"))
+    main(sys.argv[1:])

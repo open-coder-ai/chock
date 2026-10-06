@@ -94,5 +94,89 @@
       "tier": "commit",
       "eval_cases": 72
     }
+  ],
+  "agentseam": {
+    "source": {
+      "file": "agentseam matrix.enforcement_level()",
+      "commit": "104da73533e1dcff98f37ee6c9e517947599359b"
+    },
+    "agents": 16,
+    "adapted_agents": 12,
+    "events": 12,
+    "cells": 192,
+    "grades": {
+      "enforced": 0,
+      "enforceable": 2,
+      "best-effort": 34,
+      "detect": 55,
+      "none": 101
+    }
+  },
+  "repos": [
+    {
+      "name": "agentseam",
+      "kind": "Core",
+      "line": "One handler API over every coding agent."
+    },
+    {
+      "name": "chock",
+      "kind": "Core",
+      "line": "Author a policy once, enforce it on every agent."
+    },
+    {
+      "name": "chock-catalog",
+      "kind": "Policies",
+      "line": "The policies, each labelled by what it enforces, with replayed evals."
+    },
+    {
+      "name": "context-report",
+      "kind": "Evidence",
+      "line": "A signed report of whether an agent artifact works."
+    },
+    {
+      "name": "chock-threat-intel",
+      "kind": "Evidence",
+      "line": "A weekly threat ledger, each entry scored against the catalog."
+    },
+    {
+      "name": "chock-claude-plugins",
+      "kind": "Plugins",
+      "line": "The catalog as Claude Code plugins (generated)."
+    },
+    {
+      "name": "chock-copilot-plugins",
+      "kind": "Plugins",
+      "line": "The catalog as Copilot CLI and VS Code plugins (generated)."
+    },
+    {
+      "name": "chock-cursor-plugins",
+      "kind": "Plugins",
+      "line": "The catalog as Cursor plugins (generated)."
+    },
+    {
+      "name": "chock-codex-plugins",
+      "kind": "Plugins",
+      "line": "The catalog as Codex plugins (generated)."
+    },
+    {
+      "name": "chock-devin-plugins",
+      "kind": "Plugins",
+      "line": "The catalog as Devin plugins (generated)."
+    },
+    {
+      "name": "chock-quickstart",
+      "kind": "Template",
+      "line": "What chock init leaves behind."
+    },
+    {
+      "name": "chock-example",
+      "kind": "Template",
+      "line": "A working adoption, one policy per layer."
+    },
+    {
+      "name": ".github",
+      "kind": "Community",
+      "line": "Org profile and community health files."
+    }
   ]
 }
