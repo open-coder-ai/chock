@@ -114,7 +114,7 @@ ${term([cmd('chock init .'), cmd('chock add &lt;id&gt; --ref &lt;sha&gt; \\'), '
 ${term(['<div class="d">Claude Code</div>', '<div>chock-claude-plugins</div>', '<div class="d">Cursor · Copilot · Codex · Devin</div>', '<div>one plugin repo per client</div>'])}
 <div style="font-size:17px;line-height:1.55;color:#D5DBE8">Your own sessions in that client. Best-effort hooks that fail open. Pair with route 1 for commit and CI.</div></div>
 </div>
-<div class="panel" style="padding:20px 28px;font-size:18px;color:#D5DBE8"><span class="gold" style="font-weight:600">Or build a selection:</span> the chock.sh builder (launching soon) gives one Claude Code plugin from the policies you pick.</div></div>`);
+<div class="panel" style="padding:20px 28px;font-size:18px;color:#D5DBE8"><span class="gold" style="font-weight:600">Or build a selection:</span> the chock.sh builder (launching soon) gives one plugin for your agent from the policies you pick, your own included.</div></div>`);
 
 const role = (t, s, lines) => `<div class="panel" style="padding:26px;display:flex;flex-direction:column;gap:12px">
 <div style="font-size:23px;font-weight:600">${t}</div><div class="mono" style="font-size:14px;color:#B4BED2">${s}</div>

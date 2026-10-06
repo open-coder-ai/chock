@@ -24,6 +24,11 @@ def _registry(catalog: Path, ref: str) -> dict[str, dict[str, Any]]:
     return {str(e.get("id")): e for e in data.get("policies", []) or [] if isinstance(e, dict)}
 
 
+def registry_ids(catalog: Path, ref: str) -> set[str]:
+    """Every policy id the catalog's registry lists at `ref`."""
+    return set(_registry(catalog, ref))
+
+
 def members(catalog: Path, selection: dict[str, Any]) -> list[Member]:
     """One packaging member per catalog entry; refuses on a missing id, a version or a hash mismatch."""
     ref = selection["catalog"]["ref"]

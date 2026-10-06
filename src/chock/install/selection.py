@@ -102,6 +102,14 @@ def upgrade(data: dict[str, Any]) -> dict[str, Any]:
     return {**upgraded, "preset": data["preset"]} if "preset" in data else upgraded
 
 
+def folder(arg: str) -> Path | None:
+    """The folder of the selection file `arg` names, which local paths resolve against; None for a link or code."""
+    if FRAGMENT in arg:
+        return None
+    path = Path(arg).expanduser()
+    return path.resolve().parent if _is_file(path) else None
+
+
 def load(arg: str) -> dict[str, Any]:
     """The checked selection named by `arg`, as schema 2."""
     return upgrade(check(_raw(arg)))
@@ -112,11 +120,15 @@ def catalog_entries(selection: dict[str, Any]) -> list[dict[str, Any]]:
     return [p for p in selection["policies"] if p["from"] == CATALOG]
 
 
-def digest(selection: dict[str, Any]) -> str:
-    """A stable hash of what a selection installs: the catalog commit and each policy's pinned hash.
+def digest(selection: dict[str, Any], local: dict[str, str] | None = None) -> str:
+    """A stable hash of what a selection installs: the catalog commit, each policy's pinned hash, each local hash.
 
-    A schema-1 selection and its schema-2 form hash alike, so an upgrade keeps the plugin's version.
+    A schema-1 selection and its schema-2 form hash alike, so an upgrade keeps the plugin's version; a selection
+    with no local policy hashes as it did before local policies existed.
     """
     pinned = sorted((p["id"], p["sha256"]) for p in selection["policies"] if p.get("from", CATALOG) == CATALOG)
     ref = (selection.get("catalog") or {}).get("ref")
-    return hashlib.sha256(json.dumps([ref, pinned]).encode("utf-8")).hexdigest()
+    parts: list[Any] = [ref, pinned]
+    if local:
+        parts.append(sorted(local.items()))
+    return hashlib.sha256(json.dumps(parts).encode("utf-8")).hexdigest()

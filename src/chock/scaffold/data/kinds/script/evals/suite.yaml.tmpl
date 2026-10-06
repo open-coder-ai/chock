@@ -1,0 +1,45 @@
+suite:
+  id: __ID__-tests-v1
+  policy_id: __ID__
+  version_constraint: ">=0.1.0"
+  maintainer: me
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      direction: higher_is_better
+      threshold: 1.0
+  cases:
+  - id: tc-001
+    category: trigger
+    prompt: A commit adds a .env file.
+    expect: The commit is refused.
+    execute:
+      files:
+        .env: "MODE=dev\n"
+      expect: block
+  - id: tc-002
+    category: negative_trigger
+    prompt: A commit changes an ordinary source file.
+    expect: The commit is allowed.
+    execute:
+      files:
+        app.py: "print('ok')\n"
+      expect: allow
+  - id: tc-003
+    category: behavior
+    prompt: The agent rewrites a lockfile.
+    expect: The write waits for a person's yes.
+    execute:
+      event: tool_use
+      writes:
+        package-lock.json: "{}\n"
+      expect: ask
+  - id: tc-004
+    category: negative_trigger
+    prompt: The agent writes an ordinary source file.
+    expect: The write is allowed.
+    execute:
+      event: tool_use
+      writes:
+        app.py: "print('ok')\n"
+      expect: allow

@@ -12,6 +12,7 @@ import pytest
 from bundle_fixtures import ADVISORY_ID, GATE_ID, GUARD_ID, MARKER, denies, hook_commands, project, run_command
 from install_fixtures import make_catalog, selection, side_commit, write_selection
 
+import chock
 from chock.install import cli, package, place
 from chock.install import selection as sel
 
@@ -51,7 +52,12 @@ def test_the_selection_builds_one_plugin_in_a_local_marketplace(catalog, tmp_pat
     assert "dependencies" not in manifest
     for policy_id in (GUARD_ID, GATE_ID, ADVISORY_ID):
         assert (_plugin(dest) / "skills" / policy_id / "SKILL.md").is_file()
-    assert json.loads((_plugin(dest) / package.MARKER).read_text(encoding="utf-8")) == sel.upgrade(selection(root, ref))
+    marker = json.loads((_plugin(dest) / package.MARKER).read_text(encoding="utf-8"))
+    block = marker.pop(package.MARKER_KEY)
+    assert marker == sel.upgrade(selection(root, ref))
+    assert block["version"] == package.MARKER_VERSION
+    assert block["engine"]["version"] == chock.__version__
+    assert block["accepted_local"] == {}
     assert json.loads((dest / place.MARKETPLACE_MARKER).read_text(encoding="utf-8"))["client"] == "claude-code"
     out = capsys.readouterr().out
     assert f"claude plugin install {PLUGIN}@{package.settings()['marketplace']}" in out

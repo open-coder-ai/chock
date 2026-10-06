@@ -16,6 +16,7 @@ Everything you need to understand, use, and extend Chock. New here? Start with
 | [Core Concepts](concepts.md) | Learn the vocabulary: artifacts, manifests, surfaces, coverage |
 | [CLI Reference](cli-reference.md) | Look up every command, flag, and example |
 | [Authoring Policies](authoring-policies.md) | Write rules, hooks, skills, and subagents |
+| [Custom Policies](custom-policies.md) | Add your own policies to a plugin: templates, show-and-confirm install, trust on first use |
 | [Script-Backed Gates](script-backed-gates.md) | Declare a check no gate `kind` can express, and the contract its script runs under |
 | [Enforcement Surfaces](enforcement-surfaces.md) | See the nine surfaces and the per-agent coverage matrix |
 | [Coverage Levels](coverage-levels.md) | Read a grade: what each level means, its ladder order, and the evidence that caps it |

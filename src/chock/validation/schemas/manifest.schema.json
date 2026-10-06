@@ -149,6 +149,16 @@
     "determinization_reviewed": {
       "type": "boolean"
     },
+    "ambient_override": {
+      "type": "boolean",
+      "description": "SEC-5: a rule below trust_tier community may be wired into ambient context only when this is true and ambient_override_reason says why it is trusted without review."
+    },
+    "ambient_override_reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "description": "Why the rule is trusted without review, e.g. \"authored by the installing user\"."
+    },
     "scripts": {
       "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.common.json#/definitions/scripts"
     }
@@ -181,6 +191,24 @@
     },
     {
       "$ref": "https://open-coder-ai.github.io/chock/schemas/v0/manifest.artifact-conditionals.json"
+    },
+    {
+      "if": {
+        "properties": {
+          "ambient_override": {
+            "const": true
+          }
+        },
+        "required": [
+          "ambient_override"
+        ]
+      },
+      "then": {
+        "required": [
+          "ambient_override_reason"
+        ]
+      },
+      "$comment": "SEC-5's documented escape needs its rationale in the manifest."
     }
   ]
 }

@@ -2,6 +2,9 @@
   "marketplace": "chock-local",
   "description": "Policies chosen in one chock selection, packaged as one plugin. Friction, not a security boundary.",
   "disclaimer": "These policies add friction to an agent's mistakes; they are not a security boundary.",
+  "origin": {
+    "custom": "custom, not reviewed"
+  },
   "labels": {
     "block": "blocks",
     "ask": "asks",

@@ -175,6 +175,7 @@ optimize_playbook: MAY NOT raise tier
 
 > Invariant: **SEC-5** — Rules wired into ambient context require `trust_tier >= community` or an explicit `ambient_override: true` acknowledged in the manifest.
 - ambient context is the highest-privilege surface; lower-tier rules must opt in to ambient wiring
+- the opt-in carries its rationale: the schema requires `ambient_override_reason` beside `ambient_override: true` (a user's own rule: "authored by the installing user")
 
 > Invariant: **SEC-6** — Skills that process external content ship at least one adversarial eval case.
 - flagged via `security.processes_external_content: true` in the skill manifest

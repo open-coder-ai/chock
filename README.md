@@ -55,7 +55,7 @@ pip install "chock @ git+https://github.com/open-coder-ai/chock@992711af4cf8d4fd
 
 1. **In your repository, for teams.** Run `chock init .`, then `chock add <id> --ref <catalog commit> --verify-sha <sha256> --skip-compile` for each policy, then `chock sync --repo . --ci`. Commit the result. Every clone runs `chock sync --repo .` once, because git never clones hooks. The commit gates are enforced at commit and in CI.
 2. **In your coding agent, as plugins.** Best-effort, and they fail open. One repo per client: [Claude Code](https://github.com/open-coder-ai/chock-claude-plugins), [Cursor](https://github.com/open-coder-ai/chock-cursor-plugins), [Copilot](https://github.com/open-coder-ai/chock-copilot-plugins), [Codex](https://github.com/open-coder-ai/chock-codex-plugins), [Devin](https://github.com/open-coder-ai/chock-devin-plugins). Each README has the install line for its client.
-3. **One Claude Code plugin from a selection.** The chock.sh builder (launching soon) gives a `chock install --selection '…' --apply` command.
+3. **One plugin for your agent from a selection.** The chock.sh builder (launching soon) gives a `chock install --selection '…' --apply` command for Claude Code, Cursor, Codex, Copilot or Devin. A selection can add [your own policies](docs/custom-policies.md): install shows their code and asks first.
 
 </details>
 

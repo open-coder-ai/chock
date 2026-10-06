@@ -109,13 +109,13 @@ def test_a_schema_1_install_is_kept_and_listed_beside_a_new_bundle(catalog, tmp_
     assert names == ["chock-guardrails", "set-two"]
 
 
-def test_a_local_entry_is_refused_as_not_yet_supported(catalog, tmp_path: Path, home, capsys) -> None:
+def test_a_local_entry_whose_folder_is_missing_is_refused(catalog, tmp_path: Path, home, capsys) -> None:
     root, ref = catalog
     data = v2(root, ref, "claude-code")
     data["policies"].append({"from": "local", "id": "my-guard", "path": "policies/my-guard"})
     assert _run(tmp_path, data) == 1
     err = capsys.readouterr().err
-    assert "my-guard: local policies (from: local) are not yet supported" in err
+    assert f"my-guard: folder {tmp_path.resolve() / 'policies' / 'my-guard'} is missing" in err
     assert "Nothing was installed." in err
     assert not place.default_dest("claude-code").exists()
 

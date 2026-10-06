@@ -106,7 +106,7 @@ where = ["src"]
 # Emitter, scaffold and vendored-runtime templates (chock W48): non-Python artifact
 # templates read at emit time via importlib.resources, never Python string literals.
 "chock.compile.emitters" = ["data/*"]
-"chock.scaffold" = ["data/*"]
+"chock.scaffold" = ["data/*", "data/kinds/**/*"]
 "chock.gate" = ["data/*.tmpl"]
 "chock.guidance" = ["data/*.json"]
 # `**/*` does NOT match dotfiles or dot-directories, so the chock-init

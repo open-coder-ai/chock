@@ -6,18 +6,24 @@ import json
 import shutil
 import tempfile
 from dataclasses import dataclass
+from importlib import metadata
 from pathlib import Path
 from typing import Any
 
+import chock
 from chock.emit import write_generated
 from chock.plugin import bundle_build, bundle_grade
 from chock.plugin.build import _one_line
 from chock.plugin.bundle_build import Member
 from chock.plugin.store import build_store_plugin
 from chock.resources import package_data_dir
+from chock.scaffold.pin import INERT, _run
 
 #: Written into every plugin it builds: the selection it came from, and proof the directory is chock's to replace.
 MARKER = "chock.selection.json"
+#: The marker's own block: its version, the engine that built the plugin, and the local hashes the person accepted.
+MARKER_KEY = "marker"
+MARKER_VERSION = 1
 
 
 def settings() -> dict[str, Any]:
@@ -38,10 +44,20 @@ class Label:
     keyword: str
     says: str
     description: str
+    custom: bool = False
+
+    def text(self) -> str:
+        """`<keyword word>: <says>`, after the origin label for a custom policy."""
+        words = settings()
+        own = f"{words['labels'][self.keyword]}: {self.says}"
+        return f"{words['origin']['custom']}; {own}" if self.custom else own
 
 
-def labels(members: list[Member], catalog: Path, client_id: str) -> list[Label]:
-    """Each member's label from the hooks its own package for the client ships (`bundle_grade`); never an aggregate."""
+def labels(members: list[Member], catalog: Path, client_id: str, custom: frozenset[str] = frozenset()) -> list[Label]:
+    """Each member's label from the hooks its own package for the client ships (`bundle_grade`); never an aggregate.
+
+    A member in `custom` is a person's own policy: its label says "custom, not reviewed" first.
+    """
     data = client(client_id)
     graded = bundle_build.member_grades(data["format"], members, catalog, write_judged=not data["gate_turn_end_only"])
     return [
@@ -50,9 +66,50 @@ def labels(members: list[Member], catalog: Path, client_id: str) -> list[Label]:
             bundle_grade.enforcement_keyword(level),
             says if level == bundle_grade.ADVISORY else f"{data['label_prefix']}{says}",
             _one_line(m.manifest.get("description")),
+            custom=m.id in custom,
         )
         for m, level, says in graded
     ]
+
+
+def _engine_commit() -> str | None:
+    """The commit this chock was installed from (a VCS install) or runs from (a source checkout), else None."""
+    try:
+        direct = json.loads(metadata.distribution("chock").read_text("direct_url.json") or "{}")
+    except (metadata.PackageNotFoundError, ValueError):
+        direct = {}
+    commit = (direct.get("vcs_info") or {}).get("commit_id") if isinstance(direct, dict) else None
+    if commit:
+        return str(commit)
+    source = Path(chock.__file__).resolve().parents[2]
+    if not (source / ".git").exists():
+        return None
+    try:
+        done = _run(["git", *INERT, "-C", str(source), "rev-parse", "HEAD"])
+    except OSError:
+        return None
+    if done.returncode != 0:
+        return None
+    return done.stdout.strip() or None
+
+
+def marker(chosen: dict[str, Any], accepted: dict[str, str]) -> dict[str, Any]:
+    """The install marker: the selection, plus its versioned block (engine version and commit, accepted local hashes)."""
+    block = {
+        "version": MARKER_VERSION,
+        "engine": {"version": chock.__version__, "commit": _engine_commit()},
+        "accepted_local": dict(sorted(accepted.items())),
+    }
+    return {**chosen, MARKER_KEY: block}
+
+
+def accepted(found: dict[str, Any] | None) -> dict[str, str]:
+    """{local id: sha256} the person accepted for a previous build, from its marker; empty when there is none."""
+    block = (found or {}).get(MARKER_KEY)
+    hashes = block.get("accepted_local") if isinstance(block, dict) else None
+    if not isinstance(hashes, dict):
+        return {}
+    return {str(k): str(v) for k, v in hashes.items() if isinstance(v, str)}
 
 
 def bundle(members: list[Member], name: str, version: str) -> dict[str, Any]:
@@ -65,20 +122,23 @@ def bundle(members: list[Member], name: str, version: str) -> dict[str, Any]:
     }
 
 
-def stage(members: list[Member], catalog: Path, chosen: dict[str, Any], into: Path, version: str) -> None:
-    """Write the merged plugin for the selection's client into `into`, with the selection marker."""
-    fmt = client(chosen["client"])["format"]
-    record = bundle(members, chosen["bundle"]["name"], version)
-    words = settings()["labels"]
+def stage(members: list[Member], catalog: Path, record_of: dict[str, Any], into: Path, version: str) -> None:
+    """Write the merged plugin for the marker's client into `into`, with the install marker `record_of`.
+
+    The local ids the marker accepted are labelled custom on every surface.
+    """
+    custom = frozenset(accepted(record_of))
+    fmt = client(record_of["client"])["format"]
+    record = bundle(members, record_of["bundle"]["name"], version)
     record["labels"] = {
-        label.policy_id: f"{words[label.keyword]}: {label.says}" for label in labels(members, catalog, chosen["client"])
+        label.policy_id: label.text() for label in labels(members, catalog, record_of["client"], custom)
     }
 
     def files_fn(_dir: Path, _manifest: dict[str, Any], root: Path) -> dict[Path, str]:
         return bundle_build.merged_files(fmt, record, members, root, aggregate=False)
 
     build_store_plugin(fmt, files_fn, Path(record["id"]), {"id": record["id"]}, catalog, into)
-    write_generated(into / MARKER, json.dumps(chosen, indent=2, sort_keys=True) + "\n")
+    write_generated(into / MARKER, json.dumps(record_of, indent=2, sort_keys=True) + "\n")
 
 
 def read_marker(plugin_dir: Path) -> dict[str, Any] | None:

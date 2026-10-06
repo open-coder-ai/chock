@@ -1,0 +1,33 @@
+id: __ID__
+name: "__NAME__"
+version: "0.1.0"
+description: >
+  Write a release note for a merged change. Use for "release note", "changelog
+  entry", "what changed". Edit this description (when to use it) and
+  skill/body.md (how); nothing enforces it.
+artifact: rule
+enforcement: advise
+rule:
+  text: |
+    on(release_note|changelog_entry): follow(skill __ID__); never(claim): change_not_in_diff
+effects:
+- read_only
+approval:
+  required: false
+
+provenance:
+  author: "me"
+  created_at: "__DATE__T00:00:00Z"
+  source_repo: "local"
+  license: "proprietary"
+  trust_tier: "sandbox"
+# The rule text enters the agent's context (SEC-5): a sandbox rule says why it is trusted without review.
+ambient_override: true
+ambient_override_reason: "authored by the installing user"
+
+lifecycle:
+  status: draft
+  reviewed_by: []
+
+security:
+  content_instructions: never-obey

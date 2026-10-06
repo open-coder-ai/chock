@@ -156,6 +156,10 @@ Creates a valid, empty artifact folder to fill in by hand or with the `policy-in
 `manifest.yaml` (the gate is its `hook.gate` block) and `evals/suite.yaml`; `new skill` writes a `SKILL.md`, whose
 frontmatter *is* its manifest; `new subagent` writes `subagent.yaml`.
 
+`chock new policy <id> --kind {content_regex|guard|script|rule|skill}` starts from a tested template instead; outside
+a catalog the id gains `my-`. See [Custom Policies](custom-policies.md), which also covers `chock install`'s
+`--trust-local <id>=<sha256>`.
+
 ### `compile` — low-level single-policy compile
 
 ```bash

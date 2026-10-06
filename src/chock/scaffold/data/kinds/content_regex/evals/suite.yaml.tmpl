@@ -1,0 +1,46 @@
+suite:
+  id: __ID__-tests-v1
+  policy_id: __ID__
+  version_constraint: ">=0.1.0"
+  maintainer: me
+  primary_metric: pass_rate
+  metrics:
+    pass_rate:
+      direction: higher_is_better
+      threshold: 1.0
+  # \x20 is a space: the cases below never carry the text the gate refuses.
+  cases:
+  - id: tc-001
+    category: trigger
+    prompt: A commit adds a line marked DO-NOT-COMMIT.
+    expect: The commit is refused.
+    execute:
+      files:
+        notes.py: "x = 1  # DO\x20NOT\x20COMMIT\n"
+      expect: block
+  - id: tc-002
+    category: negative_trigger
+    prompt: A commit adds an ordinary line.
+    expect: The commit is allowed.
+    execute:
+      files:
+        notes.py: "x = 1\n"
+      expect: allow
+  - id: tc-003
+    category: behavior
+    prompt: The agent writes a file holding the marker.
+    expect: The write is refused before it happens.
+    execute:
+      event: tool_use
+      writes:
+        notes.py: "x = 1  # DO\x20NOT\x20COMMIT\n"
+      expect: block
+  - id: tc-004
+    category: negative_trigger
+    prompt: The agent writes a clean file.
+    expect: The write is allowed.
+    execute:
+      event: tool_use
+      writes:
+        notes.py: "x = 1\n"
+      expect: allow
