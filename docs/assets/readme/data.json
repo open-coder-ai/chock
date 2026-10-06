@@ -1,0 +1,98 @@
+{
+  "source": {
+    "file": "chock-catalog registry.yaml and */*/manifest.yaml",
+    "commit": "9a64623e30769c49d7011ec3f559592d84e3f657"
+  },
+  "policies": 71,
+  "tiers": {
+    "commit": 35,
+    "in-agent": 11,
+    "advisory": 25
+  },
+  "claude_code_labels": {
+    "advise": 24,
+    "block": 39,
+    "warn": 5,
+    "ask": 3
+  },
+  "eval_cases": 4280,
+  "eval_executed": 4098,
+  "asi": {
+    "with_policy": 10,
+    "refused_at_commit": [
+      "ASI01",
+      "ASI02",
+      "ASI03",
+      "ASI04",
+      "ASI05",
+      "ASI07",
+      "ASI09"
+    ],
+    "in_agent_only": [
+      "ASI10"
+    ],
+    "warn_or_ask_only": [
+      "ASI06"
+    ],
+    "advisory_only": [
+      "ASI08"
+    ],
+    "fully_covered": 0
+  },
+  "incidents": [
+    {
+      "incident": "Log4Shell (CVE-2021-44228)",
+      "policy": "java-security",
+      "tier": "commit",
+      "eval_cases": 177
+    },
+    {
+      "incident": "Spring4Shell (CVE-2022-22965), Text4Shell (CVE-2022-42889)",
+      "policy": "java-security",
+      "tier": "commit",
+      "eval_cases": 177
+    },
+    {
+      "incident": "Struts OGNL (CVE-2017-5638)",
+      "policy": "java-security",
+      "tier": "commit",
+      "eval_cases": 177
+    },
+    {
+      "incident": "SSRF, then an over-broad cloud role",
+      "policy": "block-wildcard-iam",
+      "tier": "commit",
+      "eval_cases": 38
+    },
+    {
+      "incident": "tj-actions moved tag (2025)",
+      "policy": "pin-github-actions",
+      "tier": "commit",
+      "eval_cases": 63
+    },
+    {
+      "incident": "Codecov bash uploader (2021), curl piped to a shell",
+      "policy": "block-curl-pipe-sh",
+      "tier": "in-agent",
+      "eval_cases": 72
+    },
+    {
+      "incident": "MCP server at @latest",
+      "policy": "block-unpinned-agent-components",
+      "tier": "commit",
+      "eval_cases": 54
+    },
+    {
+      "incident": "Leaked keys",
+      "policy": "scan-secrets",
+      "tier": "commit",
+      "eval_cases": 55
+    },
+    {
+      "incident": "Trojan Source (CVE-2021-42574)",
+      "policy": "block-invisible-unicode",
+      "tier": "commit",
+      "eval_cases": 72
+    }
+  ]
+}
