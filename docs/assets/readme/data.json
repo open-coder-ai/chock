@@ -19,8 +19,21 @@
   "eval_executed": 4098,
   "asi": {
     "with_policy": 10,
-    "slice_at_commit": 9,
-    "slice_in_agent_only": 0,
+    "refused_at_commit": [
+      "ASI01",
+      "ASI02",
+      "ASI03",
+      "ASI04",
+      "ASI05",
+      "ASI07",
+      "ASI09"
+    ],
+    "in_agent_only": [
+      "ASI10"
+    ],
+    "warn_or_ask_only": [
+      "ASI06"
+    ],
     "advisory_only": [
       "ASI08"
     ],

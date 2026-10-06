@@ -152,7 +152,7 @@ From `registry.yaml` in [chock-catalog](https://github.com/open-coder-ai/chock-c
 | Eval cases | 4,280 |
 | Replayed automatically | 4,098 |
 
-OWASP Top 10 for Agentic Applications, from each manifest's `compliance.owasp_asi`: 10 of 10 controls have a policy, 9 have a slice checked at commit, ASI08 is advisory only, and 0 are fully covered. Every mapping is partial. See [Agentic-Risk Coverage](docs/agentic-risk-coverage.md).
+OWASP Top 10 for Agentic Applications, from each manifest's `compliance.owasp_asi` notes: all 10 controls have a policy; 7 (ASI01 to ASI05, ASI07, ASI09) have a slice refused at commit; ASI10 is refused only in the agent (best-effort); ASI06 only warns; ASI08 is advisory only; none is fully covered. Every mapping is partial. See [Agentic-Risk Coverage](docs/agentic-risk-coverage.md).
 
 <img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/compare.png" alt="Agent defaults against Chock, row by row: what it knows, where it lives, which agents, what happens after the agent, what a refusal says, and proof." width="900">
 

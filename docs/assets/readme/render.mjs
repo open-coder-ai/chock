@@ -91,7 +91,7 @@ ${card('01', 'Java &amp; Kotlin', 'Injection, XXE, SSRF, unsafe deserialization,
 ${card('02', 'Unsafe code &amp; IAM', 'eval, shell=True, os.system, pickle; IAM Action:*, AdministratorAccess, roles/owner.', [['block-unsafe-code-execution', 'commit'], ['block-wildcard-iam', T['block-wildcard-iam']]])}
 ${card('03', 'Supply chain', 'Dependencies not on an allowlist, Actions on a mutable tag, MCP servers and images at @latest.', [['verify-dependency-exists', 'commit'], ['pin-github-actions', T['pin-github-actions']], ['block-unpinned-agent-components', T['block-unpinned-agent-components']]])}
 ${card('04', 'Agent code', 'Code that builds agents: host execution, unpinned MCP servers, approvals switched off, credential leaks.', [['agentic-code-security', 'commit']])}
-${card('05', 'OWASP Agentic Top 10', `A policy for each of ASI01 to ASI10. ${D.asi.slice_at_commit} have a slice enforced at commit. ${D.asi.fully_covered} are fully covered.`, [['owasp-asi01…10', 'advisory']])}
+${card('05', 'OWASP Agentic Top 10', `A policy for each of ASI01 to ASI10. ${D.asi.refused_at_commit.length} have a slice refused at commit. ${D.asi.fully_covered} are fully covered.`, [['owasp-asi01…10', 'advisory']])}
 ${card('06', 'Accessibility', 'A change that strips an alt, aria-label, label or lang an element already had is refused.', [['no-a11y-regression', 'commit']])}
 ${card('07', 'Prompt injection &amp; memory', 'Bidi and tag characters that hide instructions; secrets and pasted history written into agent memory.', [['block-invisible-unicode', T['block-invisible-unicode']], ['guard-memory-writes', 'commit']])}
 ${card('08', 'Test integrity', 'Deleted tests, net assertion loss, assert True, new skip and .only markers.', [['protect-test-integrity', 'commit']])}
