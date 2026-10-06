@@ -45,8 +45,12 @@ const REFUSALS = term([
 ]);
 
 const SPECS = [];
-function cover({ repo, title, sub, chips, right }) {
+// hero: visual only (mark on dusk, no text), for READMEs whose H1 and lead are markdown (README v2). The social banner keeps the text.
+const HERO = page(`<div class="frame" style="height:300px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 50%,#2D3A5E 0,#222C44 62%)">
+${MARK.replace('width="46" height="46"', 'width="168" height="168"')}</div>`);
+function cover({ repo, title, sub, chips, right, hero = false }) {
   SPECS.push({ repo, title, sub, chips, right });
+  if (hero) return HERO;
   return page(`<div class="frame" style="display:grid;grid-template-columns:minmax(0,1fr);gap:32px;padding:48px 44px">
 <div style="display:flex;flex-direction:column;gap:26px">
 <div style="display:flex;align-items:center;gap:14px">${MARK}<span class="mono" style="font-size:22px;font-weight:600">${repo}</span></div>
@@ -58,9 +62,9 @@ function cover({ repo, title, sub, chips, right }) {
 const COVERS = {
   'cover-chock': cover({ repo: 'chock', title: 'Teach your AI agent <span class="gold">what not to do.</span>',
     sub: 'Rules the agent reads, checks that run as it writes, and gates at commit and in CI. One policy, every coding agent.',
-    chips: ['no LLM, no tokens', 'git hook + CI gate', 'Apache-2.0'], right: REFUSALS }),
+    chips: ['no LLM, no tokens', 'git hook + CI gate', 'Apache-2.0'], right: REFUSALS, hero: true }),
   'cover-org': cover({ repo: 'open-coder-ai', title: 'Teach your AI agent <span class="gold">what not to do.</span>',
-    sub: 'Open-source guardrails for AI coding agents: policies, the primitives under them, and the evidence they work.', chips: chipsCatalog, right: REFUSALS }),
+    sub: 'Open-source guardrails for AI coding agents: policies, the primitives under them, and the evidence they work.', chips: chipsCatalog, right: REFUSALS, hero: true }),
   'cover-chock-catalog': cover({ repo: 'chock-catalog', title: `${D.policies} policies <span class="gold">for AI-written code.</span>`,
     sub: 'Each one labelled by what it enforces: at commit, in the agent, or advice the agent reads.', chips: chipsCatalog,
     right: term([`<div class="c"># tiers, from registry.yaml</div>`, `<div><span class="d">${D.tiers.commit}</span> enforced at commit</div>`, `<div><span class="d">${D.tiers['in-agent']}</span> in the agent, best-effort</div>`, `<div><span class="d">${D.tiers.advisory}</span> advisory</div>`, `<div class="c" style="margin-top:10px">${fmt(D.eval_executed)} of ${fmt(D.eval_cases)} eval cases replay automatically</div>`]) }),
@@ -125,10 +129,10 @@ const role = (t, s, lines) => `<div class="panel" style="padding:26px;display:fl
 ${lines.map(([k, v]) => `<div style="display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;padding-top:10px;border-top:1px solid #3A4870;font-size:16px;line-height:1.5;color:#D5DBE8"><span class="mono gold" style="font-size:13px;letter-spacing:.06em;text-transform:uppercase;padding-top:3px">${k}</span><span>${v}</span></div>`).join('')}</div>`;
 const ROLES = SECTION('A normal day, by role', 'What changes for the people who ship with agents.', `
 <div style="display:grid;grid-template-columns:repeat(1,minmax(0,1fr));gap:18px">
-${role('Java &amp; Kotlin developers', 'Spring · Jakarta · Quarkus · Micronaut · Android', [['Agent', 'puts ${id} into a MyBatis query'], ['Chock', 'refuses it at commit, naming the rule'], ['You get', 'the finding in the agent\'s turn, not in a scan a day later']])}
-${role('Web &amp; UX designers', 'ADA · Section 508 · WCAG', [['Agent', 'empties an alt or drops an aria-label in a refactor'], ['Chock', 'refuses the change and names the element'], ['You get', 'accessibility fixes that can\'t quietly regress']])}
-${role('Agent memory', 'CLAUDE.md · MEMORY.md · the agent\'s own stores', [['Agent', 'writes a pasted diff or an API key into memory'], ['Chock', 'refuses the write'], ['You get', 'memory that stays small and secret-free']])}
-${role('Threat modeling', 'MITRE ATLAS', [['Maps', 'techniques to named policies'], ['Weekly', 'every new entry scored enforced, advisory or policy wanted'], ['You get', 'from technique ID to the control that answers it']])}
+${role('Backend developers on the JVM', 'Jakarta · Quarkus · Micronaut · Android', [['Agent', 'puts ${id} into a MyBatis query'], ['Chock', 'refuses the commit, naming the rule'], ['You get', 'the finding in the agent\'s turn, not in a scan a day later']])}
+${role('Web &amp; UX designers', 'ADA · Section 508 · WCAG', [['Agent', 'rewrites a form and loses its screen-reader labels'], ['Chock', 'refuses the change and names the element'], ['You get', 'accessibility fixes that can\'t quietly regress']])}
+${role('Memory files', 'CLAUDE.md · MEMORY.md · per-agent stores', [['Agent', 'saves a pasted diff and a token to its notes'], ['Chock', 'refuses the write'], ['You get', 'notes that stay small and free of credentials']])}
+${role('Threat modeling', 'MITRE ATLAS', [['Maps', 'techniques to named policies'], ['Weekly', 'each new technique graded by how well a policy answers it'], ['You get', 'from technique ID to the control that answers it']])}
 </div>`, { bare: true });
 
 const row = (k, a, b) => `<div style="display:grid;grid-template-columns:130px minmax(0,1fr) minmax(0,1.25fr);gap:16px;padding:16px 20px;border-top:1px solid #3A4870;font-size:17px;line-height:1.5"><span style="font-weight:600;color:#D5DBE8">${k}</span><span style="color:#B4BED2">${a}</span><span>${b}</span></div>`;
@@ -158,14 +162,14 @@ const grid = (cols, gap, items) => `<div style="display:grid;grid-template-colum
 const stat = (n, label) => `<div class="panel" style="padding:22px 24px;display:flex;flex-direction:column;gap:6px"><span class="mono gold" style="font-size:36px;font-weight:600">${n}</span><span style="font-size:16px;color:#B4BED2;line-height:1.4">${label}</span></div>`;
 const note = (t) => `<div style="font-size:18px;line-height:1.55;color:#B4BED2">${t}</div>`;
 
-const refusal = (id, tier, msg) => `<div class="panel" style="padding:24px;display:flex;flex-direction:column;gap:14px">
-<div style="display:flex;justify-content:space-between;align-items:center"><span class="mono" style="font-size:16px;font-weight:600">${id}</span>${tag(tier)}</div>
+// The policy ids and tiers are in the README text beside the panel, so a card is the quoted message only.
+const refusal = (msg) => `<div class="panel" style="padding:24px;display:flex;flex-direction:column;gap:14px">
 <div style="font-size:18.5px;line-height:1.55;color:#D5DBE8">&ldquo;${msg}&rdquo;</div></div>`;
 const REFUSAL = SECTION('Guardrails that teach', 'A refusal that <span class="gold">tells the agent the fix.</span>', `
 ${grid(1, 16, [
-  refusal('block-unsafe-code-execution', 'commit', 'Dynamic execution primitive detected. Replace it with a parameterized API (a subprocess argument vector without a shell, yaml.safe_load, a real parser&hellip;)'),
-  refusal('block-unpinned-agent-components', 'commit', 'Unpinned agent component detected. Pin an exact version or digest (name@1.2.3, image:1.27.1&hellip;) so what runs tomorrow is what was reviewed today'),
-  refusal('block-wildcard-iam', 'commit', 'Broad privilege grant detected. Name the actions and resources the task needs (no wildcard action, resource or principal&hellip;)'),
+  refusal('Dynamic execution primitive detected. Replace it with a parameterized API (a subprocess argument vector without a shell, yaml.safe_load, a real parser&hellip;)'),
+  refusal('Unpinned agent component detected. Pin an exact version or digest (name@1.2.3, image:1.27.1&hellip;) so what runs tomorrow is what was reviewed today'),
+  refusal('Broad privilege grant detected. Name the actions and resources the task needs (no wildcard action, resource or principal&hellip;)'),
 ])}`, { bare: true });
 
 const layer = (name, line, hot) => `<div class="panel" style="padding:18px 22px;display:grid;grid-template-columns:170px minmax(0,1fr);gap:20px;align-items:center;${hot ? 'border-color:#F0B53C' : ''}"><span class="mono${hot ? ' gold' : ''}" style="font-size:19px;font-weight:600">${name}</span><span style="font-size:17.5px;line-height:1.5;color:#D5DBE8">${line}</span></div>`;
@@ -204,7 +208,7 @@ const FAMILY = SECTION('Everything we ship', `${D.repos.length} public repositor
 ${grid(2, 14, D.repos.map((r) => `<div class="panel" style="padding:18px 20px;display:flex;flex-direction:column;gap:7px"><span class="mono gold" style="font-size:13px;letter-spacing:.1em;text-transform:uppercase">${r.kind}</span><span class="mono" style="font-size:17px;font-weight:600">${r.name}</span><span style="font-size:16px;line-height:1.45;color:#B4BED2">${r.line}</span></div>`))}`);
 
 const CONTRIBUTE = SECTION('Contribute', 'New guardrails are <span class="gold">content, not code.</span>', `
-${grid(3, 16, [['01', 'Add an eval case', 'Found a bypass? Write the case that should have blocked it.'], ['02', 'Verify an agent row', 'Run your agent, capture real payloads, and turn a vendor-docs row into a live-run one.'], ['03', 'Add an agent adapter', 'Bring a new coding agent into agentseam. The honesty rule overrides preference.']].map(([n, t, p]) => `<div class="panel" style="padding:24px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;gap:12px;align-items:baseline"><span class="mono gold" style="font-size:14px">${n}</span><span style="font-size:22px;font-weight:600">${t}</span></div><span style="font-size:17px;line-height:1.5;color:#B4BED2">${p}</span></div>`))}`, { bare: true });
+${grid(3, 16, [['01', 'Report a bypass', 'Found one? Write the case that should have blocked it.'], ['02', 'Verify an agent row', 'Run your agent, capture real payloads, and turn a vendor-docs row into a live-run one.'], ['03', 'Add an agent adapter', 'Teach the framework one more agent. The honesty rule overrides preference.']].map(([n, t, p]) => `<div class="panel" style="padding:24px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;gap:12px;align-items:baseline"><span class="mono gold" style="font-size:14px">${n}</span><span style="font-size:22px;font-weight:600">${t}</span></div><span style="font-size:17px;line-height:1.5;color:#B4BED2">${p}</span></div>`))}`, { bare: true });
 
 const HONEST = SECTION('Guardrails, not guarantees', 'And we tell you <span class="gold">which is which.</span>', `
 ${grid(3, 16, [['commit', 'A git hook or CI gate that exits non-zero.'], ['in-agent', 'The agent\'s own pre-tool hook. Best-effort, and it fails open.'], ['advisory', 'Rule text the agent reads. Nothing makes the agent follow it.']].map(([t, p]) => `<div class="panel" style="padding:24px;display:flex;flex-direction:column;gap:12px">${tag(t)}<span style="font-size:17px;line-height:1.5;color:#D5DBE8">${p}</span></div>`))}
@@ -232,8 +236,11 @@ for (const [name, html] of Object.entries(ALL)) {
   const pg = isSocial ? pgSocial : pgPanel;
   await pg.setViewportSize({ width: isSocial ? 1280 : 880, height: isSocial ? 640 : 800 });
   await pg.setContent(html, { waitUntil: 'networkidle' });
-  await pg.evaluate(() => document.fonts.ready);
-  const ok = await pg.evaluate(() => ['16px "Instrument Sans"', '600 16px "Instrument Sans"', '14px "JetBrains Mono"'].map((f) => document.fonts.check(f)));
+  const ok = await pg.evaluate(async () => {
+    const fonts = ['16px "Instrument Sans"', '600 16px "Instrument Sans"', '14px "JetBrains Mono"'];
+    await Promise.all(fonts.map((f) => document.fonts.load(f)));
+    return fonts.map((f) => document.fonts.check(f));
+  });
   if (!ok.every(Boolean)) throw new Error(`fonts missing (Instrument Sans / JetBrains Mono): ${ok}`);
   await pg.locator(isSocial ? '.social' : '.frame').screenshot({ path: path.join(OUT, `${name}.png`) });
   console.log(`${name}.png`);

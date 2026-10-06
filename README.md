@@ -1,6 +1,6 @@
 <div align="center">
 
-<p><img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/cover-chock.png" alt="The Chock mark and headline beside a terminal in which three commits are refused: an AWS key, a wildcard IAM grant and an MCP server at @latest." width="100%"></p>
+<p><img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/cover-chock.png" alt="Chock mark on a dusk-blue background." width="100%"></p>
 
 </div>
 
@@ -69,9 +69,9 @@ To write your own, run `chock new policy <id>` (manifest, gate and evals), `choc
 
 ### A refusal names the fix
 
-Each refusal names the safe alternative, so the agent can fix it in the same turn. These messages are quoted from the policy manifests in chock-catalog:
+Each refusal names the safe alternative, so the agent can fix it in the same turn. These three are quoted from the chock-catalog manifests of `block-unsafe-code-execution`, `block-unpinned-agent-components` and `block-wildcard-iam`, in that order, all refused at commit:
 
-<p><img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/refusal.png" alt="Three refusal cards, each a catalog policy's gate message beside its commit tier label." width="100%"></p>
+<p><img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/refusal.png" alt="Three stacked cards, each holding one quoted refusal message." width="100%"></p>
 
 ## Quick start
 
@@ -175,7 +175,7 @@ Chock does not stop every attack. It closes common, known entry points before th
 
 ### What changes, by role
 
-<p><img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/roles.png" alt="Four role cards, from Java developers to threat modeling, each showing what the agent does, how Chock answers and what that role gets." width="100%"></p>
+<p><img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/roles.png" alt="Four role cards, each showing what the agent does, how Chock answers and what that role gets." width="100%"></p>
 
 ### The catalog, in numbers
 
