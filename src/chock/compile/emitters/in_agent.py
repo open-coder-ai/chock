@@ -23,6 +23,7 @@ from chock.emit import write_generated_json
 from chock.gate.build import build_gate_json, vendor_runner
 from chock.gate.runner import WRITE_PATH_KINDS
 from chock.hooks.launch import hook_command
+from chock.yamlio import safe_load
 
 GUARD_SCRIPTS = {
     "block-destructive-commands": "block-destructive.sh",
@@ -30,12 +31,24 @@ GUARD_SCRIPTS = {
 }
 
 
+def _gate_script(policy_dir: Path) -> str | None:
+    """The file name of the script gate's program, which reads JSON on stdin and is never a command guard."""
+    try:
+        doc = safe_load((policy_dir / "manifest.yaml").read_text(encoding="utf-8"))
+        gate = doc["hook"]["gate"]
+        return Path(str(gate["params"]["script"])).name if gate["kind"] == "script" else None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
 def _guard_script(policy_dir: Path, policy_id: str) -> str | None:
     """The policy's guard script name, by convention first, legacy map second."""
     impl = policy_dir / "implementations"
+    gate_script = _gate_script(policy_dir)
     for suffix in GUARD_SUFFIXES:
-        if (impl / f"{policy_id}{suffix}").exists():
-            return f"{policy_id}{suffix}"
+        name = f"{policy_id}{suffix}"
+        if name != gate_script and (impl / name).exists():
+            return name
     legacy = GUARD_SCRIPTS.get(policy_id)
     if legacy and (impl / legacy).exists():
         return legacy

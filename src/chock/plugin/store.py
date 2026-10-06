@@ -25,13 +25,14 @@ assert packaging.supports("copilot", packaging.EXECUTABLE) == SCRIPTS_TEMPLATE  
 
 
 def guard_files(policy_dir: Path, script: str) -> dict[Path, str]:
-    """The guard script plus the sibling packages (dirs with __init__.py) it imports, by scripts path."""
+    """The guard script and all of `implementations/` it may import or read, by scripts path."""
     root = Path(policy_dir) / IMPLEMENTATIONS
-    sources = {Path(script): root / script}
-    for init in sorted(root.glob("*/__init__.py")):
-        for path in sorted(init.parent.rglob("*.py")):
-            if "__pycache__" not in path.parts:
-                sources[path.relative_to(root)] = path
+    sources = {
+        path.relative_to(root): path
+        for path in sorted(root.rglob("*"))
+        if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"
+    }
+    sources.setdefault(Path(script), root / script)
     return {
         Path(SCRIPTS_TEMPLATE.format(name=rel.as_posix())): path.read_text(encoding="utf-8")
         for rel, path in sources.items()
