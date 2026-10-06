@@ -116,19 +116,20 @@ ${term(['<div class="d">Claude Code</div>', '<div>chock-claude-plugins</div>', '
 </div>
 <div class="panel" style="padding:20px 28px;font-size:18px;color:#D5DBE8"><span class="gold" style="font-weight:600">Or build a selection:</span> the chock.sh builder (launching soon) gives one plugin for your agent from the policies you pick, your own included.</div></div>`);
 
+// bare: no eyebrow or title, for panels that sit under the README's own ## heading (README v2).
+const SECTION = (eyebrow, title, body, { bare = false } = {}) => page(`<div class="frame" style="display:flex;flex-direction:column;gap:30px">
+${bare ? '' : `<div style="display:flex;flex-direction:column;gap:12px"><span class="eyebrow">${eyebrow}</span><h2>${title}</h2></div>`}${body}</div>`);
+
 const role = (t, s, lines) => `<div class="panel" style="padding:26px;display:flex;flex-direction:column;gap:12px">
 <div style="font-size:23px;font-weight:600">${t}</div><div class="mono" style="font-size:14px;color:#B4BED2">${s}</div>
 ${lines.map(([k, v]) => `<div style="display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;padding-top:10px;border-top:1px solid #3A4870;font-size:16px;line-height:1.5;color:#D5DBE8"><span class="mono gold" style="font-size:13px;letter-spacing:.06em;text-transform:uppercase;padding-top:3px">${k}</span><span>${v}</span></div>`).join('')}</div>`;
-const ROLES = page(`<div class="frame" style="display:flex;flex-direction:column;gap:30px">
-<div style="display:flex;flex-direction:column;gap:12px"><span class="eyebrow">A normal day, by role</span><h2>What changes for the people who ship with agents.</h2></div>
+const ROLES = SECTION('A normal day, by role', 'What changes for the people who ship with agents.', `
 <div style="display:grid;grid-template-columns:repeat(1,minmax(0,1fr));gap:18px">
 ${role('Java &amp; Kotlin developers', 'Spring · Jakarta · Quarkus · Micronaut · Android', [['Agent', 'puts ${id} into a MyBatis query'], ['Chock', 'refuses it at commit, naming the rule'], ['You get', 'the finding in the agent\'s turn, not in a scan a day later']])}
 ${role('Web &amp; UX designers', 'ADA · Section 508 · WCAG', [['Agent', 'empties an alt or drops an aria-label in a refactor'], ['Chock', 'refuses the change and names the element'], ['You get', 'accessibility fixes that can\'t quietly regress']])}
 ${role('Agent memory', 'CLAUDE.md · MEMORY.md · the agent\'s own stores', [['Agent', 'writes a pasted diff or an API key into memory'], ['Chock', 'refuses the write'], ['You get', 'memory that stays small and secret-free']])}
-${role('AppSec &amp; OWASP owners', 'OWASP Top 10 for Agentic Applications', [['Today', 'a checklist in a wiki, followed or not'], ['Chock', 'a policy for each ASI01 to ASI10 risk, in the repo'], ['You get', 'a checklist that runs on every commit; every mapping labelled partial']])}
 ${role('Threat modeling', 'MITRE ATLAS', [['Maps', 'techniques to named policies'], ['Weekly', 'every new entry scored enforced, advisory or policy wanted'], ['You get', 'from technique ID to the control that answers it']])}
-${role('Platform &amp; governance', 'Policy as code, with an audit trail', [['Chock', 'one policy becomes a git hook, a CI gate and agent hooks'], ['Pinned', 'hash-pinned installs in chock.lock'], ['You get', 'a coverage grade per policy and agent, with evidence']])}
-</div></div>`);
+</div>`, { bare: true });
 
 const row = (k, a, b) => `<div style="display:grid;grid-template-columns:130px minmax(0,1fr) minmax(0,1.25fr);gap:16px;padding:16px 20px;border-top:1px solid #3A4870;font-size:17px;line-height:1.5"><span style="font-weight:600;color:#D5DBE8">${k}</span><span style="color:#B4BED2">${a}</span><span>${b}</span></div>`;
 const COMPARE = page(`<div class="frame" style="display:flex;flex-direction:column;gap:30px">
@@ -153,8 +154,6 @@ ${lane('With Chock', [step('Agent writes'), step('Check runs: refusal names the 
 <div style="font-size:18px;line-height:1.55;color:#B4BED2">A check is a deterministic script, not a model call. A passing check adds nothing to the agent's context; a refusal adds one short reason.</div></div>`);
 
 
-const SECTION = (eyebrow, title, body) => page(`<div class="frame" style="display:flex;flex-direction:column;gap:30px">
-<div style="display:flex;flex-direction:column;gap:12px"><span class="eyebrow">${eyebrow}</span><h2>${title}</h2></div>${body}</div>`);
 const grid = (cols, gap, items) => `<div style="display:grid;grid-template-columns:repeat(${cols},minmax(0,1fr));gap:${gap}px">${items.join('')}</div>`;
 const stat = (n, label) => `<div class="panel" style="padding:22px 24px;display:flex;flex-direction:column;gap:6px"><span class="mono gold" style="font-size:36px;font-weight:600">${n}</span><span style="font-size:16px;color:#B4BED2;line-height:1.4">${label}</span></div>`;
 const note = (t) => `<div style="font-size:18px;line-height:1.55;color:#B4BED2">${t}</div>`;
@@ -163,13 +162,11 @@ const refusal = (id, tier, msg) => `<div class="panel" style="padding:24px;displ
 <div style="display:flex;justify-content:space-between;align-items:center"><span class="mono" style="font-size:16px;font-weight:600">${id}</span>${tag(tier)}</div>
 <div style="font-size:18.5px;line-height:1.55;color:#D5DBE8">&ldquo;${msg}&rdquo;</div></div>`;
 const REFUSAL = SECTION('Guardrails that teach', 'A refusal that <span class="gold">tells the agent the fix.</span>', `
-<p class="sub">Each refusal names the safe alternative, so the agent can fix it in the same turn. Messages are quoted from the policy manifests in chock-catalog.</p>
 ${grid(1, 16, [
   refusal('block-unsafe-code-execution', 'commit', 'Dynamic execution primitive detected. Replace it with a parameterized API (a subprocess argument vector without a shell, yaml.safe_load, a real parser&hellip;)'),
   refusal('block-unpinned-agent-components', 'commit', 'Unpinned agent component detected. Pin an exact version or digest (name@1.2.3, image:1.27.1&hellip;) so what runs tomorrow is what was reviewed today'),
   refusal('block-wildcard-iam', 'commit', 'Broad privilege grant detected. Name the actions and resources the task needs (no wildcard action, resource or principal&hellip;)'),
-  refusal('scan-secrets', 'commit', 'Potential secret detected in this change. Remove credentials and rotate any exposed keys.'),
-])}`);
+])}`, { bare: true });
 
 const layer = (name, line, hot) => `<div class="panel" style="padding:18px 22px;display:grid;grid-template-columns:170px minmax(0,1fr);gap:20px;align-items:center;${hot ? 'border-color:#F0B53C' : ''}"><span class="mono${hot ? ' gold' : ''}" style="font-size:19px;font-weight:600">${name}</span><span style="font-size:17.5px;line-height:1.5;color:#D5DBE8">${line}</span></div>`;
 const LAYERS = SECTION('The stack', 'One layer underneath. Governance on top. <span class="gold">Evidence all the way through.</span>', `
@@ -207,8 +204,7 @@ const FAMILY = SECTION('Everything we ship', `${D.repos.length} public repositor
 ${grid(2, 14, D.repos.map((r) => `<div class="panel" style="padding:18px 20px;display:flex;flex-direction:column;gap:7px"><span class="mono gold" style="font-size:13px;letter-spacing:.1em;text-transform:uppercase">${r.kind}</span><span class="mono" style="font-size:17px;font-weight:600">${r.name}</span><span style="font-size:16px;line-height:1.45;color:#B4BED2">${r.line}</span></div>`))}`);
 
 const CONTRIBUTE = SECTION('Contribute', 'New guardrails are <span class="gold">content, not code.</span>', `
-<p class="sub">A policy is a manifest plus the evals that prove it fires. No engine change and no plugin API to learn.</p>
-${grid(2, 16, [['01', 'Add an eval case', 'Found a bypass? Write the case that should have blocked it.'], ['02', 'Verify an agent row', 'Run your agent, capture real payloads, and turn a vendor-docs row into a live-run one.'], ['03', 'Ship a policy', 'chock new policy: a manifest, its tier, and an eval suite. CI checks the claim.'], ['04', 'Add an agent adapter', 'Bring a new coding agent into agentseam. The honesty rule overrides preference.']].map(([n, t, p]) => `<div class="panel" style="padding:24px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;gap:12px;align-items:baseline"><span class="mono gold" style="font-size:14px">${n}</span><span style="font-size:22px;font-weight:600">${t}</span></div><span style="font-size:17px;line-height:1.5;color:#B4BED2">${p}</span></div>`))}`);
+${grid(3, 16, [['01', 'Add an eval case', 'Found a bypass? Write the case that should have blocked it.'], ['02', 'Verify an agent row', 'Run your agent, capture real payloads, and turn a vendor-docs row into a live-run one.'], ['03', 'Add an agent adapter', 'Bring a new coding agent into agentseam. The honesty rule overrides preference.']].map(([n, t, p]) => `<div class="panel" style="padding:24px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;gap:12px;align-items:baseline"><span class="mono gold" style="font-size:14px">${n}</span><span style="font-size:22px;font-weight:600">${t}</span></div><span style="font-size:17px;line-height:1.5;color:#B4BED2">${p}</span></div>`))}`, { bare: true });
 
 const HONEST = SECTION('Guardrails, not guarantees', 'And we tell you <span class="gold">which is which.</span>', `
 ${grid(3, 16, [['commit', 'A git hook or CI gate that exits non-zero.'], ['in-agent', 'The agent\'s own pre-tool hook. Best-effort, and it fails open.'], ['advisory', 'Rule text the agent reads. Nothing makes the agent follow it.']].map(([t, p]) => `<div class="panel" style="padding:24px;display:flex;flex-direction:column;gap:12px">${tag(t)}<span style="font-size:17px;line-height:1.5;color:#D5DBE8">${p}</span></div>`))}
