@@ -11,7 +11,8 @@ honest taxonomy (`src/chock/compile/levels.py`): `none`, `best-effort`, `fail-to
 is only claimed when there is an install witness for it — never because a rule merely compiled.
 No agent reaches `enforced`; the commit and CI gates are what enforce.
 
-Install: Chock is not on PyPI. Use the frozen engine,
+Install: chock is on PyPI, but the release there (0.15.2, 30 Sep 2026) is older than the engine
+this page describes. Install the frozen engine from its commit:
 `pip install "chock @ git+https://github.com/open-coder-ai/chock@992711af4cf8d4fd9c4c861f10ef6e53374d75d7"`
 (Python 3.11 or newer).
 
