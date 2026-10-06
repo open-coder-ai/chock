@@ -82,7 +82,7 @@ git commit -m "read key from env"    # passes
 
 Transcript: the commit with the key is rejected with the message above; the rewritten file commits cleanly.
 
-`--ref` pins a catalog commit, `--verify-sha` refuses a policy whose hash differs, and `chock add --ref` refuses a commit that was never published. That pragma is honoured at commit, push and in CI, and deliberately not at tool-use, where the scanned text is a live tool argument.
+`--ref` pins a catalog commit, `--verify-sha` refuses a policy whose hash differs, and `chock add --ref` refuses a commit that was never published. The allowlist pragma on the key line is for documented test fixtures only. It is honoured at commit, push and in CI, and deliberately not at tool-use, where the scanned text is a live tool argument.
 
 ## How it works
 
@@ -245,11 +245,6 @@ Contribution volume now scales with compute while review capacity scales with ma
 A policy manifest for the guardrail your stack needs is the contribution we want most; send it to the [catalog](https://github.com/open-coder-ai/chock-catalog). An evidence report on what your agent does, or a `policy wanted` entry in the [threat ledger](https://github.com/open-coder-ai/chock-threat-intel/blob/main/reference/agentic-threat-ledger.md), also counts; see [docs/ecosystem.md](docs/ecosystem.md). Run `pytest -q && ruff check . && ruff format --check . && chock check` before a pull request; [`good first issue`](https://github.com/open-coder-ai/chock/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) is where to start. Questions: [Discussions](https://github.com/open-coder-ai/chock/discussions).
 
 ## Part of open-coder-ai
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/figures/family-dark.svg">
-  <img alt="The open-coder-ai family, layered: agentseam is the foundation, chock sits on it, chock-catalog feeds chock and generates the four plugin repositories, chock-threat-intel feeds the catalog, and context-report runs as a verification arm beside all of them." src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/figures/family-light.svg" width="800">
-</picture>
 
 | | |
 |---|---|
