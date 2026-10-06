@@ -69,7 +69,9 @@ Any failure stops the install and leaves the previous plugin in place.
 
 **No terminal?** A script, or the chock.sh setup script after it has shown you the code, passes
 `--trust-local <id>=<sha256>`. It accepts exactly that hash; a different hash, an unknown id or a piped `yes` refuses.
-There is no `--yes`.
+There is no `--yes`, and `--trust-local` takes no abbreviation. Inside a chock plugin, the built-in self-protection
+refuses an agent's `chock install --trust-local` and its write to an install marker: the agent shows you the command
+instead, and you run it.
 
 **Trust on first use.** The plugin's marker, `chock.selection.json`, records the engine version and commit and every
 hash you accepted. Re-installing the same bundle for the same client with unchanged code prints one line per policy

@@ -5,7 +5,9 @@
   terminal, `--trust-local <id>=<sha256>` accepts exactly that hash; there is no `--yes`. The install marker is
   versioned (engine version and commit, accepted local hashes): an unchanged hash prints one line, a changed one
   asks again. Custom members are labelled "custom, not reviewed" in install's output, `chock bundle status` and the
-  "customize guardrails" skill.
+  "customize guardrails" skill. The built-in self-protection in every merged plugin refuses an agent's
+  `chock install --trust-local` (any spelling) and its write to an install marker (`chock.selection.json`), so an
+  agent cannot accept its own code; `--trust-local` takes no abbreviation.
 - **`chock new policy <id> --kind {content_regex,guard,script,rule,skill}`** writes a template that validates and
   passes its own evals; outside a catalog the id gains `my-`.
 - **SEC-5's own remedy now validates.** `ambient_override: true` with an `ambient_override_reason` is in the

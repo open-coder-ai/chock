@@ -142,7 +142,10 @@ def install(chosen: dict[str, Any], dest: Path, options: Options) -> tuple[list[
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="chock install", description="Build a chock selection into one plugin for one agent"
+        prog="chock install",
+        description="Build a chock selection into one plugin for one agent",
+        # --trust-local accepts custom code: only its exact spelling counts, never an abbreviation.
+        allow_abbrev=False,
     )
     parser.add_argument("--selection", required=True, help="chock.selection.yaml, a URL with #s=..., or the bare code")
     parser.add_argument("--client", choices=CLIENTS, help="The agent to build for (default: the selection's client)")

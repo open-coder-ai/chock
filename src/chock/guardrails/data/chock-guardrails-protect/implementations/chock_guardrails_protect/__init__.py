@@ -1,4 +1,4 @@
-"""Which shell commands and writes would change a guardrails toggle file (stdlib only).
+"""Which shell commands and writes would change a guardrails toggle file or accept custom code (stdlib only).
 
 Paths are folded the way protect-agent-config folds them: backslashes read as slashes, `//` and `/./`
 collapsed, `..` folded, letter case ignored, and links followed to the file they name. The shell side
@@ -14,6 +14,7 @@ import os
 import posixpath
 import re
 import shlex
+from collections.abc import Callable
 from pathlib import Path
 
 NAME = "guardrails.json"
@@ -23,12 +24,23 @@ NAMES = (NAME, RECORD)
 FOLDER = ".chock"
 TOGGLE = f"{FOLDER}/{NAME}"
 PROTECTED = (TOGGLE, f"{FOLDER}/state/{RECORD}")
+#: The install marker inside every chock-built plugin: it records the custom-policy hashes a person accepted.
+MARKER = "chock.selection.json"
+#: `chock install --trust-local <id>=<sha256>` accepts custom code without asking: only a person passes it.
+TRUST_FLAG = "--trust"
 
 REFUSED = (
     "chock: an agent may not change .chock/guardrails.json or ~/.chock/guardrails.json (or their .chock/state "
     "record), the files that switch "
     "this bundle's guardrails on and off, nor run `chock bundle on|off` or `--adopt`. Reading is fine. Show the person "
     "the exact `chock bundle on|off <policy-id>` command to run in their own shell, and wait."
+)
+
+INSTALL_REFUSED = (
+    "chock: an agent may not accept custom policy code for a person: no `chock install --trust-local` and no write "
+    "to an install marker (chock.selection.json). Reading is fine. Show the person the exact "
+    "`chock install --selection <file> --trust-local <id>=<sha256>` command to run in their own shell after they "
+    "read the code, or let them run `chock install` in a terminal and answer its question; then wait."
 )
 
 #: Commands that only read the files they name (a write redirection is judged on its own).
@@ -109,6 +121,17 @@ def names_folder(token: str, cwd: Path) -> bool:
     return _base_is(fold(token), FOLDER) or _base_is(_real(token, cwd), FOLDER)
 
 
+def names_marker(token: str, cwd: Path) -> bool:
+    """Whether a shell word can name an install marker: as written, folded, or through a link."""
+    folded = fold(token)
+    return MARKER in folded or _base_is(folded, MARKER) or _base_is(_real(token, cwd), MARKER)
+
+
+def is_marker_path(path: str, root: Path) -> bool:
+    """Whether a written path is an install marker, as written or through links."""
+    return any(_base_is(folded, MARKER) for folded in (fold(path), _real(path, root)))
+
+
 def is_toggle_path(path: str, root: Path) -> bool:
     """Whether a written path is a toggle file or its record (anywhere), as written or through links."""
     return any(
@@ -181,22 +204,54 @@ def _split_redirects(words: list[str]) -> tuple[list[str], list[str]]:
     return plain, targets
 
 
-def _segment_refused(words: list[str], cwd: Path) -> bool:
+def _names_chock(words: list[str]) -> bool:
+    """Whether a segment runs chock: `chock`, a path ending in it, or `python -m chock[.<module>]`."""
+    lowered = [w.replace("\\", "/").lower().removesuffix(_EXE) for w in words]
+    return any(w == "chock" or w.endswith("/chock") or w.startswith("chock.") for w in lowered)
+
+
+def _trusts_local(words: list[str]) -> bool:
+    """`chock ... --trust-local`, in any spelling argparse could read, with or without `=`."""
+    return _names_chock(words) and any(w.split("=", 1)[0].lower().startswith(TRUST_FLAG) for w in words)
+
+
+def _writes(words: list[str], cwd: Path, names: Callable[[str, Path], bool]) -> bool:
+    """Whether a segment could write a file `names(token, cwd)` matches; readers and git readers pass."""
     name, args = _command(words)
     plain, targets = _split_redirects(words)
-    if (
-        _bundle_switch(name, args)
-        or any(names_toggle(t, cwd) for t in targets)
-        or any(_ASSIGNMENT.match(t) and names_toggle(t.split("=", 1)[1], cwd) for t in plain)
-        or (name in FOLDER_WRITERS and any(names_folder(a, cwd) for a in args))
+    if any(names(t, cwd) for t in targets) or any(
+        _ASSIGNMENT.match(t) and names(t.split("=", 1)[1], cwd) for t in plain
     ):
         return True
-    if not any(names_toggle(t, cwd) for t in plain):
-        return False
-    if name in READERS:
+    if not any(names(t, cwd) for t in plain) or name in READERS:
         return False
     sub = next((a.lower() for a in args if not a.startswith("-")), "")
     return not (name == "git" and sub in GIT_READERS)
+
+
+def _segment_refused(words: list[str], cwd: Path) -> bool:
+    name, args = _command(words)
+    if _bundle_switch(name, args) or (name in FOLDER_WRITERS and any(names_folder(a, cwd) for a in args)):
+        return True
+    return _writes(words, cwd, names_toggle)
+
+
+def _hidden(command: str, segments: list[list[str]], wanted: list[str]) -> bool:
+    """Whether a line that names every `wanted` text also runs other text it could hide them in."""
+    lowered = fold(command)
+    if not all(w in lowered for w in wanted):
+        return False
+    return "$(" in command or "`" in command or any(_command(s)[0] in EXECUTORS for s in segments)
+
+
+def install_refused(command: str, cwd: Path) -> bool:
+    """Whether an agent's command could accept custom code: `--trust-local`, or a write to an install marker."""
+    segments = _segments(_tokens(command))
+    if any(_trusts_local(s) or _writes(s, cwd, names_marker) for s in segments):
+        return True
+    if TRUST_FLAG in fold(command) and any(_names_chock(s) for s in segments):
+        return True  # the flag set in a variable or built elsewhere on the line that runs chock
+    return _hidden(command, segments, ["chock", TRUST_FLAG]) or _hidden(command, segments, [MARKER])
 
 
 def refuses(command: str, cwd: Path) -> bool:
@@ -208,3 +263,10 @@ def refuses(command: str, cwd: Path) -> bool:
     if not named:
         return False
     return "$(" in command or "`" in command or any(_command(s)[0] in EXECUTORS for s in segments)
+
+
+def refusal(command: str, cwd: Path) -> str | None:
+    """The refusal an agent's shell command gets, or None when it may run."""
+    if refuses(command, cwd):
+        return REFUSED
+    return INSTALL_REFUSED if install_refused(command, cwd) else None

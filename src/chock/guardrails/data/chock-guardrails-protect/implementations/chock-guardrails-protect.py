@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Shell guard: refuse an agent's command that could write a guardrails toggle file or run `chock bundle on|off`."""
+"""Shell guard: refuse an agent's command that could write a toggle file, switch a member, or accept custom code."""
 
 from __future__ import annotations
 
@@ -10,13 +10,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from chock_guardrails_protect import REFUSED, refuses
+from chock_guardrails_protect import refusal
 
 
 def main() -> int:
     command = os.environ.get("CHOCK_RAW_COMMAND") or shlex.join(sys.argv[1:])
-    if refuses(command, Path.cwd()):
-        sys.stdout.write(REFUSED + "\n")
+    message = refusal(command, Path.cwd())
+    if message:
+        sys.stdout.write(message + "\n")
         return 1
     return 0
 
