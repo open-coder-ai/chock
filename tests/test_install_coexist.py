@@ -8,13 +8,27 @@ from pathlib import Path
 
 import pytest
 from bundle_fixtures import ADVISORY_ID, GATE_ID, GUARD_ID
-from install_fixtures import selection
-from test_install_clients import CLIENTS, _files, _read, _run, catalog, home, v2
+from install_fixtures import make_catalog, selection
+from test_install_clients import CLIENTS, _files, _read, _run, v2
 
 from chock.install import package, place
 
 pytestmark = pytest.mark.skipif(shutil.which("git") is None, reason="git required")
-__all__ = ["catalog", "home"]
+
+
+@pytest.fixture
+def catalog(tmp_path: Path) -> tuple[Path, str]:
+    return make_catalog(tmp_path)
+
+
+@pytest.fixture
+def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A throwaway HOME, so every default folder lands in the test's own directory."""
+    path = tmp_path / "home"
+    path.mkdir()
+    monkeypatch.setenv("HOME", str(path))
+    monkeypatch.setenv("USERPROFILE", str(path))
+    return path
 
 
 def test_two_bundles_for_one_client_coexist_and_both_are_indexed(catalog, tmp_path: Path, home: Path) -> None:
