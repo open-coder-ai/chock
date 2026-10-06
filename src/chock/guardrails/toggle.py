@@ -15,6 +15,7 @@ import io
 import json
 import os
 import re
+import runpy
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -189,9 +190,7 @@ def main() -> None:
     payload = sys.stdin.buffer.read()
     sys.argv = wrapped(sys.argv[1:], payload)
     sys.stdin = io.TextIOWrapper(io.BytesIO(payload), encoding="utf-8")
-    adapter = Path(sys.argv[0])
-    code = compile(adapter.read_bytes(), str(adapter), "exec")
-    exec(code, {"__name__": "__main__", "__file__": str(adapter), "__builtins__": __builtins__})  # noqa: S102 -- the client's own shipped adapter, run as `python <adapter>` would
+    runpy.run_path(sys.argv[0], run_name="__main__")
 
 
 if __name__ == "__main__":
