@@ -69,11 +69,18 @@ Version is single-sourced in `pyproject.toml`.
 1. Bump `version` in `pyproject.toml`.
 2. Run `python tools/changelog.py --assemble --write` to fold `changelog.d/` fragments into `## Unreleased`, then rename that heading to `## X.Y.Z` in `CHANGELOG.md` and delete the folded fragments.
 3. Commit, then `git tag vX.Y.Z && git push origin vX.Y.Z`.
-4. The `release` workflow builds the wheel/sdist, publishes to PyPI via Trusted Publishing,
-   builds one-file binaries for Ubuntu, macOS, and Windows, and creates a GitHub Release with
-   the binaries and `checksums.txt`.
+4. Two workflows run on the tag:
+   - `publish.yml` refuses unless the tag is `v` + the `pyproject.toml` version and the tagged
+     commit is on `main`, then builds the sdist and wheel and publishes them to PyPI via
+     Trusted Publishing (OIDC, no token).
+   - `release.yml` builds one-file binaries for Ubuntu, macOS, and Windows and attaches them,
+     with `checksums.txt`, to the GitHub Release. Its guard also refuses a tag that does not
+     match `pyproject.toml`.
 
-The release workflow fails the guard step if the tag does not match `pyproject.toml`.
+PyPI trusted-publisher setup (owner, once, on pypi.org → chock → Publishing): owner
+`open-coder-ai`, repository `chock`, workflow `publish.yml`, environment `pypi`. In GitHub, the
+`pypi` environment should allow deployments from `v*` tags only. Renaming `publish.yml` or the
+environment breaks publishing until the PyPI publisher is updated to match.
 
 ### The emitter-stability promise
 

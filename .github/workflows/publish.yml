@@ -1,0 +1,66 @@
+name: Publish
+
+# PyPI Trusted Publishing (OIDC): no token exists anywhere. PyPI trusts exactly this
+# file name in the `pypi` environment of open-coder-ai/chock; renaming it breaks publishing.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions: {}
+
+jobs:
+  pypi:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          # Full history and every branch, so the guard below can see origin/main.
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Refuse unless the tag is v<version> and the commit is on main
+        run: |
+          pyproject_version=$(grep -oP '^version\s*=\s*"\K[^"]+' pyproject.toml)
+          if [ "$GITHUB_REF_NAME" != "v$pyproject_version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME is not v$pyproject_version (pyproject.toml)"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tagged commit $GITHUB_SHA is not on main"
+            exit 1
+          fi
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Install build tools
+        run: pip install --require-hashes -r requirements/build.txt
+      - name: Point README images at raw URLs
+        # README.md is the PyPI long_description and PyPI cannot resolve repo-relative
+        # image paths. Rewritten in the build workspace only. REPO/REF go through env,
+        # never interpolated: a tag may contain a quote, and this job holds id-token: write.
+        env:
+          REPO: ${{ github.repository }}
+          REF: ${{ github.ref_name }}
+        run: |
+          sed -i -E "s#<img src=\"docs/assets/#<img src=\"https://raw.githubusercontent.com/${REPO}/${REF}/docs/assets/#g" README.md
+      - name: Build sdist and wheel
+        run: python -m build
+      - name: Refuse unless dist holds exactly this version's sdist and wheel
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          expected=$(printf '%s\n' "chock-${version}-py3-none-any.whl" "chock-${version}.tar.gz")
+          actual=$(ls dist | LC_ALL=C sort)
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::dist/ holds:"; echo "$actual"; echo "expected:"; echo "$expected"
+            exit 1
+          fi
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # release/v1
+        with:
+          packages-dir: dist/

@@ -24,50 +24,6 @@ jobs:
             exit 1
           fi
 
-  pypi:
-    needs: guard
-    runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      id-token: write
-      contents: read
-      attestations: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
-        with:
-          persist-credentials: false
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
-        with:
-          python-version: "3.12"
-      - name: Install build tools
-        run: pip install --require-hashes -r requirements/build.txt
-      - name: Point README images at raw URLs
-        # README.md is the PyPI long_description; PyPI cannot resolve repo-relative
-        # image paths, so the published page would open on a broken-image placeholder.
-        # Rewritten only in the build workspace -- the committed README keeps relative
-        # paths, which are what GitHub renders best.
-        #
-        # REPO/REF go through env, never interpolated into the script: a git tag may
-        # legally contain a single quote, and `${{ github.ref_name }}` spliced into a
-        # quoted sed program would let a crafted tag run arbitrary bash in this job --
-        # which holds id-token: write for Trusted Publishing.
-        env:
-          REPO: ${{ github.repository }}
-          REF: ${{ github.ref_name }}
-        run: |
-          sed -i -E "s#<img src=\"docs/assets/#<img src=\"https://raw.githubusercontent.com/${REPO}/${REF}/docs/assets/#g" README.md
-      - name: Build sdist and wheel
-        run: python -m build
-      - name: Attest build provenance
-        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4
-        with:
-          subject-path: dist/*
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # release/v1
-        with:
-          packages-dir: dist/
-
   binaries:
     needs: guard
     strategy:
@@ -104,7 +60,7 @@ jobs:
           path: dist/chock-${{ matrix.os }}*
 
   release:
-    needs: [pypi, binaries]
+    needs: binaries
     runs-on: ubuntu-latest
     permissions:
       contents: write
