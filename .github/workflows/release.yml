@@ -69,10 +69,11 @@ jobs:
       - name: Refuse unless dist holds exactly this version's sdist and wheel
         run: |
           version=${GITHUB_REF_NAME#v}
-          expected=$(printf '%s\n' "chock-${version}-py3-none-any.whl" "chock-${version}.tar.gz")
-          actual=$(ls dist | LC_ALL=C sort)
-          if [ "$actual" != "$expected" ]; then
-            echo "::error::dist/ holds:"; echo "$actual"; echo "expected:"; echo "$expected"
+          shopt -s nullglob dotglob
+          files=(dist/*)
+          if [ "${#files[@]}" -ne 2 ] || [ ! -f "dist/chock-${version}-py3-none-any.whl" ] \
+            || [ ! -f "dist/chock-${version}.tar.gz" ]; then
+            echo "::error::dist/ must hold exactly chock-${version}-py3-none-any.whl and chock-${version}.tar.gz, holds: ${files[*]}"
             exit 1
           fi
       - name: Attest build provenance
