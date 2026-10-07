@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+import yaml
+
+import chock
 from chock.compile.surfaces import Surface, coverage_level
+from chock.scaffold import install_ci
 from chock.scaffold.install_ci import MARKER, ci_workflow_installed, main
 
 
@@ -49,3 +54,48 @@ def test_coverage_still_credits_git_hook_alongside_uninstalled_ci_gate() -> None
     """git-hook's claim does not regress: it is installed automatically by `recompile` and is"""
     emitted = {Surface.GIT_HOOK, Surface.CI_GATE}
     assert coverage_level(emitted, "cursor", ci_gate_installed=False) == "enforced-at-commit"
+
+
+_SHA = "0123456789abcdef0123456789abcdef01234567"
+
+
+def _installed(tmp_path: Path) -> str:
+    assert main([str(tmp_path)]) == 0
+    return (tmp_path / ".github" / "workflows" / "chock.yml").read_text(encoding="utf-8")
+
+
+def test_workflow_pins_the_engine_commit_that_generated_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(install_ci, "engine_commit", lambda: _SHA)
+    text = _installed(tmp_path)
+    assert f'pip install "chock @ git+https://github.com/open-coder-ai/chock@{_SHA}"' in text
+    assert "__ENGINE_" not in text
+    assert "__COMMIT__" not in text
+
+
+@pytest.mark.parametrize("commit", [None, "", "main", _SHA[:12], f"{_SHA}; rm -rf ~"])
+def test_without_a_known_commit_the_workflow_pins_the_pypi_version_and_says_so(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, commit: str | None
+) -> None:
+    monkeypatch.setattr(install_ci, "engine_commit", lambda: commit)
+    text = _installed(tmp_path)
+    assert f'pip install "chock=={chock.__version__}"' in text
+    assert "git+" not in text
+    assert (
+        f"# No engine commit was known when this was generated (a PyPI install), so this pins chock {chock.__version__}"
+        in text
+    )
+
+
+def test_a_new_engine_commit_refreshes_the_pin(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(install_ci, "engine_commit", lambda: _SHA)
+    _installed(tmp_path)
+    monkeypatch.setattr(install_ci, "engine_commit", lambda: "f" * 40)
+    assert "f" * 40 in _installed(tmp_path)
+
+
+def test_both_rendered_workflows_parse_with_the_same_steps(monkeypatch: pytest.MonkeyPatch) -> None:
+    rendered = []
+    for commit in (_SHA, None):
+        monkeypatch.setattr(install_ci, "engine_commit", lambda c=commit: c)
+        rendered.append(yaml.safe_load(install_ci.render())["jobs"]["chock-gate"]["steps"])
+    assert [s.get("name") for s in rendered[0]] == [s.get("name") for s in rendered[1]]

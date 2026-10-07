@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
 import sys
+from importlib import metadata
 from pathlib import Path
+
+import chock
 
 REMOTE_TIMEOUT = 600
 LOCAL_TIMEOUT = 60
@@ -160,3 +164,24 @@ def fetch_catalog(source: str, ref: str | None, into: Path) -> tuple[Path, str |
             file=sys.stderr,
         )
     return into, _clone_ref(source, remote, ref, into)
+
+
+def engine_commit() -> str | None:
+    """The commit this chock was installed from (a VCS install) or runs from (a source checkout), else None."""
+    try:
+        direct = json.loads(metadata.distribution("chock").read_text("direct_url.json") or "{}")
+    except (metadata.PackageNotFoundError, ValueError):
+        direct = {}
+    commit = (direct.get("vcs_info") or {}).get("commit_id") if isinstance(direct, dict) else None
+    if commit:
+        return str(commit)
+    source = Path(chock.__file__).resolve().parents[2]
+    if not (source / ".git").exists():
+        return None
+    try:
+        done = _run(["git", *INERT, "-C", str(source), "rev-parse", "HEAD"])
+    except OSError:
+        return None
+    if done.returncode != 0:
+        return None
+    return done.stdout.strip() or None
