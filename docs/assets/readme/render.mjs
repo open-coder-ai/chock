@@ -45,12 +45,13 @@ const REFUSALS = term([
 ]);
 
 const SPECS = [];
-// hero: visual only (mark on dusk, no text), for READMEs whose H1 and lead are markdown (README v2). The social banner keeps the text.
-const HERO = page(`<div class="frame" style="height:300px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 50%,#2D3A5E 0,#222C44 62%)">
-${MARK.replace('width="46" height="46"', 'width="168" height="168"')}</div>`);
+// hero: the mark and the product wordmark only, never the tagline, for READMEs whose H1 and lead are markdown (README v2). The social banner keeps the text.
+const MARK_BARE = MARK.replace('<rect width="512" height="512" rx="104" fill="#263251"/>', '').replace('width="46" height="46" viewBox="0 0 512 512"', 'width="84" height="84" viewBox="136 136 240 240"');
+const HERO = (repo) => page(`<div class="frame" style="height:190px;padding:0 64px;display:flex;align-items:center;justify-content:center;gap:30px;background:radial-gradient(ellipse 70% 120% at 50% 50%,#2D3A5E 0,#222C44 70%)">
+${MARK_BARE}<div style="display:flex;flex-direction:column;gap:14px"><span style="font-size:72px;line-height:1;font-weight:650;letter-spacing:-.03em">${repo}</span><span style="display:block;width:64px;height:3px;border-radius:2px;background:#F0B53C"></span></div></div>`);
 function cover({ repo, title, sub, chips, right, hero = false }) {
   SPECS.push({ repo, title, sub, chips, right });
-  if (hero) return HERO;
+  if (hero) return HERO(repo);
   return page(`<div class="frame" style="display:grid;grid-template-columns:minmax(0,1fr);gap:32px;padding:48px 44px">
 <div style="display:flex;flex-direction:column;gap:26px">
 <div style="display:flex;align-items:center;gap:14px">${MARK}<span class="mono" style="font-size:22px;font-weight:600">${repo}</span></div>
@@ -239,7 +240,7 @@ for (const [name, html] of Object.entries(ALL)) {
   await pg.setViewportSize({ width: isSocial ? 1280 : 880, height: isSocial ? 640 : 800 });
   await pg.setContent(html, { waitUntil: 'networkidle' });
   const ok = await pg.evaluate(async () => {
-    const fonts = ['16px "Instrument Sans"', '600 16px "Instrument Sans"', '14px "JetBrains Mono"'];
+    const fonts = ['16px "Instrument Sans"', '600 16px "Instrument Sans"', '650 72px "Instrument Sans"', '14px "JetBrains Mono"'];
     await Promise.all(fonts.map((f) => document.fonts.load(f)));
     return fonts.map((f) => document.fonts.check(f));
   });

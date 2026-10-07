@@ -1,6 +1,6 @@
 <div align="center">
 
-<p><img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/cover-chock.png" alt="Chock mark on a dusk-blue background." width="100%"></p>
+<p><img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/cover-chock.png" alt="chock wordmark and mark on a dusk-blue background." width="100%"></p>
 
 </div>
 
