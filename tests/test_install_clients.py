@@ -24,6 +24,8 @@ TREE = {
     "cursor": ("chock-guardrails", ".cursor-plugin/plugin.json", []),
     "devin": ("chock-guardrails", ".devin-plugin/plugin.json", []),
 }
+# Clients chock has not witnessed an install in; Claude Code and Codex are witnessed.
+UNWITNESSED = ("copilot", "cursor", "devin")
 BINARY = {"claude-code": "claude", "copilot": "copilot", "codex": "codex", "devin": "devin"}
 
 
@@ -148,11 +150,11 @@ def test_each_label_carries_the_clients_own_qualifier(
 
 
 @pytest.mark.parametrize("client", CLIENTS)
-def test_client_warnings_say_untested_for_every_client_but_claude_code(catalog, tmp_path, home, capsys, client) -> None:
+def test_client_warnings_say_untested_for_every_unwitnessed_client(catalog, tmp_path, home, capsys, client) -> None:
     root, ref = catalog
     assert _run(tmp_path, v2(root, ref, client)) == 0
     out = capsys.readouterr().out
-    assert ("warning: Untested: chock has not witnessed an install" in out) == (client != "claude-code")
+    assert ("warning: Untested: chock has not witnessed an install" in out) == (client in UNWITNESSED)
     assert ("trust them in /hooks" in out) == (client == "codex")
     assert ("fails open: a hook that errors" in out) == (client == "devin")
     assert ("only at turn end" in out) == (client in ("copilot", "devin"))
