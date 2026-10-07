@@ -1,0 +1,10 @@
+{
+  "commit": {
+    "spec": "chock @ git+https://github.com/open-coder-ai/chock@__COMMIT__",
+    "note": "Pinned to the chock commit that generated this file. Re-run `chock sync --ci` to move it."
+  },
+  "pypi": {
+    "spec": "chock==__VERSION__",
+    "note": "No engine commit was known when this was generated (a PyPI install), so this pins chock __VERSION__ from PyPI. Re-run `chock sync --ci` to move it."
+  }
+}

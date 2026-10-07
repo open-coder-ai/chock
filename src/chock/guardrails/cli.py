@@ -160,8 +160,16 @@ def adopt() -> int:
 
 
 def _drift_lines() -> None:
-    for line in toggle.drifted(Path.cwd()):
-        print(f"warning: {line}; turn ends refuse until a person re-applies it or runs `chock bundle status --adopt`")
+    for path in toggle.scopes(Path.cwd()):
+        why = toggle.drift(path)
+        if why == toggle.DELETED and path != toggle.user_path():
+            why = toggle.handed_to_user() or why
+        if why == toggle.DELETED:
+            print(f"note: {path}: {why}; every member is on, and the next turn end drops its record")
+        elif why:
+            print(
+                f"warning: {path}: {why}; turn ends refuse until a person re-applies it or runs `chock bundle status --adopt`"
+            )
 
 
 def status() -> int:
