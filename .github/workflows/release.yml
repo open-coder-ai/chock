@@ -5,22 +5,29 @@ on:
     tags:
       - "v*"
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   guard:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
+          # Full history and every branch, so the ancestry check below can see origin/main.
+          fetch-depth: 0
           persist-credentials: false
-      - name: Verify tag matches pyproject version
+      - name: Refuse unless the tag is v<version> and the commit is on main
+        # pyproject.toml is the single source of chock.__version__ (importlib.metadata).
         run: |
-          pyproject_version=$(grep -oP '^version\s*=\s*"\K[^"]+' pyproject.toml)
-          tag_version=${GITHUB_REF_NAME#v}
-          if [ "$tag_version" != "$pyproject_version" ]; then
-            echo "Tag $GITHUB_REF_NAME does not match pyproject version $pyproject_version"
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME is not v$version (pyproject.toml)"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tagged commit $GITHUB_SHA is not on main"
             exit 1
           fi
 
@@ -59,6 +66,16 @@ jobs:
           sed -i -E "s#<img src=\"docs/assets/#<img src=\"https://raw.githubusercontent.com/${REPO}/${REF}/docs/assets/#g" README.md
       - name: Build sdist and wheel
         run: python -m build
+      - name: Refuse unless dist holds exactly this version's sdist and wheel
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          shopt -s nullglob dotglob
+          files=(dist/*)
+          if [ "${#files[@]}" -ne 2 ] || [ ! -f "dist/chock-${version}-py3-none-any.whl" ] \
+            || [ ! -f "dist/chock-${version}.tar.gz" ]; then
+            echo "::error::dist/ must hold exactly chock-${version}-py3-none-any.whl and chock-${version}.tar.gz, holds: ${files[*]}"
+            exit 1
+          fi
       - name: Attest build provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4
         with:
@@ -75,6 +92,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     defaults:
       run:
         shell: bash
