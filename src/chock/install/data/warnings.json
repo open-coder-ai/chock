@@ -79,7 +79,6 @@
       "kind": "client",
       "clients": [
         "copilot",
-        "codex",
         "cursor",
         "devin"
       ],
