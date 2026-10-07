@@ -137,6 +137,58 @@ def test_a_deleted_user_file_passes_too(tmp_path: Path, home: Path, monkeypatch:
     assert not toggle.record_path(home / TOGGLE).exists()
 
 
+def _user_file(home: Path, members: dict[str, str] | None) -> None:
+    """The user-scope toggle file as `chock bundle` records it, or none."""
+    if members is not None:
+        set_toggles(home, {BUNDLE_ID: members})
+
+
+@pytest.mark.parametrize(
+    ("user", "verdict"),
+    [
+        (None, "allowed"),
+        ({GUARD_ID: "on"}, "allowed"),
+        ({GUARD_ID: "off"}, "refused"),
+        ({"demo-write-gate": "off"}, "refused"),
+    ],
+)
+def test_a_repo_deletion_that_hands_control_to_a_looser_user_file_still_refuses(
+    tmp_path: Path, home: Path, monkeypatch: pytest.MonkeyPatch, user: dict[str, str] | None, verdict: str
+) -> None:
+    """Orchestrator review: with the repo file gone the user file governs the repo, so deleting it can loosen."""
+    repo, judge = _at_turn_end("claude", tmp_path, home)
+    _switch(repo, monkeypatch, "on", GUARD_ID)
+    _user_file(home, user)
+    (repo / TOGGLE).unlink()
+    assert judge() == verdict
+    assert toggle.record_path(repo / TOGGLE).exists() == (verdict == "refused"), "a refusal keeps the record"
+
+
+def test_the_refusal_names_the_user_file_and_what_it_switches_off(
+    tmp_path: Path, home: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo, _judge = _at_turn_end("claude", tmp_path, home)
+    _switch(repo, monkeypatch, "on", GUARD_ID)
+    _user_file(home, {GUARD_ID: "off"})
+    (repo / TOGGLE).unlink()
+    assert toggle.turn_end_drifted([repo]) == [
+        f"{repo / TOGGLE}: deleting it hands control to {home / TOGGLE}, which switches {BUNDLE_ID}/{GUARD_ID} off"
+    ]
+    capsys.readouterr()
+    _switch(repo, monkeypatch, "status")
+    assert f"warning: {repo / TOGGLE}: deleting it hands control to" in capsys.readouterr().out
+
+
+def test_a_repo_deletion_onto_an_unrecorded_user_file_refuses(
+    tmp_path: Path, home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _judge = _at_turn_end("claude", tmp_path, home)
+    _switch(repo, monkeypatch, "on", GUARD_ID)
+    set_toggles(home, {BUNDLE_ID: {}}, recorded=False)
+    (repo / TOGGLE).unlink()
+    assert f"{repo / TOGGLE}: deleting it hands control to" in toggle.turn_end_drifted([repo])[0]
+
+
 def _two_roots(tmp_path: Path, home: Path):
     """A Cursor Stop naming two workspace roots and no `cwd`, its hook started outside both."""
     plugin, repo, commands = build(tmp_path, "cursor")

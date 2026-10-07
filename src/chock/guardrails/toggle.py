@@ -1,11 +1,8 @@
 """The guardrails toggle file and its lookup. Stdlib only: shipped verbatim in every merged plugin as its hook wrapper.
 
-`.chock/guardrails.json` (repo scope; a repo's own governs it) or `~/.chock/guardrails.json` (user scope):
-`{"version": 1, "bundles": {"<bundle.name>": {"<policy-id>": "on" | "off"}}}`. Absent, unreadable or invalid: on.
-Wrapper: `chock_bundle.py --bundle <name> --member <id> <adapter> [args...]`; off runs the adapter with no args.
-`chock bundle on|off` records each file's sha256 in `.chock/state/guardrails.sha256`; the lookup honours a file only
-while it matches. `chock_bundle.py --verify <adapter>` refuses a Stop while one differs, in the payload's `cwd` or any
-workspace root; a deletion only tightens (absent is all on), so it drops the stale record instead.
+`.chock/guardrails.json` (repo; else `~/.chock/guardrails.json`) is all on when absent, invalid or unlike its record.
+`--bundle <b> --member <id> <adapter> [args...]`: off runs the adapter with no args. `--verify <adapter>`: a Stop is
+refused while a toggle file in its `cwd` or any workspace root loosened.
 """
 
 from __future__ import annotations
@@ -56,10 +53,7 @@ def user_path() -> Path:
 def repo_root(start: Path) -> Path | None:
     """The repository `start` is in: the nearest folder holding `.git`, or None outside one."""
     here = Path(start).absolute()
-    for folder in (here, *here.parents):
-        if (folder / ".git").exists():
-            return folder
-    return None
+    return next((folder for folder in (here, *here.parents) if (folder / ".git").exists()), None)
 
 
 def source(start: Path) -> tuple[Path | None, str | None]:
@@ -196,9 +190,7 @@ def drift(toggle_file: Path) -> str | None:
         return None
     if now is None:
         return DELETED
-    if then is None:
-        return "`chock bundle` has no record of it"
-    return "it was changed outside `chock bundle`"
+    return "`chock bundle` has no record of it" if then is None else "it was changed outside `chock bundle`"
 
 
 def scopes(start: Path) -> list[Path]:
@@ -207,26 +199,33 @@ def scopes(start: Path) -> list[Path]:
     return [*([root / FILENAME] if root else []), user_path()]
 
 
+def handed_to_user() -> str | None:
+    """Why a deleted repo file loosens: the user file that now governs switches members off, or is unvouched for."""
+    user = user_path()
+    if not os.path.lexists(user):
+        return None
+    if drift(user):
+        return f"deleting it hands control to {user}, which `chock bundle` did not write"
+    try:
+        off = sorted(f"{b}/{i}" for b, members in read(user).items() for i, s in members.items() if s == OFF)
+    except ToggleError:
+        return None
+    return f"deleting it hands control to {user}, which switches {', '.join(off)} off" if off else None
+
+
 def turn_end_drifted(starts: list[Path]) -> list[str]:
-    """One line per toggle file in scope of any of `starts` that drifted; a deletion's stale record is dropped instead."""
+    """One line per toggle file in scope of any of `starts` that loosened; a tightening deletion drops its record."""
     lines = []
     for path in dict.fromkeys(path for start in starts for path in scopes(start)):
         why = drift(path)
         if why == DELETED:
-            with contextlib.suppress(OSError):
-                record_path(path).unlink()
-        elif why:
+            why = None if path == user_path() else handed_to_user()
+            if why is None:
+                with contextlib.suppress(OSError):
+                    record_path(path).unlink()
+        if why:
             lines.append(f"{path}: {why}")
     return lines
-
-
-def refusal(lines: list[str]) -> str:
-    return (
-        "chock: a guardrails toggle file was changed outside `chock bundle`: "
-        + "; ".join(lines)
-        + ". Only a person changes it: they re-apply it with `chock bundle on|off <policy-id>`, or review it and run"
-        " `chock bundle status --adopt`. The agent does not."
-    )
 
 
 def _adapter(path: str):
@@ -242,16 +241,18 @@ def _adapter(path: str):
 
 def verify(argv: list[str], payload: bytes) -> None:
     """Turn-end check: the adapter (`argv`: it, `--gate <gate> --stop`) refuses a Stop while a toggle file drifted."""
-    adapter_path, gate = argv[0], Path(argv[argv.index("--gate") + 1])
-    adapter = _adapter(adapter_path)
+    adapter, gate = _adapter(argv[0]), Path(argv[argv.index("--gate") + 1])
     wheres = _wheres(payload)
     ledger = next((root for root in map(repo_root, wheres) if root), wheres[0])
 
     def handle(event):
         lines = turn_end_drifted(wheres) if getattr(event, "event", "") == "stop" else []
-        if not lines:
-            return None
-        decision = adapter.settle_stop(event, ledger, gate, (_VERDICT_DENY, refusal(lines)), {})
+        refusal = (
+            f"chock: a guardrails toggle file was changed outside `chock bundle`: {'; '.join(lines)}. Only a person "
+            "changes it: they re-apply it with `chock bundle on|off <policy-id>`, or review it and run "
+            "`chock bundle status --adopt`. The agent does not."
+        )
+        decision = adapter.settle_stop(event, ledger, gate, (_VERDICT_DENY, refusal), {}) if lines else None
         return adapter._spoken(decision) if decision else None
 
     adapter.handle = handle
