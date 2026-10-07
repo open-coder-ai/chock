@@ -6,6 +6,7 @@ Write landed outside the repository and the gate let an unpinned action through.
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import os
 import subprocess
@@ -187,3 +188,52 @@ def test_the_guardrails_wrapper_refuses_rather_than_exiting_silently(tmp_path: P
         )
         assert (done.returncode, done.stdout) == (2, ""), (argv, done.stdout, done.stderr)
         assert "refuses" in done.stderr, done.stderr
+
+
+#: The witness plugin's two pre-tool gates: chock-guardrails-protect sees every absolute path, while
+#: pin-github-actions has no outside globs and is scoped to repo-relative globs (catalog f23cb0e).
+PROTECT_OUTSIDE = ["/*", "?:/*"]
+PIN_SCOPE = [".github/workflows/*", ".github/actions/*", "action.y*ml", "*/action.y*ml"]
+HOME = "C:\\Users\\u"
+REPO_CWD = "C:\\Users\\u\\Work\\AgentTest\\witness-repo"
+TOGGLE = "C:\\Users\\u\\Work\\AgentTest\\witness-repo\\.chock\\guardrails.json"
+
+
+def _judged(path: str, root: str, outside: list[str]) -> list[str]:
+    names = write_gate.judged_files({path: "x"}, root, outside, lambda p: write_gate.repo_paths(p, root))
+    return list(names)
+
+
+@pytest.mark.parametrize(
+    ("root", "pin_judges"), [(HOME, False), (REPO_CWD, True)], ids=["root=home(pre-fix)", "root=repo"]
+)
+def test_the_witnessed_pair_of_outcomes_follows_from_the_root(root: str, pin_judges: bool) -> None:
+    """Windows witness, same machine: the name-matched gate refused the toggle write, the scoped gate let the workflow through.
+
+    The name-matched gate sees the write whatever the root, through its `outside_repo` globs. The scoped gate sees it
+    only when the write is named relative to the repository. With the home folder as root (the old fallback to the
+    process cwd), these two outcomes are exactly what was witnessed. With the repository as root, both gates judge it.
+    """
+    (protected,) = _judged(TOGGLE, root, PROTECT_OUTSIDE)
+    assert protected.endswith(".chock/guardrails.json"), "protect sees it either way"
+    (scoped,) = _judged(WRITTEN, root, [])
+    assert any(fnmatch.fnmatchcase(scoped, glob) for glob in PIN_SCOPE) is pin_judges, scoped
+
+
+@pytest.mark.parametrize(
+    "spelled",
+    [
+        WRITTEN,
+        WRITTEN.replace("\\", "/"),
+        "c" + WRITTEN[1:],
+        WRITTEN.replace("witness-repo", "WITNESS-REPO"),
+        "C:\\Users\\u\\Work\\AgentTest\\witness-repo\\x\\..\\.github\\workflows\\witness.yml",
+    ],
+    ids=["backslash", "slash", "lower-drive", "upper-case", "dotdot"],
+)
+@pytest.mark.parametrize("root", [REPO_CWD, ROOT, "c:/users/u/work/agenttest/witness-repo"])
+def test_folding_a_windows_path_is_not_the_cause(spelled: str, root: str) -> None:
+    """With the repository as root, every Windows spelling of the written path lands in the scope glob."""
+    (name,) = write_gate.repo_paths(spelled, root)
+    assert name.lower() == ".github/workflows/witness.yml"
+    assert any(fnmatch.fnmatchcase(name.lower(), glob) for glob in PIN_SCOPE)
