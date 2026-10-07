@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import re
 
+import pytest
+
 from chock.compile.emitters import ci, git_hook
 from chock.gate import runtime_bundle
 from chock.hooks import installers, launch
@@ -91,12 +93,22 @@ def test_runtime_bundle_dispatch_template_token() -> None:
     assert "session_start" in rendered_branch
 
 
+@pytest.mark.parametrize("commit", ["0" * 40, None])
+def test_ci_workflow_template_tokens(monkeypatch: pytest.MonkeyPatch, commit: str | None) -> None:
+    from chock.scaffold import install_ci
+
+    _assert_round_trips(install_ci.WORKFLOW_TEMPLATE, {"__ENGINE_SPEC__": "chock", "__ENGINE_PIN_NOTE__": "note"})
+    for pin in install_ci.PIN.values():
+        assert set(_TOKEN_RE.findall(pin["spec"] + pin["note"])) <= {"__COMMIT__", "__VERSION__"}
+    monkeypatch.setattr(install_ci, "engine_commit", lambda: commit)
+    assert not _TOKEN_RE.search(install_ci.render())
+
+
 def test_static_templates_carry_no_orphan_tokens() -> None:
     """Templates with no placeholders at all must stay that way."""
-    from chock.scaffold import agents_md, install_ci, skills_bridge, templates
+    from chock.scaffold import agents_md, skills_bridge, templates
 
     for text in (
-        install_ci.WORKFLOW_TEMPLATE,
         templates.GITATTRIBUTES_TEMPLATE,
         templates.POLICIES_GUARDRAIL,
         templates.SKILLS_GUARDRAIL,

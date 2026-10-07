@@ -6,7 +6,6 @@ import json
 import shutil
 import tempfile
 from dataclasses import dataclass
-from importlib import metadata
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +16,7 @@ from chock.plugin.build import _one_line
 from chock.plugin.bundle_build import Member
 from chock.plugin.store import build_store_plugin
 from chock.resources import package_data_dir
-from chock.scaffold.pin import INERT, _run
+from chock.scaffold.pin import engine_commit
 
 #: Written into every plugin it builds: the selection it came from, and proof the directory is chock's to replace.
 MARKER = "chock.selection.json"
@@ -72,32 +71,11 @@ def labels(members: list[Member], catalog: Path, client_id: str, custom: frozens
     ]
 
 
-def _engine_commit() -> str | None:
-    """The commit this chock was installed from (a VCS install) or runs from (a source checkout), else None."""
-    try:
-        direct = json.loads(metadata.distribution("chock").read_text("direct_url.json") or "{}")
-    except (metadata.PackageNotFoundError, ValueError):
-        direct = {}
-    commit = (direct.get("vcs_info") or {}).get("commit_id") if isinstance(direct, dict) else None
-    if commit:
-        return str(commit)
-    source = Path(chock.__file__).resolve().parents[2]
-    if not (source / ".git").exists():
-        return None
-    try:
-        done = _run(["git", *INERT, "-C", str(source), "rev-parse", "HEAD"])
-    except OSError:
-        return None
-    if done.returncode != 0:
-        return None
-    return done.stdout.strip() or None
-
-
 def marker(chosen: dict[str, Any], accepted: dict[str, str]) -> dict[str, Any]:
     """The install marker: the selection, plus its versioned block (engine version and commit, accepted local hashes)."""
     block = {
         "version": MARKER_VERSION,
-        "engine": {"version": chock.__version__, "commit": _engine_commit()},
+        "engine": {"version": chock.__version__, "commit": engine_commit()},
         "accepted_local": dict(sorted(accepted.items())),
     }
     return {**chosen, MARKER_KEY: block}

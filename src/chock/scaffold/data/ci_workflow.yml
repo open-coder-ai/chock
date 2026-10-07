@@ -23,14 +23,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      # From git, not PyPI: chock is not published yet, so emitting
-      # `pip install chock` would have failed on the adopter's first CI run --
-      # an installer whose output does not run is worse than no installer.
-      # Swap this for `pip install chock` once the package is on PyPI.
+      # __ENGINE_PIN_NOTE__
       - name: Install chock
         run: |
           python -m pip install --upgrade pip
-          python -m pip install "git+https://github.com/open-coder-ai/chock"
+          python -m pip install "__ENGINE_SPEC__"
 
       - name: Validate artifacts
         run: chock check

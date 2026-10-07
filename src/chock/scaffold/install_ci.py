@@ -4,18 +4,34 @@
 from __future__ import annotations
 
 import argparse
+import json
+import re
 import sys
 from pathlib import Path
 
+import chock
 from chock.emit import write_generated
 from chock.resources import package_data_dir
+from chock.scaffold.pin import engine_commit
 
 _DATA_DIR = package_data_dir("chock.scaffold", "data")
 WORKFLOW_TEMPLATE = _DATA_DIR.joinpath("ci_workflow.yml").read_text(encoding="utf-8")
 MARKER = WORKFLOW_TEMPLATE.splitlines()[0]
+PIN = json.loads(_DATA_DIR.joinpath("ci_engine_pin.json").read_text(encoding="utf-8"))
 
 
 DEFAULT_PATH = ".github/workflows/chock.yml"
+_FULL_SHA = re.compile(r"[0-9a-f]{40}")
+
+
+def render() -> str:
+    """The workflow, installing the engine commit that generated it, else this chock's version from PyPI."""
+    commit = engine_commit() or ""
+    if not _FULL_SHA.fullmatch(commit):
+        commit = ""
+    pin = PIN["commit"] if commit else PIN["pypi"]
+    text = WORKFLOW_TEMPLATE.replace("__ENGINE_SPEC__", pin["spec"]).replace("__ENGINE_PIN_NOTE__", pin["note"])
+    return text.replace("__COMMIT__", commit).replace("__VERSION__", chock.__version__)
 
 
 def ci_workflow_installed(repo_root: Path, path: str = DEFAULT_PATH) -> bool:
@@ -40,6 +56,7 @@ def main(argv: list[str] | None = None) -> int:
     repo_root = Path(args.repo_root).resolve()
     dest = repo_root / args.path
 
+    workflow = render()
     if dest.exists():
         existing = dest.read_text(encoding="utf-8", errors="replace")
         if MARKER not in existing:
@@ -49,12 +66,12 @@ def main(argv: list[str] | None = None) -> int:
                 file=sys.stderr,
             )
             return 1
-        if existing == WORKFLOW_TEMPLATE:
+        if existing == workflow:
             print(f"{dest} is already up to date")
             return 0
 
     dest.parent.mkdir(parents=True, exist_ok=True)
-    write_generated(dest, WORKFLOW_TEMPLATE)
+    write_generated(dest, workflow)
     print(f"Installed CI workflow at {dest}")
     return 0
 
