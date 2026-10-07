@@ -1587,6 +1587,35 @@ def workspace_root(event):
     path = getattr(event, 'path', None)
     return next((root for root in roots if path and _holds(root, path)), roots[0] if roots else None)
 
+_SEVERITY = (VERDICT_DENY, VERDICT_ESCALATE, VERDICT_WARN)
+
+_GIT_DIR = '.git'
+
+def _repository(folder):
+    """The repository `folder` is in: the nearest folder holding `.git`, or None outside one."""
+    here = _chock_Path(folder).absolute()
+    return next((f for f in (here, *here.parents) if (f / _GIT_DIR).exists()), None)
+
+def stop_roots(event, fallback):
+    """The event's `cwd` and every workspace root inside a repository, the first per repository; else [fallback]."""
+    by_repository = {}
+    for named in filter(None, (getattr(event, 'cwd', None), *workspace_roots(event))):
+        repository = _repository(named)
+        if repository is not None:
+            by_repository.setdefault(repository, _chock_Path(named))
+    return list(by_repository.values()) or [fallback]
+
+def per_root(said):
+    """One (decision, judged files) for each root's own: the most severe verdict, findings under each root's name."""
+    if len(said) == 1:
+        return said[0][1:]
+    spoken = [(root, decision) for root, decision, _judged in said if decision]
+    judged = {path: text for _root, _decision, files in said for path, text in files.items()}
+    if not spoken:
+        return (None, judged)
+    verdict = min((decision[0] for _root, decision in spoken), key=_SEVERITY.index)
+    return ((verdict, '\n'.join((f'In {root}:\n{decision[1]}' for root, decision in spoken))), judged)
+
 GATE_FLAG = '--gate'
 
 STOP_FLAG = '--stop'
@@ -1772,24 +1801,24 @@ def repo_root_for(event, gate):
     cwd = getattr(event, 'cwd', None) or workspace_root(event)
     return _chock_Path(cwd) if cwd else _chock_Path.cwd()
 
-def writes_for(event, gate, deadline=None, why=None):
+def writes_for(event, gate, deadline=None, why=None, root=None):
     """What this event puts under judgement: the call's own text, or what the turn left behind (None: unlisted)."""
+    root = repo_root_for(event, gate) if root is None else root
     if event.event == PRE_TOOL:
-        return writes_from_event(event, repo_root_for(event, gate))
-    return writes_from_worktree(repo_root_for(event, gate), deadline, why)
+        return writes_from_event(event, root)
+    return writes_from_worktree(root, deadline, why)
 
 def _missing_gate(gate):
     """A gate the hook names but that is not on disk: a broken install, so a refusal that says so."""
     return (VERDICT_DENY, f'chock gate {gate} is missing, so this write cannot be checked. Run `chock sync --repo .` to rebuild the compiled gates.')
 
-def _gate_says(gate, event, name, deadline):
-    """(decision, judged files): what the compiled gate says about this event, before a re-entered stop is weighed."""
+def _gate_says(gate, event, name, deadline, root):
+    """(decision, judged files): what the compiled gate says about this event in `root`, before a re-entered stop."""
     if not gate.exists():
         return (_missing_gate(gate), {})
-    root = repo_root_for(event, gate)
     outside = outside_globs(gate)
     why = []
-    listed = writes_for(event, gate, deadline, why)
+    listed = writes_for(event, gate, deadline, why, root)
     if listed is None:
         return (gate_decision(GATE_ERRORED, why[-1] if why else 'git status gave no answer', gate), {})
     writes = judged_files(listed, root, outside, lambda path: repo_paths(path, root))
@@ -1808,10 +1837,12 @@ def evaluate_gate(argv, event):
     name = _EVENT_ARG.get(getattr(event, 'event', ''))
     if gate is None or name is None:
         return None
-    decision, judged = _gate_says(gate, event, name, engine_deadline())
+    deadline = engine_deadline()
     if event.event == PRE_TOOL:
-        return decision
-    return settle_stop(event, repo_root_for(event, gate), gate, decision, judged)
+        return _gate_says(gate, event, name, deadline, repo_root_for(event, gate))[0]
+    roots = [repo_root_for(event, gate)] if root_for(gate) else stop_roots(event, repo_root_for(event, gate))
+    decision, judged = per_root([(root, *_gate_says(gate, event, name, deadline, root)) for root in roots])
+    return settle_stop(event, roots[0], gate, decision, judged)
 
 TOOL_CALL_FLAG = '--tool-call'
 

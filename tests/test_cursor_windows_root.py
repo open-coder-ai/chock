@@ -125,7 +125,7 @@ def test_a_workspace_root_drops_only_the_slash_before_a_drive(spelled: str, mean
 
 def test_the_guardrails_lookup_starts_in_the_workspace_root_too() -> None:
     payload = json.dumps(PAYLOADS["stop"]).encode("utf-8")
-    assert PureWindowsPath(str(toggle._where(payload))) == PureWindowsPath(ROOT)
+    assert PureWindowsPath(str(toggle._wheres(payload)[0])) == PureWindowsPath(ROOT)
 
 
 def _hook(out: Path, event: str) -> str:

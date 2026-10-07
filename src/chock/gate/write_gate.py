@@ -24,6 +24,7 @@ from .outside_repo import judged_files, outside_globs
 from .patch_image import patch_added, patched_files
 from .session_log import session_for
 from .stop_reentry import settle_stop
+from .stop_roots import per_root, stop_roots
 from .workspace_root import _DRIVE_COLON, _folded, workspace_root
 
 GATE_FLAG = "--gate"
@@ -239,11 +240,12 @@ def repo_root_for(event, gate):
     return Path(cwd) if cwd else Path.cwd()
 
 
-def writes_for(event, gate, deadline=None, why=None):
+def writes_for(event, gate, deadline=None, why=None, root=None):
     """What this event puts under judgement: the call's own text, or what the turn left behind (None: unlisted)."""
+    root = repo_root_for(event, gate) if root is None else root
     if event.event == PRE_TOOL:
-        return writes_from_event(event, repo_root_for(event, gate))
-    return writes_from_worktree(repo_root_for(event, gate), deadline, why)
+        return writes_from_event(event, root)
+    return writes_from_worktree(root, deadline, why)
 
 
 def _missing_gate(gate):
@@ -255,14 +257,13 @@ def _missing_gate(gate):
     )
 
 
-def _gate_says(gate, event, name, deadline):
-    """(decision, judged files): what the compiled gate says about this event, before a re-entered stop is weighed."""
+def _gate_says(gate, event, name, deadline, root):
+    """(decision, judged files): what the compiled gate says about this event in `root`, before a re-entered stop."""
     if not gate.exists():
         return _missing_gate(gate), {}
-    root = repo_root_for(event, gate)
     outside = outside_globs(gate)
     why = []
-    listed = writes_for(event, gate, deadline, why)
+    listed = writes_for(event, gate, deadline, why, root)
     if listed is None:  # never judged: refused, not read as a clean worktree
         return gate_decision(GATE_ERRORED, why[-1] if why else "git status gave no answer", gate), {}
     writes = judged_files(listed, root, outside, lambda path: repo_paths(path, root))
@@ -282,7 +283,9 @@ def evaluate_gate(argv, event):
     name = _EVENT_ARG.get(getattr(event, "event", ""))
     if gate is None or name is None:
         return None
-    decision, judged = _gate_says(gate, event, name, engine_deadline())
+    deadline = engine_deadline()
     if event.event == PRE_TOOL:
-        return decision
-    return settle_stop(event, repo_root_for(event, gate), gate, decision, judged)
+        return _gate_says(gate, event, name, deadline, repo_root_for(event, gate))[0]
+    roots = [repo_root_for(event, gate)] if root_for(gate) else stop_roots(event, repo_root_for(event, gate))
+    decision, judged = per_root([(root, *_gate_says(gate, event, name, deadline, root)) for root in roots])
+    return settle_stop(event, roots[0], gate, decision, judged)

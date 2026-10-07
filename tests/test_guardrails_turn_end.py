@@ -81,18 +81,153 @@ def test_the_persons_change_through_the_cli_passes_and_a_raw_write_is_refused(
 
 
 @pytest.mark.parametrize("client", MERGED_CLIENTS)
-def test_deletion_and_a_missing_record_are_refused_until_adopted(
-    tmp_path: Path, home: Path, client: str, monkeypatch: pytest.MonkeyPatch
+def test_a_deletion_passes_and_drops_the_stale_record(
+    tmp_path: Path, home: Path, client: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    """Codex witness 2026-10-07: absent is all on, so a deletion only tightens and never refuses a turn end."""
     repo, judge = _at_turn_end(client, tmp_path, home)
     _switch(repo, monkeypatch, "off", GUARD_ID)
     (repo / TOGGLE).unlink()
-    assert judge() == "refused", "deleted after chock bundle wrote it"
-    _switch(repo, monkeypatch, "status", "--adopt")
+    capsys.readouterr()
+    _switch(repo, monkeypatch, "status")
+    assert f"{toggle.DELETED}; every member is on" in capsys.readouterr().out, "status still reports it"
     assert judge() == "allowed"
-    assert not toggle.record_path(repo / TOGGLE).exists()
+    assert not toggle.record_path(repo / TOGGLE).exists(), "the stale record is dropped"
     (repo / TOGGLE).write_text(json.dumps({"version": 1, "bundles": {}}))
     assert judge() == "refused", "a file chock bundle never recorded"
+
+
+def _changed(path: Path) -> None:
+    path.write_text(json.dumps({"version": 1, "bundles": {BUNDLE_ID: {GUARD_ID: "on"}}}))
+
+
+def _unreadable(path: Path) -> None:
+    path.unlink()
+    path.mkdir()
+
+
+def _linked(path: Path) -> None:
+    other = path.with_name("other.json")
+    _changed(other)
+    path.unlink()
+    path.symlink_to(other)
+
+
+def _dangling(path: Path) -> None:
+    path.unlink()
+    path.symlink_to(path.with_name("gone.json"))
+
+
+@pytest.mark.parametrize("change", [_changed, _unreadable, _linked, _dangling])
+def test_every_other_drift_still_refuses(tmp_path: Path, home: Path, monkeypatch: pytest.MonkeyPatch, change) -> None:
+    repo, judge = _at_turn_end("claude", tmp_path, home)
+    _switch(repo, monkeypatch, "off", GUARD_ID)
+    change(repo / TOGGLE)
+    assert judge() == "refused"
+    assert judge() == "refused", "a refusal drops no record"
+    assert toggle.record_path(repo / TOGGLE).exists()
+
+
+def test_a_deleted_user_file_passes_too(tmp_path: Path, home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _repo, judge = _at_turn_end("claude", tmp_path, home)
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["off", GUARD_ID, "--bundle", BUNDLE_ID, "--scope", "user"]) == 0
+    (home / TOGGLE).unlink()
+    assert judge() == "allowed"
+    assert not toggle.record_path(home / TOGGLE).exists()
+
+
+def _user_file(home: Path, members: dict[str, str] | None) -> None:
+    """The user-scope toggle file as `chock bundle` records it, or none."""
+    if members is not None:
+        set_toggles(home, {BUNDLE_ID: members})
+
+
+@pytest.mark.parametrize(
+    ("user", "verdict"),
+    [
+        (None, "allowed"),
+        ({GUARD_ID: "on"}, "allowed"),
+        ({GUARD_ID: "off"}, "refused"),
+        ({"demo-write-gate": "off"}, "refused"),
+    ],
+)
+def test_a_repo_deletion_that_hands_control_to_a_looser_user_file_still_refuses(
+    tmp_path: Path, home: Path, monkeypatch: pytest.MonkeyPatch, user: dict[str, str] | None, verdict: str
+) -> None:
+    """Orchestrator review: with the repo file gone the user file governs the repo, so deleting it can loosen."""
+    repo, judge = _at_turn_end("claude", tmp_path, home)
+    _switch(repo, monkeypatch, "on", GUARD_ID)
+    _user_file(home, user)
+    (repo / TOGGLE).unlink()
+    assert judge() == verdict
+    assert toggle.record_path(repo / TOGGLE).exists() == (verdict == "refused"), "a refusal keeps the record"
+
+
+def test_the_refusal_names_the_user_file_and_what_it_switches_off(
+    tmp_path: Path, home: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo, _judge = _at_turn_end("claude", tmp_path, home)
+    _switch(repo, monkeypatch, "on", GUARD_ID)
+    _user_file(home, {GUARD_ID: "off"})
+    (repo / TOGGLE).unlink()
+    assert toggle.turn_end_drifted([repo]) == [
+        f"{repo / TOGGLE}: deleting it hands control to {home / TOGGLE}, which switches {BUNDLE_ID}/{GUARD_ID} off"
+    ]
+    capsys.readouterr()
+    _switch(repo, monkeypatch, "status")
+    assert f"warning: {repo / TOGGLE}: deleting it hands control to" in capsys.readouterr().out
+
+
+def test_a_repo_deletion_onto_an_unrecorded_user_file_refuses(
+    tmp_path: Path, home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _judge = _at_turn_end("claude", tmp_path, home)
+    _switch(repo, monkeypatch, "on", GUARD_ID)
+    set_toggles(home, {BUNDLE_ID: {}}, recorded=False)
+    (repo / TOGGLE).unlink()
+    assert f"{repo / TOGGLE}: deleting it hands control to" in toggle.turn_end_drifted([repo])[0]
+
+
+def _two_roots(tmp_path: Path, home: Path):
+    """A Cursor Stop naming two workspace roots and no `cwd`, its hook started outside both."""
+    plugin, repo, commands = build(tmp_path, "cursor")
+    (verify,) = [c for c in commands if f'{WRAPPER}" {toggle.VERIFY}' in c]
+    first = tmp_path / "first"
+    (first / ".git").mkdir(parents=True)
+    payload = {**_stop("cursor", repo), "workspace_roots": [str(first), str(repo)]}
+    del payload["cwd"]
+
+    def judge() -> tuple[str, str]:
+        (proc,) = outcomes([verify], plugin, tmp_path, payload, home)
+        return _verdict(proc), proc.stdout + proc.stderr
+
+    return first, repo, judge
+
+
+def test_of_several_workspace_roots_each_is_checked(
+    tmp_path: Path, home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    first, repo, judge = _two_roots(tmp_path, home)
+    _switch(repo, monkeypatch, "off", GUARD_ID)
+    assert judge()[0] == "allowed"
+    _changed(repo / TOGGLE)
+    verdict, said = judge()
+    assert verdict == "refused", "the drift is in the second root"
+    assert str(repo / TOGGLE) in said and str(first / TOGGLE) not in said
+    set_toggles(first, {BUNDLE_ID: {GUARD_ID: "off"}}, recorded=False)
+    _verdict_both, said = judge()
+    assert str(repo / TOGGLE) in said and str(first / TOGGLE) in said, "each root's finding, under its own file"
+
+
+def test_a_deletion_in_a_second_workspace_root_passes(
+    tmp_path: Path, home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _first, repo, judge = _two_roots(tmp_path, home)
+    _switch(repo, monkeypatch, "off", GUARD_ID)
+    (repo / TOGGLE).unlink()
+    assert judge()[0] == "allowed"
+    assert not toggle.record_path(repo / TOGGLE).exists()
 
 
 def test_the_user_file_is_checked_too(tmp_path: Path, home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
