@@ -25,23 +25,23 @@ a new invariant is required.
 
 ## Verifying a release
 
-Releases are published to PyPI by the tag-triggered `publish.yml` workflow via Trusted
-Publishing (OIDC — no long-lived tokens). It refuses unless the tag equals `v` plus the
-`pyproject.toml` version and the tagged commit is on `main`. The publish step uploads a
-Sigstore-signed PEP 740 attestation with each file, binding its digest to this repository and
-that workflow. To verify a distribution you downloaded from PyPI:
+Releases are published to PyPI by the tag-triggered release workflow via Trusted
+Publishing (OIDC — no long-lived tokens), and every release's artifacts carry a
+Sigstore build-provenance attestation generated in the same run. To verify that a
+distribution you downloaded was built by this repository's release workflow:
 
 ```bash
-pip install pypi-attestations
-pypi-attestations verify pypi --repository https://github.com/open-coder-ai/chock \
-  pypi:chock-1.0.0-py3-none-any.whl
+gh attestation verify chock-0.4.0-py3-none-any.whl \
+  --repo open-coder-ai/chock \
+  --signer-workflow open-coder-ai/chock/.github/workflows/release.yml \
+  --source-ref refs/tags/v0.4.0
 ```
 
-Substitute the version you downloaded. Distributions built by `release.yml` (before `publish.yml`)
-carry a GitHub build-provenance attestation instead, verifiable with
-`gh attestation verify <file> --repo open-coder-ai/chock --signer-workflow
-open-coder-ai/chock/.github/workflows/release.yml --source-ref refs/tags/v<version>`.
-The full security argument, including what this does and does not
+Substitute the version you downloaded in both places. `--repo` alone would accept an
+attestation minted by *any* workflow in this repository; `--signer-workflow` restricts
+it to the release workflow, and `--source-ref` requires it was built from that
+version's tag. The attestation binds the artifact's digest to the exact source commit
+and workflow that produced it. The full security argument, including what this does and does not
 protect against, is in [docs/assurance-case.md](docs/assurance-case.md).
 
 ## Threat model
