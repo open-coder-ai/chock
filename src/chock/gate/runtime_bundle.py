@@ -24,6 +24,7 @@ from . import (
     stop_reentry,
     tool_call_gate,
     unreadable_stop,
+    workspace_root,
     write_gate,
 )
 
@@ -185,6 +186,8 @@ def _handler_source(agent: str) -> str:
         _extract(stop_reentry),
         "\n",
         _extract(unreadable_stop),
+        "\n",
+        _extract(workspace_root),
         "\n",
         _extract(write_gate),
         "\n",

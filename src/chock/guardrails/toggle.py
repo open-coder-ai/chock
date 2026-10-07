@@ -44,6 +44,7 @@ DRIFTED = (
     "re-applies it or runs `chock bundle status --adopt`"
 )
 _VERDICT_DENY = "deny"
+_BLOCKING_EXIT = 2  # the launcher's refusal too: the wrapper speaks no client's dialect
 
 
 class ToggleError(ValueError):
@@ -148,15 +149,8 @@ def log_off(governing: Path, bundle: str, member: str) -> None:
         log.parent.mkdir(parents=True, exist_ok=True)
         if log.exists() and log.stat().st_size > _LOG_MAX_BYTES:
             log.replace(log.parent / _LOG_ROTATED)
-        record = {
-            "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "policy_id": member,
-            "surface": "plugin",
-            "event": "toggle",
-            "kind": "guardrails-off",
-            "bundle": bundle,
-            "verdict": OFF,
-        }
+        record = {"ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "policy_id": member}
+        record |= {"surface": "plugin", "event": "toggle", "kind": "guardrails-off", "bundle": bundle, "verdict": OFF}
         with log.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(record) + "\n")
     except Exception:  # noqa: BLE001 -- a log line must never change the verdict
@@ -164,13 +158,13 @@ def log_off(governing: Path, bundle: str, member: str) -> None:
 
 
 def _where(payload: bytes) -> Path:
-    """The folder the agent works in: the payload's `cwd` (or first workspace root), else this process's."""
+    """The folder the agent works in: the payload's `cwd` (or first workspace root; Cursor's `/C:/x` is `C:/x`)."""
     try:
         raw = json.loads(payload.decode("utf-8-sig"))
         roots = raw.get("workspace_roots") or [None]
         cwd = raw.get("cwd") or roots[0]
         if isinstance(cwd, str) and cwd:
-            return Path(cwd)
+            return Path(cwd[1:] if cwd[:1] == "/" and cwd[2:3] == ":" and cwd[1:2].isalpha() else cwd)
     except Exception:  # noqa: BLE001,S110 -- an unreadable payload is the adapter's to refuse
         pass
     return Path.cwd()
@@ -285,13 +279,19 @@ def wrapped(argv: list[str], payload: bytes) -> list[str]:
 
 def main() -> None:
     """Hook entry: decide on or off, then run the client's adapter in this process on the same payload."""
-    payload = sys.stdin.buffer.read()
-    sys.stdin = io.TextIOWrapper(io.BytesIO(payload), encoding="utf-8")
-    if sys.argv[1:2] == [VERIFY]:
-        verify(sys.argv[2:], payload)
-        return
-    sys.argv = wrapped(sys.argv[1:], payload)
-    runpy.run_path(sys.argv[0], run_name="__main__")
+    try:
+        payload = sys.stdin.buffer.read()
+        sys.stdin = io.TextIOWrapper(io.BytesIO(payload), encoding="utf-8")
+        if sys.argv[1:2] == [VERIFY]:
+            verify(sys.argv[2:], payload)
+            return
+        sys.argv = wrapped(sys.argv[1:], payload)
+        runpy.run_path(sys.argv[0], run_name="__main__")
+    except (Exception, SystemExit) as exc:  # the adapter answers its own faults; these never answered
+        if isinstance(exc, SystemExit) and isinstance(exc.code, (int, type(None))):
+            raise
+        sys.stderr.write(f"chock: the guardrails wrapper failed ({type(exc).__name__}: {exc}), so it refuses.\n")
+        sys.exit(_BLOCKING_EXIT)
 
 
 if __name__ == "__main__":
