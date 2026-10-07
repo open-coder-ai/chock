@@ -72,7 +72,7 @@ def test_every_witnessed_event_is_judged_in_its_workspace_root_not_the_process_c
 ) -> None:
     monkeypatch.chdir(tmp_path)  # the user's home folder, say: not the workspace
     root = write_gate.repo_root_for(_event(name), NO_GATE)
-    assert PureWindowsPath(root) == PureWindowsPath(ROOT), name
+    assert PureWindowsPath(str(root)) == PureWindowsPath(ROOT), name
 
 
 @pytest.mark.parametrize("name", ["write", "read"])
@@ -108,7 +108,7 @@ def test_a_payload_cwd_still_wins_and_no_roots_falls_back_to_the_process(
 def test_a_write_outside_every_root_is_still_outside_and_only_a_declared_glob_sees_it() -> None:
     elsewhere = "C:\\Users\\u\\.ssh\\config"
     root = write_gate.repo_root_for(_event("write", tool_input={"file_path": elsewhere}), NO_GATE)
-    assert PureWindowsPath(root) == PureWindowsPath(ROOT), "the first root, the path being in none"
+    assert PureWindowsPath(str(root)) == PureWindowsPath(ROOT), "the first root, the path being in none"
     (name,) = write_gate.repo_paths(elsewhere, root)
     assert is_outside(name)
     assert declared_outside(name, root, ["C:/Users/*/.ssh/*"], windows=True) == "C:/Users/u/.ssh/config"
@@ -125,7 +125,7 @@ def test_a_workspace_root_drops_only_the_slash_before_a_drive(spelled: str, mean
 
 def test_the_guardrails_lookup_starts_in_the_workspace_root_too() -> None:
     payload = json.dumps(PAYLOADS["stop"]).encode("utf-8")
-    assert PureWindowsPath(toggle._where(payload)) == PureWindowsPath(ROOT)
+    assert PureWindowsPath(str(toggle._where(payload))) == PureWindowsPath(ROOT)
 
 
 def _hook(out: Path, event: str) -> str:
