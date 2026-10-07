@@ -1,20 +1,16 @@
 """The guardrails toggle file and its lookup. Stdlib only: shipped verbatim in every merged plugin as its hook wrapper.
 
-`.chock/guardrails.json` (repo scope, committed) or `~/.chock/guardrails.json` (user scope):
-`{"version": 1, "bundles": {"<bundle.name>": {"<policy-id>": "on" | "off"}}}`. An absent entry is on.
-A repository's own file governs it; the user file governs only where the repository carries none.
-A file that cannot be read or is invalid switches nothing off: every member stays on, with a warning.
-
-As the hook wrapper: `chock_bundle.py --bundle <name> --member <id> <adapter> [adapter args...]`. On runs the
-adapter with its args; off runs it with none, so the client still gets its own allow, plus one log line.
-
-`chock bundle on|off` records each file's sha256 in `.chock/state/guardrails.sha256` beside it. As the turn-end
-check, `chock_bundle.py --verify <adapter>` refuses a Stop while a toggle file differs from that record: it was
-changed outside `chock bundle`. The lookup honours a file only while it matches that record: otherwise all on.
+`.chock/guardrails.json` (repo scope; a repo's own governs it) or `~/.chock/guardrails.json` (user scope):
+`{"version": 1, "bundles": {"<bundle.name>": {"<policy-id>": "on" | "off"}}}`. Absent, unreadable or invalid: on.
+Wrapper: `chock_bundle.py --bundle <name> --member <id> <adapter> [args...]`; off runs the adapter with no args.
+`chock bundle on|off` records each file's sha256 in `.chock/state/guardrails.sha256`; the lookup honours a file only
+while it matches. `chock_bundle.py --verify <adapter>` refuses a Stop while one differs, in the payload's `cwd` or any
+workspace root; a deletion only tightens (absent is all on), so it drops the stale record instead.
 """
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import importlib.util
 import io
@@ -39,6 +35,7 @@ _ARGC = 5
 #: The record `chock bundle` keeps of the file it last wrote, beside it under the engine's own state folder.
 RECORD_PARTS = ("state", "guardrails.sha256")
 VERIFY = "--verify"
+DELETED = "it was deleted after `chock bundle` wrote it"
 DRIFTED = (
     "guardrails.json differs from the last `chock bundle` change; every guardrail stays on until the person "
     "re-applies it or runs `chock bundle status --adopt`"
@@ -157,17 +154,16 @@ def log_off(governing: Path, bundle: str, member: str) -> None:
         return
 
 
-def _where(payload: bytes) -> Path:
-    """The folder the agent works in: the payload's `cwd` (or first workspace root; Cursor's `/C:/x` is `C:/x`)."""
+def _wheres(payload: bytes) -> list[Path]:
+    """The folders the agent works in: the payload's `cwd`, then each workspace root (Cursor's `/C:/x` is `C:/x`)."""
     try:
         raw = json.loads(payload.decode("utf-8-sig"))
-        roots = raw.get("workspace_roots") or [None]
-        cwd = raw.get("cwd") or roots[0]
-        if isinstance(cwd, str) and cwd:
-            return Path(cwd[1:] if cwd[:1] == "/" and cwd[2:3] == ":" and cwd[1:2].isalpha() else cwd)
-    except Exception:  # noqa: BLE001,S110 -- an unreadable payload is the adapter's to refuse
-        pass
-    return Path.cwd()
+        roots = raw.get("workspace_roots")
+        named = [raw.get("cwd"), *(roots if isinstance(roots, list) else [])]
+    except Exception:  # noqa: BLE001 -- an unreadable payload is the adapter's to refuse
+        named = []
+    folders = [t[1:] if t[:1] == "/" and t[2:3] == ":" and t[1:2].isalpha() else t for t in named if isinstance(t, str)]
+    return [Path(folder) for folder in folders if folder] or [Path.cwd()]
 
 
 def record_path(toggle_file: Path) -> Path:
@@ -199,7 +195,7 @@ def drift(toggle_file: Path) -> str | None:
     if now == then:
         return None
     if now is None:
-        return "it was deleted after `chock bundle` wrote it"
+        return DELETED
     if then is None:
         return "`chock bundle` has no record of it"
     return "it was changed outside `chock bundle`"
@@ -211,9 +207,17 @@ def scopes(start: Path) -> list[Path]:
     return [*([root / FILENAME] if root else []), user_path()]
 
 
-def drifted(start: Path) -> list[str]:
-    """One line per toggle file in scope that differs from its record."""
-    return [f"{path}: {why}" for path in scopes(start) if (why := drift(path))]
+def turn_end_drifted(starts: list[Path]) -> list[str]:
+    """One line per toggle file in scope of any of `starts` that drifted; a deletion's stale record is dropped instead."""
+    lines = []
+    for path in dict.fromkeys(path for start in starts for path in scopes(start)):
+        why = drift(path)
+        if why == DELETED:
+            with contextlib.suppress(OSError):
+                record_path(path).unlink()
+        elif why:
+            lines.append(f"{path}: {why}")
+    return lines
 
 
 def refusal(lines: list[str]) -> str:
@@ -237,22 +241,18 @@ def _adapter(path: str):
 
 
 def verify(argv: list[str], payload: bytes) -> None:
-    """Turn-end check: the adapter answers in its client's own words, refusing a Stop while a toggle file drifted.
-
-    `argv` is the adapter and its own `--gate <gate> --stop`, which still decide how an unreadable payload is refused.
-    """
+    """Turn-end check: the adapter (`argv`: it, `--gate <gate> --stop`) refuses a Stop while a toggle file drifted."""
     adapter_path, gate = argv[0], Path(argv[argv.index("--gate") + 1])
     adapter = _adapter(adapter_path)
-    where = _where(payload)
+    wheres = _wheres(payload)
+    ledger = next((root for root in map(repo_root, wheres) if root), wheres[0])
 
     def handle(event):
-        if getattr(event, "event", "") != "stop":
-            return None
-        lines = drifted(where)
+        lines = turn_end_drifted(wheres) if getattr(event, "event", "") == "stop" else []
         if not lines:
             return None
-        settled = adapter.settle_stop(event, repo_root(where) or where, gate, (_VERDICT_DENY, refusal(lines)), {})
-        return adapter._spoken(settled) if settled else None
+        decision = adapter.settle_stop(event, ledger, gate, (_VERDICT_DENY, refusal(lines)), {})
+        return adapter._spoken(decision) if decision else None
 
     adapter.handle = handle
     sys.argv = list(argv)
@@ -266,7 +266,7 @@ def wrapped(argv: list[str], payload: bytes) -> list[str]:
         raise SystemExit(msg)
     bundle, member, adapter, rest = argv[1], argv[3], argv[4], argv[5:]
     try:
-        governing, _scope, toggles, warning = load(_where(payload))
+        governing, _scope, toggles, warning = load(_wheres(payload)[0])
     except Exception as exc:  # noqa: BLE001 -- a lookup that fails switches nothing off
         governing, toggles, warning = None, {}, f"the guardrails toggle lookup failed, every guardrail stays on: {exc}"
     if warning:
