@@ -25,7 +25,7 @@ TREE = {
     "devin": ("chock-guardrails", ".devin-plugin/plugin.json", []),
 }
 # Clients chock has not witnessed an install in; Claude Code and Codex are witnessed.
-UNWITNESSED = ("copilot", "cursor", "devin")
+UNWITNESSED = ("cursor", "devin")
 BINARY = {"claude-code": "claude", "copilot": "copilot", "codex": "codex", "devin": "devin"}
 
 

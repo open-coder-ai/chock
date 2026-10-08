@@ -120,3 +120,62 @@ def test_status_warns_that_an_invalid_file_keeps_everything_on(repo: Path, capsy
     assert cli.main(["status"]) == 0
     out = capsys.readouterr().out
     assert "every guardrail stays on" in out and re.search(rf"{P} +on ", out)
+
+
+def test_adopt_refuses_an_invalid_file_and_reset_rewrites_it_all_on(repo: Path, capsys: pytest.CaptureFixture) -> None:
+    path = repo / toggle.FILENAME
+    path.parent.mkdir()
+    path.write_text("{}", encoding="utf-8")
+    assert cli.main(["status", "--adopt"]) == cli.EXIT_USAGE
+    err = capsys.readouterr().err
+    assert "exactly the keys ['bundles', 'version'], got []" in err and cli.RESET in err
+    assert toggle.recorded(path) is None and path.read_text(encoding="utf-8") == "{}"
+    assert cli.main(["off", P]) == cli.EXIT_USAGE
+    assert cli.main(["status", "--adopt", "--reset"]) == 0
+    assert _doc(path) == {"version": 1, "bundles": {}} and toggle.drift(path) is None
+    assert cli.main(["off", P]) == 0
+    assert _doc(path) == {"version": 1, "bundles": {B: {P: "off"}}}
+
+
+def test_an_adopted_invalid_file_names_the_reset_when_switching(repo: Path, capsys: pytest.CaptureFixture) -> None:
+    path = repo / toggle.FILENAME
+    path.parent.mkdir()
+    path.write_text("{}", encoding="utf-8")
+    cli.record(path)
+    assert cli.main(["off", P]) == cli.EXIT_USAGE
+    assert cli.RESET in capsys.readouterr().err
+    assert cli.main(["status", "--adopt", "--reset"]) == 0
+    assert cli.main(["off", P]) == 0
+
+
+def test_reset_only_rewrites_invalid_files_and_never_switches_off(
+    repo: Path, home: Path, tmp_path: Path, capsys: pytest.CaptureFixture
+) -> None:
+    assert cli.main(["off", Q, "--scope", "user"]) == 0
+    user = home / toggle.FILENAME
+    user.write_text(json.dumps({"version": 1, "bundles": {B: {P: "off", Q: "off"}}}), encoding="utf-8")
+    path = repo / toggle.FILENAME
+    path.parent.mkdir()
+    (tmp_path / "target.json").write_text("{}", encoding="utf-8")
+    path.symlink_to(tmp_path / "target.json")
+    assert cli.main(["status", "--adopt", "--reset"]) == 0
+    assert not path.is_symlink() and _doc(path) == {"version": 1, "bundles": {}}
+    assert (tmp_path / "target.json").read_text(encoding="utf-8") == "{}"
+    assert _doc(user)["bundles"][B] == {P: "off", Q: "off"} and toggle.drift(user) is None
+    assert toggle.load(repo)[2] == {}
+
+
+def test_reset_leaves_a_folder_alone(repo: Path, capsys: pytest.CaptureFixture) -> None:
+    (repo / toggle.FILENAME).mkdir(parents=True)
+    assert cli.main(["status", "--adopt", "--reset"]) == cli.EXIT_USAGE
+    assert "move it aside" in capsys.readouterr().err and (repo / toggle.FILENAME).is_dir()
+
+
+def test_reset_needs_adopt_and_adopt_still_takes_a_valid_file(repo: Path) -> None:
+    with pytest.raises(SystemExit):
+        cli.main(["status", "--reset"])
+    path = repo / toggle.FILENAME
+    path.parent.mkdir()
+    path.write_text(json.dumps({"version": 1, "bundles": {B: {P: "off"}}}), encoding="utf-8")
+    assert cli.main(["status", "--adopt"]) == 0
+    assert toggle.drift(path) is None and toggle.load(repo)[2] == {B: {P: "off"}}
