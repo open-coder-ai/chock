@@ -15,6 +15,7 @@ from chock.guardrails.plugin import MEMBERS, PROTECT_ID
 from chock.install import package, place
 
 EXIT_USAGE = 2
+RESET = "chock bundle status --adopt --reset"
 _OLD_BUILD = "label unknown: built by an older chock, re-run chock install"
 
 
@@ -90,7 +91,7 @@ def _current(path: Path) -> dict[str, dict[str, str]]:
     try:
         return toggle.read(path)
     except toggle.ToggleError as exc:
-        msg = f"{path} is invalid, so every guardrail stays on: {exc}. Fix or delete it first."
+        msg = f"{path} is invalid, so every guardrail stays on: {exc}. Fix it, or run `{RESET}` to rewrite it all on."
         raise SystemExit(msg) from exc
 
 
@@ -143,9 +144,45 @@ def switch(policy_id: str, state: str, bundle: str | None, scope: str | None) ->
     return 0
 
 
-def adopt() -> int:
-    """Show each toggle file in scope, then record it as the one `chock bundle` vouches for: a person's explicit step."""
-    for path in toggle.scopes(Path.cwd()):
+def _unadoptable(path: Path) -> str | None:
+    """Why a present toggle file cannot be vouched for as it is, or None when it is a valid plain file."""
+    if not os.path.lexists(path):
+        return None
+    if path.is_symlink() or not path.is_file():
+        return "it is a link or not a regular file"
+    try:
+        toggle.read(path)
+    except toggle.ToggleError as exc:
+        return str(exc)
+    return None
+
+
+def _reset(path: Path) -> None:
+    """Rewrite `path` as a valid file that switches nothing off, and record it."""
+    path.unlink(missing_ok=True)
+    _write(path, {})
+    print(f"{path}: reset to all on (every member on).")
+
+
+def adopt(*, reset: bool = False) -> int:
+    """Show each toggle file in scope, then record it as the one `chock bundle` vouches for: a person's explicit step.
+
+    An invalid file is refused, never recorded; `reset` rewrites it all on instead.
+    """
+    paths = toggle.scopes(Path.cwd())
+    invalid = {path: why for path in paths if (why := _unadoptable(path))}
+    if invalid and not reset:
+        lines = [f"{path} is invalid, so every guardrail stays on: {why}." for path, why in invalid.items()]
+        msg = "\n".join([*lines, f"Nothing was adopted. Fix it by hand, or run `{RESET}` to rewrite it all on."])
+        raise SystemExit(msg)
+    odd = [str(path) for path in invalid if not path.is_symlink() and not path.is_file()]
+    if odd:
+        msg = f"{', '.join(odd)}: a folder or special file, never removed by chock; move it aside, then run `{RESET}`"
+        raise SystemExit(msg)
+    for path in paths:
+        if path in invalid:
+            _reset(path)
+            continue
         why = toggle.drift(path)
         if why is None:
             continue
@@ -206,10 +243,13 @@ def main(argv: list[str] | None = None) -> int:
     shown.add_argument(
         "--adopt", action="store_true", help="record each toggle file in scope as it is, after showing it"
     )
+    shown.add_argument("--reset", action="store_true", help="with --adopt: rewrite an invalid toggle file all on")
     args = parser.parse_args(argv)
     try:
         if args.action == "status":
-            return adopt() if args.adopt else status()
+            if args.reset and not args.adopt:
+                parser.error("--reset needs --adopt")
+            return adopt(reset=args.reset) if args.adopt else status()
         return switch(args.policy_id, args.action, args.bundle, args.scope)
     except SystemExit as exc:
         if isinstance(exc.code, str):
