@@ -18,7 +18,7 @@ import sys
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from .budget import allowed_seconds, engine_deadline, time_left
-from .edit_image import added_from_event, edited_text
+from .edit_image import added_from_event, created_text, edited_text
 from .gate_outcome import GATE_ERRORED, gate_decision, runner_outcome
 from .outside_repo import judged_files, outside_globs
 from .patch_image import patch_added, patched_files
@@ -87,7 +87,7 @@ def writes_from_event(event, root=None):
     if patched:
         return patched
     path = getattr(event, "path", None)
-    content = getattr(event, "content", None)
+    content = created_text(event)
     edited = edited_text(event, root)
     if path and edited is not None:
         return {str(path): edited}
