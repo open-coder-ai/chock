@@ -78,7 +78,6 @@
     {
       "kind": "client",
       "clients": [
-        "copilot",
         "cursor",
         "devin"
       ],
