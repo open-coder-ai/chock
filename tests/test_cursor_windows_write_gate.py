@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -67,13 +68,10 @@ def _write(out: Path, cwd: Path, file_path: str, roots: list[str], content: str 
         "tool_name": "Write",
         "tool_input": {"file_path": file_path, "content": content},
     }
-    hooks = json.loads((out / cursor.HOOKS_REL).read_text(encoding="utf-8"))["hooks"]
-    command = hooks["preToolUse"][0]["command"].replace("${CURSOR_PLUGIN_ROOT}", str(out))
-    proc = subprocess.run(
-        command,
+    scripts = out / "scripts"
+    proc = subprocess.run(  # the bundled adapter itself: the POSIX launcher only finds this interpreter
+        [sys.executable, str(scripts / "cursor.py"), "--gate", str(scripts / "gate.json")],
         cwd=cwd,
-        shell=True,
-        env={**os.environ, "CURSOR_PLUGIN_ROOT": str(out)},
         capture_output=True,
         text=True,
         encoding="utf-8",
