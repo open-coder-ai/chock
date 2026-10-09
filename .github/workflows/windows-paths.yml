@@ -18,8 +18,8 @@ jobs:
       fail-fast: false
       matrix:
         # The interpreter a client finds on the user's machine is not CI's, and pathlib's Windows
-        # semantics move between minors.
-        python-version: ["3.12", "3.13", "3.14"]
+        # semantics moved between releases. 3.12.0 is the witnessed owner's.
+        python-version: ["3.12.0", "3.12", "3.13", "3.14"]
     runs-on: windows-latest
     defaults:
       run:

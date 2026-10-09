@@ -184,7 +184,7 @@ def test_every_windows_spelling_of_a_copilot_create_is_refused(copilot: tuple, c
 
 
 # The real `pin-github-actions` member, merged into a bundle as each client installs it, fed the
-# witnessed content: an indented, unpinned `uses:` in a new workflow of a repository with a commit.
+# witnessed content: an indented, unpinned `uses:` in a new workflow, HEAD unborn or committed.
 
 UNPINNED = (
     "name: witness\non: push\njobs:\n  w:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n"
@@ -192,24 +192,26 @@ UNPINNED = (
 PINNED = UNPINNED.replace("@v4", "@" + "0" * 40)
 
 
-@pytest.fixture(params=["cursor", "copilot"])
+@pytest.fixture(params=[(c, h) for c in ("cursor", "copilot") for h in ("unborn", "committed")], ids=str)
 def real(request, tmp_path: Path) -> tuple[str, Path, Path, list[str], Path]:
     """(client, plugin, repo, the pre-tool commands, home) for the repo's own pin-github-actions."""
     pack = REPO_POLICIES / "pin-github-actions"
     member = Member(pack, yaml.safe_load((pack / "manifest.yaml").read_text(encoding="utf-8")))
-    fmt = client(request.param)["format"]
+    name, head = request.param
+    fmt = client(name)["format"]
     plugin = write_files(tmp_path / "dist" / fmt / "w", merged_files(fmt, bundle([member]), [member], tmp_path))
     (tmp_path / "witness-repo").mkdir()
     project = init_repo(tmp_path / "witness-repo")
-    (project / "README.md").write_text("w\n", encoding="utf-8")
-    subprocess.run(["git", "add", "README.md"], cwd=project, check=True)
-    subprocess.run(["git", "commit", "-qm", "init"], cwd=project, check=True)
+    if head == "committed":  # the owner's witness repos were `git init` only: HEAD unborn
+        (project / "README.md").write_text("w\n", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=project, check=True)
+        subprocess.run(["git", "commit", "-qm", "init"], cwd=project, check=True)
     project.joinpath(*WORKFLOW).parent.mkdir(parents=True)
     doc = json.loads(next(plugin.rglob("hooks.json")).read_text(encoding="utf-8"))["hooks"]
     pre = doc.get("preToolUse") or doc["PreToolUse"]
     home = tmp_path / "home"
     home.mkdir()
-    return request.param, plugin, project, hook_commands(pre), home
+    return name, plugin, project, hook_commands(pre), home
 
 
 def _real_payload(name: str, project: Path, path: str, text: str, roots: list[str]) -> dict:
