@@ -14,6 +14,12 @@ permissions:
 
 jobs:
   windows-paths:
+    strategy:
+      fail-fast: false
+      matrix:
+        # The interpreter a client finds on the user's machine is not CI's, and pathlib's Windows
+        # semantics move between minors.
+        python-version: ["3.12", "3.13", "3.14"]
     runs-on: windows-latest
     defaults:
       run:
@@ -26,7 +32,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |

@@ -10,17 +10,21 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from pathlib import Path
 
 import pytest
-from bundle_fixtures import MARKER
-from conftest import init_repo, run_hook_command
+import yaml
+from bundle_fixtures import MARKER, bundle, hook_commands
+from bundle_fixtures import write as write_files
+from conftest import REPO_POLICIES, init_repo, run_hook_command
 from guardrails_support import build, outcomes, refused
 from test_plugin_gate import POLICY_ID, _manifest
 from test_plugin_gate import policy as shared_policy
 
 from chock.install.package import client
 from chock.plugin import cursor
+from chock.plugin.bundle_build import Member, merged_files
 
 #: The shared fixture under a name no test parameter shadows.
 gate_policy = shared_policy
@@ -177,3 +181,75 @@ def test_every_windows_spelling_of_a_copilot_create_is_refused(copilot: tuple, c
     path = _drive_spellings(project.joinpath(*WORKFLOW))[file_form]
     assert _copilot_refuses(copilot, cwd, path), (cwd, path)
     assert not _copilot_refuses(copilot, cwd, path, "jobs: {}\n")
+
+
+# The real `pin-github-actions` member, merged into a bundle as each client installs it, fed the
+# witnessed content: an indented, unpinned `uses:` in a new workflow of a repository with a commit.
+
+UNPINNED = (
+    "name: witness\non: push\njobs:\n  w:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n"
+)
+PINNED = UNPINNED.replace("@v4", "@" + "0" * 40)
+
+
+@pytest.fixture(params=["cursor", "copilot"])
+def real(request, tmp_path: Path) -> tuple[str, Path, Path, list[str], Path]:
+    """(client, plugin, repo, the pre-tool commands, home) for the repo's own pin-github-actions."""
+    pack = REPO_POLICIES / "pin-github-actions"
+    member = Member(pack, yaml.safe_load((pack / "manifest.yaml").read_text(encoding="utf-8")))
+    fmt = client(request.param)["format"]
+    plugin = write_files(tmp_path / "dist" / fmt / "w", merged_files(fmt, bundle([member]), [member], tmp_path))
+    (tmp_path / "witness-repo").mkdir()
+    project = init_repo(tmp_path / "witness-repo")
+    (project / "README.md").write_text("w\n", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=project, check=True)
+    subprocess.run(["git", "commit", "-qm", "init"], cwd=project, check=True)
+    project.joinpath(*WORKFLOW).parent.mkdir(parents=True)
+    doc = json.loads(next(plugin.rglob("hooks.json")).read_text(encoding="utf-8"))["hooks"]
+    pre = doc.get("preToolUse") or doc["PreToolUse"]
+    home = tmp_path / "home"
+    home.mkdir()
+    return request.param, plugin, project, hook_commands(pre), home
+
+
+def _real_payload(name: str, project: Path, path: str, text: str, roots: list[str]) -> dict:
+    if name == "cursor":
+        tool_input = {"file_path": path, "content": text}
+        return {
+            "conversation_id": "c",
+            "generation_id": "g",
+            "workspace_roots": roots,
+            **_WRITE,
+            "tool_input": tool_input,
+        }
+    tool_input = {"path": path, "file_text": text}
+    return {"hook_event_name": "PreToolUse", "cwd": roots[0], "tool_name": "Write", "tool_input": tool_input}
+
+
+_WRITE = {"hook_event_name": "preToolUse", "tool_name": "Write"}
+
+
+def _real_refuses(real: tuple, file_form: str, root_form: str, text: str) -> bool:
+    name, plugin, project, commands, home = real
+    path = _drive_spellings(project.joinpath(*WORKFLOW))[file_form] if WINDOWS else str(project.joinpath(*WORKFLOW))
+    root = _root_spellings(project)[root_form] if WINDOWS and name == "cursor" else str(project)
+    if WINDOWS and name == "copilot":
+        root = _drive_spellings(project)[root_form if root_form in FILE_FORMS else "C:\\back"]
+    cwd = _elsewhere(project.parent) if name == "cursor" else project
+    return any(
+        refused(p) for p in outcomes(commands, plugin, cwd, _real_payload(name, project, path, text, [root]), home)
+    )
+
+
+def test_the_real_pin_policy_refuses_the_witnessed_workflow(real: tuple) -> None:
+    """The baseline on every OS, for both clients."""
+    assert _real_refuses(real, "C:\\back", "c:\\", UNPINNED)
+    assert not _real_refuses(real, "C:\\back", "c:\\", PINNED)
+
+
+@ON_WINDOWS
+@pytest.mark.parametrize("root_form", ["/c:/", "c:\\", "C:/"])
+@pytest.mark.parametrize("file_form", FILE_FORMS)
+def test_every_windows_spelling_of_the_witnessed_workflow_is_refused(real: tuple, file_form: str, root_form: str):
+    assert _real_refuses(real, file_form, root_form, UNPINNED), (real[0], file_form, root_form)
+    assert not _real_refuses(real, file_form, root_form, PINNED)
