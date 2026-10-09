@@ -1,7 +1,8 @@
-"""The files a Codex `apply_patch` call would leave behind, for a gate that judges whole files.
+"""The files an `apply_patch` call (Codex, Copilot CLI) would leave behind, for a gate that judges whole files.
 
 Codex CLI writes files with one tool, apply_patch, whose only argument is the patch text in
-`tool_input.command`: no path, no content. The write gate therefore had nothing to judge before
+`tool_input.command`: no path, no content. Copilot CLI's apply_patch hands the same grammar to
+a Claude-format hook as the bare `tool_input` string (or under `input`/`patch`). The write gate therefore had nothing to judge before
 the write, and Codex was checked only at the turn's end. The patch format is Codex's own,
 documented grammar::
 
@@ -33,13 +34,19 @@ _MOVE = "*** Move to: "
 _EOF = "*** End of File"
 _HUNK = "@@"
 _OPS = (("add", _ADD), ("delete", _DELETE), ("update", _UPDATE))
+#: Where the patch sits in `tool_input`: Codex's `command`; Copilot CLI's `input` or `patch`, else the bare string.
+_PATCH_KEYS = ("command", "input", "patch")
 
 
 def patch_text(event):
     """The patch an apply_patch call carries, from its first to its last marker; None otherwise."""
     raw = getattr(event, "raw", None)
     tool_input = raw.get("tool_input") if isinstance(raw, dict) else None
-    command = tool_input.get("command") if isinstance(tool_input, dict) else None
+    command = tool_input if isinstance(tool_input, str) else None
+    for key in _PATCH_KEYS if isinstance(tool_input, dict) else ():
+        if tool_input.get(key) is not None:
+            command = tool_input[key]
+            break
     if isinstance(command, list):
         command = "\n".join(part for part in command if isinstance(part, str))
     start = command.find(_BEGIN) if isinstance(command, str) else -1

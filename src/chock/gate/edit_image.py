@@ -16,6 +16,8 @@ _EDIT_KEYS = (("old_string", "new_string"), ("oldString", "newString"), ("old_st
 #: A batched edit (Claude Code's MultiEdit) lists its replacements, applied in order.
 _EDIT_LIST = "edits"
 _CRLF = "\r\n"
+#: Copilot CLI's `create` carries the new file as `file_text`, a key no adapter reads as content.
+_CREATE_TEXT = "file_text"
 
 
 def _edit_call_input(event):
@@ -81,6 +83,15 @@ def edited_text(event, root=None):
         if text is None:
             return None
     return text
+
+
+def created_text(event):
+    """The whole file a write call carries: the adapter's content, else `tool_input.file_text`; None otherwise."""
+    content = getattr(event, "content", None)
+    if isinstance(content, str):
+        return content
+    text = _edit_call_input(event).get(_CREATE_TEXT)
+    return text if isinstance(text, str) else None
 
 
 def added_from_event(event):

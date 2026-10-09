@@ -919,6 +919,8 @@ _EDIT_LIST = 'edits'
 
 _CRLF = '\r\n'
 
+_CREATE_TEXT = 'file_text'
+
 def _edit_call_input(event):
     raw = getattr(event, 'raw', None)
     tool_input = raw.get('tool_input') if isinstance(raw, dict) else None
@@ -979,6 +981,14 @@ def edited_text(event, root=None):
             return None
     return text
 
+def created_text(event):
+    """The whole file a write call carries: the adapter's content, else `tool_input.file_text`; None otherwise."""
+    content = getattr(event, 'content', None)
+    if isinstance(content, str):
+        return content
+    text = _edit_call_input(event).get(_CREATE_TEXT)
+    return text if isinstance(text, str) else None
+
 def added_from_event(event):
     """What an edit call introduces -- what `added_lines` means for it -- or {} for any other call."""
     replacements = edit_replacements(event)
@@ -1005,11 +1015,17 @@ _HUNK = '@@'
 
 _OPS = (('add', _ADD), ('delete', _DELETE), ('update', _UPDATE))
 
+_PATCH_KEYS = ('command', 'input', 'patch')
+
 def patch_text(event):
     """The patch an apply_patch call carries, from its first to its last marker; None otherwise."""
     raw = getattr(event, 'raw', None)
     tool_input = raw.get('tool_input') if isinstance(raw, dict) else None
-    command = tool_input.get('command') if isinstance(tool_input, dict) else None
+    command = tool_input if isinstance(tool_input, str) else None
+    for key in _PATCH_KEYS if isinstance(tool_input, dict) else ():
+        if tool_input.get(key) is not None:
+            command = tool_input[key]
+            break
     if isinstance(command, list):
         command = '\n'.join((part for part in command if isinstance(part, str)))
     start = command.find(_BEGIN) if isinstance(command, str) else -1
@@ -1776,7 +1792,7 @@ def writes_from_event(event, root=None):
     if patched:
         return patched
     path = getattr(event, 'path', None)
-    content = getattr(event, 'content', None)
+    content = created_text(event)
     edited = edited_text(event, root)
     if path and edited is not None:
         return {str(path): edited}
