@@ -86,7 +86,8 @@ def _cursor_write(out: Path, cwd: Path, file_path: str, roots: list[str], conten
     }
     command = json.loads((out / cursor.HOOKS_REL).read_text(encoding="utf-8"))["hooks"]["preToolUse"][0]["command"]
     env = {**os.environ, "CURSOR_PLUGIN_ROOT": out.as_posix()}
-    proc = run_hook_command(command, cwd, "\ufeff" + json.dumps(payload), env=env)
+    # No BOM: the shared runner writes stdin in the locale encoding, cp1252 on a Windows runner.
+    proc = run_hook_command(command, cwd, json.dumps(payload), env=env)
     assert proc.returncode == 0, proc.stderr
     return json.loads(proc.stdout)["permission"]
 
