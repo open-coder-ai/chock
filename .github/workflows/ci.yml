@@ -65,6 +65,32 @@ jobs:
           done < <(git rev-list --no-merges "origin/$BASE_REF..HEAD")
           exit "$missing"
 
+  # Windows path spellings in the agent write gate (drive-letter case, `/c:/` roots, either
+  # slash). Linux cannot exercise them, and the full matrix does not run on PRs, so this one
+  # targeted file runs on Windows every time.
+  windows-paths:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --require-hashes --upgrade -r requirements/pip.txt
+          pip install -e '.[dev,build]'
+
+      - name: Windows write-gate path tests
+        run: pytest -q tests/test_cursor_windows_write_gate.py
+
   # Commit messages and PR bodies are as public as the diff and much easier to leak
   # into -- container paths, session identifiers, personal addresses. Checked here
   # because the local test can only see the history it has.
