@@ -1,0 +1,43 @@
+name: Windows paths
+
+# Windows path spellings in the agent write gate (drive-letter case, `/c:/` roots, either
+# slash). Linux cannot exercise them, and CI's full matrix does not run on PRs, so this one
+# targeted file runs on Windows every time.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-paths:
+    strategy:
+      fail-fast: false
+      matrix:
+        # The interpreter a client finds on the user's machine is not CI's, and pathlib's Windows
+        # semantics moved between releases. 3.12.0 is the witnessed owner's.
+        python-version: ["3.12.0", "3.12", "3.13", "3.14"]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --require-hashes --upgrade -r requirements/pip.txt
+          pip install -e '.[dev,build]'
+
+      - name: Windows write-gate path tests
+        run: pytest -q tests/test_cursor_windows_write_gate.py
