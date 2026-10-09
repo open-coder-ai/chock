@@ -24,8 +24,8 @@ TREE = {
     "cursor": ("chock-guardrails", ".cursor-plugin/plugin.json", []),
     "devin": ("chock-guardrails", ".devin-plugin/plugin.json", []),
 }
-# Clients chock has not witnessed an install in; Claude Code and Codex are witnessed.
-UNWITNESSED = ("cursor", "devin")
+# Clients chock has not witnessed an install in; Claude Code, Codex, Copilot and Devin are witnessed.
+UNWITNESSED = ("cursor",)
 BINARY = {"claude-code": "claude", "copilot": "copilot", "codex": "codex", "devin": "devin"}
 
 
@@ -173,7 +173,11 @@ def test_the_steps_are_the_clients_own(catalog, tmp_path: Path, home, capsys, cl
         "copilot": [f"copilot plugin marketplace add {dest}", "copilot plugin install chock-guardrails@chock-local"],
         "codex": [f"codex plugin marketplace add {dest}", "trust its hooks in /hooks"],
         "cursor": [f"Cursor loads {plugin} as a local plugin", "There is no command to run"],
-        "devin": [f"devin plugins install --local {plugin}"],
+        "devin": [
+            f"devin plugins install --local {plugin}",
+            "Developer Mode (Settings > System > For developers) or an elevated shell",
+            "os error 1314",
+        ],
     }[client]
     for line in expected:
         assert line in out

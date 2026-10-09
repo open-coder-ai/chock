@@ -90,6 +90,7 @@
       "label_prefix": "best-effort, fails open: ",
       "gate_turn_end_only": true,
       "steps": [
+        {"note": "On Windows, `devin plugins install --local` creates a symbolic link, so it needs Developer Mode (Settings > System > For developers) or an elevated shell; otherwise it fails with \"os error 1314: A required privilege is not held by the client\"."},
         {"command": ["devin", "plugins", "install", "--local", "__PLUGIN_DIR__"]},
         {"note": "The plugin is linked in place: a rebuild applies from the next Devin session."}
       ]
