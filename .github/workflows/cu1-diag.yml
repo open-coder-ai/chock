@@ -1,0 +1,45 @@
+name: CU-1 diag (temporary)
+
+# Temporary: reproduce the Cursor write-gate allow on a hosted Windows runner. Removed before merge.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  cu1-diag:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.14.3"
+
+      - name: Install chock
+        run: |
+          python -m pip install --require-hashes --upgrade -r requirements/pip.txt
+          pip install .
+
+      - name: Trace under Git Bash
+        run: sh .github/cu1-diag/run.sh
+
+      - name: Trace under pwsh
+        shell: pwsh
+        run: |
+          $plugin = "$env:USERPROFILE\.cursor\plugins\local\chock-witness"
+          $payload = ".github\cu1-diag\payload.local.json"
+          foreach ($where in @($env:USERPROFILE, "$env:USERPROFILE\witness-repo-cursor")) {
+            Write-Output "######## pwsh diag, cwd = $where"
+            Push-Location $where
+            Get-Content -Raw "$env:GITHUB_WORKSPACE\$payload" | python "$env:GITHUB_WORKSPACE\.github\cu1-diag\chock_diag.py" $plugin
+            Pop-Location
+          }
