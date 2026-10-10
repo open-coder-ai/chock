@@ -1,0 +1,21 @@
+# Witness kit selection: one guard and one gate, pinned to chock-catalog main at f23cb0e.
+# block-no-verify (guard): refuses `git commit --no-verify` before the shell runs it.
+# pin-github-actions (gate): refuses a workflow file that uses an action by tag, not by commit SHA.
+# Both build and run in all five client formats per discovery/2026-10-06-builder-catalog-audit.md.
+schema: 2
+client: claude-code
+bundle:
+  name: chock-witness
+  version: 0.1.0
+catalog:
+  source: https://github.com/open-coder-ai/chock-catalog
+  ref: f23cb0e2b3b1284a92a583303eb80965a0405685
+policies:
+  - from: catalog
+    id: block-no-verify
+    version: 0.4.3
+    sha256: 08c7d6e422b0bff836b489823b47aa4c8ed2c2ddf1dbebc90d9a52a2cff6481d
+  - from: catalog
+    id: pin-github-actions
+    version: 0.0.6
+    sha256: 07a396492ea043e506b7df87cf4864c1075b2f24922c2331cd2ab823962b4baf
