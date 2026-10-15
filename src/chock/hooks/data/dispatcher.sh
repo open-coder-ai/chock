@@ -14,9 +14,13 @@ COMMON="$(cd "$(git rev-parse --git-common-dir)" && pwd -P)"
 BARE=""
 if [ "$(basename "$COMMON")" = ".git" ]; then MAIN="$(dirname "$COMMON")"; else MAIN="$COMMON"; BARE=1; fi
 STOPPED=""
-# `chock stop --everywhere`: the machine-wide stop in the person's home reaches every repository.
-EVERYWHERE="${HOME:-}/.chock/stops/_everywhere.json"
-if [ -n "${HOME:-}" ] && { [ -e "$EVERYWHERE" ] || [ -L "$EVERYWHERE" ]; }; then STOPPED=1; fi
+# `chock stop --everywhere`: the machine-wide stop in the person's home (HOME, or USERPROFILE as Python reads it on
+# Windows) reaches every repository. Only gate.py judges it: it never refuses a person, so nothing here refuses blind.
+EVERYWHERE=""
+for HOME_DIR in "${HOME:-}" "${USERPROFILE:-}"; do
+    ENTRY="$HOME_DIR/.chock/stops/_everywhere.json"
+    if [ -n "$HOME_DIR" ] && { [ -e "$ENTRY" ] || [ -L "$ENTRY" ]; }; then EVERYWHERE=1; fi
+done
 for DIR in "$TOP" "${TOP_REAL:-}" "$MAIN"; do
     while [ -n "$DIR" ]; do
         if [ -e "$DIR/.chock/stop.json" ] || [ -L "$DIR/.chock/stop.json" ]; then STOPPED=1; fi
@@ -25,19 +29,23 @@ for DIR in "$TOP" "${TOP_REAL:-}" "$MAIN"; do
         DIR="$PARENT"
     done
 done
-if [ -n "$STOPPED" ]; then
+if [ -n "$STOPPED" ] || [ -n "$EVERYWHERE" ]; then
     # Only the main checkout's gate.py tells an agent from a person: a work tree may carry an edited copy.
     GATE="$MAIN/.chock/bin/gate.py"
-    if [ -n "$BARE" ] || [ ! -f "$GATE" ]; then
-        echo "chock: .chock/stop.json is in force and the main checkout has no .chock/bin/gate.py to tell an agent from a person; refused. A person runs chock resume to lift the stop." >&2
-        exit 1
-    fi
     PY="$(command -v python3 || command -v python || command -v py || true)"
-    if [ -z "$PY" ]; then
-        echo "chock: .chock/stop.json is in force and no python is on PATH to tell an agent from a person; refused. A person runs chock resume to lift the stop." >&2
-        exit 1
+    if [ -n "$BARE" ] || [ ! -f "$GATE" ]; then
+        if [ -n "$STOPPED" ]; then
+            echo "chock: .chock/stop.json is in force and the main checkout has no .chock/bin/gate.py to tell an agent from a person; refused. A person runs chock resume to lift the stop." >&2
+            exit 1
+        fi
+    elif [ -z "$PY" ]; then
+        if [ -n "$STOPPED" ]; then
+            echo "chock: .chock/stop.json is in force and no python is on PATH to tell an agent from a person; refused. A person runs chock resume to lift the stop." >&2
+            exit 1
+        fi
+    else
+        "$PY" "$GATE" stop-check --event __EVENT__ < "$STDIN_FILE"
     fi
-    "$PY" "$GATE" stop-check --event __EVENT__ < "$STDIN_FILE"
 fi
 for hook in "$HOOK_DIR/__EVENT__.d/"*; do
     [ -e "$hook" ] || continue

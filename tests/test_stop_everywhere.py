@@ -147,7 +147,20 @@ def test_an_agents_commit_is_refused_and_a_persons_passes(git_repo: Path) -> Non
     refused = _commit(git_repo, AGENT)
     assert refused.returncode != 0
     assert MACHINE in refused.stderr
+    assert "`chock resume --everywhere`" in refused.stderr
     assert _commit(git_repo, PERSON).returncode == 0
+
+
+def test_without_gate_py_the_machine_stop_refuses_no_commit_blind(git_repo: Path) -> None:  # noqa: F811
+    """Only gate.py tells an agent from a person; without it the machine stop is the pre-tool hook's, never the git hook's."""
+    (git_repo / ".chock" / "bin" / "gate.py").unlink()
+    assert _stop_everywhere("--repo", str(git_repo.parent)) == 0
+    passed = _commit(git_repo, PERSON)
+    assert passed.returncode == 0, passed.stderr
+    assert chock_stop.stop_main(["--repo", str(git_repo)]) == 0
+    refused = _commit(git_repo, PERSON)
+    assert refused.returncode != 0
+    assert ".chock/stop.json is in force" in refused.stderr
 
 
 def test_an_agents_stop_and_resume_are_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
