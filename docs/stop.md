@@ -74,6 +74,10 @@ commit or push at the git hooks. The refusal says the machine is stopped and tha
 lifts it. `--agent` is refused with it: the scope is every agent. A file there that is not a regular file (a
 folder, a symlink), or cannot be read or parsed, refuses too (fail closed).
 
+At the git hooks only the main checkout's `.chock/bin/gate.py` tells an agent from a person, so the machine-wide
+stop never refuses a commit blind: in a bare repository, a checkout without `gate.py`, or with no python on `PATH`,
+it is left to the pre-tool hook, and a person's commit passes. A repository's own stop still refuses there.
+
 `resume --everywhere` is person-only, as `resume` is: it refuses an agent's shell (logged), needs stdin and
 stdout to be a TTY, and asks for the word `everywhere` to be typed. It removes that file only; a
 per-repository stop stays in force, and its output says so. `chock status` and `chock doctor` lead with
