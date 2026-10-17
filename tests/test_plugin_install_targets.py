@@ -16,6 +16,7 @@ from install_fixtures import make_catalog, selection, write_selection
 from packaging_helpers import frozen_json, tree_bytes
 from runtime_payloads import DENY_ON_THE_WIRE, PAYLOADS
 
+from chock.compile.emitters.in_agent_hooks import generic_pre_tool_config, generic_stop_config
 from chock.guardrails import toggle
 from chock.install import cli, package, place
 from chock.install.selection import DEFAULT_BUNDLE
@@ -81,6 +82,28 @@ def test_goose_entries_fail_closed_and_antigravity_keeps_its_hook_group(tmp_path
     assert list(antigravity["hooks"]) == ["agentseam"]
     assert set(antigravity["hooks"]["agentseam"]) == {"PreToolUse", "Stop"}
     assert all(hook_dir.ROOT_TOKEN in c for c in hook_commands(antigravity["hooks"]))
+
+
+def assert_antigravity_hooks_shape(doc: dict) -> None:
+    """antigravity.google/docs/hooks (2026-10-17): tool events hold {matcher, hooks} groups, Stop lists bare handlers."""
+    events = doc["agentseam"]
+    assert events["PreToolUse"] and events["Stop"]
+    for group in events["PreToolUse"]:
+        assert group["matcher"] == "*"
+        assert group["hooks"] and all(h["type"] == "command" and isinstance(h["command"], str) for h in group["hooks"])
+    for handler in events["Stop"]:
+        assert handler["type"] == "command" and isinstance(handler["command"], str)
+        assert "hooks" not in handler and "matcher" not in handler
+
+
+def test_the_antigravity_plugin_hooks_json_has_the_documented_shape(tmp_path: Path) -> None:
+    assert_antigravity_hooks_shape(snapshot("antigravity", tmp_path)["hooks"])
+
+
+def test_the_antigravity_repo_hooks_json_has_the_documented_shape() -> None:
+    pre_tool = generic_pre_tool_config("antigravity", "guard", None)
+    stop = generic_stop_config("antigravity", "gate --stop")
+    assert_antigravity_hooks_shape({"agentseam": {**pre_tool["agentseam"], **stop["agentseam"]}})
 
 
 def test_the_antigravity_manifest_holds_only_the_schemas_two_fields(tmp_path: Path) -> None:

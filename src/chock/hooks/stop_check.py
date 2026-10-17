@@ -83,6 +83,8 @@ def without(node: Any) -> Any:
             kept = without(value)
             if not (isinstance(value, list) and value and kept == []):
                 out[key] = kept
+            elif key == "hooks":
+                return {}  # a group whose handlers were all stop checks goes whole, matcher and all
         return out
     if isinstance(node, list):
         kept = [(item, without(item)) for item in node if not _runs_it(item)]

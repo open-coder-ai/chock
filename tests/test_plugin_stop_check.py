@@ -218,3 +218,11 @@ def test_plugin_stop_check_latency_unstopped(tmp_path: Path, home: Path, capsys:
         print(
             f"\nplugin stop-check unstopped, median of 50 on {sys.platform}: one bundle {one:.1f} ms; three packages {three:.1f} ms total"
         )
+
+
+def test_without_drops_a_group_its_stop_check_empties_whatever_else_it_holds() -> None:
+    check = {"type": "command", "command": f"run {STOP_CHECK_FLAG}"}
+    guard = {"matcher": "*", "hooks": [{"type": "command", "command": "guard"}]}
+    doc = {"agentseam": {"PreToolUse": [guard, {"matcher": "*", "hooks": [check]}], "Stop": [check]}}
+    assert stop_check.without({"matcher": "*", "hooks": [check]}) == {}
+    assert stop_check.without(doc) == {"agentseam": {"PreToolUse": [guard]}}

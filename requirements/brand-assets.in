@@ -1,5 +1,5 @@
 pyyaml>=6.0
 jsonschema>=4.18,<5
 referencing>=0.35,<0.38
-agentseam @ https://github.com/open-coder-ai/agentseam/archive/bebbfa6f85cc6512238ecad5114c00d99952f664.tar.gz
+agentseam @ https://github.com/open-coder-ai/agentseam/archive/945ceb09e2e22101aa4f56b11deefef5aabaa4a1.tar.gz
 cairosvg==2.9.0

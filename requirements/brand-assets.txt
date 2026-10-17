@@ -4,8 +4,8 @@
 #
 #    pip-compile --generate-hashes --no-index --output-file=requirements/brand-assets.txt --strip-extras requirements/brand-assets.in
 #
-agentseam @ https://github.com/open-coder-ai/agentseam/archive/bebbfa6f85cc6512238ecad5114c00d99952f664.tar.gz \
-    --hash=sha256:76fd44a41a826da73f6838fb9eb1fdc4e356c69973ad9fc0cff02b5a82abf196
+agentseam @ https://github.com/open-coder-ai/agentseam/archive/945ceb09e2e22101aa4f56b11deefef5aabaa4a1.tar.gz \
+    --hash=sha256:d3be5420031811ab022edc681cdf4653948b2ed2c039e36959446ade03af559e
     # via -r requirements/brand-assets.in
 attrs==26.1.0 \
     --hash=sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309 \
