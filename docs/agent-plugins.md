@@ -201,8 +201,8 @@ Four formats are each **witnessed denying a destructive command on a real instal
 
 | Format | Client(s) | Deny dialect |
 | :--- | :--- | :--- |
-| claude | Claude Code | exit 2 |
-| copilot | Copilot CLI, VS Code | exit 2 |
+| claude | Claude Code | exit 0 + `permissionDecision` deny JSON (measured 2026-10-21, Claude Code 2.1.305) |
+| copilot | Copilot CLI, VS Code | exit 0 + `permissionDecision` deny JSON (from the adapter's copilot_respond template; unmeasured this session) |
 | cursor | Cursor | stdout `{"permission": "deny"}` |
 | codex | Codex (after its per-hook trust review) | exit 0 + `permissionDecision` JSON |
 
