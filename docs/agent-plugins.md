@@ -189,19 +189,39 @@ mere presence of two files.
 
 The Agent Plugins 1.0 standard carries no hooks, so an `agent-plugins` package is advisory
 by construction. Enforcement travels in five vendor plugin formats built from the same
-policies (`chock plugin build --format claude|copilot|cursor|codex|devin`). Four of them are
-published in a generated distribution repo of their own, and each of those is **witnessed
-denying a destructive command on a real install**:
+policies (`chock plugin build --format claude|copilot|cursor|codex|devin`). A user gets them as
+one merged plugin from a chock.sh selection, built on their machine:
 
-| Vendor repo | Client(s) | Deny dialect |
+```
+chock install --selection '<code>' --client <client> --apply
+```
+
+`--apply` runs the client's own commands where it has them; otherwise the step is yours.
+Four formats are each **witnessed denying a destructive command on a real install**:
+
+| Format | Client(s) | Deny dialect |
 | :--- | :--- | :--- |
-| [chock-claude-plugins](https://github.com/open-coder-ai/chock-claude-plugins) | Claude Code | exit 2 |
-| [chock-copilot-plugins](https://github.com/open-coder-ai/chock-copilot-plugins) | Copilot CLI, VS Code | exit 2 |
-| [chock-cursor-plugins](https://github.com/open-coder-ai/chock-cursor-plugins) | Cursor | stdout `{"permission": "deny"}` |
-| [chock-codex-plugins](https://github.com/open-coder-ai/chock-codex-plugins) | Codex (after its per-hook trust review) | exit 0 + `permissionDecision` JSON |
+| claude | Claude Code | exit 2 |
+| copilot | Copilot CLI, VS Code | exit 2 |
+| cursor | Cursor | stdout `{"permission": "deny"}` |
+| codex | Codex (after its per-hook trust review) | exit 0 + `permissionDecision` JSON |
 
 One guard, one adapter, byte-identical across all four — only the envelope each client
 reads differs.
+
+| `--client` | Client | `--apply` runs | You do |
+| :--- | :--- | :--- | :--- |
+| `claude-code` | Claude Code | `claude plugin marketplace add`, `claude plugin install` | restart the session or `/reload-plugins` |
+| `copilot` | GitHub Copilot | `copilot plugin marketplace add`, `copilot plugin install` | VS Code without the CLI: add the plugin folder to `chat.pluginLocations` |
+| `codex` | Codex | `codex plugin marketplace add` | install in `/plugins`, trust its hooks in `/hooks` |
+| `cursor` | Cursor | nothing | Developer: Reload Window |
+| `devin` | Devin | `devin plugins install --local` | nothing |
+| `goose` | goose | nothing | start a new session |
+| `grok` | Grok | `grok plugin install --trust` | nothing |
+| `antigravity` | Antigravity | `agy plugin install` | nothing |
+| `openhands` | OpenHands | nothing | `openhands --plugin <plugin folder>`, or add it to `[plugins]` sources in `~/.openhands/config.toml`; keep the folder in place |
+| `kimi-code` | Kimi Code | nothing | in its TUI, `/plugins install <plugin folder>` then `/reload`; again after a rebuild |
+| `factory-droid` | Factory Droid | `droid plugin marketplace add`, `droid plugin install --scope project` | nothing |
 
 Every hook-carrying format also carries a policy's **gate** when the gate declares
 `tool_use`: the compiled `scripts/gate.json`, the stdlib runner beside it as `scripts/gate.py`,
