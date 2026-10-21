@@ -115,9 +115,9 @@ ${term([cmd('chock init .'), cmd('chock add &lt;id&gt; --ref &lt;sha&gt; \\'), '
 <div style="font-size:17px;line-height:1.55;color:#D5DBE8">Everyone and every agent on the repo. Enforced at commit and in CI. Travels with every clone.</div></div>
 <div class="panel" style="padding:30px;display:flex;flex-direction:column;gap:18px">
 <div style="display:flex;justify-content:space-between;align-items:center"><span class="eyebrow">Route 2</span><span class="mono" style="font-size:13px;padding:5px 10px;border-radius:999px;border:1px solid #3A4870;color:#D5DBE8">no repo changes</span></div>
-<div style="font-size:26px;font-weight:600">In your coding agent, as plugins</div>
-${term(['<div class="d">Claude Code</div>', '<div>chock-claude-plugins</div>', '<div class="d">Cursor · Copilot · Codex · Devin</div>', '<div>one plugin repo per client</div>'])}
-<div style="font-size:17px;line-height:1.55;color:#D5DBE8">Your own sessions in that client. Best-effort hooks that fail open. Pair with route 1 for commit and CI.</div></div>
+<div style="font-size:26px;font-weight:600">In your coding agent, as one plugin</div>
+${term([cmd('chock install --selection &#39;&lt;code&gt;&#39; --apply'), '<div class="d">from the chock.sh builder</div>'])}
+<div style="font-size:17px;line-height:1.55;color:#D5DBE8">Your own sessions in that client, any client chock install supports. Best-effort hooks that fail open. Pair with route 1 for commit and CI.</div></div>
 </div>
 <div class="panel" style="padding:20px 28px;font-size:18px;color:#D5DBE8"><span class="gold" style="font-weight:600">Or build a selection:</span> the chock.sh builder (launching soon) gives one plugin for your agent from the policies you pick, your own included.</div></div>`);
 
