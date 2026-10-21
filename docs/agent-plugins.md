@@ -244,3 +244,55 @@ case there reproduces a witnessed failure), and the probe evidence is recorded i
 0.4.0 CHANGELOG entry. Codex additionally installs every hook **untrusted** until a human approves
 it, and that trust is bound to a hash of the hook command, so a plugin update silently
 voids it until re-approved.
+
+## Host it in your own marketplace
+
+An organisation that does not want every developer running a build builds once and hosts the result.
+An admin runs the build without `--apply`, into a folder of their choice:
+
+```
+chock install --selection '<code>' --client <client> --dest <folder>
+```
+
+Nothing is installed and no client command runs. For the marketplace-layout clients (`claude-code`,
+`copilot`, `codex`, `factory-droid`) the folder is a complete local marketplace:
+
+```text
+<folder>/
+├── .claude-plugin/marketplace.json      # the index the client reads (codex: .agents/plugins/marketplace.json)
+├── chock.marketplace.json               # which client's marketplace this is
+└── claude/chock-guardrails/             # the plugin (<format>/<bundle name>)
+    ├── .claude-plugin/plugin.json
+    ├── hooks/hooks.json                 # every guard, gate and the turn-end check
+    ├── scripts/                         # the guards and gates, the vendored runtime, launch.sh
+    └── chock.selection.json             # the marker
+```
+
+The marker records the selection, the catalog commit, the engine version and the sha256 of every
+accepted custom policy. The other clients (`cursor`, `devin`, `goose`, `grok`, `antigravity`,
+`openhands`, `kimi-code`) build the plugin folder itself, with no index.
+
+1. **Review.** Read `chock.selection.json` and `hooks/hooks.json`. `chock bundle status` lists the
+   members of bundles installed in a client's default folder only, so it does not see a `--dest` build.
+2. **Commit** the folder to the organisation's own marketplace repository.
+3. **Developers install** from that repository with the client's own marketplace commands, for example
+   `claude plugin marketplace add <org>/<repo>` and `claude plugin install chock-guardrails@chock-local`.
+4. **Update** by building again on a newer catalog pin and committing the folder again. The marker's
+   catalog commit is the version.
+
+Hook commands reach their scripts through the client's plugin-root variable (`${CLAUDE_PLUGIN_ROOT}`
+for Claude Code), so the folder works from wherever it is installed. **Antigravity and OpenHands
+document no such variable** (`plugin_root: null` in their store data): their hooks name the build
+folder by absolute path, so a hosted copy must be installed at that same path.
+
+Measured for Claude Code 2.1.305: a three-policy build (`block-destructive-commands`,
+`block-no-verify`, `block-curl-pipe-sh`) was moved to another folder; its `hooks.json` commands, run
+with `CLAUDE_PLUGIN_ROOT` set to the new folder, refused `rm -rf /` and passed `ls -la`, and
+`claude plugin marketplace add` and `claude plugin install chock-guardrails@chock-local` succeeded
+from the new location. A refusal inside a live Claude Code session, and every other client, are
+unmeasured.
+
+Pre-installing or pinning a marketplace on every machine is the vendor's feature, not chock's. For
+Claude Code, its [marketplace docs](https://code.claude.com/docs/en/plugin-marketplaces) say an
+administrator can require a marketplace on every machine; the settings are unmeasured here. Copilot,
+Codex and the others: unmeasured.
