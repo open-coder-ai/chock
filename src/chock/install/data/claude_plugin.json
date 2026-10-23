@@ -3,7 +3,7 @@
   "offer_when": {"deny_reply": ["yes", "partial"]},
   "heading": "This agent can also run the Claude Code plugin (agentseam loads_claude_plugins, seen in a live run):",
   "listing": "This build also runs in other agents (agentseam loads_claude_plugins, seen in a live run):",
-  "build": "Build it: chock install --selection __SELECTION__ --client __BUILD_CLIENT__ (then, in __WHERE__:)",
+  "build": "Build it: chock install --selection __SELECTION__ --client __BUILD_CLIENT____MARKETPLACE_FLAG__ (then, in __WHERE__:)",
   "warnings": [
     "Install one build per agent. If you install both the agent's own chock plugin and the Claude Code plugin, each one checks every action.",
     "When another agent runs the Claude Code plugin, chock logs its events as claude_code (~/.chock/log/claude_code/), not under that agent."
@@ -45,7 +45,7 @@
           "witness": "Copilot CLI: guard (shell command) and gate (file write) refused by preToolUse deny",
           "label": "guard and gate refused",
           "steps": [
-            {"note": "If `copilot plugin marketplace add` says Marketplace \"__MARKETPLACE__\" already registered, that is chock's Copilot build (every chock build's local marketplace is named __MARKETPLACE__): keep one build and run `copilot plugin marketplace remove __MARKETPLACE__` first."},
+            {"note": "If `copilot plugin marketplace add` says Marketplace \"__MARKETPLACE__\" already registered, that is chock's Copilot build (this build's local marketplace is named __MARKETPLACE__; every chock build made with that name shares it): keep one build and run `copilot plugin marketplace remove __MARKETPLACE__` first."},
             {"command": ["copilot", "plugin", "marketplace", "add", "__DEST__"]},
             {"command": ["copilot", "plugin", "install", "__PLUGIN__@__MARKETPLACE__"]},
             {"note": "It loads live from __PLUGIN_DIR__ (nothing is copied); `copilot plugin uninstall` only disables it."}
