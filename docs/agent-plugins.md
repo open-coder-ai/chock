@@ -296,5 +296,16 @@ set to the new folder, refused `rm -rf /` and passed `ls -la`, and `claude plugi
 `claude plugin install chock-guardrails@chock-local` succeeded from the new location. That run used the default
 name; a `--marketplace-name` build (tests only), a live refusal and every other client are unmeasured.
 
+**Developers need no chock.** The built plugin's scripts import nothing from chock or PyYAML. It needs Python 3.11+ and
+git on `PATH`: the hook command runs `launch.sh` through `git`, and without Python every call is refused. Measured
+on a built Claude Code plugin from a fixture catalog: its hooks ran in a virtual environment with no chock and no
+site-packages (Python 3.11.15 and 3.12.3), refused a write to `.chock/guardrails.json` and allowed `notes.txt`.
+Windows and a full catalog selection are unmeasured.
+
+**No machine can run chock at all?** Then nothing here can build the plugin. The `chock-*-plugins` repos
+([claude](https://github.com/open-coder-ai/chock-claude-plugins), copilot, cursor, codex, devin) stay as a
+per-policy marketplace, republished with every chock release: add one as a marketplace, or mirror it into your own
+git server, and install the policies you want. Use one route per policy, never both: each copy runs its own hook.
+
 Pre-installing a marketplace on every machine is the vendor's feature, not chock's: Claude Code's
 [docs](https://code.claude.com/docs/en/plugin-marketplaces) say an administrator can require one (unmeasured).
