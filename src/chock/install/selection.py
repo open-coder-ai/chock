@@ -15,6 +15,7 @@ import yaml
 from chock import yamlio
 from chock.validation.loading import load_schema
 
+MIN_QUOTED = 2
 SCHEMA = "selection.schema.json"
 FRAGMENT = "#s="
 SCHEMA1, SCHEMA2 = 1, 2
@@ -37,7 +38,10 @@ def _decode(code: str) -> Any:
         raw = base64.urlsafe_b64decode(code + "=" * (-len(code) % 4))
         return json.loads(raw.decode("utf-8"))
     except (binascii.Error, ValueError) as exc:
-        msg = f"the selection code is not base64url-encoded JSON ({exc})"
+        msg = (
+            f"the selection code is not base64url-encoded JSON ({exc}); "
+            "cmd.exe passes quotes through to chock and the code needs none, so paste it bare"
+        )
         raise SelectionError(msg) from exc
 
 
@@ -49,8 +53,15 @@ def _is_file(path: Path) -> bool:
         return False
 
 
+def _unquote(arg: str) -> str:
+    """`arg` without one surrounding pair of matching single or double quotes, which cmd.exe leaves on."""
+    arg = arg.strip()
+    return arg[1:-1] if len(arg) >= MIN_QUOTED and arg[0] == arg[-1] and arg[0] in "'\"" else arg
+
+
 def _raw(arg: str) -> Any:
     """The selection object `arg` names: a URL fragment, a file, or a bare code, in that order."""
+    arg = _unquote(arg)
     if FRAGMENT in arg:
         return _decode(arg.split(FRAGMENT, 1)[1])
     path = Path(arg).expanduser()
@@ -60,7 +71,7 @@ def _raw(arg: str) -> Any:
         except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
             msg = f"{path}: cannot read the selection ({exc})"
             raise SelectionError(msg) from exc
-    return _decode(arg.strip())
+    return _decode(arg)
 
 
 def _validator(data: Any) -> jsonschema.Draft7Validator:
@@ -104,6 +115,7 @@ def upgrade(data: dict[str, Any]) -> dict[str, Any]:
 
 def folder(arg: str) -> Path | None:
     """The folder of the selection file `arg` names, which local paths resolve against; None for a link or code."""
+    arg = _unquote(arg)
     if FRAGMENT in arg:
         return None
     path = Path(arg).expanduser()

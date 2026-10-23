@@ -245,7 +245,7 @@ def evaluate(argv: list[str], command: str, tool: str = "", *, can_ask: bool | N
     verdict, message = run_guard_detailed(guard, command, tool, can_ask=can_ask)
     GUARD_LAST["outcome"] = verdict
     if verdict == GUARD_BLOCKED:
-        return (VERDICT_DENY, f"Blocked by chock policy: {guard.stem}")
+        return (VERDICT_DENY, f"Blocked by chock policy: {guard.stem}: {message}")
     if verdict == GUARD_ASKED:
         # The guard's own line is the prompt: it names what needs confirming, never the
         # raw command, which would put a live tool argument into the client's UI.
