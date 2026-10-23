@@ -36,14 +36,15 @@ def routes(client_id: str, data: dict[str, Any] | None = None) -> list[dict[str,
     return [r for r in entry["routes"] if r["witness"] in witnessed]
 
 
-def tokens(dest: Path, name: str, selection_arg: str) -> dict[str, str]:
+def tokens(dest: Path, name: str, selection_arg: str, marketplace: str) -> dict[str, str]:
     """The Claude build's own folder and marketplace, for the steps another agent runs on it."""
     build = settings()["build_client"]
     return {
         "__DEST__": str(dest),
         "__PLUGIN_DIR__": str(place.plugin_dir(build, dest, name)),
         "__PLUGIN__": name,
-        "__MARKETPLACE__": package.settings()["marketplace"],
+        "__MARKETPLACE__": marketplace,
+        "__MARKETPLACE_FLAG__": "" if marketplace == package.marketplace() else f" --marketplace-name {marketplace}",
         "__SELECTION__": shlex.quote(selection_arg),
         "__BUILD_CLIENT__": build,
     }

@@ -76,12 +76,13 @@ def _apply(client_id: str, rendered: list[steps.Step]) -> int:
 
 @dataclass(frozen=True)
 class Options:
-    """What the command line adds to a selection: trusted sources, the selection's folder, and local-code trust."""
+    """What the command line adds to a selection: trusted sources, folder, local-code trust and marketplace name."""
 
     allowed: list[str]
     base: Path | None = None
     trust_local: dict[str, str] = field(default_factory=dict)
     interactive: bool = False
+    marketplace: str = field(default_factory=package.marketplace)
 
 
 def _catalog(chosen: dict[str, Any], allowed: list[str], work: Path) -> Path:
@@ -121,7 +122,7 @@ def _members(chosen: dict[str, Any], catalog: Path | None, found: list[local.Loc
 def install(chosen: dict[str, Any], dest: Path, options: Options) -> tuple[list[package.Label], list[str]]:
     """Trust, fetch, verify, label and build the selection for its client; returns (labels, warnings)."""
     client_id, name = chosen["client"], chosen["bundle"]["name"]
-    place.check_owned(client_id, dest, name)
+    place.check_owned(client_id, dest, name, options.marketplace)
     target = place.plugin_dir(client_id, dest, name)
     with tempfile.TemporaryDirectory(prefix="chock-install-") as tmp:
         work = Path(tmp)
@@ -142,7 +143,7 @@ def install(chosen: dict[str, Any], dest: Path, options: Options) -> tuple[list[
             place.migrate_legacy(dest)
         record = package.marker(chosen, accepted)
         package.replace(target, package.stage(members, repo_root, record, version, target))
-        place.write_marketplace(client_id, dest)
+        place.write_marketplace(client_id, dest, options.marketplace)
     return labels, lines
 
 
@@ -161,6 +162,11 @@ def main(argv: list[str] | None = None) -> int:
         help="The agent to build for (default: the selection's client)",
     )
     parser.add_argument("--dest", help="Install folder (default: the client's own, e.g. ~/.chock/marketplace/<client>)")
+    parser.add_argument(
+        "--marketplace-name",
+        metavar="NAME",
+        help=f"Name the build's local marketplace (default: {package.marketplace()}); a team's own build uses its own",
+    )
     parser.add_argument("--apply", action="store_true", help="Also run the client's own install commands, if any")
     parser.add_argument(
         "--allow-source",
@@ -179,6 +185,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
+        marketplace = package.marketplace(args.marketplace_name)
         chosen = selection.load(args.selection)
         chosen = {**chosen, "client": args.client or chosen["client"]}
         if chosen["client"] == RETIRED:
@@ -193,7 +200,11 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Catalog source: {chosen['catalog']['source']}")
             print(f"Catalog ref:    {chosen['catalog']['ref']}", flush=True)
         options = Options(
-            args.allow_source, selection.folder(args.selection), local.given(args.trust_local), local.interactive()
+            args.allow_source,
+            selection.folder(args.selection),
+            local.given(args.trust_local),
+            local.interactive(),
+            marketplace,
         )
         labels, lines = install(chosen, dest, options)
     except PinError as exc:
@@ -210,7 +221,7 @@ def main(argv: list[str] | None = None) -> int:
         "__DEST__": str(dest),
         "__PLUGIN_DIR__": str(folder),
         "__PLUGIN__": name,
-        "__MARKETPLACE__": package.settings()["marketplace"],
+        "__MARKETPLACE__": marketplace,
     }
     rendered = steps.render(client_id, tokens)
     _show(rendered, applying=args.apply)
@@ -219,7 +230,7 @@ def main(argv: list[str] | None = None) -> int:
         _print_steps("To remove it:", removal)
     build = claude_plugin.settings()["build_client"]
     build_dest = dest if client_id == build else place.default_dest(build).resolve()
-    for line in claude_plugin.lines(client_id, claude_plugin.tokens(build_dest, name, args.selection)):
+    for line in claude_plugin.lines(client_id, claude_plugin.tokens(build_dest, name, args.selection, marketplace)):
         print(line)
     return _apply(client_id, rendered) if args.apply else 0
 
