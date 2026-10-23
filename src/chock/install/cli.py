@@ -165,7 +165,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--marketplace-name",
         metavar="NAME",
-        help=f"Name the build's local marketplace (default: {package.marketplace()}); a team's own build uses its own",
+        help=f"Name the build's local marketplace (default: {package.marketplace()}), so a team's own build can use its own",
     )
     parser.add_argument("--apply", action="store_true", help="Also run the client's own install commands, if any")
     parser.add_argument(
