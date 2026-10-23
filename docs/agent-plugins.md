@@ -193,7 +193,7 @@ policies (`chock plugin build --format claude|copilot|cursor|codex|devin`). A us
 one merged plugin from a chock.sh selection, built on their machine:
 
 ```
-chock install --selection '<code>' --client <client> --apply
+chock install --selection <code> --client <client> --apply
 ```
 
 `--apply` runs the client's own commands where it has them; otherwise the step is yours.

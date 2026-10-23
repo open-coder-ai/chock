@@ -116,7 +116,7 @@ ${term([cmd('chock init .'), cmd('chock add &lt;id&gt; --ref &lt;sha&gt; \\'), '
 <div class="panel" style="padding:30px;display:flex;flex-direction:column;gap:18px">
 <div style="display:flex;justify-content:space-between;align-items:center"><span class="eyebrow">Route 2</span><span class="mono" style="font-size:13px;padding:5px 10px;border-radius:999px;border:1px solid #3A4870;color:#D5DBE8">no repo changes</span></div>
 <div style="font-size:26px;font-weight:600">In your coding agent, as one plugin</div>
-${term([cmd('chock install --selection &#39;&lt;code&gt;&#39; --apply'), '<div class="d">from the chock.sh builder</div>'])}
+${term([cmd('chock install --selection &lt;code&gt; --apply'), '<div class="d">from the chock.sh builder</div>'])}
 <div style="font-size:17px;line-height:1.55;color:#D5DBE8">Your own sessions in that client, any client chock install supports. Best-effort hooks that fail open. Pair with route 1 for commit and CI.</div></div>
 </div>
 <div class="panel" style="padding:20px 28px;font-size:18px;color:#D5DBE8"><span class="gold" style="font-weight:600">Or build a selection:</span> the chock.sh builder (launching soon) gives one plugin for your agent from the policies you pick, your own included.</div></div>`);
