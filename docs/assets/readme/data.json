@@ -141,27 +141,27 @@
     {
       "name": "chock-claude-plugins",
       "kind": "Plugins",
-      "line": "The catalog as Claude Code plugins (generated)."
+      "line": "per-policy marketplace, for machines without chock."
     },
     {
       "name": "chock-copilot-plugins",
       "kind": "Plugins",
-      "line": "The catalog as Copilot CLI and VS Code plugins (generated)."
+      "line": "per-policy marketplace, for machines without chock."
     },
     {
       "name": "chock-cursor-plugins",
       "kind": "Plugins",
-      "line": "The catalog as Cursor plugins (generated)."
+      "line": "per-policy marketplace, for machines without chock."
     },
     {
       "name": "chock-codex-plugins",
       "kind": "Plugins",
-      "line": "The catalog as Codex plugins (generated)."
+      "line": "per-policy marketplace, for machines without chock."
     },
     {
       "name": "chock-devin-plugins",
       "kind": "Plugins",
-      "line": "The catalog as Devin plugins (generated)."
+      "line": "per-policy marketplace, for machines without chock."
     },
     {
       "name": "chock-quickstart",
