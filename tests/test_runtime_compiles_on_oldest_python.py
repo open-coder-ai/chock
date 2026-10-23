@@ -16,7 +16,9 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-RENDERED = sorted([*(ROOT / ".chock" / "bin").glob("*.py"), *(ROOT / "tests" / "fixtures" / "runtime_goldens").glob("*.py")])
+RENDERED = sorted(
+    [*(ROOT / ".chock" / "bin").glob("*.py"), *(ROOT / "tests" / "fixtures" / "runtime_goldens").glob("*.py")]
+)
 OLDEST = (3, 11)
 _COMPILE = "import sys\nfor p in sys.argv[1:]:\n    compile(open(p, encoding='utf-8').read(), p, 'exec')\n"
 
