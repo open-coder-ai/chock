@@ -31,7 +31,7 @@ pip install "chock @ git+https://github.com/open-coder-ai/chock@992711af4cf8d4fd
 ### Two ways to adopt it
 
 1. **In your repository, for teams.** Run `chock init .`, then `chock add <id> --ref <catalog commit> --verify-sha <sha256> --skip-compile` for each policy, then `chock sync --repo . --ci`. Commit the result. A fresh clone arms itself from what is committed; a person runs `chock sync` to change it. The commit gates are enforced at commit and in CI.
-2. **In your coding agent, as one plugin.** Pick policies in the chock.sh builder (launching soon) and run `chock install --selection '<code>' --apply`. It builds one plugin for Claude Code, Cursor, Codex, Copilot or Devin, and, untested by chock, for goose, Grok, Antigravity, OpenHands, Kimi Code or Factory Droid. Best-effort, and it fails open. A selection can add [your own policies](docs/custom-policies.md): install shows their code and asks first.
+2. **In your coding agent, as one plugin.** Pick policies in the chock.sh builder (launching soon) and run `chock install --selection '<code>' --apply`. It builds one plugin for Claude Code, Cursor, Codex, Copilot or Devin, and, untested by chock, for goose, Grok, Antigravity, OpenHands, Kimi Code or Factory Droid. Best-effort, and it fails open. A selection can add [your own policies](docs/custom-policies.md): install shows their code and asks first. If chock cannot be installed on a machine, add a per-policy marketplace instead (the `chock-*-plugins` repos); use one route per policy, never both.
 
 ## Application security for the code your agents write
 
@@ -261,11 +261,11 @@ The 13 public repositories:
 | [chock-catalog](https://github.com/open-coder-ai/chock-catalog) | Policies: The policies, each labelled by what it enforces, with replayed evals. |
 | [context-report](https://github.com/open-coder-ai/context-report) | Evidence: A signed report of whether an agent artifact works. |
 | [chock-threat-intel](https://github.com/open-coder-ai/chock-threat-intel) | Evidence: A weekly threat ledger, each entry scored against the catalog. |
-| [chock-claude-plugins](https://github.com/open-coder-ai/chock-claude-plugins) | Retired: plugins come from the chock.sh builder. |
-| [chock-copilot-plugins](https://github.com/open-coder-ai/chock-copilot-plugins) | Retired: plugins come from the chock.sh builder. |
-| [chock-cursor-plugins](https://github.com/open-coder-ai/chock-cursor-plugins) | Retired: plugins come from the chock.sh builder. |
-| [chock-codex-plugins](https://github.com/open-coder-ai/chock-codex-plugins) | Retired: plugins come from the chock.sh builder. |
-| [chock-devin-plugins](https://github.com/open-coder-ai/chock-devin-plugins) | Retired: plugins come from the chock.sh builder. |
+| [chock-claude-plugins](https://github.com/open-coder-ai/chock-claude-plugins) | Plugins: per-policy marketplace, for machines without chock. |
+| [chock-copilot-plugins](https://github.com/open-coder-ai/chock-copilot-plugins) | Plugins: per-policy marketplace, for machines without chock. |
+| [chock-cursor-plugins](https://github.com/open-coder-ai/chock-cursor-plugins) | Plugins: per-policy marketplace, for machines without chock. |
+| [chock-codex-plugins](https://github.com/open-coder-ai/chock-codex-plugins) | Plugins: per-policy marketplace, for machines without chock. |
+| [chock-devin-plugins](https://github.com/open-coder-ai/chock-devin-plugins) | Plugins: per-policy marketplace, for machines without chock. |
 | [chock-quickstart](https://github.com/open-coder-ai/chock-quickstart) | Template: What chock init leaves behind. |
 | [chock-example](https://github.com/open-coder-ai/chock-example) | Template: A working adoption, one policy per layer. |
 | [.github](https://github.com/open-coder-ai/.github) | Community: Org profile and community health files. |

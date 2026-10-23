@@ -140,28 +140,28 @@
     },
     {
       "name": "chock-claude-plugins",
-      "kind": "Retired",
-      "line": "plugins come from the chock.sh builder."
+      "kind": "Plugins",
+      "line": "per-policy marketplace, for machines without chock."
     },
     {
       "name": "chock-copilot-plugins",
-      "kind": "Retired",
-      "line": "plugins come from the chock.sh builder."
+      "kind": "Plugins",
+      "line": "per-policy marketplace, for machines without chock."
     },
     {
       "name": "chock-cursor-plugins",
-      "kind": "Retired",
-      "line": "plugins come from the chock.sh builder."
+      "kind": "Plugins",
+      "line": "per-policy marketplace, for machines without chock."
     },
     {
       "name": "chock-codex-plugins",
-      "kind": "Retired",
-      "line": "plugins come from the chock.sh builder."
+      "kind": "Plugins",
+      "line": "per-policy marketplace, for machines without chock."
     },
     {
       "name": "chock-devin-plugins",
-      "kind": "Retired",
-      "line": "plugins come from the chock.sh builder."
+      "kind": "Plugins",
+      "line": "per-policy marketplace, for machines without chock."
     },
     {
       "name": "chock-quickstart",
