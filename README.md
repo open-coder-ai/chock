@@ -31,7 +31,7 @@ pip install "chock @ git+https://github.com/open-coder-ai/chock@992711af4cf8d4fd
 ### Two ways to adopt it
 
 1. **In your repository, for teams.** Run `chock init .`, then `chock add <id> --ref <catalog commit> --verify-sha <sha256> --skip-compile` for each policy, then `chock sync --repo . --ci`. Commit the result. A fresh clone arms itself from what is committed; a person runs `chock sync` to change it. The commit gates are enforced at commit and in CI.
-2. **In your coding agent, as one plugin.** Pick policies in the chock.sh builder (launching soon) and run `chock install --selection '<code>' --apply`. It builds one plugin for Claude Code, Cursor, Codex, Copilot or Devin, and, untested by chock, for goose, Grok, Antigravity, OpenHands, Kimi Code or Factory Droid. Best-effort, and it fails open. A selection can add [your own policies](docs/custom-policies.md): install shows their code and asks first. No chock on the machine? Add a per-policy marketplace (the `chock-*-plugins` repos) instead; never both for one policy.
+2. **In your coding agent, as one plugin.** Pick policies in the chock.sh builder (launching soon) and run `chock install --selection <code> --apply`. It builds one plugin for Claude Code, Cursor, Codex, Copilot or Devin, and, untested by chock, for goose, Grok, Antigravity, OpenHands, Kimi Code or Factory Droid. Best-effort, and it fails open. A selection can add [your own policies](docs/custom-policies.md): install shows their code and asks first. No chock? Add a per-policy marketplace (`chock-*-plugins`; needs Python 3.11+, git, a bash: Git for Windows has one), never both.
 
 ## Application security for the code your agents write
 
