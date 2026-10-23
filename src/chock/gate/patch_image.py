@@ -88,7 +88,8 @@ def _patch_not_empty(state, text):
     if last is None or last["op"] != "update":
         return
     if not last["body"] and state["mode"] == "update":
-        _patch_refuse(state["number"], text, f"update of {last['path']!r} has no hunk")
+        target = last["path"]
+        _patch_refuse(state["number"], text, f"update of {target!r} has no hunk")
     if last["body"] and not (last["body"][-1]["old"] or last["body"][-1]["new"]):
         _patch_refuse(state["number"], text, "a hunk has no lines")
 

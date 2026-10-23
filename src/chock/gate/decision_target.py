@@ -155,7 +155,8 @@ def dlog_target(event, repo):
     tool = str(getattr(event, "tool", None) or "")
     mcp = _DLOG_MCP_TOOL.match(tool)
     if mcp:
-        return log_redact(f"{mcp['server']}/{mcp['tool']}")[:_DLOG_MCP_CAP]
+        server, name = mcp["server"], mcp["tool"]
+        return log_redact(f"{server}/{name}")[:_DLOG_MCP_CAP]
     command, path = getattr(event, "command", None), getattr(event, "path", None)
     if command:
         return dlog_command_print(command)

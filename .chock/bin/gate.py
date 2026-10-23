@@ -1760,7 +1760,8 @@ def log_settings_read(path):
         problems.append(f"{path}: max_bytes must be {_LOG_BYTES_RANGE}, not {size!r}; using the next scope or 1048576")
     unknown = sorted(set(doc) - set(LOG_SETTINGS_KEYS))
     if unknown:
-        problems.append(f"{path}: unknown key(s) {', '.join(map(str, unknown))}; only level and max_bytes are read")
+        names = ", ".join(map(str, unknown))
+        problems.append(f"{path}: unknown key(s) {names}; only level and max_bytes are read")
     return found, problems
 
 
