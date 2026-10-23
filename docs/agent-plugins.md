@@ -247,14 +247,15 @@ voids it until re-approved.
 
 ## Host it in your own marketplace
 
-An organisation that does not want every developer running a build builds once and hosts the result. An admin runs the build without `--apply`, into a folder of their choice:
+An organisation that does not want every developer running a build builds once and hosts the result.
+An admin runs the build without `--apply`, into a folder of their choice:
 
 ```
-chock install --selection '<code>' --client <client> --dest <folder> --marketplace-name <org>-chock
+chock install --selection <code> --client <client> --dest <folder> --marketplace-name <org>-chock
 ```
 
-Nothing is installed and no client command runs. For the marketplace-layout clients (`claude-code`, `copilot`, `codex`, `factory-droid`) the folder is
-a complete local marketplace:
+Nothing is installed and no client command runs. For the marketplace-layout clients (`claude-code`,
+`copilot`, `codex`, `factory-droid`) the folder is a complete local marketplace:
 
 ```text
 <folder>/
@@ -267,12 +268,12 @@ a complete local marketplace:
     └── chock.selection.json             # the marker
 ```
 
-The marker records the selection, the catalog commit, the engine version and the sha256 of every accepted custom policy. The other clients (`cursor`, `devin`, `goose`, `grok`,
-`antigravity`, `openhands`, `kimi-code`) build the plugin folder itself, with no index.
+The marker records the selection, catalog commit, engine version and each custom policy's sha256. The other clients
+(`cursor`, `devin`, `goose`, `grok`, `antigravity`, `openhands`, `kimi-code`) build the plugin folder.
 
-**Name the marketplace.** Every build calls its local marketplace `chock-local`; adding a second folder under that name re-points the existing `chock-local` registration, and
-every plugin installed from it, to the new folder. `--marketplace-name <name>` (lowercase letters, digits, single hyphens; at most 64 characters) names the hosted build
-instead: developers install `chock-guardrails@<name>` beside a personal `chock-guardrails@chock-local` and neither moves the other. A folder keeps its name.
+**Name the marketplace.** Every build calls its marketplace `chock-local`; a second folder under that name re-points
+the first. `--marketplace-name <name>` (lowercase, digits, hyphens; at most 64 characters) names it instead:
+developers install `chock-guardrails@<name>` beside a personal `chock-guardrails@chock-local`, and neither moves.
 
 1. **Review.** Read `chock.selection.json` and `hooks/hooks.json`; `chock bundle status` lists only
    bundles installed in a client's default folder, so it does not see a `--dest` build.
@@ -281,20 +282,19 @@ instead: developers install `chock-guardrails@<name>` beside a personal `chock-g
    <org>/<repo>` and `claude plugin install chock-guardrails@<name>`.
 4. **Update** by building on a newer catalog pin and committing again; the marker's catalog commit is the version.
 
-Hook commands reach their scripts through the client's plugin-root variable (`${CLAUDE_PLUGIN_ROOT}` for Claude Code), so the folder works from wherever it is installed.
-**Antigravity and OpenHands document no such variable** (`plugin_root: null`): their hooks name the build folder by absolute path, so a hosted copy must be installed at that
-same path.
+Hook commands reach their scripts through the client's plugin-root variable (`${CLAUDE_PLUGIN_ROOT}` for Claude Code),
+so the folder works anywhere. **Antigravity and OpenHands document none** (`plugin_root: null`): their hooks use the
+build folder's absolute path, so install a hosted copy at that path.
 
-Measured for Claude Code 2.1.305: a three-policy build (`block-destructive-commands`, `block-no-verify`, `block-curl-pipe-sh`) was moved to another folder; its `hooks.json`
-commands, run with `CLAUDE_PLUGIN_ROOT` set to the new folder, refused `rm -rf /` and passed `ls -la`, and `claude plugin marketplace add` and `claude plugin install
-chock-guardrails@chock-local` succeeded from the new location. That run used the default name; a `--marketplace-name` build (tests only), a live refusal and every other client
-are unmeasured.
+Measured for Claude Code 2.1.305: a moved three-policy build's `hooks.json` commands, with `CLAUDE_PLUGIN_ROOT` set to
+the new folder, refused `rm -rf /` and passed `ls -la`; `claude plugin marketplace add` and `install` succeeded.
+Unmeasured: a `--marketplace-name` build (tests only), a live refusal, other clients.
 
-**Developers need no chock.** The built plugin imports nothing from chock or PyYAML; it needs Python 3.11+ and git on `PATH` (the hook runs `launch.sh` through `git`; without
-Python every call is refused). Measured on a fixture-catalog Claude Code plugin in a venv with no chock (Python 3.11.15, 3.12.3): it refused a write to a guarded file and
-allowed `notes.txt`. Windows and a full catalog selection are unmeasured. **No machine can run chock?** Then nothing here builds the plugin: the `chock-*-plugins` repos
-([claude](https://github.com/open-coder-ai/chock-claude-plugins), copilot, cursor, codex, devin) stay as a per-policy marketplace, republished with every chock release. Add
-one, or mirror it into your own git server. One route per policy, never both: each copy runs its own hook.
+**Developers need no chock.** The plugin imports nothing from chock; it needs Python 3.11+, git and a bash (Git for
+Windows includes one). Measured in a venv without chock (Python 3.11.15, 3.12.3), a fixture-catalog plugin refused a
+guarded write and allowed `notes.txt`; Windows unmeasured. **No machine can run chock?** The
+[`chock-*-plugins`](https://github.com/open-coder-ai/chock-claude-plugins) repos stay as a per-policy marketplace,
+republished each release. One route per policy.
 
 Pre-installing a marketplace on every machine is the vendor's feature, not chock's: Claude Code's
 [docs](https://code.claude.com/docs/en/plugin-marketplaces) say an administrator can require one (unmeasured).
