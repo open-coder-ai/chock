@@ -36,8 +36,9 @@ def routes(client_id: str, data: dict[str, Any] | None = None) -> list[dict[str,
     return [r for r in entry["routes"] if r["witness"] in witnessed]
 
 
-def tokens(dest: Path, name: str, selection_arg: str, marketplace: str) -> dict[str, str]:
+def tokens(dest: Path, name: str, selection_arg: str, marketplace: str | None = None) -> dict[str, str]:
     """The Claude build's own folder and marketplace, for the steps another agent runs on it."""
+    marketplace = package.marketplace(marketplace)
     build = settings()["build_client"]
     return {
         "__DEST__": str(dest),

@@ -52,8 +52,9 @@ def _marketplace_name(dest: Path) -> str:
         return package.marketplace()
 
 
-def check_owned(client_id: str, dest: Path, name: str, marketplace: str) -> None:
+def check_owned(client_id: str, dest: Path, name: str, marketplace: str | None = None) -> None:
     """Refuse a destination chock did not build, built for another client or under another marketplace name."""
+    marketplace = package.marketplace(marketplace)
     if package.client(client_id)["layout"] == MARKETPLACE and dest.exists() and any(dest.iterdir()):
         found = _marketplace_client(dest)
         if found is None:
@@ -133,8 +134,9 @@ def _index(spec: dict[str, Any], dest: Path, fmt: str, marketplace: str) -> dict
     return {"name": marketplace, "plugins": plugins}
 
 
-def write_marketplace(client_id: str, dest: Path, marketplace: str) -> list[Path]:
+def write_marketplace(client_id: str, dest: Path, marketplace: str | None = None) -> list[Path]:
     """The marketplace marker and the client's index files, rebuilt over every plugin now in `dest`."""
+    marketplace = package.marketplace(marketplace)
     data = package.client(client_id)
     if data["layout"] != MARKETPLACE:
         return []

@@ -132,3 +132,17 @@ def test_a_custom_folder_rebuilds_under_its_own_name_only(catalog, tmp_path: Pat
     assert _build(catalog, tmp_path, "claude-code", "--marketplace-name", CUSTOM) == 0
     assert _build(catalog, tmp_path, "claude-code") == 1
     assert json.loads((tmp_path / "market" / place.MARKETPLACE_MARKER).read_text())["marketplace"] == CUSTOM
+
+
+def test_three_argument_tokens_are_the_default_name_tokens(tmp_path: Path) -> None:
+    old = claude_plugin.tokens(tmp_path, "set-two", "sel.yaml")
+    assert old == claude_plugin.tokens(tmp_path, "set-two", "sel.yaml", DEFAULT)
+    assert old["__MARKETPLACE__"] == DEFAULT
+    assert old["__MARKETPLACE_FLAG__"] == ""
+
+
+def test_place_helpers_default_to_the_default_name(tmp_path: Path) -> None:
+    place.check_owned("claude-code", tmp_path / "empty", "set-two")
+    (tmp_path / "market").mkdir()
+    assert place.write_marketplace("claude-code", tmp_path / "market")
+    assert json.loads((tmp_path / "market" / place.MARKETPLACE_MARKER).read_text())["marketplace"] == DEFAULT
