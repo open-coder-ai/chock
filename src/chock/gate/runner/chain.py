@@ -18,6 +18,12 @@ LOG_CHAIN_GENESIS = "0" * 64
 #: How far back from a log's end its last line is looked for before the whole file is read.
 _LOG_TAIL_BYTES = 65_536
 
+#: `st_mode`'s file-type bits and the two types a log's files and directories may be (`stat.S_IFMT`, `S_IFREG`, `S_IFDIR`).
+LOG_MODE_MASK, LOG_MODE_FILE, LOG_MODE_DIR = 0o170000, 0o100000, 0o040000
+LOG_UNSAFE = "not a regular file in real directories; refusing to open it"
+#: Opening a log never follows a symlink and never waits on a FIFO.
+LOG_OPEN_FLAGS = getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+
 
 def log_rotated(path):
     """Where `log_append` moves a full log: `<stem>.1<suffix>` beside it."""
@@ -65,3 +71,35 @@ def log_chain_after(last):
     if last is None:
         return {LOG_CHAIN_SEQ: 0, LOG_CHAIN_PREV: LOG_CHAIN_GENESIS}
     return {LOG_CHAIN_SEQ: log_line_seq(last) + 1, LOG_CHAIN_PREV: log_line_hash(last)}
+
+
+def log_path_safe(path):
+    """Whether the log, its lock and rotated file are regular files or absent, and its two directories real directories.
+
+    lstat, so a symlink, FIFO, socket or device is refused before anything opens it: opening a FIFO blocks the hook
+    until its timeout, which a client may read as an allow.
+    """
+    path = Path(path)
+    checks = (
+        (path, LOG_MODE_FILE),
+        (Path(str(path) + ".lock"), LOG_MODE_FILE),
+        (log_rotated(path), LOG_MODE_FILE),
+        (path.parent, LOG_MODE_DIR),
+        (path.parent.parent, LOG_MODE_DIR),
+    )
+    for target, kind in checks:
+        try:
+            mode = os.lstat(target).st_mode
+        except FileNotFoundError:
+            continue
+        except OSError:
+            return False
+        if mode & LOG_MODE_MASK != kind:
+            return False
+    return True
+
+
+def log_require_safe(path):
+    """Raise OSError unless `log_path_safe(path)`."""
+    if not log_path_safe(path):
+        raise OSError(LOG_UNSAFE)

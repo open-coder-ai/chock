@@ -10,7 +10,16 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .chain import LOG_CHAIN_KEYS, LOG_CHAIN_UNCHAINED, log_chain_after, log_last_line, log_rotated, log_tail
+from .chain import (
+    LOG_CHAIN_KEYS,
+    LOG_CHAIN_UNCHAINED,
+    LOG_OPEN_FLAGS,
+    log_chain_after,
+    log_last_line,
+    log_require_safe,
+    log_rotated,
+    log_tail,
+)
 
 # >>> gate.py 20
 #: The level a person set for this shell's hooks; an agent's tool input never reaches a hook's environment.
@@ -243,16 +252,19 @@ def log_append(path, record, max_bytes=LOG_DEFAULT_MAX_BYTES):
     rotation names the rotated file's last. A writer that cannot take the lock writes its line `unchained`.
     """
     path = Path(path)
+    log_require_safe(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     stamped = {"ts": log_now(), **{k: v for k, v in record.items() if k not in LOG_CHAIN_KEYS}}
-    lock = os.open(str(path) + ".lock", os.O_RDWR | os.O_CREAT, 0o600)
+    lock = os.open(str(path) + ".lock", os.O_RDWR | os.O_CREAT | LOG_OPEN_FLAGS, 0o600)
     try:
         held = _log_lock_wait(lock)
         try:
             if held:
                 _log_rotate_held(path, max_bytes)
             line = _log_line(path, stamped, held=held)
-            fd = os.open(str(path), os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o600)
+            fd = os.open(
+                str(path), os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0) | LOG_OPEN_FLAGS, 0o600
+            )
             try:
                 os.write(fd, line)
             finally:
