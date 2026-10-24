@@ -204,20 +204,36 @@ def _snapshot_local(source: str, local: Path, into: Path) -> tuple[Path, str | N
     return into / prefix, head
 
 
+_REMOTE_FORM = re.compile(r"^(?:[A-Za-z][A-Za-z0-9+.-]*://|[^/\\:@\s]+@[^/\\:\s]+:)")
+
+
+def is_remote_source(source: str) -> bool:
+    """True when the text is spelled as a URL or scp-style address: never read from disk, whatever exists there."""
+    return bool(_REMOTE_FORM.match(source))
+
+
+def local_source(source: str) -> Path | None:
+    """The existing local path a source names, or None for a remote spelling or a path that is not there."""
+    if is_remote_source(source):
+        return None
+    path = Path(source).expanduser()
+    return path if path.exists() else None
+
+
 def fetch_catalog(source: str, ref: str | None, into: Path) -> tuple[Path, str | None]:
     """Make the catalog available locally. Returns (root, resolved commit or None).
 
     The returned tree holds the bytes a clone of the catalog holds: a local checkout is cloned at its
     HEAD (uncommitted edits are left out), a plain directory is copied with its text files normalised to LF.
     """
-    local = Path(source).expanduser()
-    if local.is_dir() and not ref:
+    local = local_source(source)
+    if local is not None and local.is_dir() and not ref:
         return _snapshot_local(source, local.resolve(), into)
-    remote = str(local.resolve()) if local.exists() else source
+    remote = str(local.resolve()) if local is not None else source
 
     if ref and _FULL_SHA.fullmatch(ref):
         sha = _fetch_commit(source, remote, ref.lower(), into)
-        if not local.exists():
+        if local is None:
             _require_published(source, remote, sha, into)
         return into, sha
     if ref and _SHORT_SHA.fullmatch(ref):
