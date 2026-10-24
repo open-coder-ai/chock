@@ -12,7 +12,7 @@ from typing import Any
 
 from agentseam import packaging
 
-from chock.lock import compute_pack_hash
+from chock.lock import compute_legacy_pack_hash
 from chock.plugin import store
 from chock.vendors import CHOCK_AGENT
 
@@ -102,7 +102,7 @@ def build_lock(dist_root: Path) -> dict[str, Any]:
         if not manifest.is_dir() or manifest.parts[-2].startswith("."):
             continue
         rel = manifest.relative_to(dist_root).as_posix()
-        plugins[rel] = compute_pack_hash(manifest)
+        plugins[rel] = compute_legacy_pack_hash(manifest)
     return {"lockfile_version": 1, "plugins": plugins}
 
 

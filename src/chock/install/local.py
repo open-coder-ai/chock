@@ -21,7 +21,7 @@ from chock.install import package
 from chock.install.resolve import REFUSED
 from chock.install.selection import LOCAL
 from chock.lifecycle import check_main
-from chock.lock import compute_pack_hash
+from chock.lock import compute_pack_hash, pack_hash_matches
 from chock.scaffold.add import IntegrityError
 from chock.scaffold.pin import INERT, _run
 
@@ -139,7 +139,7 @@ def snapshot(chosen: dict[str, Any], base: Path | None, into: Path) -> list[Loca
         _copy(policy_id, folder, copy)
         _check_manifest(policy_id, copy)
         digest = compute_pack_hash(copy)
-        if "sha256" in entry and entry["sha256"] != digest:
+        if "sha256" in entry and not pack_hash_matches(copy, entry["sha256"]):
             raise _refuse(policy_id, f"the selection pins sha256 {entry['sha256']}, the folder hashes to {digest}")
         found.append(Local(policy_id, folder, copy, digest))
     return found
