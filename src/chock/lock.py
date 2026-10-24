@@ -14,7 +14,7 @@ from chock.scaffold.pin import is_remote_source
 from chock.vendored import vendored_differences
 
 LOCKFILE_NAME = "chock.lock"
-LOCKFILE_VERSION = "2"
+LOCKFILE_VERSION = "1"
 ENGINE_CONSTRAINT = ">=0.1,<0.2"
 POLICIES_REL = Path(".agents") / "policies"
 LOCAL_SOURCE = "local"
@@ -63,29 +63,8 @@ def _pack_files(pack_dir: Path) -> list[tuple[str, Path]]:
     return sorted(named, key=lambda item: item[0])
 
 
-_FRAME_WIDTH = 8
-_HASH_DOMAIN = b"chock-pack-v2\0"
-
-
-def _frame(h: Any, data: bytes) -> None:
-    h.update(len(data).to_bytes(_FRAME_WIDTH, "big"))
-    h.update(data)
-
-
 def compute_pack_hash(pack_dir: Path) -> str:
-    """Return a single sha256 for all files in a pack directory, bytecode left out.
-
-    Each name and each content is length-prefixed, so no byte stream splits into a different file set.
-    """
-    h = hashlib.sha256(_HASH_DOMAIN)
-    for rel, f in _pack_files(pack_dir):
-        _frame(h, rel.encode("utf-8"))
-        _frame(h, f.read_bytes())
-    return h.hexdigest()
-
-
-def compute_legacy_pack_hash(pack_dir: Path) -> str:
-    """The version 1 hash (`name NUL content NUL`): ambiguous when a content holds a NUL byte."""
+    """Return a single sha256 for all files in a pack directory, bytecode left out."""
     h = hashlib.sha256()
     for rel, f in _pack_files(pack_dir):
         h.update(rel.encode("utf-8"))
@@ -93,15 +72,6 @@ def compute_legacy_pack_hash(pack_dir: Path) -> str:
         h.update(f.read_bytes())
         h.update(b"\0")
     return h.hexdigest()
-
-
-def pack_hash_matches(pack_dir: Path, expected: object) -> bool:
-    """True when `expected` is the pack's hash; a version 1 hash counts only where its framing is unambiguous."""
-    if expected == compute_pack_hash(pack_dir):
-        return True
-    if any(b"\0" in f.read_bytes() for _rel, f in _pack_files(pack_dir)):
-        return False
-    return expected == compute_legacy_pack_hash(pack_dir)
 
 
 def read_lock(repo_root: Path | None = None) -> dict[str, Any]:
@@ -190,7 +160,7 @@ def build_lock(repo_root: Path) -> dict[str, Any]:
         if pack_dir.parent != repo_root / POLICIES_REL:
             entry["path"] = pack_dir.relative_to(repo_root).as_posix()
         fetched = prior.get(pack_dir.relative_to(repo_root).as_posix())
-        if fetched and pack_hash_matches(pack_dir, fetched.get("sha256")):
+        if fetched and fetched.get("sha256") == entry["sha256"]:
             entry.update({k: fetched[k] for k in _PROVENANCE_KEYS if k in fetched})
         artifacts = compute_artifacts_hash(repo_root, pack_dir.name)
         if artifacts is not None:
@@ -228,8 +198,8 @@ def verify_lock(repo_root: Path | None = None) -> tuple[bool, list[str]]:
             f"{entry['id']}: ships build artifact {name} (bytecode is never catalog content; delete it)"
             for name in pack_bytecode(pack_dir)
         ]
-        if not pack_hash_matches(pack_dir, entry.get("sha256")):
-            actual = compute_pack_hash(pack_dir)
+        actual = compute_pack_hash(pack_dir)
+        if actual != entry.get("sha256"):
             failures.append(f"{entry['id']}: hash mismatch (expected {entry.get('sha256')}, got {actual})")
 
         expected_artifacts = entry.get("artifacts_sha256")
@@ -238,7 +208,7 @@ def verify_lock(repo_root: Path | None = None) -> tuple[bool, list[str]]:
         actual_artifacts = compute_artifacts_hash(repo_root, entry["id"])
         if actual_artifacts is None:
             failures.append(f"{entry['id']}: compiled artifacts missing (nothing is enforcing this policy)")
-        elif not pack_hash_matches(repo_root / ".chock" / "compiled" / entry["id"], expected_artifacts):
+        elif actual_artifacts != expected_artifacts:
             failures.append(
                 f"{entry['id']}: compiled artifact hash mismatch "
                 f"(expected {expected_artifacts}, got {actual_artifacts}) -- "
