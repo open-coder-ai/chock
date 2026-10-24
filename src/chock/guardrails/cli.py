@@ -246,7 +246,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     shown.add_argument("--reset", action="store_true", help="with --adopt: rewrite an invalid toggle file all on")
     args = parser.parse_args(argv)
-    if (args.action != "status" or args.adopt) and person_only_refused(Path(), "bundle"):
+    if (args.action != "status" or args.adopt) and person_only_refused(
+        toggle.repo_root(Path.cwd()) or Path.cwd(), "bundle"
+    ):
         return 1
     try:
         if args.action == "status":

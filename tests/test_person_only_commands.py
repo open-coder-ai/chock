@@ -262,3 +262,18 @@ def test_a_marker_named_only_in_the_committed_config_still_identifies_an_agent(
     monkeypatch.delenv("AI_AGENT", raising=False)
     monkeypatch.setenv("CODEX_SANDBOX", "seatbelt")
     assert agent_signal(repo) == "CODEX_SANDBOX"
+
+
+def test_bundle_off_from_a_subdirectory_reads_the_repo_roots_config(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config = repo / ".chock" / "config.yaml"
+    config.write_text(config.read_text(encoding="utf-8") + "agent_commit_env: [CODEX_SANDBOX]\n", encoding="utf-8")
+    nested = repo / "src" / "pkg"
+    nested.mkdir(parents=True)
+    monkeypatch.chdir(nested)
+    monkeypatch.delenv("CLAUDECODE", raising=False)
+    monkeypatch.delenv("AI_AGENT", raising=False)
+    monkeypatch.setenv("CODEX_SANDBOX", "seatbelt")
+    assert cli.main(["bundle", "off", "scan-secrets"]) == 1
+    assert "(CODEX_SANDBOX)" in capsys.readouterr().err
