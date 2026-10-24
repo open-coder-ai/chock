@@ -10,6 +10,7 @@ import subprocess
 import sys
 from importlib import metadata
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 import chock
 
@@ -93,8 +94,22 @@ def _in(into: Path, *args: str) -> list[str]:
     return ["git", f"--git-dir={into / '.git'}", f"--work-tree={into}", *INERT, *args]
 
 
+def redact_source(source: str) -> str:
+    """The source without the userinfo of a URL: a token typed into `--from` is never stored or printed."""
+    if not is_remote_source(source):
+        return source
+    parts = urlsplit(source)
+    if "@" not in parts.netloc or not parts.scheme:
+        return source
+    return urlunsplit(parts._replace(netloc=parts.netloc.rpartition("@")[2]))
+
+
+def _scrub(text: str, source: str) -> str:
+    return text.replace(source, redact_source(source))
+
+
 def _pin_error(source: str, ref: str, why: str) -> PinError:
-    return PinError(f"chock add: refusing catalog {source} at {ref!r}: {why} (nothing installed)")
+    return PinError(f"chock add: refusing catalog {redact_source(source)} at {ref!r}: {why} (nothing installed)")
 
 
 def _check_ref_syntax(source: str, ref: str) -> None:
@@ -120,7 +135,7 @@ def _fetch_commit(source: str, remote: str, sha: str, into: Path) -> str:
         except RuntimeError as exc:
             raise _pin_error(source, sha, str(exc)) from exc
         if result.returncode != 0:
-            detail = result.stderr.strip() or "git step failed"
+            detail = _scrub(result.stderr.strip(), source) or "git step failed"
             raise _pin_error(source, sha, f"commit not available from the remote by id ({detail})")
     head = _run(_in(into, "rev-parse", "HEAD"))
     if head.returncode != 0 or head.stdout.strip().lower() != sha:
@@ -141,7 +156,7 @@ def _require_published(source: str, remote: str, sha: str, into: Path) -> None:
     except RuntimeError as exc:
         raise _pin_error(source, sha, str(exc)) from exc
     if found.returncode != 0 or not found.stdout.strip():
-        why = f"commit {sha} is not on any branch or tag of {source}; a fork's or a pull request's commit is refused"
+        why = f"commit {sha} is not on any branch or tag of {redact_source(source)}; a fork's or a pull request's commit is refused"
         raise _pin_error(source, sha, why)
 
 
@@ -151,7 +166,11 @@ def _clone_ref(source: str, remote: str, ref: str | None, into: Path) -> str | N
         args += ["--branch", ref]
     result = _run([*args, "--", remote, str(into)], REMOTE_TIMEOUT)
     if result.returncode != 0:
-        msg = f"could not fetch catalog {source}" + (f" at {ref}" if ref else "") + f":\n{result.stderr.strip()}"
+        msg = (
+            f"could not fetch catalog {redact_source(source)}"
+            + (f" at {ref}" if ref else "")
+            + f":\n{_scrub(result.stderr.strip(), source)}"
+        )
         raise RuntimeError(msg)
     resolved = _run(_in(into, "rev-parse", "HEAD"))
     return (resolved.stdout.strip() or None) if resolved.returncode == 0 else None

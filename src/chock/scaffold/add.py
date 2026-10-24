@@ -16,7 +16,7 @@ from chock import yamlio
 from chock.config import agents_from_config as _agents_from_config
 from chock.lock import LOCAL_SOURCE, compute_pack_hash, is_local_source, pack_bytecode, read_lock, write_lock
 from chock.output import error
-from chock.scaffold.pin import PinError, fetch_catalog
+from chock.scaffold.pin import PinError, fetch_catalog, redact_source
 from chock.scaffold.recompile import BookkeepingError, recompile
 
 
@@ -162,7 +162,7 @@ def record_provenance(repo_root: Path, artifact_id: str, source: str, ref: str |
             entry.pop("source_commit", None)
             entry.pop("source_ref", None)
         else:
-            entry["source"] = source
+            entry["source"] = redact_source(source)
             entry["source_commit"] = added.commit
             if ref:
                 entry["source_ref"] = ref
@@ -202,7 +202,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Added {args.artifact_id} to {rel}")
 
     if added.commit:
-        print(f"  from {args.source} at {added.commit}")
+        print(f"  from {redact_source(args.source)} at {added.commit}")
     print(f"  sha256 {added.sha256}")
     if not args.ref and added.commit:
         pin = f"Pin with --ref {added.commit}, or --verify-sha {added.sha256}"
