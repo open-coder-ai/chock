@@ -74,31 +74,35 @@ def unattestable_paths(root: Path, base_ref: str | None = None) -> list[str]:
     return sorted(paths)
 
 
-def _declared_required(root: Path, base_ref: str | None) -> set[str]:
-    names: set[str] = set()
-    for review in review_policies(root, base_ref):
-        configured = review.get("required_checks")
-        if isinstance(configured, list):
-            names |= {str(n) for n in configured}
-    return names
+def _required_names(review: dict[str, Any] | None) -> set[str]:
+    configured = (review or {}).get("required_checks")
+    return {str(n) for n in configured} if isinstance(configured, list) else set()
+
+
+def _base_and_head_required(root: Path, base_ref: str | None) -> tuple[set[str], set[str]]:
+    """(names the base requires, names the head requires); without a base ref the working tree is the head."""
+    head = _required_names(_review_section(load_config(root)))
+    return (_required_names(_review_at(root, base_ref)) if base_ref else set()), head
 
 
 def required_checks(root: Path, base_ref: str | None = None) -> list[str]:
     """The repository's own required set, unioned across base and head. Never from evidence.
 
-    With a base ref, a name the base does not define is not required yet: see `deferred_checks`.
+    With a base ref, a name only the head requires and the base does not define is not required yet: see
+    `deferred_checks`. A name the base requires stays required, defined or not (an undefined one fails as unknown).
     """
-    names = _declared_required(root, base_ref)
+    base, head = _base_and_head_required(root, base_ref)
     if base_ref:
-        names &= set(check_registry(root, base_ref))
-    return sorted(names)
+        head &= set(check_registry(root, base_ref)) | base
+    return sorted(base | head)
 
 
 def deferred_checks(root: Path, base_ref: str | None = None) -> list[str]:
-    """Checks the head requires that the base does not define: a change that adds one is required from the merge on."""
+    """Checks only the head requires and the base does not define: a change that adds one is bound from the merge on."""
     if not base_ref:
         return []
-    return sorted(_declared_required(root, base_ref) - set(check_registry(root, base_ref)))
+    base, head = _base_and_head_required(root, base_ref)
+    return sorted((head - base) - set(check_registry(root, base_ref)))
 
 
 def attestation_floor(root: Path, base_ref: str | None = None) -> int:

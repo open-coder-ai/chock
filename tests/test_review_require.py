@@ -229,6 +229,16 @@ def test_a_branch_may_add_and_require_a_check_it_is_required_from_the_merge_on(r
     assert not marker.exists()
 
 
+def test_a_check_the_base_requires_but_does_not_define_still_fails_as_unknown(repo: Path) -> None:
+    _commit_base_config(repo, {"required_checks": ["validate", "ghost"]})
+    _write_config(repo, {"required_checks": ["validate", "ghost"]})
+
+    assert required_checks(repo, "main") == ["ghost", "validate"]
+    assert deferred_checks(repo, "main") == []
+    _write_evidence(repo, build(repo, "main", {"kind": "agent", "id": "t"}, ["validate"]))
+    assert any("ghost" in f for f in require(repo, "main"))
+
+
 def test_a_check_the_base_defines_and_the_head_requires_applies_at_once(repo: Path) -> None:
     _commit_base_config(repo, {"checks": {"mine": ["python", "-c", "pass"]}, "required_checks": ["validate"]})
     _write_config(repo, {"required_checks": ["validate", "mine"]})
