@@ -24,6 +24,10 @@ class PipeTolerantWriter:
             return len(text)
         try:
             return self._stream.write(text)
+        except UnicodeEncodeError:
+            encoding = getattr(self._stream, "encoding", None) or "ascii"
+            safe = text.encode(encoding, "backslashreplace").decode(encoding)
+            return self._stream.write(safe)
         except OSError as exc:
             if not _is_broken_pipe(exc):
                 raise
