@@ -90,8 +90,10 @@ chock:
     unattestable_paths: [tools/, .github/workflows/]
 ```
 
-Config is safe as a source here for the reason evidence is not: it is committed, and CODEOWNERS
-routes it for review. An unknown `check` fails verification rather than being skipped — a claim
+Only the base branch's config defines a check: a check a pull request adds to its own config is not
+run, and a built-in it redefines there keeps the built-in's command. A new check takes effect once it
+is merged. Config is safe as a source here for the reason evidence is not: it is committed, and
+CODEOWNERS routes it for review. An unknown `check` fails verification rather than being skipped — a claim
 nobody can re-derive must not pass quietly.
 
 ## `chock review require` -- is this PR merge-ready?
@@ -144,9 +146,12 @@ judgement that is silent when nothing is declared stays silent, exactly like `un
 
 A pull request edits `.chock/config.yaml` like any other file, so `emit`, `verify` and `require`
 judge by the **stricter of the base branch's policy and the head's**, per setting: the required
-set and `unattestable_paths` are the union, `attestation_floor` the higher, and a check both
-define runs as the base defines it. Tightening in a PR applies at once; loosening applies after
-it merges, in a PR a human approves for that reason (`review/policy.py`).
+set and `unattestable_paths` are the union, and `attestation_floor` the higher. Checks are the
+exception: only the base defines them, and nothing the head declares ever runs. A check the base
+defines and the head requires applies at once. A check the head both adds and requires is not
+required of that pull request; `require` says so (`<X> is added by this change and is required from
+the merge on`) and it is required from the merge on. Loosening applies after it merges, in a PR a
+human approves for that reason (`review/policy.py`).
 `applies_to` is not enforced by `require` itself; it is there for your own workflow's `if:` condition
 (§docs/adopting.md), because requiring evidence from everyone is friction that lands on volunteers.
 

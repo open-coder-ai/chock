@@ -9,6 +9,7 @@ from pathlib import Path
 
 from chock.emit import write_generated
 from chock.output import error
+from chock.review.policy import deferred_checks
 from chock.review.evidence import (
     EVIDENCE_DIR,
     EvidenceError,
@@ -93,6 +94,8 @@ def _verify(args: argparse.Namespace) -> int:
 def _require(args: argparse.Namespace) -> int:
     root = Path(args.repo).resolve()
     failures = require(root, args.base)
+    for name in deferred_checks(root, args.base):
+        print(f"{name} is added by this change and is required from the merge on.", file=sys.stderr)
     if failures:
         print(f"PR is not merge-ready ({len(failures)} problem(s)):", file=sys.stderr)
         for failure in failures:

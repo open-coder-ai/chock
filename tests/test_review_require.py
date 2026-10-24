@@ -10,7 +10,7 @@ import pytest
 import yaml
 
 from chock.review.evidence import EvidenceError, build, command_set_hash, require, required_checks, verify
-from chock.review.policy import BUILTIN_CHECKS, check_registry
+from chock.review.policy import BUILTIN_CHECKS, check_registry, deferred_checks
 
 SCRIPT_ALWAYS_FAILS = ["python", "-c", "import sys; sys.exit(1)"]
 
@@ -205,6 +205,7 @@ def test_a_branch_cannot_add_a_check_the_base_does_not_define(repo: Path) -> Non
     _write_config(repo, {"checks": {"extra": script}, "required_checks": ["validate", "extra"]})
 
     assert "extra" not in check_registry(repo, "main")
+    assert required_checks(repo, "main") == ["validate"]
     with pytest.raises(EvidenceError, match="unknown check"):
         build(repo, "main", {"kind": "agent", "id": "t"}, ["validate", "extra"])
     forged = dict(build(repo, "main", {"kind": "agent", "id": "t"}, ["validate"]))
@@ -212,6 +213,30 @@ def test_a_branch_cannot_add_a_check_the_base_does_not_define(repo: Path) -> Non
     _write_evidence(repo, forged)
     assert require(repo, "main") != []
     assert not marker.exists()
+
+
+def test_a_branch_may_add_and_require_a_check_it_is_required_from_the_merge_on(repo: Path) -> None:
+    """The PR that introduces a check is not blocked by it, and the check never runs from the head's definition."""
+    marker = repo / "ran.txt"
+    script = ["python", "-c", f"open({str(marker)!r}, 'w').write('x')"]
+    _commit_base_config(repo, {"required_checks": ["validate"]})
+    _write_config(repo, {"checks": {"extra": script}, "required_checks": ["validate", "extra"]})
+
+    assert required_checks(repo, "main") == ["validate"]
+    assert deferred_checks(repo, "main") == ["extra"]
+    _write_evidence(repo, build(repo, "main", {"kind": "agent", "id": "t"}, ["validate"]))
+    assert require(repo, "main") == []
+    assert not marker.exists()
+
+
+def test_a_check_the_base_defines_and_the_head_requires_applies_at_once(repo: Path) -> None:
+    _commit_base_config(repo, {"checks": {"mine": ["python", "-c", "pass"]}, "required_checks": ["validate"]})
+    _write_config(repo, {"required_checks": ["validate", "mine"]})
+
+    assert required_checks(repo, "main") == ["mine", "validate"]
+    assert deferred_checks(repo, "main") == []
+    _write_evidence(repo, build(repo, "main", {"kind": "agent", "id": "t"}, ["validate"]))
+    assert any("missing: mine" in f for f in require(repo, "main"))
 
 
 def test_a_branch_cannot_redefine_a_builtin_the_base_requires(repo: Path) -> None:
