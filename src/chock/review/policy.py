@@ -105,9 +105,19 @@ def command_set_hash(root: Path, base_ref: str | None = None) -> str:
 
 
 def check_registry(root: Path, base_ref: str | None = None) -> dict[str, list[str]]:
-    """Built-in checks plus any the repository declares; a check the base defines runs as the base defines it."""
+    """The built-in checks plus the ones the base declares; with a base, nothing the head declares is ever defined.
+
+    A pull request edits `.chock/config.yaml`, so a built-in redefined there, or a check added there, would
+    run the author's command inside the gate that is judging the author. Without a base ref there is no
+    other side, and the working tree's own config defines.
+    """
     registry = dict(BUILTIN_CHECKS)
-    for review in reversed(review_policies(root, base_ref)):
+    if not base_ref:
+        defining = [_review_section(load_config(root))]
+    else:
+        base = _review_at(root, base_ref)
+        defining = [] if base is None else [base]
+    for review in defining:
         checks = review.get("checks")
         for name, argv in checks.items() if isinstance(checks, dict) else ():
             if isinstance(argv, list) and all(isinstance(a, str) for a in argv):

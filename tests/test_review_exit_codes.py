@@ -11,11 +11,16 @@ def _git(cwd: Path, *args: str) -> None:
     subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True)
 
 
-def _repo_with_commit(tmp_path: Path) -> Path:
+def _repo_with_commit(tmp_path: Path, config: str | None = None) -> Path:
+    """A base commit (carrying the review config, when given: the base defines checks) and one change."""
     _git(tmp_path, "init", "-q")
     _git(tmp_path, "config", "user.email", "t@t")
     _git(tmp_path, "config", "user.name", "t")
     (tmp_path / "f.txt").write_text("base\n", encoding="utf-8")
+    if config is not None:
+        (tmp_path / ".chock").mkdir()
+        (tmp_path / ".chock" / "config.yaml").write_text(config, encoding="utf-8")
+        _git(tmp_path, "add", ".chock/config.yaml")
     _git(tmp_path, "add", "f.txt")
     _git(tmp_path, "commit", "-q", "-m", "base")
     _git(tmp_path, "branch", "basepoint")
@@ -27,11 +32,9 @@ def _repo_with_commit(tmp_path: Path) -> Path:
 
 def test_emit_exits_nonzero_when_a_check_fails(tmp_path):
     """H2: a failing check must fail the emit exit code, not just be printed."""
-    repo = _repo_with_commit(tmp_path)
-    (repo / ".chock").mkdir()
     config = "chock:" + chr(10) + "  review:" + chr(10) + "    checks:" + chr(10)
     config += '      always-fails: ["python", "-c", "import sys; sys.exit(1)"]' + chr(10)
-    (repo / ".chock" / "config.yaml").write_text(config, encoding="utf-8")
+    repo = _repo_with_commit(tmp_path, config)
     proc = subprocess.run(
         [
             sys.executable,
@@ -56,11 +59,9 @@ def test_emit_exits_nonzero_when_a_check_fails(tmp_path):
 
 
 def test_emit_exits_zero_when_checks_pass(tmp_path):
-    repo = _repo_with_commit(tmp_path)
-    (repo / ".chock").mkdir()
     config = "chock:" + chr(10) + "  review:" + chr(10) + "    checks:" + chr(10)
     config += '      always-ok: ["python", "-c", "print(1)"]' + chr(10)
-    (repo / ".chock" / "config.yaml").write_text(config, encoding="utf-8")
+    repo = _repo_with_commit(tmp_path, config)
     proc = subprocess.run(
         [
             sys.executable,
