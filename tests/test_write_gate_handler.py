@@ -7,13 +7,14 @@ translates the answer -- so a policy cannot mean one thing at commit and another
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
 from conftest import init_repo
 
-from chock.gate import write_gate
+from chock.gate import repo_names, write_gate
 from chock.gate.assemble import runner_source
 from chock.gate.stop_reentry import REENTRY_CAP
 
@@ -97,13 +98,66 @@ def test_a_stop_hook_already_active_still_reads_the_worktree(tmp_path: Path) -> 
     assert write_gate.writes_for(_event("stop", raw={"stop_hook_active": True}), gate)["app.py"] == SECRET
 
 
-def test_a_deletion_leaves_no_content_to_judge(tmp_path: Path) -> None:
+def test_a_deletion_is_judged_by_path_with_no_content(tmp_path: Path) -> None:
     init_repo(tmp_path)
     (tmp_path / "gone.py").write_text("x = 1\n", encoding="utf-8")
     subprocess.run(["git", "-C", str(tmp_path), "add", "-A"], check=True, capture_output=True)
     subprocess.run(["git", "-C", str(tmp_path), "commit", "-m", "add"], check=True, capture_output=True)
     (tmp_path / "gone.py").unlink()
-    assert "gone.py" not in write_gate.writes_from_worktree(tmp_path)
+    assert write_gate.writes_from_worktree(tmp_path)["gone.py"] == ""
+
+
+def test_a_rename_judges_both_names(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    (tmp_path / "old.py").write_text("x = 1\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "-A"], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(tmp_path), "commit", "-m", "add"], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(tmp_path), "mv", "old.py", "new.py"], check=True, capture_output=True)
+    assert write_gate.writes_from_worktree(tmp_path) == {"old.py": "", "new.py": "x = 1\n"}
+
+
+def test_a_fifo_in_the_worktree_is_refused_not_read(tmp_path: Path) -> None:
+    """Opening a FIFO blocks the hook until its client times out, which a client may read as an allow."""
+    os.mkfifo(tmp_path / "pipe")
+    text, why = write_gate.worktree_text(tmp_path / "pipe")
+    assert text is None
+    assert "neither a file nor a link" in why
+
+
+def test_a_symlink_to_a_fifo_is_judged_as_a_link_and_never_opened(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    os.mkfifo(tmp_path / "pipe")
+    (tmp_path / "pipe").rename(tmp_path / ".pipe")
+    (tmp_path / "link").symlink_to(".pipe")
+    assert write_gate.writes_from_worktree(tmp_path)["link"] == ".pipe"
+
+
+def test_a_stop_in_a_subdirectory_reads_the_worktree_from_the_top_level(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "app.py").write_text(SECRET, encoding="utf-8")
+    event = _event("stop", raw={"cwd": str(tmp_path / "sub")})
+    event.cwd = str(tmp_path / "sub")
+    assert write_gate.stop_roots(event, tmp_path / "sub") == [tmp_path]
+    assert write_gate.repo_root_for(event, tmp_path / "plugin" / "gate.json") == tmp_path
+
+
+def test_a_write_of_nothing_is_still_a_judged_write() -> None:
+    event = _event(
+        path="/r/.chock/bin/gate.py", raw={"tool_input": {"file_path": "/r/.chock/bin/gate.py", "content": ""}}
+    )
+    assert write_gate.writes_from_event(event) == {"/r/.chock/bin/gate.py": ""}
+
+
+def test_an_edit_with_no_file_text_is_not_a_write() -> None:
+    assert write_gate.writes_from_event(_event(path="/r/a.py", raw={"tool_input": {"file_path": "/r/a.py"}})) == {}
+
+
+def test_a_differently_cased_path_is_also_judged_as_stored(tmp_path: Path) -> None:
+    (tmp_path / ".claude").mkdir()
+    names = write_gate.repo_paths(".CLAUDE/Settings.json", str(tmp_path), case_blind=True)
+    assert ".claude/Settings.json" in names
+    assert write_gate.repo_paths(".CLAUDE/x", str(tmp_path), case_blind=False) == (".CLAUDE/x",)
 
 
 # --- the decision it returns -------------------------------------------------------------------------
@@ -198,23 +252,23 @@ def test_a_write_through_a_symlinked_folder_inside_the_repo_is_judged_as_its_tar
 
 
 def test_paths_are_made_repository_relative_posix() -> None:
-    assert write_gate.repo_relative("/r/.github/workflows/ci.yml", "/r") == ".github/workflows/ci.yml"
-    assert write_gate.repo_relative("./a/../.github/x.yml", "/r") == ".github/x.yml"
-    assert write_gate.repo_relative(".github/x.yml", None) == ".github/x.yml"
+    assert repo_names.repo_relative("/r/.github/workflows/ci.yml", "/r") == ".github/workflows/ci.yml"
+    assert repo_names.repo_relative("./a/../.github/x.yml", "/r") == ".github/x.yml"
+    assert repo_names.repo_relative(".github/x.yml", None) == ".github/x.yml"
 
 
 def test_windows_paths_fold_drive_separator_and_case() -> None:
     windows = r"C:\Users\Dev\Repo\.github\workflows\ci.yml"
-    assert write_gate.repo_relative(windows, r"c:\users\dev\repo") == ".github/workflows/ci.yml"
-    assert write_gate.repo_relative("C:/Users/Dev/Repo/.github/x.yml", r"C:\Users\Dev\Repo") == ".github/x.yml"
+    assert repo_names.repo_relative(windows, r"c:\users\dev\repo") == ".github/workflows/ci.yml"
+    assert repo_names.repo_relative("C:/Users/Dev/Repo/.github/x.yml", r"C:\Users\Dev\Repo") == ".github/x.yml"
 
 
 def test_a_path_outside_the_repository_is_left_as_given() -> None:
     """Outside the root it matches no relative glob, which is what out of scope means."""
     assert (
-        write_gate.repo_relative("/elsewhere/.github/workflows/ci.yml", "/r") == "/elsewhere/.github/workflows/ci.yml"
+        repo_names.repo_relative("/elsewhere/.github/workflows/ci.yml", "/r") == "/elsewhere/.github/workflows/ci.yml"
     )
-    assert write_gate.repo_relative(r"D:\x\ci.yml", r"C:\Repo") == r"D:\x\ci.yml"
+    assert repo_names.repo_relative(r"D:\x\ci.yml", r"C:\Repo") == r"D:\x\ci.yml"
 
 
 def test_a_gate_named_but_missing_refuses_and_says_to_sync(tmp_path: Path) -> None:

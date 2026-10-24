@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 from conftest import init_repo
+from guardrails_support import commit_toggles
 
 from chock.guardrails import cli, toggle
 from chock.guardrails.plugin import MEMBERS
@@ -53,6 +54,7 @@ def test_off_then_on_round_trips_at_repo_scope(repo: Path, capsys: pytest.Captur
     assert cli.main(["off", P]) == 0
     assert _doc(repo / toggle.FILENAME) == {"version": 1, "bundles": {B: {P: "off"}}}
     assert "check --only baseline" in capsys.readouterr().out
+    commit_toggles(repo)
     assert cli.main(["status"]) == 0
     out = capsys.readouterr().out
     assert re.search(rf"{P} +off  blocks: refuses a destructive command", out)
@@ -178,4 +180,19 @@ def test_reset_needs_adopt_and_adopt_still_takes_a_valid_file(repo: Path) -> Non
     path.parent.mkdir()
     path.write_text(json.dumps({"version": 1, "bundles": {B: {P: "off"}}}), encoding="utf-8")
     assert cli.main(["status", "--adopt"]) == 0
+    commit_toggles(repo)
     assert toggle.drift(path) is None and toggle.load(repo)[2] == {B: {P: "off"}}
+
+
+def test_an_off_only_in_the_working_file_stays_on_until_committed(repo: Path) -> None:
+    """A record the agent can rewrite is not proof a person wrote the file: HEAD's copy is."""
+    assert cli.main(["off", P]) == 0
+    _path, _scope, toggles, warning = toggle.load(repo)
+    assert toggle.state(toggles, B, P) == toggle.ON and P in warning and "committed" in warning
+    commit_toggles(repo)
+    assert toggle.load(repo)[2] == {B: {P: "off"}}
+    path = repo / toggle.FILENAME
+    forged = {"version": 1, "bundles": {B: {P: "off", Q: "off"}}}
+    path.write_text(json.dumps(forged), encoding="utf-8")
+    cli.record(path)
+    assert toggle.load(repo)[2] == {B: {P: "off"}}

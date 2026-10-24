@@ -196,3 +196,28 @@ def test_unreadable_stdin_judges_nothing_rather_than_guessing(tmp_path: Path, ga
     init_repo(tmp_path)
     result = _cli(gate_py, _gate(tmp_path), "pre-tool-use", {}, tmp_path)
     assert result.returncode == 0
+
+
+# --- a policy's gate judges the paths of its own folders ------------------------------------------
+
+
+def _own_gate(tmp_path: Path, params: dict) -> Path:
+    gate = tmp_path / ".chock" / "compiled" / "protect-it" / "pre-tool-use" / "gate.json"
+    gate.parent.mkdir(parents=True)
+    spec = {"kind": "content_regex", "on": ["tool_use"], "action": "block", "message": "no", "params": params}
+    gate.write_text(json.dumps(spec), encoding="utf-8")
+    return gate
+
+
+def test_a_path_gate_refuses_a_write_into_its_own_compiled_folder(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    gate = _own_gate(tmp_path, {"content_pattern": "(?!)", "forbidden_path_regex": r"\.chock[/\\]compiled"})
+    own = ".chock/compiled/protect-it/pre-tool-use/gate.json"
+    assert run(gate, "pre-tool-use", None, tmp_path, writes={own: "{}"}) == 1
+
+
+def test_a_policys_own_folder_is_still_not_scanned_for_its_content_pattern(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    gate = _own_gate(tmp_path, {"content_pattern": r"AKIA[0-9A-Z]{16}"})
+    own = ".agents/policies/protect-it/evals/fixture.txt"
+    assert run(gate, "pre-tool-use", None, tmp_path, writes={own: SECRET}) == 0

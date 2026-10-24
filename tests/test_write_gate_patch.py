@@ -96,7 +96,12 @@ def test_several_files_hunks_a_move_and_a_delete(tmp_path: Path) -> None:
 *** Add File: extra.txt
 +hi
 *** End Patch"""
-    assert patch_image.patched_files(_codex(patch), root) == {"src/Moved.java": "A\nb\nc\nD\n", "extra.txt": "hi\n"}
+    assert patch_image.patched_files(_codex(patch), root) == {
+        REPO: "",
+        "gone.txt": "",
+        "src/Moved.java": "A\nb\nc\nD\n",
+        "extra.txt": "hi\n",
+    }
 
 
 def test_a_hunk_with_no_header_and_context_as_bare_lines(tmp_path: Path) -> None:
@@ -209,3 +214,10 @@ def test_a_patch_with_no_end_marker_is_refused() -> None:
 def test_a_deleted_file_adds_no_lines() -> None:
     patch = "*** Begin Patch\n*** Delete File: gone.txt\n*** Add File: a.txt\n+x\n*** End Patch"
     assert patch_image.patch_added(_codex(patch)) == {"a.txt": "x"}
+
+
+def test_a_delete_or_move_names_its_path_so_path_gates_see_it(tmp_path: Path) -> None:
+    (tmp_path / ".claude").mkdir()
+    (tmp_path / ".claude" / "settings.json").write_text("{}\n", encoding="utf-8")
+    patch = "*** Begin Patch\n*** Delete File: .claude/settings.json\n*** End Patch"
+    assert patch_image.patched_files(_codex(patch), tmp_path) == {".claude/settings.json": ""}

@@ -49,14 +49,15 @@ def _kind_content_regex(ctx: GateContext, params: dict, event: str) -> GateResul
     pragma = _waiver_pattern(params, event)
     agent = event in HEAD_WAIVER_EVENTS
     whole = params.get("scan", "added_lines") == "staged_blob"
-    paths = ctx.staged_paths(params.get("diff_filter", "ACMRT"))
+    paths = ctx.staged_paths(params.get("diff_filter", "ACMRT"), judge_own=True)
     judge = pattern_judge()
     try:
         forbidden = sorted(_hits(judge, [(params.get("forbidden_path_regex"), paths)])[0])
         heads = {path: ctx.committed_blob(path) if agent else "" for path in paths}
         blobs = [heads[paths[index]] if agent else ctx.staged_blob(paths[index]) for index in forbidden]
         spans, texts = _lines(
-            paths, lambda path: ctx.staged_blob(path).splitlines() if whole else ctx.added_lines(path)
+            [path for path in paths if not ctx.is_own(path)],
+            lambda path: ctx.staged_blob(path).splitlines() if whole else ctx.added_lines(path),
         )
         jobs = [(pragma, blobs), (pragma, texts), (params["content_pattern"], texts)]
         blob_waivers, line_waivers, hits = _hits(judge, jobs)
@@ -67,7 +68,7 @@ def _kind_content_regex(ctx: GateContext, params: dict, event: str) -> GateResul
         if index in forbidden and forbidden.index(index) not in blob_waivers:
             matches.append(f"{path}: forbidden path")
         head = frozenset(heads[path].splitlines()) if agent else None
-        if any(n in hits and not _waived(n, texts[n], line_waivers, head) for n in spans[path]):
+        if any(n in hits and not _waived(n, texts[n], line_waivers, head) for n in spans.get(path, ())):
             matches.append(f"{path}: content pattern")
     return GateResult(allowed=not matches, matches=matches)
 

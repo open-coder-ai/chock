@@ -177,7 +177,7 @@ CODEX_WROTE = {
     "an update in the agent's subdirectory": {"sub/f.txt": f"a\n{TOKEN}\n"},
     "a pure addition after an anchor": {"f.txt": f"a\nb\n{TOKEN}\n"},
     "an add then an update of the same file": {"f.txt": f"a\n{TOKEN}\n"},
-    "an update moved to a file a later update changes": {"g.txt": f"b\n{TOKEN}\n"},
+    "an update moved to a file a later update changes": {"f.txt": "", "g.txt": f"b\n{TOKEN}\n"},
 }
 
 
