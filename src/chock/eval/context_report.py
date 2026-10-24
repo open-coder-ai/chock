@@ -138,6 +138,9 @@ def _frontmatter(data: dict[str, Any], body: str) -> str:
     return "---\n" + yaml.safe_dump(data, sort_keys=False) + "---\n" + body.rstrip() + "\n"
 
 
+POLICY_ID = re.compile(r"[a-z][a-z0-9-]{2,63}")
+
+
 def _write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     write_generated(path, text)
@@ -210,6 +213,9 @@ def export(repo_root: Path, out_dir: Path, policy_ids: list[str] | None = None) 
     result = ExportResult()
     policies = _resolve(repo_root, policy_ids, result)
     for policy in policies:
+        if not POLICY_ID.fullmatch(policy.id):
+            result.errors.append(f"{policy.id!r}: not a valid policy id ({POLICY_ID.pattern}); nothing exported")
+            continue
         try:
             notice = _export_one(policy, repo_root, out_dir)
         except SuiteShapeError as exc:
