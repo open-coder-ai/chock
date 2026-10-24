@@ -9,7 +9,6 @@ from pathlib import Path
 
 from chock.emit import write_generated
 from chock.output import error
-from chock.review.policy import deferred_checks
 from chock.review.evidence import (
     EVIDENCE_DIR,
     EvidenceError,
@@ -20,6 +19,7 @@ from chock.review.evidence import (
     required_checks,
     verify,
 )
+from chock.review.policy import deferred_checks
 
 DEFAULT_BASE = "origin/main"
 
