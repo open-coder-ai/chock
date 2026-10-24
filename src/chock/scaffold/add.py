@@ -42,7 +42,7 @@ def _reject_unsafe_id(artifact_id: str) -> None:
 
 def _reject_symlinks(pack_dir: Path, artifact_id: str) -> None:
     """Refuse a pack carrying a symlink: copying it would read a file the catalog never held."""
-    links = []
+    links = [artifact_id] if pack_dir.is_symlink() else []
     for parent, dirs, files in os.walk(pack_dir):
         links += [
             Path(parent, n).relative_to(pack_dir).as_posix() for n in dirs + files if Path(parent, n).is_symlink()
@@ -94,6 +94,8 @@ def locate(catalog_root: Path, artifact_id: str) -> tuple[Path, Path]:
 
     for area, dest in _AREAS.items():
         candidate = catalog_root / area / artifact_id
+        if not candidate.resolve().is_relative_to(catalog_resolved):
+            continue
         if (candidate / "manifest.yaml").exists() or (candidate / "SKILL.md").exists():
             return candidate, dest
 
@@ -145,7 +147,7 @@ def add(
         if dest.exists():
             shutil.rmtree(dest)
         dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(src, dest)
+        shutil.copytree(src, dest, symlinks=True)
         return Added(path=dest, sha256=digest, commit=commit)
 
 
