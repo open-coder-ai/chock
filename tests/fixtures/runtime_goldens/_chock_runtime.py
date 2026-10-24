@@ -123,6 +123,12 @@ LOG_CHAIN_GENESIS = '0' * 64
 
 _LOG_TAIL_BYTES = 65536
 
+LOG_MODE_MASK, LOG_MODE_FILE, LOG_MODE_DIR = (61440, 32768, 16384)
+
+LOG_UNSAFE = 'not a regular file in real directories; refusing to open it'
+
+LOG_OPEN_FLAGS = getattr(_chock_os, 'O_NOFOLLOW', 0) | getattr(_chock_os, 'O_NONBLOCK', 0)
+
 def log_rotated(path):
     """Where `log_append` moves a full log: `<stem>.1<suffix>` beside it."""
     path = _chock_Path(path)
@@ -164,6 +170,30 @@ def log_chain_after(last):
     if last is None:
         return {LOG_CHAIN_SEQ: 0, LOG_CHAIN_PREV: LOG_CHAIN_GENESIS}
     return {LOG_CHAIN_SEQ: log_line_seq(last) + 1, LOG_CHAIN_PREV: log_line_hash(last)}
+
+def log_path_safe(path):
+    """Whether the log, its lock and rotated file are regular files or absent, and its two directories real directories.
+
+    lstat, so a symlink, FIFO, socket or device is refused before anything opens it: opening a FIFO blocks the hook
+    until its timeout, which a client may read as an allow.
+    """
+    path = _chock_Path(path)
+    checks = ((path, LOG_MODE_FILE), (_chock_Path(str(path) + '.lock'), LOG_MODE_FILE), (log_rotated(path), LOG_MODE_FILE), (path.parent, LOG_MODE_DIR), (path.parent.parent, LOG_MODE_DIR))
+    for target, kind in checks:
+        try:
+            mode = _chock_os.lstat(target).st_mode
+        except FileNotFoundError:
+            continue
+        except OSError:
+            return False
+        if mode & LOG_MODE_MASK != kind:
+            return False
+    return True
+
+def log_require_safe(path):
+    """Raise OSError unless `log_path_safe(path)`."""
+    if not log_path_safe(path):
+        raise OSError(LOG_UNSAFE)
 
 LOG_LEVEL_ENV = 'CHOCK_LOG_LEVEL'
 
@@ -380,16 +410,17 @@ def log_append(path, record, max_bytes=LOG_DEFAULT_MAX_BYTES):
     rotation names the rotated file's last. A writer that cannot take the lock writes its line `unchained`.
     """
     path = _chock_Path(path)
+    log_require_safe(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     stamped = {'ts': log_now(), **{k: v for k, v in record.items() if k not in LOG_CHAIN_KEYS}}
-    lock = _chock_os.open(str(path) + '.lock', _chock_os.O_RDWR | _chock_os.O_CREAT, 384)
+    lock = _chock_os.open(str(path) + '.lock', _chock_os.O_RDWR | _chock_os.O_CREAT | LOG_OPEN_FLAGS, 384)
     try:
         held = _log_lock_wait(lock)
         try:
             if held:
                 _log_rotate_held(path, max_bytes)
             line = _log_line(path, stamped, held=held)
-            fd = _chock_os.open(str(path), _chock_os.O_WRONLY | _chock_os.O_APPEND | _chock_os.O_CREAT | getattr(_chock_os, 'O_BINARY', 0), 384)
+            fd = _chock_os.open(str(path), _chock_os.O_WRONLY | _chock_os.O_APPEND | _chock_os.O_CREAT | getattr(_chock_os, 'O_BINARY', 0) | LOG_OPEN_FLAGS, 384)
             try:
                 _chock_os.write(fd, line)
             finally:
@@ -1628,6 +1659,8 @@ SESSION_ID_MAX = 128
 
 SESSION_MASK = '***'
 
+SESSION_MODE_MASK, SESSION_MODE_FILE, SESSION_MODE_DIR = (61440, 32768, 16384)
+
 def tool_call_input(event):
     """The tool's arguments as a dict, decoding the JSON-string form some vendors send; {} when absent."""
     raw = getattr(event, 'raw', None)
@@ -1737,17 +1770,38 @@ def _prune_old(directory):
         except OSError:
             continue
 
+def _state_safe(path):
+    """Whether `path` and its scratch file are regular files or absent, and `.chock/state` and `.chock` real directories.
+
+    lstat, so a FIFO or symlink is refused before anything opens it: opening a FIFO blocks the hook until its timeout.
+    """
+    for target, kind in ((path, SESSION_MODE_FILE), (path.with_suffix('.tmp'), SESSION_MODE_FILE), (path.parent, SESSION_MODE_DIR), (path.parent.parent, SESSION_MODE_DIR)):
+        try:
+            mode = _chock_os.lstat(target).st_mode
+        except FileNotFoundError:
+            continue
+        except OSError:
+            return False
+        if mode & SESSION_MODE_MASK != kind:
+            return False
+    return True
+
 def _append_bounded(path, line, record):
+    if not _state_safe(path):
+        return
     lines = path.read_text(encoding='utf-8', errors='replace').splitlines() if path.exists() else []
     if any((_same_call(seen, record) for seen in lines[-SESSION_DEDUPE_TAIL:])):
         return
     if len(lines) < SESSION_MAX_ENTRIES and path.exists() and (path.stat().st_size < SESSION_TRIM_BYTES):
-        with path.open('a', encoding='utf-8') as fh:
+        fd = _chock_os.open(path, _chock_os.O_WRONLY | _chock_os.O_APPEND | getattr(_chock_os, 'O_NOFOLLOW', 0) | getattr(_chock_os, 'O_NONBLOCK', 0))
+        with _chock_os.fdopen(fd, 'a', encoding='utf-8') as fh:
             fh.write(line + '\n')
         return
     kept = [*lines, line][-SESSION_MAX_ENTRIES:]
     scratch = path.with_suffix('.tmp')
-    scratch.write_text('\n'.join(kept) + '\n', encoding='utf-8')
+    fd = _chock_os.open(scratch, _chock_os.O_WRONLY | _chock_os.O_CREAT | _chock_os.O_TRUNC | getattr(_chock_os, 'O_NOFOLLOW', 0), 384)
+    with _chock_os.fdopen(fd, 'w', encoding='utf-8') as fh:
+        fh.write('\n'.join(kept) + '\n')
     scratch.replace(path)
 
 def session_record(root, event, phase, outcome=None):

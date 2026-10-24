@@ -287,3 +287,13 @@ def test_cursor_fail_closed_on_gates_and_not_on_stop(tmp_path: Path) -> None:
     assert all(e.get("failClosed") is True for e in write["preToolUse"])
     assert stop["stop"], "expected a stop entry"
     assert all("failClosed" not in e for e in stop["stop"])
+
+
+@posix_only
+def test_a_recorded_program_that_exits_zero_without_being_python_is_passed_over(tmp_path: Path) -> None:
+    """A program that merely exits 0 would run no hook at all, so only one that answers the probe is taken."""
+    repo = _repo(tmp_path)
+    bin_dir = _bin_dir(tmp_path, "bin", python3=sys.executable)
+    subprocess.run(["git", "config", "--local", PYTHON_CONFIG_KEY, shutil.which("true")], cwd=repo, check=True)
+    out = _probe(_run(repo, repo, path=str(bin_dir)))
+    assert out["exe"] == str(bin_dir / "python3")

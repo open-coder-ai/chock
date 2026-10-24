@@ -33,15 +33,22 @@ from .constants import (
 
 # >>> gate.py 03
 def _config_agent_env(repo_root: Path) -> list[str]:
-    """Names under `agent_commit_env:` in `.chock/config.yaml`, read without a YAML parser.
+    """Names under `agent_commit_env:` in `.chock/config.yaml`, in the working tree and as committed at HEAD.
 
-    Only an inline list (`[A, B]`), one scalar, or a block list of `- NAME` lines is read; the
-    runner is stdlib-only, and anything else yields no names rather than a guess.
+    Both, so an uncommitted edit that drops a name never hides the agent it named. Read without a YAML parser:
+    only an inline list (`[A, B]`), one scalar, or a block list of `- NAME` lines is read; the runner is
+    stdlib-only, and anything else yields no names rather than a guess.
     """
     try:
-        lines = repo_root.joinpath(*_CONFIG_PATH).read_text(encoding="utf-8").splitlines()
+        working = repo_root.joinpath(*_CONFIG_PATH).read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
-        return []
+        working = ""
+    names = _env_names(working)
+    return names + [name for name in _env_names(_committed_config(repo_root, "HEAD") or "") if name not in names]
+
+
+def _env_names(text: str) -> list[str]:
+    lines = text.splitlines()
     raw: list[str] = []
     block = False
     for line in lines:
@@ -121,8 +128,8 @@ def _config_rollout(repo_root: Path) -> str:
         return ROLLOUT_ENFORCE
 
 
-def committed_rollout(repo_root: Path, ref: str) -> str:
-    """`rollout:` as committed at `ref`; a ref or file git cannot show is enforce."""
+def _committed_config(repo_root: Path, ref: str) -> str | None:
+    """`.chock/config.yaml` as committed at `ref`; None when git cannot show it."""
     try:
         shown = subprocess.run(  # noqa: S603 -- reading one committed file
             ["git", "-C", str(repo_root), "show", f"{ref}:{'/'.join(_CONFIG_PATH)}"],  # noqa: S607
@@ -133,8 +140,14 @@ def committed_rollout(repo_root: Path, ref: str) -> str:
             check=False,
         )
     except (OSError, subprocess.SubprocessError, UnicodeDecodeError):
-        return ROLLOUT_ENFORCE
-    return rollout_from_text(shown.stdout) if shown.returncode == 0 else ROLLOUT_ENFORCE
+        return None
+    return shown.stdout if shown.returncode == 0 else None
+
+
+def committed_rollout(repo_root: Path, ref: str) -> str:
+    """`rollout:` as committed at `ref`; a ref or file git cannot show is enforce."""
+    text = _committed_config(repo_root, ref)
+    return ROLLOUT_ENFORCE if text is None else rollout_from_text(text)
 
 
 def _stricter(*levels: str) -> str:
