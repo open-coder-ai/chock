@@ -235,7 +235,8 @@ def log_settings_read(path):
         problems.append(f'{path}: max_bytes must be {_LOG_BYTES_RANGE}, not {size!r}; using the next scope or 1048576')
     unknown = sorted(set(doc) - set(LOG_SETTINGS_KEYS))
     if unknown:
-        problems.append(f"{path}: unknown key(s) {', '.join(map(str, unknown))}; only level and max_bytes are read")
+        names = ', '.join(map(str, unknown))
+        problems.append(f'{path}: unknown key(s) {names}; only level and max_bytes are read')
     return (found, problems)
 
 def log_settings_paths(repo_root):
@@ -807,7 +808,7 @@ def evaluate(argv: list[str], command: str, tool: str='', *, can_ask: bool | Non
     verdict, message = run_guard_detailed(guard, command, tool, can_ask=can_ask)
     GUARD_LAST['outcome'] = verdict
     if verdict == GUARD_BLOCKED:
-        return (VERDICT_DENY, f'Blocked by chock policy: {guard.stem}')
+        return (VERDICT_DENY, f'Blocked by chock policy: {guard.stem}: {message}')
     if verdict == GUARD_ASKED:
         return (VERDICT_ESCALATE, f'chock policy {guard.stem} asks before this runs: {message}' if message else f'chock policy {guard.stem} asks for confirmation before this runs (guard gave no reason).')
     if verdict == GUARD_ERRORED:
@@ -898,7 +899,8 @@ def dlog_target(event, repo):
     tool = str(getattr(event, 'tool', None) or '')
     mcp = _DLOG_MCP_TOOL.match(tool)
     if mcp:
-        return log_redact(f"{mcp['server']}/{mcp['tool']}")[:_DLOG_MCP_CAP]
+        server, name = (mcp['server'], mcp['tool'])
+        return log_redact(f'{server}/{name}')[:_DLOG_MCP_CAP]
     command, path = (getattr(event, 'command', None), getattr(event, 'path', None))
     if command:
         return dlog_command_print(command)
@@ -1024,8 +1026,12 @@ def _dlog_reason(source, outcome):
     if source == HALT_REASON:
         return HALT_REASON
     if source == 'guard' and 'outcome' in GUARD_LAST:
-        return f"guard-{GUARD_LAST['outcome']}"
-    return source if source == 'fault' else f"{source}-{_DLOG_SPOKEN.get(outcome, 'allow')}"
+        guarded = GUARD_LAST['outcome']
+        return f'guard-{guarded}'
+    if source == 'fault':
+        return source
+    spoken = _DLOG_SPOKEN.get(outcome, 'allow')
+    return f'{source}-{spoken}'
 
 def _dlog_paths(route, runtime, agent, event):
     """(log file, repository whose settings apply) for this call."""
@@ -1335,7 +1341,8 @@ def _patch_not_empty(state, text):
     if last is None or last['op'] != 'update':
         return
     if not last['body'] and state['mode'] == 'update':
-        _patch_refuse(state['number'], text, f"update of {last['path']!r} has no hunk")
+        target = last['path']
+        _patch_refuse(state['number'], text, f'update of {target!r} has no hunk')
     if last['body'] and (not (last['body'][-1]['old'] or last['body'][-1]['new'])):
         _patch_refuse(state['number'], text, 'a hunk has no lines')
 
