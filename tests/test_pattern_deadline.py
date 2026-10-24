@@ -142,10 +142,14 @@ def test_the_history_scan_needs_no_signal() -> None:
 
 
 def test_the_judge_matches_times_out_and_reports_a_dead_child() -> None:
+    # A call that starts a child spends interpreter start-up out of its budget, and start-up on a
+    # loaded runner can outlast SECONDS; only the catastrophic pattern needs the short budget, and
+    # by then the child is already up. Every other call returns as soon as the child answers or dies.
+    start_up = budget.PATTERN_SECONDS
     judge = budget.pattern_judge()
     assert budget.judge_patterns(judge, [("a", []), ("b", [])], SECONDS) == ([[], []], None)
     assert judge["proc"] is None, "nothing to judge starts no child"
-    assert budget.judge_patterns(judge, [("a+", ["xa", "b", "aaa"]), (r"\d", ["1", "x"])], SECONDS) == (
+    assert budget.judge_patterns(judge, [("a+", ["xa", "b", "aaa"]), (r"\d", ["1", "x"])], start_up) == (
         [[0, 2], [0]],
         None,
     )
@@ -154,9 +158,9 @@ def test_the_judge_matches_times_out_and_reports_a_dead_child() -> None:
     assert hits is None and why == f"the patterns gave no verdict within {SECONDS}s (a catastrophic pattern?)"
     assert SECONDS <= time.monotonic() - started < budget.PATTERN_SECONDS
     assert judge["proc"] is None, "a timed-out child is killed"
-    hits, why = budget.judge_patterns(judge, [("(", ["x"])], SECONDS)
+    hits, why = budget.judge_patterns(judge, [("(", ["x"])], start_up)
     assert hits is None and why.startswith("the pattern judge exited early (")
-    assert budget.judge_patterns(judge, [("x", ["x"])], SECONDS) == ([[0]], None), "a new child after a crash"
+    assert budget.judge_patterns(judge, [("x", ["x"])], start_up) == ([[0]], None), "a new child after a crash"
     assert budget.close_judge(judge) == "" and judge["proc"] is None
 
 
