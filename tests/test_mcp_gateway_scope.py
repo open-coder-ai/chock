@@ -90,3 +90,39 @@ def test_forbidden_path_regex_is_bounded_by_scope():
 def test_pragma_on_the_line_does_not_waive_at_the_gateway_even_when_in_scope():
     args = {"path": ".github/workflows/ci.yml", "content": "uses: a/b@v4  # pragma: allow"}
     assert gateway_gates.evaluate(_scoped(), "write_file", args) is not None
+
+
+def _protect(repo_root: str) -> list[dict]:
+    params = {"content_pattern": "(?!)", "forbidden_path_regex": r"\.chock[/\\](bin|compiled)|\.claude[/\\]settings"}
+    return [{**_gate("content_regex", params), "repo_root": repo_root}]
+
+
+def test_a_path_spelled_with_dots_or_doubled_slashes_is_still_forbidden(tmp_path):
+    gates = _protect(str(tmp_path))
+    for spelled in (
+        ".chock/./bin/gate.py",
+        ".claude//settings.json",
+        "docs/../.chock/bin/gate.py",
+        f"{tmp_path}/.chock/./bin/x",
+    ):
+        assert gateway_gates.evaluate(gates, "write_file", {"path": spelled, "content": "x"}) is not None, spelled
+
+
+def test_a_forbidden_path_reached_through_a_symlink_is_still_forbidden(tmp_path):
+    (tmp_path / ".chock" / "bin").mkdir(parents=True)
+    (tmp_path / "alias").symlink_to(tmp_path / ".chock" / "bin")
+    args = {"path": "alias/gate.py", "content": "x"}
+    assert gateway_gates.evaluate(_protect(str(tmp_path)), "write_file", args) is not None
+
+
+def test_a_scoped_gate_sees_an_equivalent_spelling_of_an_in_scope_path(tmp_path):
+    gates = [{**_scoped()[0], "repo_root": str(tmp_path)}]
+    for spelled in ("docs/../.github/workflows/ci.yml", ".//.github/workflows/ci.yml", ".github//workflows/ci.yml"):
+        args = {"path": spelled, "content": "- uses: a/b@v4"}
+        assert gateway_gates.evaluate(gates, "write_file", args) is not None, spelled
+
+
+def test_a_scoped_gate_judges_a_path_that_climbs_out_of_the_repository(tmp_path):
+    gates = [{**_scoped()[0], "repo_root": str(tmp_path)}]
+    args = {"path": "../elsewhere/../../x", "content": "- uses: a/b@v4"}
+    assert gateway_gates.evaluate(gates, "write_file", args) is not None

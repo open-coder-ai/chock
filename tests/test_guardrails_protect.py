@@ -61,6 +61,10 @@ WRITES = [
     "sha256sum .chock/guardrails.json | cut -c1-64 > ~/.chock/state/GUARDRAILS.sha256",
     "rm .chock/state/guardrails.sha256",
     "chock bundle status --adopt",
+    # a name put together by expansion
+    "n=rails; cp /tmp/x .chock/guard${n}.json",
+    "cp /tmp/x .chock/$'guard\\x72ails'.json",
+    "printf x > .chock/state/${h}.sha256",
 ]
 READS = [
     "cat .chock/guardrails.json",
@@ -74,6 +78,7 @@ READS = [
     "cat .chock/state/guardrails.sha256",
     "echo x > notes.md",
     "ls -la",
+    'mkdir -p "$TMPDIR/build" && cp a.txt "$TMPDIR/build/b.txt"',
 ]
 
 

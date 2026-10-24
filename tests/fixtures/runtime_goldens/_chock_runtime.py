@@ -1098,6 +1098,8 @@ _CRLF = '\r\n'
 
 _CREATE_TEXT = 'file_text'
 
+_CREATE_KEYS = ('content', _CREATE_TEXT)
+
 def _edit_call_input(event):
     raw = getattr(event, 'raw', None)
     tool_input = raw.get('tool_input') if isinstance(raw, dict) else None
@@ -1159,12 +1161,16 @@ def edited_text(event, root=None):
     return text
 
 def created_text(event):
-    """The whole file a write call carries: the adapter's content, else `tool_input.file_text`; None otherwise."""
+    """The whole file a write call carries: the adapter's content, else the call's own `content` or `file_text`.
+
+    An adapter reads an empty `content` as absent, so the call's own input is read too: a write of
+    nothing is still a write to its path.
+    """
     content = getattr(event, 'content', None)
     if isinstance(content, str):
         return content
-    text = _edit_call_input(event).get(_CREATE_TEXT)
-    return text if isinstance(text, str) else None
+    tool_input = _edit_call_input(event)
+    return next((text for text in map(tool_input.get, _CREATE_KEYS) if isinstance(text, str)), None)
 
 def added_from_event(event):
     """What an edit call introduces -- what `added_lines` means for it -- or {} for any other call."""
@@ -1465,7 +1471,11 @@ def _read(root, path):
         return None
 
 def patched_files(event, root=None):
-    """{path: text} for every file an apply_patch call adds or updates and can be rebuilt."""
+    """{path: text} for every file an apply_patch call adds or updates and can be rebuilt.
+
+    A file it deletes, or moves away from, is named with empty text: it has no content left to judge,
+    but its path is still a write that path-based gates must see.
+    """
     patch = patch_text(event)
     if patch is None:
         return {}
@@ -1477,7 +1487,7 @@ def patched_files(event, root=None):
             disk[key] = files[key] = ''.join((line + '\n' for line in body))
         elif op == 'delete':
             disk[key] = None
-            files.pop(key, None)
+            files[key] = ''
         else:
             before = disk[key] if key in disk else _read(root, key)
             after = apply_hunks(before, body) if before is not None else None
@@ -1485,7 +1495,7 @@ def patched_files(event, root=None):
                 target = _patch_key(event, moved_to) if moved_to else key
                 if target != key:
                     disk[key] = None
-                    files.pop(key, None)
+                    files[key] = ''
                 disk[target] = files[target] = after
     return files
 
@@ -2077,6 +2087,85 @@ def workspace_root(event):
     path = getattr(event, 'path', None)
     return next((root for root in roots if path and _holds(root, path)), roots[0] if roots else None)
 
+_CASE_BLIND = sys.platform in ('darwin', 'win32')
+
+def repo_relative(path, root):
+    """`path` relative to `root` in POSIX form, as scope globs are written; as given when outside `root`."""
+    text = str(path)
+    if root is None:
+        return text
+    windows = _chock_os.name == 'nt' or str(root)[1:2] == _DRIVE_COLON
+    flavour = _chock_PureWindowsPath if windows else _chock_PurePosixPath
+    try:
+        return _folded(flavour(str(root)) / text).relative_to(flavour(str(root))).as_posix()
+    except ValueError:
+        pass
+    if windows != (_chock_os.name == 'nt'):
+        return text
+    try:
+        return _chock_Path(root, text).resolve().relative_to(_chock_Path(root).resolve()).as_posix()
+    except (OSError, ValueError, RuntimeError):
+        return text
+
+def on_disk_case(name, root):
+    """`name` (repo-relative, POSIX) with each existing component spelled as the filesystem stores it."""
+    here, spelled = (_chock_Path(root), [])
+    for part in _chock_PurePosixPath(name).parts:
+        try:
+            stored = _chock_os.listdir(here)
+        except OSError:
+            stored = []
+        found = part if part in stored else next((s for s in stored if s.casefold() == part.casefold()), part)
+        spelled.append(found)
+        here = here / found
+    return _chock_PurePosixPath(*spelled).as_posix()
+
+def repo_paths(path, root, *, case_blind=_CASE_BLIND):
+    """Every repo-relative name a write is judged under: as written, and through symlinks and case."""
+    lexical = repo_relative(path, root)
+    if root is None or (str(root)[1:2] == _DRIVE_COLON) != (_chock_os.name == 'nt'):
+        return (lexical,)
+    try:
+        resolved = _chock_Path(root, str(path)).resolve().relative_to(_chock_Path(root).resolve()).as_posix()
+    except (OSError, ValueError, RuntimeError):
+        return (lexical,)
+    names = [lexical, resolved]
+    if case_blind:
+        names += [on_disk_case(name, root) for name in (lexical, resolved) if not is_outside(name)]
+    return tuple(dict.fromkeys(names))
+
+_MODE_LINK = 40960
+
+def _open_text(target, kind):
+    """(text, why) of a link's target or a regular file, opened without following a link or waiting on a pipe."""
+    try:
+        if kind == _MODE_LINK:
+            return (_chock_os.readlink(target), None)
+        if kind != STOP_MODE_FILE:
+            return (None, f'{target} is neither a file nor a link')
+        fd = _chock_os.open(target, _chock_os.O_RDONLY | getattr(_chock_os, 'O_NOFOLLOW', 0) | getattr(_chock_os, 'O_NONBLOCK', 0))
+        with _chock_os.fdopen(fd, 'rb') as handle:
+            return (handle.read().decode('utf-8'), None)
+    except UnicodeDecodeError:
+        return (None, None)
+    except OSError as exc:
+        return (None, f'{target} could not be read ({exc})')
+
+def worktree_text(target):
+    """(text, why): `target` as the worktree holds it, never opening a FIFO, device or the file a link names.
+
+    A file that is gone reads as "" (its path is still judged), a directory or undecodable file as no
+    text, a link as the target git stores for it. Anything else is refused with a reason: opening a
+    FIFO or device can block the hook until its client's timeout, which a client may read as an allow.
+    """
+    try:
+        kind = _chock_os.lstat(target).st_mode & STOP_MODE_MASK
+    except FileNotFoundError:
+        return ('', None)
+    except OSError as exc:
+        return (None, f'{target} could not be examined ({exc})')
+    return (None, None) if kind == STOP_MODE_DIR else _open_text(target, kind)
+
 _REPO_STOP_PROJECT_ENV = ('CLAUDE_PROJECT_DIR', 'GEMINI_PROJECT_DIR', 'OPENHANDS_PROJECT_DIR')
 
 _REPO_STOP_PROJECT_KEYS = ('workspacePaths',)
@@ -2203,18 +2292,29 @@ _SEVERITY = (VERDICT_DENY, VERDICT_ESCALATE, VERDICT_WARN)
 
 _GIT_DIR = '.git'
 
-def _repository(folder):
+def repository_of(folder):
     """The repository `folder` is in: the nearest folder holding `.git`, or None outside one."""
     here = _chock_Path(folder).absolute()
+    if not here.is_dir():
+        return None
     return next((f for f in (here, *here.parents) if (f / _GIT_DIR).exists()), None)
 
+def judged_root(named):
+    """The top level of `named`'s repository; `named` as given when relative (a drive-lettered root on POSIX)."""
+    path = _chock_Path(named)
+    return repository_of(path) or path if path.is_absolute() else path
+
 def stop_roots(event, fallback):
-    """The event's `cwd` and every workspace root inside a repository, the first per repository; else [fallback]."""
+    """The top level of each repository the event's `cwd` and workspace roots are in; else [fallback].
+
+    The top level, not the named folder: `git status` lists paths relative to it, so a subdirectory
+    would resolve every listed path against the wrong folder and judge nothing.
+    """
     by_repository = {}
     for named in filter(None, (getattr(event, 'cwd', None), *workspace_roots(event))):
-        repository = _repository(named)
+        repository = repository_of(named)
         if repository is not None:
-            by_repository.setdefault(repository, _chock_Path(named))
+            by_repository.setdefault(repository, judged_root(named))
     return list(by_repository.values()) or [fallback]
 
 def per_root(said):
@@ -2292,37 +2392,8 @@ def writes_from_event(event, root=None):
         return {}
     return {str(path): content}
 
-def repo_relative(path, root):
-    """`path` relative to `root` in POSIX form, as scope globs are written; as given when outside `root`."""
-    text = str(path)
-    if root is None:
-        return text
-    windows = _chock_os.name == 'nt' or str(root)[1:2] == _DRIVE_COLON
-    flavour = _chock_PureWindowsPath if windows else _chock_PurePosixPath
-    try:
-        return _folded(flavour(str(root)) / text).relative_to(flavour(str(root))).as_posix()
-    except ValueError:
-        pass
-    if windows != (_chock_os.name == 'nt'):
-        return text
-    try:
-        return _chock_Path(root, text).resolve().relative_to(_chock_Path(root).resolve()).as_posix()
-    except (OSError, ValueError, RuntimeError):
-        return text
-
-def repo_paths(path, root):
-    """Every repo-relative name a write is judged under: as written, and through symlinks and case."""
-    lexical = repo_relative(path, root)
-    if root is None or (str(root)[1:2] == _DRIVE_COLON) != (_chock_os.name == 'nt'):
-        return (lexical,)
-    try:
-        resolved = _chock_Path(root, str(path)).resolve().relative_to(_chock_Path(root).resolve()).as_posix()
-    except (OSError, ValueError, RuntimeError):
-        return (lexical,)
-    return tuple(dict.fromkeys((lexical, resolved)))
-
 def changed_paths(repo_root, deadline=None, why=None):
-    """Every uncommitted path; None (reason appended to `why`) when git gave no answer, [] only outside a repository."""
+    """Every uncommitted path, a deleted file and a rename's old name included; None (reason in `why`) when git gave no answer."""
     deadline, why = (engine_deadline() if deadline is None else deadline, [] if why is None else why)
     argv = [_GIT, '-C', str(repo_root), 'status', '--porcelain=v1', '--untracked-files=all', '-z']
     try:
@@ -2346,8 +2417,8 @@ def changed_paths(repo_root, deadline=None, why=None):
     for field in fields:
         status, path = (field[:2], field[3:])
         if status.startswith(_RENAMED):
-            next(fields, None)
-        if _DELETED not in status and path:
+            paths.append(next(fields, ''))
+        if path:
             paths.append(path)
     return paths
 
@@ -2363,10 +2434,14 @@ def writes_from_worktree(repo_root, deadline=None, why=None):
         return None
     writes = {}
     for path in paths:
-        try:
-            writes[path] = _chock_Path(repo_root, path).read_text(encoding='utf-8')
-        except (OSError, UnicodeDecodeError):
-            continue
+        text, unsafe = worktree_text(_chock_Path(repo_root, path))
+        if unsafe:
+            if why is not None:
+                why.append(unsafe)
+            sys.stderr.write(f'chock: {unsafe}, worktree not checked\n')
+            return None
+        if text is not None:
+            writes[path] = text
     return writes
 
 def run_gate(gate, writes, event, run_in, deadline):
@@ -2405,7 +2480,7 @@ def root_for(gate):
     return parents[_GATE_DEPTH_TO_CHOCK].parent
 
 def repo_root_for(event, gate):
-    """The repository under judgement: the compiled layout's root, else the event's cwd, else its workspace root.
+    """The repository under judgement: the compiled layout's root, else the top level of the event's cwd or workspace root.
 
     Of several workspace roots, the one holding the written path; this process's cwd only when there are none.
     """
@@ -2413,7 +2488,7 @@ def repo_root_for(event, gate):
     if root is not None:
         return root
     cwd = getattr(event, 'cwd', None) or workspace_root(event)
-    return _chock_Path(cwd) if cwd else _chock_Path.cwd()
+    return judged_root(cwd) if cwd else _chock_Path.cwd()
 
 def writes_for(event, gate, deadline=None, why=None, root=None):
     """What this event puts under judgement: the call's own text, or what the turn left behind (None: unlisted)."""
