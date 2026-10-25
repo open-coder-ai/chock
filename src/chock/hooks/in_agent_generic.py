@@ -7,8 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from chock import vendors
-from chock.emit import write_generated_json
-from chock.hooks import heartbeat, launch, stop_check
+from chock.hooks import config_write, heartbeat, launch, stop_check
 from chock.hooks.in_agent_toml import install_toml, installed_toml_ids
 from chock.hooks.runtime_vendor import runtime_rel, vendor_runtime
 
@@ -143,6 +142,8 @@ def install_generic(repo_root: Path, vendor: str, *, uninstall: bool = False) ->
     instead of relying on the compiled tree actually being empty.
     """
     repo_root = Path(repo_root)
+    config_rel = Path(vendors.config_path(vendor))
+    config_write.check_unlinked(repo_root, config_rel)
     marker = _marker(vendor)
     fragments = [] if uninstall else _fragments(repo_root, vendor)
     stopping = [(STOP_CHECK_ID, stop_check.generic_doc(vendor))] if fragments else []
@@ -150,7 +151,7 @@ def install_generic(repo_root: Path, vendor: str, *, uninstall: bool = False) ->
         installed = install_toml(repo_root, vendor, [*fragments, *stopping])
         _sync_runtime(repo_root, vendor, wanted=bool(installed))
         return [policy_id for policy_id in installed if policy_id != STOP_CHECK_ID]
-    config_path = repo_root / vendors.config_path(vendor)
+    config_path = repo_root / config_rel
     settings = load_config(config_path)
     prior: dict[str, dict] = {}
     _collect_ours(settings, marker, prior)
@@ -160,9 +161,9 @@ def install_generic(repo_root: Path, vendor: str, *, uninstall: bool = False) ->
         _sync_runtime(repo_root, vendor, wanted=False)
         if config_path.exists() and prior:
             if settings:
-                write_generated_json(config_path, settings)
+                config_write.write_json(repo_root, config_rel, settings)
             else:
-                config_path.unlink()
+                config_write.remove(repo_root, config_rel)
         return []
 
     vendor_runtime(repo_root, vendor)
@@ -170,8 +171,7 @@ def install_generic(repo_root: Path, vendor: str, *, uninstall: bool = False) ->
     beats = [("heartbeat", beat)] if isinstance(beat, dict) else []
     for _policy_id, fragment in _for_runner(vendor, [*fragments, *stopping, *beats]):
         _merge(settings, fragment)
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    write_generated_json(config_path, settings)
+    config_write.write_json(repo_root, config_rel, settings)
     return [policy_id for policy_id, _ in fragments]
 
 
