@@ -13,8 +13,7 @@ from chock.compile.emitters.in_agent import (
     GENERIC_VENDORS,
 )
 from chock.compile.emitters.in_agent_tool_call import COPILOT_FILE
-from chock.emit import write_generated_json
-from chock.hooks import heartbeat, stop_check
+from chock.hooks import config_write, heartbeat, stop_check
 from chock.hooks.in_agent_generic import install_generic, installed_generic_ids
 from chock.hooks.in_agent_merged import MERGED, install_merged, installed_merged_ids
 from chock.hooks.runtime_vendor import vendor_runtime
@@ -106,10 +105,10 @@ def _install_agent_hooks(repo_root: Path, *, uninstall: bool = False) -> list[st
     """Rewrite chock's own agent-hooks file from compiled entries."""
     repo_root = Path(repo_root)
     entries = {} if uninstall else _compiled_agent_hooks(repo_root)
-    dest = repo_root / agent_hooks_rel()
+    rel = agent_hooks_rel()
+    config_write.check_unlinked(repo_root, rel)
     if not entries:
-        if dest.exists():
-            dest.unlink()
+        config_write.remove(repo_root, rel)
         return []
     vendor_runtime(repo_root, _OWNED_FILE_VENDOR)
     events: dict[str, list[dict]] = {}
@@ -121,8 +120,7 @@ def _install_agent_hooks(repo_root: Path, *, uninstall: bool = False) -> list[st
     for event, beat in heartbeat.copilot_entries(_OWNED_FILE_VENDOR).items():
         events.setdefault(event, []).extend(beat)
     doc = {**AGENT_HOOKS_ENVELOPE, "hooks": dict(sorted(events.items()))}
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    write_generated_json(dest, doc)
+    config_write.write_json(repo_root, rel, doc)
     return sorted(entries)
 
 

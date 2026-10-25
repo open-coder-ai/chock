@@ -8,7 +8,7 @@ from pathlib import Path
 from agentseam import contract as _contract
 
 from chock import vendors
-from chock.emit import write_generated_json
+from chock.hooks import config_write
 from chock.hooks.launch import hook_command
 from chock.hooks.runtime_vendor import owned_markers, runtime_rel, vendor_runtime
 from chock.output import warn
@@ -46,6 +46,7 @@ def install_sessionstart_hook(repo_root: Path) -> bool:
     """Ensure the arm hook is wired. Returns True when settings.json changed."""
     repo_root = Path(repo_root)
     settings_path = repo_root / SETTINGS_REL
+    config_write.check_unlinked(repo_root, SETTINGS_REL)
     settings: dict = {}
     if settings_path.exists():
         try:
@@ -67,8 +68,7 @@ def install_sessionstart_hook(repo_root: Path) -> bool:
     if isinstance(existing, list) and desired == existing:
         return False
     hooks[ARM_EVENT] = desired
-    settings_path.parent.mkdir(parents=True, exist_ok=True)
-    write_generated_json(settings_path, settings)
+    config_write.write_json(repo_root, SETTINGS_REL, settings)
     return True
 
 

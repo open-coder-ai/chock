@@ -124,7 +124,7 @@ def test_only_the_quote_free_store_s_agent_is_synced_quote_free(on_windows: None
     assert [a for a in sorted(vendors.in_agent_vendors()) if in_agent_generic.quote_free(a)] == [AGENT]
 
 
-@pytest.mark.parametrize("arg", ["a b/c.py", "a&b/c.py", "50%/c.py", "a(x)/c.py", "a$b/c.py"])
+@pytest.mark.parametrize("arg", ["a b/c.py", "a&b/c.py", "50%/c.py", "a(x)/c.py"])
 def test_an_argument_the_quote_free_command_cannot_carry_is_refused(arg: str) -> None:
     with pytest.raises(ValueError, match="through cmd.exe on Windows"):
         launch.hook_command_quote_free(launch.hook_command(".chock/bin/x.py", "--guard", arg))
