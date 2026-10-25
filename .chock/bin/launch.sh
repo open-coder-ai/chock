@@ -12,8 +12,9 @@ shift
 configured="$(git config --get chock.python 2>/dev/null)"
 # The recorded interpreter is probed like the rest: a venv whose base Python was removed
 # still exists, and exec'ing it exits non-zero without a verdict, which agents let through.
+# A candidate must also answer the probe's token, so a program that merely exits 0 (`true`) is not taken for Python.
 for candidate in "$configured" python3 python py; do
-    if [ -n "$candidate" ] && "$candidate" -c 'import sys; sys.exit(sys.version_info < (3, 11,))' </dev/null >/dev/null 2>&1; then
+    if [ -n "$candidate" ] && probed="$("$candidate" -c 'import sys; print("chock-python"); sys.exit(sys.version_info < (3, 11,))' </dev/null 2>/dev/null)" && [ "$probed" = "chock-python" ]; then
         exec "$candidate" -X utf8 "$runtime" "$@"
     fi
 done

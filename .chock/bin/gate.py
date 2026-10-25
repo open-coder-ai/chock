@@ -449,15 +449,22 @@ _AGENT_COMMIT_NOTE = (
 
 
 def _config_agent_env(repo_root: Path) -> list[str]:
-    """Names under `agent_commit_env:` in `.chock/config.yaml`, read without a YAML parser.
+    """Names under `agent_commit_env:` in `.chock/config.yaml`, in the working tree and as committed at HEAD.
 
-    Only an inline list (`[A, B]`), one scalar, or a block list of `- NAME` lines is read; the
-    runner is stdlib-only, and anything else yields no names rather than a guess.
+    Both, so an uncommitted edit that drops a name never hides the agent it named. Read without a YAML parser:
+    only an inline list (`[A, B]`), one scalar, or a block list of `- NAME` lines is read; the runner is
+    stdlib-only, and anything else yields no names rather than a guess.
     """
     try:
-        lines = repo_root.joinpath(*_CONFIG_PATH).read_text(encoding="utf-8").splitlines()
+        working = repo_root.joinpath(*_CONFIG_PATH).read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
-        return []
+        working = ""
+    names = _env_names(working)
+    return names + [name for name in _env_names(_committed_config(repo_root, "HEAD") or "") if name not in names]
+
+
+def _env_names(text: str) -> list[str]:
+    lines = text.splitlines()
     raw: list[str] = []
     block = False
     for line in lines:
@@ -543,8 +550,8 @@ def _config_rollout(repo_root: Path) -> str:
         return ROLLOUT_ENFORCE
 
 
-def committed_rollout(repo_root: Path, ref: str) -> str:
-    """`rollout:` as committed at `ref`; a ref or file git cannot show is enforce."""
+def _committed_config(repo_root: Path, ref: str) -> str | None:
+    """`.chock/config.yaml` as committed at `ref`; None when git cannot show it."""
     try:
         shown = subprocess.run(  # noqa: S603 -- reading one committed file
             ["git", "-C", str(repo_root), "show", f"{ref}:{'/'.join(_CONFIG_PATH)}"],  # noqa: S607
@@ -555,8 +562,14 @@ def committed_rollout(repo_root: Path, ref: str) -> str:
             check=False,
         )
     except (OSError, subprocess.SubprocessError, UnicodeDecodeError):
-        return ROLLOUT_ENFORCE
-    return rollout_from_text(shown.stdout) if shown.returncode == 0 else ROLLOUT_ENFORCE
+        return None
+    return shown.stdout if shown.returncode == 0 else None
+
+
+def committed_rollout(repo_root: Path, ref: str) -> str:
+    """`rollout:` as committed at `ref`; a ref or file git cannot show is enforce."""
+    text = _committed_config(repo_root, ref)
+    return ROLLOUT_ENFORCE if text is None else rollout_from_text(text)
 
 
 def _stricter(*levels: str) -> str:
@@ -1926,16 +1939,19 @@ def log_append(path, record, max_bytes=LOG_DEFAULT_MAX_BYTES):
     rotation names the rotated file's last. A writer that cannot take the lock writes its line `unchained`.
     """
     path = Path(path)
+    log_require_safe(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     stamped = {"ts": log_now(), **{k: v for k, v in record.items() if k not in LOG_CHAIN_KEYS}}
-    lock = os.open(str(path) + ".lock", os.O_RDWR | os.O_CREAT, 0o600)
+    lock = os.open(str(path) + ".lock", os.O_RDWR | os.O_CREAT | LOG_OPEN_FLAGS, 0o600)
     try:
         held = _log_lock_wait(lock)
         try:
             if held:
                 _log_rotate_held(path, max_bytes)
             line = _log_line(path, stamped, held=held)
-            fd = os.open(str(path), os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o600)
+            fd = os.open(
+                str(path), os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0) | LOG_OPEN_FLAGS, 0o600
+            )
             try:
                 os.write(fd, line)
             finally:
@@ -2293,6 +2309,12 @@ LOG_CHAIN_GENESIS = "0" * 64
 #: How far back from a log's end its last line is looked for before the whole file is read.
 _LOG_TAIL_BYTES = 65_536
 
+#: `st_mode`'s file-type bits and the two types a log's files and directories may be (`stat.S_IFMT`, `S_IFREG`, `S_IFDIR`).
+LOG_MODE_MASK, LOG_MODE_FILE, LOG_MODE_DIR = 0o170000, 0o100000, 0o040000
+LOG_UNSAFE = "not a regular file in real directories; refusing to open it"
+#: Opening a log never follows a symlink and never waits on a FIFO.
+LOG_OPEN_FLAGS = getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+
 
 def log_rotated(path):
     """Where `log_append` moves a full log: `<stem>.1<suffix>` beside it."""
@@ -2340,6 +2362,38 @@ def log_chain_after(last):
     if last is None:
         return {LOG_CHAIN_SEQ: 0, LOG_CHAIN_PREV: LOG_CHAIN_GENESIS}
     return {LOG_CHAIN_SEQ: log_line_seq(last) + 1, LOG_CHAIN_PREV: log_line_hash(last)}
+
+
+def log_path_safe(path):
+    """Whether the log, its lock and rotated file are regular files or absent, and its two directories real directories.
+
+    lstat, so a symlink, FIFO, socket or device is refused before anything opens it: opening a FIFO blocks the hook
+    until its timeout, which a client may read as an allow.
+    """
+    path = Path(path)
+    checks = (
+        (path, LOG_MODE_FILE),
+        (Path(str(path) + ".lock"), LOG_MODE_FILE),
+        (log_rotated(path), LOG_MODE_FILE),
+        (path.parent, LOG_MODE_DIR),
+        (path.parent.parent, LOG_MODE_DIR),
+    )
+    for target, kind in checks:
+        try:
+            mode = os.lstat(target).st_mode
+        except FileNotFoundError:
+            continue
+        except OSError:
+            return False
+        if mode & LOG_MODE_MASK != kind:
+            return False
+    return True
+
+
+def log_require_safe(path):
+    """Raise OSError unless `log_path_safe(path)`."""
+    if not log_path_safe(path):
+        raise OSError(LOG_UNSAFE)
 
 
 #: The git hook a merge's own commit runs: judged as a commit.

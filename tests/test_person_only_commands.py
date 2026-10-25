@@ -13,6 +13,7 @@ from decision_log_support import records
 
 from chock import cli
 from chock.config import policy_status
+from chock.gate.runner.actor import agent_signal
 from chock.stop_common import PERSON_ONLY_POLICY
 
 FRAMEWORK_ROOT = Path(__file__).resolve().parents[1]
@@ -219,3 +220,60 @@ def test_without_a_marker_sync_committed_is_a_plain_sync(committed: Path, monkey
 
 def test_the_agent_ok_flag_is_declared_in_commands_json_for_sync_alone() -> None:
     assert cli.AGENT_OK_FLAG == {"sync": "--committed"}
+
+
+BUNDLE_WRITES = (["bundle", "off", "scan-secrets"], ["bundle", "on", "scan-secrets"], ["bundle", "status", "--adopt"])
+
+
+@pytest.mark.parametrize("argv", BUNDLE_WRITES, ids=["off", "on", "adopt"])
+def test_bundle_writes_refuse_an_agent(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    argv: list[str],
+) -> None:
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("CLAUDECODE", "1")
+    assert cli.main(argv) == 1
+    assert REFUSED in capsys.readouterr().err
+    assert not (repo / ".chock" / "guardrails.json").exists()
+    assert not (repo / ".chock" / "state" / "guardrails.sha256").exists()
+
+
+def test_bundle_status_stays_open_to_an_agent(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("CLAUDECODE", "1")
+    cli.main(["bundle", "status"])
+    assert REFUSED not in capsys.readouterr().err
+
+
+def test_a_marker_named_only_in_the_committed_config_still_identifies_an_agent(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = repo / ".chock" / "config.yaml"
+    config.write_text(config.read_text(encoding="utf-8") + "agent_commit_env: [CODEX_SANDBOX]\n", encoding="utf-8")
+    _commit_all(repo)
+    config.write_text(
+        config.read_text(encoding="utf-8").replace("agent_commit_env: [CODEX_SANDBOX]\n", ""), encoding="utf-8"
+    )
+    monkeypatch.delenv("CLAUDECODE", raising=False)
+    monkeypatch.delenv("AI_AGENT", raising=False)
+    monkeypatch.setenv("CODEX_SANDBOX", "seatbelt")
+    assert agent_signal(repo) == "CODEX_SANDBOX"
+
+
+def test_bundle_off_from_a_subdirectory_reads_the_repo_roots_config(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config = repo / ".chock" / "config.yaml"
+    config.write_text(config.read_text(encoding="utf-8") + "agent_commit_env: [CODEX_SANDBOX]\n", encoding="utf-8")
+    nested = repo / "src" / "pkg"
+    nested.mkdir(parents=True)
+    monkeypatch.chdir(nested)
+    monkeypatch.delenv("CLAUDECODE", raising=False)
+    monkeypatch.delenv("AI_AGENT", raising=False)
+    monkeypatch.setenv("CODEX_SANDBOX", "seatbelt")
+    assert cli.main(["bundle", "off", "scan-secrets"]) == 1
+    assert "(CODEX_SANDBOX)" in capsys.readouterr().err

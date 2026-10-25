@@ -13,6 +13,7 @@ from pathlib import Path
 from chock.guardrails import toggle
 from chock.guardrails.plugin import MEMBERS, PROTECT_ID
 from chock.install import package, place
+from chock.stop_common import person_only_refused
 
 EXIT_USAGE = 2
 RESET = "chock bundle status --adopt --reset"
@@ -245,6 +246,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     shown.add_argument("--reset", action="store_true", help="with --adopt: rewrite an invalid toggle file all on")
     args = parser.parse_args(argv)
+    if (args.action != "status" or args.adopt) and person_only_refused(
+        toggle.repo_root(Path.cwd()) or Path.cwd(), "bundle"
+    ):
+        return 1
     try:
         if args.action == "status":
             if args.reset and not args.adopt:

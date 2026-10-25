@@ -9,6 +9,7 @@ a verdict: every failure is swallowed.
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -27,6 +28,8 @@ SESSION_RESPONSE_KEYS = ("tool_response", "toolResponse", "tool_result", "toolRe
 SESSION_UNKNOWN_ID = "unknown"
 SESSION_ID_MAX = 128
 SESSION_MASK = "***"
+#: `st_mode`'s file-type bits and the two types the log's files and directories may be.
+SESSION_MODE_MASK, SESSION_MODE_FILE, SESSION_MODE_DIR = 0o170000, 0o100000, 0o040000
 
 
 def tool_call_input(event):
@@ -156,17 +159,44 @@ def _prune_old(directory):
             continue
 
 
+def _state_safe(path):
+    """Whether `path` and its scratch file are regular files or absent, and `.chock/state` and `.chock` real directories.
+
+    lstat, so a FIFO or symlink is refused before anything opens it: opening a FIFO blocks the hook until its timeout.
+    """
+    for target, kind in (
+        (path, SESSION_MODE_FILE),
+        (path.with_suffix(".tmp"), SESSION_MODE_FILE),
+        (path.parent, SESSION_MODE_DIR),
+        (path.parent.parent, SESSION_MODE_DIR),
+    ):
+        try:
+            mode = os.lstat(target).st_mode
+        except FileNotFoundError:
+            continue
+        except OSError:
+            return False
+        if mode & SESSION_MODE_MASK != kind:
+            return False
+    return True
+
+
 def _append_bounded(path, line, record):
+    if not _state_safe(path):
+        return
     lines = path.read_text(encoding="utf-8", errors="replace").splitlines() if path.exists() else []
     if any(_same_call(seen, record) for seen in lines[-SESSION_DEDUPE_TAIL:]):
         return
     if len(lines) < SESSION_MAX_ENTRIES and path.exists() and path.stat().st_size < SESSION_TRIM_BYTES:
-        with path.open("a", encoding="utf-8") as fh:
+        fd = os.open(path, os.O_WRONLY | os.O_APPEND | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
+        with os.fdopen(fd, "a", encoding="utf-8") as fh:
             fh.write(line + "\n")
         return
     kept = [*lines, line][-SESSION_MAX_ENTRIES:]
     scratch = path.with_suffix(".tmp")
-    scratch.write_text("\n".join(kept) + "\n", encoding="utf-8")
+    fd = os.open(scratch, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(kept) + "\n")
     scratch.replace(path)
 
 
