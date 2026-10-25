@@ -33,6 +33,8 @@ PATTERN_SECONDS = 10
 
 PATTERN_START_SECONDS = 10
 
+PATTERN_JUDGE_EXITED = 'the pattern judge exited early ('
+
 PATTERN_JUDGE_READY = 'ready'
 
 PATTERN_JUDGE_SOURCE = "import json, re, sys\nprint('ready', flush=True)\nfor line in sys.stdin:\n    out = []\n    for pattern, texts in json.loads(line):\n        search = re.compile(pattern).search\n        out.append([index for index, text in enumerate(texts) if search(text)])\n    print(json.dumps(out), flush=True)\n"
@@ -76,7 +78,7 @@ def _start_judge(judge):
         close_judge(judge)
         return f'the pattern judge did not start within {PATTERN_START_SECONDS}s'
     if ready is None or ready.strip() != PATTERN_JUDGE_READY:
-        return f'the pattern judge exited early ({close_judge(judge)})'
+        return f'{PATTERN_JUDGE_EXITED}{close_judge(judge)})'
     return None
 
 def close_judge(judge):
@@ -122,14 +124,14 @@ def judge_patterns(judge, jobs, seconds):
         proc.stdin.write(json.dumps(jobs) + '\n')
         proc.stdin.flush()
     except (OSError, ValueError):
-        return (None, f'the pattern judge exited early ({close_judge(judge)})')
+        return (None, f'{PATTERN_JUDGE_EXITED}{close_judge(judge)})')
     try:
         line = lines.get(timeout=seconds)
     except _chock_queue.Empty:
         close_judge(judge)
         return (None, f'the patterns gave no verdict within {seconds:g}s (a catastrophic pattern?)')
     if line is None:
-        return (None, f'the pattern judge exited early ({close_judge(judge)})')
+        return (None, f'{PATTERN_JUDGE_EXITED}{close_judge(judge)})')
     return (json.loads(line), None)
 
 LOG_CHAIN_PREV, LOG_CHAIN_SEQ = ('prev', 'seq')
@@ -662,7 +664,7 @@ GUARD_ASK_EXIT = 3
 
 PYTHON_SUFFIX = '.py'
 
-_CRASH_OPENING = _chock_re.compile('(?ix)\\A\\s*(traceback\\ \\(most\\ recent\\ call\\ last\\)|file\\ ".*",\\ line\\ \\d+|\\S+:\\ line\\ \\d+:\\ (syntax\\ error|unexpected\\ eof))')
+_CRASH_OPENING = _chock_re.compile('(?ix)\\A\\s*(traceback\\ \\(most\\ recent\\ call\\ last\\)|file\\ ".*",\\ line\\ \\d+|(\\S+:\\ )?line\\ \\d+:\\ (syntax\\ error|unexpected\\ eof))')
 
 TOOL_UNKNOWN = 'unknown'
 

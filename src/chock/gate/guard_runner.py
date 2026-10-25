@@ -20,11 +20,11 @@ GUARD_ASK_EXIT = 3
 PYTHON_SUFFIX = ".py"
 
 #: How an interpreter's own crash opens the output: a Python traceback or a `File "...", line N` syntax error,
-#: or bash's `<script>: line N: syntax error`. Exit 1 with one of these as the first line (or with no output
+#: or bash's `[<script>: ]line N: syntax error`. Exit 1 with one of these as the first line (or with no output
 #: at all) is a guard that failed, not one that refused, so it asks. A refusal's words are the guard's own,
 #: so text the agent chose can never be the start of the output.
 _CRASH_OPENING = re.compile(
-    r"""(?ix)\A\s*(traceback\ \(most\ recent\ call\ last\)|file\ ".*",\ line\ \d+|\S+:\ line\ \d+:\ (syntax\ error|unexpected\ eof))"""
+    r"""(?ix)\A\s*(traceback\ \(most\ recent\ call\ last\)|file\ ".*",\ line\ \d+|(\S+:\ )?line\ \d+:\ (syntax\ error|unexpected\ eof))"""
 )
 #: What CHOCK_TOOL says when the hook payload names no shell tool this runner recognises.
 TOOL_UNKNOWN = "unknown"

@@ -35,6 +35,9 @@ PATTERN_SECONDS = 10
 #: not charged to `PATTERN_SECONDS`, so a slow interpreter start is not taken for a catastrophic pattern.
 PATTERN_START_SECONDS = 10
 
+#: How a refusal opens when the child is gone; the last line it wrote to stderr follows, then `)`.
+PATTERN_JUDGE_EXITED = "the pattern judge exited early ("
+
 #: The line the child writes once its imports are done, before it reads its first request.
 PATTERN_JUDGE_READY = "ready"
 
@@ -105,7 +108,7 @@ def _start_judge(judge):
         close_judge(judge)
         return f"the pattern judge did not start within {PATTERN_START_SECONDS}s"
     if ready is None or ready.strip() != PATTERN_JUDGE_READY:
-        return f"the pattern judge exited early ({close_judge(judge)})"
+        return f"{PATTERN_JUDGE_EXITED}{close_judge(judge)})"
     return None
 
 
@@ -154,12 +157,12 @@ def judge_patterns(judge, jobs, seconds):
         proc.stdin.write(json.dumps(jobs) + "\n")
         proc.stdin.flush()
     except (OSError, ValueError):
-        return None, f"the pattern judge exited early ({close_judge(judge)})"
+        return None, f"{PATTERN_JUDGE_EXITED}{close_judge(judge)})"
     try:
         line = lines.get(timeout=seconds)
     except queue.Empty:
         close_judge(judge)
         return None, f"the patterns gave no verdict within {seconds:g}s (a catastrophic pattern?)"
     if line is None:
-        return None, f"the pattern judge exited early ({close_judge(judge)})"
+        return None, f"{PATTERN_JUDGE_EXITED}{close_judge(judge)})"
     return json.loads(line), None
