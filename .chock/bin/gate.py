@@ -35,8 +35,18 @@ BYTECODE_OFF = {"PYTHONDONTWRITEBYTECODE": "1"}
 PATTERN_SECONDS = 10
 
 
+PATTERN_START_SECONDS = 10
+
+
+PATTERN_JUDGE_EXITED = "the pattern judge exited early ("
+
+
+PATTERN_JUDGE_READY = "ready"
+
+
 PATTERN_JUDGE_SOURCE = (
     "import json, re, sys\n"
+    "print('ready', flush=True)\n"
     "for line in sys.stdin:\n"
     "    out = []\n"
     "    for pattern, texts in json.loads(line):\n"
@@ -92,6 +102,14 @@ def _start_judge(judge):
     lines = queue.Queue()
     threading.Thread(target=_pump_lines, args=(proc, lines), daemon=True).start()
     judge["proc"], judge["lines"] = proc, lines
+    try:
+        ready = lines.get(timeout=PATTERN_START_SECONDS)
+    except queue.Empty:
+        close_judge(judge)
+        return f"the pattern judge did not start within {PATTERN_START_SECONDS}s"
+    if ready is None or ready.strip() != PATTERN_JUDGE_READY:
+        return f"{PATTERN_JUDGE_EXITED}{close_judge(judge)})"
+    return None
 
 
 def close_judge(judge):
@@ -113,6 +131,16 @@ def close_judge(judge):
     return (spoken.strip().splitlines() or [""])[-1]
 
 
+def _ensure_judge(judge):
+    """None when the judge's child runs (started now if need be); otherwise why it could not."""
+    if judge["proc"] is not None:
+        return None
+    try:
+        return _start_judge(judge)
+    except OSError as exc:
+        return f"the pattern judge could not start ({exc})"
+
+
 def judge_patterns(judge, jobs, seconds):
     """(hits, None) or (None, why): per job of (pattern, texts), the indices of the texts the pattern matches.
 
@@ -121,24 +149,22 @@ def judge_patterns(judge, jobs, seconds):
     """
     if not any(texts for _, texts in jobs):
         return [[] for _ in jobs], None
-    if judge["proc"] is None:
-        try:
-            _start_judge(judge)
-        except OSError as exc:
-            return None, f"the pattern judge could not start ({exc})"
+    failed = _ensure_judge(judge)
+    if failed:
+        return None, failed
     proc, lines = judge["proc"], judge["lines"]
     try:
         proc.stdin.write(json.dumps(jobs) + "\n")
         proc.stdin.flush()
     except (OSError, ValueError):
-        return None, f"the pattern judge exited early ({close_judge(judge)})"
+        return None, f"{PATTERN_JUDGE_EXITED}{close_judge(judge)})"
     try:
         line = lines.get(timeout=seconds)
     except queue.Empty:
         close_judge(judge)
         return None, f"the patterns gave no verdict within {seconds:g}s (a catastrophic pattern?)"
     if line is None:
-        return None, f"the pattern judge exited early ({close_judge(judge)})"
+        return None, f"{PATTERN_JUDGE_EXITED}{close_judge(judge)})"
     return json.loads(line), None
 
 
