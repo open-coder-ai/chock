@@ -132,8 +132,12 @@ def _dlog_reason(source, outcome):
     if source == HALT_REASON:
         return HALT_REASON
     if source == "guard" and "outcome" in GUARD_LAST:
-        return f"guard-{GUARD_LAST['outcome']}"
-    return source if source == "fault" else f"{source}-{_DLOG_SPOKEN.get(outcome, 'allow')}"
+        guarded = GUARD_LAST["outcome"]
+        return f"guard-{guarded}"
+    if source == "fault":
+        return source
+    spoken = _DLOG_SPOKEN.get(outcome, "allow")
+    return f"{source}-{spoken}"
 
 
 def _dlog_paths(route, runtime, agent, event):
