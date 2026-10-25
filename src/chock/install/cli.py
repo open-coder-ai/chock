@@ -40,7 +40,11 @@ def _report(client_id: str, labels: list[package.Label], lines: list[str]) -> No
 
 def _show(rendered: list[steps.Step], *, applying: bool) -> None:
     """Print every step; the header says whether `--apply` runs the commands now."""
-    print("Running:" if applying and any(s.command for s in rendered) else "Next:")
+    _print_steps("Running:" if applying and any(s.command for s in rendered) else "Next:", rendered)
+
+
+def _print_steps(header: str, rendered: list[steps.Step]) -> None:
+    print(header)
     for step in rendered:
         if step.command:
             print(f"  {shlex.join(step.command)}")
@@ -210,6 +214,9 @@ def main(argv: list[str] | None = None) -> int:
     }
     rendered = steps.render(client_id, tokens)
     _show(rendered, applying=args.apply)
+    removal = steps.render_remove(client_id, tokens)
+    if removal:
+        _print_steps("To remove it:", removal)
     build = claude_plugin.settings()["build_client"]
     build_dest = dest if client_id == build else place.default_dest(build).resolve()
     for line in claude_plugin.lines(client_id, claude_plugin.tokens(build_dest, name, args.selection)):
