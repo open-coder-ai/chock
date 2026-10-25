@@ -42,7 +42,7 @@ jobs:
 
       # The tape drives the real CLI; install the tree being rendered.
       - name: Install chock
-        run: python -m pip install --require-hashes -r requirements/runtime.txt && pip install -e . --no-deps
+        run: python -m pip install --require-hashes -r requirements/runtime.txt && pip install -e . --no-deps --no-build-isolation
 
       - name: Render tape
         uses: charmbracelet/vhs-action@f6d7db07a432fcd3b06772628d36a57f96d95dcf  # v2
@@ -71,7 +71,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install chock
-        run: python -m pip install --require-hashes -r requirements/runtime.txt && pip install -e . --no-deps
+        run: python -m pip install --require-hashes -r requirements/runtime.txt && pip install -e . --no-deps --no-build-isolation
 
       - name: Render tape
         uses: charmbracelet/vhs-action@f6d7db07a432fcd3b06772628d36a57f96d95dcf  # v2
