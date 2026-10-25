@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import tempfile
 from dataclasses import dataclass
@@ -31,6 +32,24 @@ MARKER_VERSION = 1
 def settings() -> dict[str, Any]:
     """Marketplace, client and label data from data/install.json."""
     return json.loads(package_data_dir("chock.install", "data").joinpath("install.json").read_text(encoding="utf-8"))
+
+
+#: Lowercase letters and digits in hyphen-separated words: the part of every client's marketplace naming rule they share.
+MARKETPLACE_NAME = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+MARKETPLACE_NAME_MAX = 64
+
+
+def marketplace(chosen: str | None = None) -> str:
+    """The local marketplace name a build gets: `chosen` once valid, else the default in data/install.json."""
+    if chosen is None:
+        return str(settings()["marketplace"])
+    if not MARKETPLACE_NAME.fullmatch(chosen) or len(chosen) > MARKETPLACE_NAME_MAX:
+        msg = (
+            f"--marketplace-name {chosen!r} is not a valid marketplace name: use lowercase letters, digits and "
+            f"single hyphens, 1 to {MARKETPLACE_NAME_MAX} characters, not starting or ending with a hyphen"
+        )
+        raise ValueError(msg)
+    return chosen
 
 
 def client(client_id: str) -> dict[str, Any]:

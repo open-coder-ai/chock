@@ -39,7 +39,7 @@
       "remove": [
         {"command": ["claude", "plugin", "uninstall", "__PLUGIN__@__MARKETPLACE__"]},
         {"note": "Delete the build folder __PLUGIN_DIR__: `chock bundle status` lists a build for as long as its folder exists."},
-        {"note": "Only if no other chock build for this agent is still installed (every chock build uses the marketplace name __MARKETPLACE__, so removing it takes their registration too): `claude plugin marketplace remove __MARKETPLACE__`. Otherwise leave it registered."}
+        {"note": "Only if no other chock build for this agent is still installed (every chock build made with the marketplace name __MARKETPLACE__ shares it, so removing it takes their registration too): `claude plugin marketplace remove __MARKETPLACE__`. Otherwise leave it registered."}
       ]
     },
     "copilot": {
@@ -61,7 +61,7 @@
         {"note": "`copilot plugin uninstall` only disables the plugin (seen in a live run): it removes nothing from disk and leaves the marketplace registered."},
         {"command": ["copilot", "plugin", "uninstall", "__PLUGIN__@__MARKETPLACE__"]},
         {"note": "Delete the build folder __PLUGIN_DIR__: `chock bundle status` lists a build for as long as its folder exists."},
-        {"note": "Only if no other chock build for this agent is still installed (every chock build uses the marketplace name __MARKETPLACE__, so removing it takes their registration too): `copilot plugin marketplace remove __MARKETPLACE__`. Otherwise leave it registered."},
+        {"note": "Only if no other chock build for this agent is still installed (every chock build made with the marketplace name __MARKETPLACE__ shares it, so removing it takes their registration too): `copilot plugin marketplace remove __MARKETPLACE__`. Otherwise leave it registered."},
         {"note": "In VS Code, remove the \"__PLUGIN_DIR__\" entry from chat.pluginLocations in your user settings (chock does not edit them)."}
       ]
     },
@@ -217,7 +217,7 @@
         {"note": "Run these from the root of the project the plugin was installed for."},
         {"command": ["droid", "plugin", "uninstall", "__PLUGIN__@__MARKETPLACE__", "--scope", "project"]},
         {"note": "Delete the build folder __PLUGIN_DIR__: `chock bundle status` lists a build for as long as its folder exists."},
-        {"note": "Only if no other chock build for this agent is still installed (every chock build uses the marketplace name __MARKETPLACE__, so removing it takes their registration too): `droid plugin marketplace remove __MARKETPLACE__`. Otherwise leave it registered."}
+        {"note": "Only if no other chock build for this agent is still installed (every chock build made with the marketplace name __MARKETPLACE__ shares it, so removing it takes their registration too): `droid plugin marketplace remove __MARKETPLACE__`. Otherwise leave it registered."}
       ]
     }
   }
