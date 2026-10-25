@@ -230,7 +230,11 @@ def _read(root, path):
 
 
 def patched_files(event, root=None):
-    """{path: text} for every file an apply_patch call adds or updates and can be rebuilt."""
+    """{path: text} for every file an apply_patch call adds or updates and can be rebuilt.
+
+    A file it deletes, or moves away from, is named with empty text: it has no content left to judge,
+    but its path is still a write that path-based gates must see.
+    """
     patch = patch_text(event)
     if patch is None:
         return {}
@@ -242,7 +246,7 @@ def patched_files(event, root=None):
             disk[key] = files[key] = "".join(line + "\n" for line in body)
         elif op == "delete":
             disk[key] = None
-            files.pop(key, None)
+            files[key] = ""
         else:
             before = disk[key] if key in disk else _read(root, key)
             after = apply_hunks(before, body) if before is not None else None
@@ -250,7 +254,7 @@ def patched_files(event, root=None):
                 target = _patch_key(event, moved_to) if moved_to else key
                 if target != key:
                     disk[key] = None
-                    files.pop(key, None)
+                    files[key] = ""
                 disk[target] = files[target] = after
     return files
 

@@ -13,19 +13,31 @@ _SEVERITY = (VERDICT_DENY, VERDICT_ESCALATE, VERDICT_WARN)
 _GIT_DIR = ".git"
 
 
-def _repository(folder):
+def repository_of(folder):
     """The repository `folder` is in: the nearest folder holding `.git`, or None outside one."""
     here = Path(folder).absolute()
+    if not here.is_dir():
+        return None
     return next((f for f in (here, *here.parents) if (f / _GIT_DIR).exists()), None)
 
 
+def judged_root(named):
+    """The top level of `named`'s repository; `named` as given when relative (a drive-lettered root on POSIX)."""
+    path = Path(named)
+    return (repository_of(path) or path) if path.is_absolute() else path
+
+
 def stop_roots(event, fallback):
-    """The event's `cwd` and every workspace root inside a repository, the first per repository; else [fallback]."""
+    """The top level of each repository the event's `cwd` and workspace roots are in; else [fallback].
+
+    The top level, not the named folder: `git status` lists paths relative to it, so a subdirectory
+    would resolve every listed path against the wrong folder and judge nothing.
+    """
     by_repository = {}
     for named in filter(None, (getattr(event, "cwd", None), *workspace_roots(event))):
-        repository = _repository(named)
+        repository = repository_of(named)
         if repository is not None:
-            by_repository.setdefault(repository, Path(named))
+            by_repository.setdefault(repository, judged_root(named))
     return list(by_repository.values()) or [fallback]
 
 

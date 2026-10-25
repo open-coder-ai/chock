@@ -1,6 +1,7 @@
 """The guardrails toggle file and its lookup. Stdlib only: shipped verbatim in every merged plugin as its hook wrapper.
 
 `.chock/guardrails.json` (repo; else `~/.chock/guardrails.json`) is all on when absent, invalid or unlike its record.
+In a repository a member is off only where HEAD's copy says so too: the record is as rewritable as the file.
 `--bundle <b> --member <id> <adapter> [args...]`: off runs the adapter with no args. `--verify <adapter>`: a Stop is
 refused while a toggle file in its `cwd` or any workspace root loosened.
 """
@@ -19,9 +20,9 @@ import sys
 from pathlib import Path
 
 try:  # beside this wrapper in a merged plugin; inside the chock package everywhere else
-    from chock_bundle_log import log_off
+    from chock_bundle_log import head_text, log_off, vouched
 except ImportError:
-    from chock.guardrails.chock_bundle_log import log_off
+    from chock.guardrails.chock_bundle_log import head_text, log_off, vouched
 
 FILENAME = ".chock/guardrails.json"
 VERSION = 1
@@ -39,6 +40,7 @@ DRIFTED = (
     "guardrails.json differs from the last `chock bundle` change; every guardrail stays on until the person "
     "re-applies it or runs `chock bundle status --adopt`"
 )
+UNCOMMITTED = "is off in the working file but not in HEAD's, so it stays on until that change is committed"
 _VERDICT_DENY = "deny"
 _BLOCKING_EXIT = 2  # the launcher's refusal too: the wrapper speaks no client's dialect
 
@@ -115,6 +117,14 @@ def read(path: Path) -> dict[str, dict[str, str]]:
     return parse(text)
 
 
+def committed(root: Path) -> dict[str, dict[str, str]]:
+    """The toggles HEAD holds for the repository at `root`; none when HEAD has no valid copy or git fails."""
+    try:
+        return parse(head_text(root, FILENAME) or "")
+    except ToggleError:
+        return {}
+
+
 def load(start: Path) -> tuple[Path | None, str | None, dict[str, dict[str, str]], str | None]:
     """(governing file, scope, toggles, warning). An invalid file yields no toggles: all on, plus the warning."""
     path, scope = source(start)
@@ -123,9 +133,11 @@ def load(start: Path) -> tuple[Path | None, str | None, dict[str, dict[str, str]
     if drift(path):
         return path, scope, {}, f"{path}: {DRIFTED}"
     try:
-        return path, scope, read(path), None
+        toggles = read(path)
     except ToggleError as exc:
         return path, scope, {}, f"{path} is ignored, every guardrail stays on: {exc}"
+    toggles, dropped = vouched(toggles, committed(path.parent.parent)) if scope == REPO else (toggles, [])
+    return path, scope, toggles, f"{path}: {', '.join(dropped)} {UNCOMMITTED}" if dropped else None
 
 
 def state(toggles: dict[str, dict[str, str]], bundle: str, member: str) -> str:

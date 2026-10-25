@@ -17,6 +17,9 @@ from chock.stop_common import committed_refused, person_only_refused
 
 #: A person-only command given this flag reports drift and writes nothing, so it stays open to an agent.
 _CHECK_FLAG = "--check"
+#: The person-only commands whose parser defines `--check`; for any other it is a positional value, not a flag.
+_CHECK_COMMANDS = ("sync", "recompile")
+_END_OF_OPTIONS = "--"
 
 
 def _module_main(module_name: str):
@@ -62,6 +65,12 @@ def _repo_root(argv: list[str]) -> Path:
         if arg.startswith("--repo="):
             return Path(arg.removeprefix("--repo="))
     return Path()
+
+
+def _is_check_form(command: str, argv: list[str]) -> bool:
+    """`--check` as the flag of a command that defines it: before any `--`, where argparse stops reading flags."""
+    options = argv[: argv.index(_END_OF_OPTIONS)] if _END_OF_OPTIONS in argv else argv
+    return command in _CHECK_COMMANDS and _CHECK_FLAG in options
 
 
 def _is_sole_flag_form(command: str, argv: list[str]) -> bool:
@@ -112,7 +121,7 @@ def _dispatch(argv: list[str]) -> int:
         print(f"Unknown command: {command!r}. Run 'chock --help'.", file=sys.stderr)
         return 2
     fn, _, person_only = COMMANDS[command]
-    if person_only and _CHECK_FLAG not in rest:
+    if person_only and not _is_check_form(command, rest):
         repo = _repo_root(rest).resolve()
         if _is_sole_flag_form(command, rest):
             if committed_refused(repo, command):

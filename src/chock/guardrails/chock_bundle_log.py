@@ -1,7 +1,8 @@
-"""The toggle wrapper's log line. Stdlib only: shipped beside the wrapper, with the gate's journal, in every merged plugin."""
+"""The toggle wrapper's log line and HEAD lookup. Stdlib only: shipped beside the wrapper in every merged plugin."""
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 try:  # beside the wrapper in a merged plugin; inside the chock package everywhere else
@@ -10,6 +11,25 @@ except ImportError:
     from chock.gate.runner.journal import LOG_INFO, LOG_OFF, log_append, log_settings
 
 _LOG_PARTS = ("log", "gate-events.jsonl")
+_GIT_SECONDS = 5
+
+
+def head_text(root: Path, name: str) -> str | None:
+    """`name` as HEAD of the repository at `root` holds it; None when HEAD has no such file or git fails."""
+    argv = ["git", "-C", str(root), "show", f"HEAD:{name}"]
+    try:
+        proc = subprocess.run(argv, capture_output=True, text=True, timeout=_GIT_SECONDS, check=False)  # noqa: S603
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return proc.stdout if proc.returncode == 0 else None
+
+
+def vouched(toggles: dict[str, dict[str, str]], head: dict[str, dict[str, str]]) -> tuple[dict, list[str]]:
+    """(`toggles` keeping only the offs `head` also has, the `bundle/member` offs it dropped)."""
+    dropped = [
+        f"{b}/{m}" for b, ms in toggles.items() for m, s in ms.items() if s == "off" and head.get(b, {}).get(m) != "off"
+    ]
+    return {b: {m: s for m, s in ms.items() if f"{b}/{m}" not in dropped} for b, ms in toggles.items()}, dropped
 
 
 def _repo(start: Path) -> Path | None:

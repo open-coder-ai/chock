@@ -8,14 +8,13 @@ can move a folder into place, counts, and only commands that read are let throug
 
 from __future__ import annotations
 
-import fnmatch
 import itertools
-import os
-import posixpath
 import re
 import shlex
 from collections.abc import Callable
 from pathlib import Path
+
+from .names import base_is, fold, real_path
 
 NAME = "guardrails.json"
 #: The sha256 `chock bundle` records of the file it wrote, under `.chock/state/`: protected as the file is.
@@ -74,88 +73,48 @@ EXECUTORS = frozenset(
 FOLDER_WRITERS = frozenset({"mv", "cp", "ln", "rsync", "install", "tar", "unzip", "ditto", "move-item", "copy-item"})
 
 _SEPARATORS = frozenset({";", "&", "&&", "|", "||", "|&", "(", ")", ";;"})
-_GLOB = re.compile(r"[*?\[]")
-_BRACES = re.compile(r"\{([^{}]*)\}")
 _ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*\+?=")
 _EXE = ".exe"
 
 
-def fold(path: str) -> str:
-    """`path` lower-cased, backslashes read as slashes, `//`, `/./` and `..` folded."""
-    text = path.replace("\\", "/").lower()
-    if not text:
-        return text
-    return posixpath.normpath(re.sub(r"/{2,}", "/", text))
-
-
-def _braces(text: str) -> list[str]:
-    """Every spelling a brace list stands for (`{a,b}`), at most a few dozen."""
-    found, todo = [], [text]
-    while todo and len(found) < 64:  # noqa: PLR2004 -- a bound on expansion, not a rule
-        item = todo.pop()
-        match = _BRACES.search(item)
-        if match is None:
-            found.append(item)
-            continue
-        todo += [item[: match.start()] + part + item[match.end() :] for part in match.group(1).split(",")]
-    return found
-
-
-def _base_is(text: str, wanted: str) -> bool:
-    """Whether the last segment of a folded path is `wanted`, or a glob or brace list that can name it."""
-    for spelling in _braces(text):
-        base = spelling.rstrip("/").rsplit("/", 1)[-1]
-        if base == wanted or (_GLOB.search(base) and fnmatch.fnmatchcase(wanted, base)):
-            return True
-    return False
-
-
-def _real(token: str, cwd: Path) -> str:
-    """The folded path `token` names once `~` is expanded and links are followed, from `cwd`."""
-    try:
-        return fold(os.path.realpath(os.path.join(cwd, os.path.expanduser(token))))
-    except (OSError, ValueError):
-        return ""
-
-
 def names_toggle(token: str, cwd: Path) -> bool:
     """Whether a shell word can name a toggle file or its record: as written, folded, or through a link."""
-    folded, real = fold(token), _real(token, cwd)
-    return any(name in folded or _base_is(folded, name) or _base_is(real, name) for name in NAMES)
+    folded, real = fold(token), real_path(token, cwd)
+    return any(name in folded or base_is(folded, name) or base_is(real, name) for name in NAMES)
 
 
 def names_folder(token: str, cwd: Path) -> bool:
     """Whether a shell word names the `.chock` folder itself."""
-    return _base_is(fold(token), FOLDER) or _base_is(_real(token, cwd), FOLDER)
+    return base_is(fold(token), FOLDER) or base_is(real_path(token, cwd), FOLDER)
 
 
 def names_marker(token: str, cwd: Path) -> bool:
     """Whether a shell word can name an install marker: as written, folded, or through a link."""
     folded = fold(token)
-    return MARKER in folded or _base_is(folded, MARKER) or _base_is(_real(token, cwd), MARKER)
+    return MARKER in folded or base_is(folded, MARKER) or base_is(real_path(token, cwd), MARKER)
 
 
 def names_log(token: str, cwd: Path) -> bool:
     """Whether a shell word can name a log settings file: as written, folded, or through a link."""
     folded = fold(token)
-    return LOG_SETTINGS in folded or _base_is(folded, LOG_SETTINGS) or _base_is(_real(token, cwd), LOG_SETTINGS)
+    return LOG_SETTINGS in folded or base_is(folded, LOG_SETTINGS) or base_is(real_path(token, cwd), LOG_SETTINGS)
 
 
 def is_log_path(path: str, root: Path) -> bool:
     """Whether a written path is a log settings file (in any `.chock` folder), as written or through links."""
-    return any(("/" + folded).endswith(f"/{FOLDER}/{LOG_SETTINGS}") for folded in (fold(path), _real(path, root)))
+    return any(("/" + folded).endswith(f"/{FOLDER}/{LOG_SETTINGS}") for folded in (fold(path), real_path(path, root)))
 
 
 def is_marker_path(path: str, root: Path) -> bool:
     """Whether a written path is an install marker, as written or through links."""
-    return any(_base_is(folded, MARKER) for folded in (fold(path), _real(path, root)))
+    return any(base_is(folded, MARKER) for folded in (fold(path), real_path(path, root)))
 
 
 def is_toggle_path(path: str, root: Path) -> bool:
     """Whether a written path is a toggle file or its record (anywhere), as written or through links."""
     return any(
         folded == want or folded.endswith("/" + want)
-        for folded in (fold(path), _real(path, root))
+        for folded in (fold(path), real_path(path, root))
         for want in PROTECTED
     )
 
@@ -255,6 +214,23 @@ def _segment_refused(words: list[str], cwd: Path) -> bool:
     return _writes(words, cwd, names_toggle)
 
 
+#: Text that a name fragment held in a variable or an escape could complete into a protected path.
+_EXPANDED = re.compile(r"\$|`")
+#: Fragments a protected name can be assembled from; a write that expands a variable next to one is refused.
+_FRAGMENTS = ("guard", "rails", "sha256")
+
+
+def _expanded_write(words: list[str], command: str) -> bool:
+    """Whether a segment writes through a path word built by expansion, on a line that mentions a protected fragment."""
+    name, _ = _command(words)
+    plain, targets = _split_redirects(words)
+    written = targets + ([] if name in READERS else plain)
+    if not any(_EXPANDED.search(word) for word in written):
+        return False
+    lowered = fold(command)
+    return any(fragment in lowered for fragment in _FRAGMENTS)
+
+
 def _hidden(command: str, segments: list[list[str]], wanted: list[str]) -> bool:
     """Whether a line that names every `wanted` text also runs other text it could hide them in."""
     lowered = fold(command)
@@ -276,7 +252,7 @@ def install_refused(command: str, cwd: Path) -> bool:
 def refuses(command: str, cwd: Path) -> bool:
     """Whether an agent's shell command could write a toggle file or switch a member."""
     segments = _segments(_tokens(command))
-    if any(_segment_refused(words, cwd) for words in segments):
+    if any(_segment_refused(words, cwd) or _expanded_write(words, command) for words in segments):
         return True
     named = any(name in fold(command) for name in NAMES) or any(names_toggle(t, cwd) for s in segments for t in s)
     if not named:

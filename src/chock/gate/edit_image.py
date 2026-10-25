@@ -18,6 +18,7 @@ _EDIT_LIST = "edits"
 _CRLF = "\r\n"
 #: Copilot CLI's `create` carries the new file as `file_text`, a key no adapter reads as content.
 _CREATE_TEXT = "file_text"
+_CREATE_KEYS = ("content", _CREATE_TEXT)
 
 
 def _edit_call_input(event):
@@ -86,12 +87,16 @@ def edited_text(event, root=None):
 
 
 def created_text(event):
-    """The whole file a write call carries: the adapter's content, else `tool_input.file_text`; None otherwise."""
+    """The whole file a write call carries: the adapter's content, else the call's own `content` or `file_text`.
+
+    An adapter reads an empty `content` as absent, so the call's own input is read too: a write of
+    nothing is still a write to its path.
+    """
     content = getattr(event, "content", None)
     if isinstance(content, str):
         return content
-    text = _edit_call_input(event).get(_CREATE_TEXT)
-    return text if isinstance(text, str) else None
+    tool_input = _edit_call_input(event)
+    return next((text for text in map(tool_input.get, _CREATE_KEYS) if isinstance(text, str)), None)
 
 
 def added_from_event(event):
