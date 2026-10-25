@@ -46,8 +46,24 @@ PLUGIN_LAUNCHER = "launch.sh"
 _TEMPLATE = package_data_dir("chock", "hooks", "data").joinpath("launch.sh").read_text(encoding="utf-8")
 
 
+#: A bare word of a hook command; anything else a shell could read is refused, not escaped (no quoting style
+#: reads the same to bash, PowerShell and cmd.exe).
+PLAIN_WORD = re.compile(r"[A-Za-z0-9_@+=:,./-]+")
+
+#: What a double-quoted path word may not hold: the characters the shell still reads inside double quotes.
+QUOTED_UNSAFE = re.compile(r"""["$`\\\r\n]""")
+
+
+def _readable_by_shell(word: str) -> bool:
+    """Whether `word`, as `hook_command` writes it (a path double-quoted, anything else bare), holds a shell-read character."""
+    return bool(QUOTED_UNSAFE.search(word)) if "/" in word else not PLAIN_WORD.fullmatch(word)
+
+
 def hook_command(runtime: str, *args: str) -> str:
-    """The command an agent config carries to run `runtime` (repo-relative) with `args`."""
+    """The command an agent config carries to run `runtime` (repo-relative) with `args`; a word a shell could read is refused."""
+    if not PLAIN_WORD.fullmatch(runtime) or any(_readable_by_shell(arg) for arg in args):
+        msg = f"hook command {[runtime, *args]!r} holds a character a shell would read; use plain repo-relative paths and flags"
+        raise ValueError(msg)
     words = [f'"{arg}"' if "/" in arg else arg for arg in args]
     return " ".join([_PREFIX, runtime, *words])
 
