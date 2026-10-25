@@ -21,6 +21,7 @@ from chock.review.evidence import (
     required_checks,
     verify,
 )
+from chock.review.policy import deferred_checks
 
 DEFAULT_BASE = "origin/main"
 
@@ -100,6 +101,8 @@ def _verify(args: argparse.Namespace) -> int:
 def _require(args: argparse.Namespace) -> int:
     root = Path(args.repo).resolve()
     failures = require(root, args.base)
+    for name in deferred_checks(root, args.base):
+        print(f"{name} is added by this change and is required from the merge on.", file=sys.stderr)
     if failures:
         _say(f"PR is not merge-ready ({len(failures)} problem(s)):", file=sys.stderr)
         for failure in failures:

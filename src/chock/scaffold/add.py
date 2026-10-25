@@ -16,7 +16,7 @@ from chock import yamlio
 from chock.config import agents_from_config as _agents_from_config
 from chock.lock import LOCAL_SOURCE, compute_pack_hash, is_local_source, pack_bytecode, read_lock, write_lock
 from chock.output import error
-from chock.scaffold.pin import PinError, fetch_catalog
+from chock.scaffold.pin import PinError, fetch_catalog, redact_source
 from chock.scaffold.recompile import BookkeepingError, recompile
 
 
@@ -42,7 +42,7 @@ def _reject_unsafe_id(artifact_id: str) -> None:
 
 def _reject_symlinks(pack_dir: Path, artifact_id: str) -> None:
     """Refuse a pack carrying a symlink: copying it would read a file the catalog never held."""
-    links = []
+    links = [artifact_id] if pack_dir.is_symlink() else []
     for parent, dirs, files in os.walk(pack_dir):
         links += [
             Path(parent, n).relative_to(pack_dir).as_posix() for n in dirs + files if Path(parent, n).is_symlink()
@@ -94,6 +94,8 @@ def locate(catalog_root: Path, artifact_id: str) -> tuple[Path, Path]:
 
     for area, dest in _AREAS.items():
         candidate = catalog_root / area / artifact_id
+        if not candidate.resolve().is_relative_to(catalog_resolved):
+            continue
         if (candidate / "manifest.yaml").exists() or (candidate / "SKILL.md").exists():
             return candidate, dest
 
@@ -145,7 +147,7 @@ def add(
         if dest.exists():
             shutil.rmtree(dest)
         dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(src, dest)
+        shutil.copytree(src, dest, symlinks=True)
         return Added(path=dest, sha256=digest, commit=commit)
 
 
@@ -160,7 +162,7 @@ def record_provenance(repo_root: Path, artifact_id: str, source: str, ref: str |
             entry.pop("source_commit", None)
             entry.pop("source_ref", None)
         else:
-            entry["source"] = source
+            entry["source"] = redact_source(source)
             entry["source_commit"] = added.commit
             if ref:
                 entry["source_ref"] = ref
@@ -200,7 +202,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Added {args.artifact_id} to {rel}")
 
     if added.commit:
-        print(f"  from {args.source} at {added.commit}")
+        print(f"  from {redact_source(args.source)} at {added.commit}")
     print(f"  sha256 {added.sha256}")
     if not args.ref and added.commit:
         pin = f"Pin with --ref {added.commit}, or --verify-sha {added.sha256}"

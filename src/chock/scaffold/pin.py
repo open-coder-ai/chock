@@ -10,6 +10,7 @@ import subprocess
 import sys
 from importlib import metadata
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 import chock
 
@@ -93,8 +94,22 @@ def _in(into: Path, *args: str) -> list[str]:
     return ["git", f"--git-dir={into / '.git'}", f"--work-tree={into}", *INERT, *args]
 
 
+def redact_source(source: str) -> str:
+    """The source without the userinfo of a URL: a token typed into `--from` is never stored or printed."""
+    if not is_remote_source(source):
+        return source
+    parts = urlsplit(source)
+    if "@" not in parts.netloc or not parts.scheme:
+        return source
+    return urlunsplit(parts._replace(netloc=parts.netloc.rpartition("@")[2]))
+
+
+def _scrub(text: str, source: str) -> str:
+    return text.replace(source, redact_source(source))
+
+
 def _pin_error(source: str, ref: str, why: str) -> PinError:
-    return PinError(f"chock add: refusing catalog {source} at {ref!r}: {why} (nothing installed)")
+    return PinError(f"chock add: refusing catalog {redact_source(source)} at {ref!r}: {why} (nothing installed)")
 
 
 def _check_ref_syntax(source: str, ref: str) -> None:
@@ -120,7 +135,7 @@ def _fetch_commit(source: str, remote: str, sha: str, into: Path) -> str:
         except RuntimeError as exc:
             raise _pin_error(source, sha, str(exc)) from exc
         if result.returncode != 0:
-            detail = result.stderr.strip() or "git step failed"
+            detail = _scrub(result.stderr.strip(), source) or "git step failed"
             raise _pin_error(source, sha, f"commit not available from the remote by id ({detail})")
     head = _run(_in(into, "rev-parse", "HEAD"))
     if head.returncode != 0 or head.stdout.strip().lower() != sha:
@@ -141,7 +156,7 @@ def _require_published(source: str, remote: str, sha: str, into: Path) -> None:
     except RuntimeError as exc:
         raise _pin_error(source, sha, str(exc)) from exc
     if found.returncode != 0 or not found.stdout.strip():
-        why = f"commit {sha} is not on any branch or tag of {source}; a fork's or a pull request's commit is refused"
+        why = f"commit {sha} is not on any branch or tag of {redact_source(source)}; a fork's or a pull request's commit is refused"
         raise _pin_error(source, sha, why)
 
 
@@ -151,7 +166,11 @@ def _clone_ref(source: str, remote: str, ref: str | None, into: Path) -> str | N
         args += ["--branch", ref]
     result = _run([*args, "--", remote, str(into)], REMOTE_TIMEOUT)
     if result.returncode != 0:
-        msg = f"could not fetch catalog {source}" + (f" at {ref}" if ref else "") + f":\n{result.stderr.strip()}"
+        msg = (
+            f"could not fetch catalog {redact_source(source)}"
+            + (f" at {ref}" if ref else "")
+            + f":\n{_scrub(result.stderr.strip(), source)}"
+        )
         raise RuntimeError(msg)
     resolved = _run(_in(into, "rev-parse", "HEAD"))
     return (resolved.stdout.strip() or None) if resolved.returncode == 0 else None
@@ -204,20 +223,36 @@ def _snapshot_local(source: str, local: Path, into: Path) -> tuple[Path, str | N
     return into / prefix, head
 
 
+_REMOTE_FORM = re.compile(r"^(?:[A-Za-z][A-Za-z0-9+.-]*://|[^/\\:@\s]+@[^/\\:\s]+:)")
+
+
+def is_remote_source(source: str) -> bool:
+    """True when the text is spelled as a URL or scp-style address: never read from disk, whatever exists there."""
+    return bool(_REMOTE_FORM.match(source))
+
+
+def local_source(source: str) -> Path | None:
+    """The existing local path a source names, or None for a remote spelling or a path that is not there."""
+    if is_remote_source(source):
+        return None
+    path = Path(source).expanduser()
+    return path if path.exists() else None
+
+
 def fetch_catalog(source: str, ref: str | None, into: Path) -> tuple[Path, str | None]:
     """Make the catalog available locally. Returns (root, resolved commit or None).
 
     The returned tree holds the bytes a clone of the catalog holds: a local checkout is cloned at its
     HEAD (uncommitted edits are left out), a plain directory is copied with its text files normalised to LF.
     """
-    local = Path(source).expanduser()
-    if local.is_dir() and not ref:
+    local = local_source(source)
+    if local is not None and local.is_dir() and not ref:
         return _snapshot_local(source, local.resolve(), into)
-    remote = str(local.resolve()) if local.exists() else source
+    remote = str(local.resolve()) if local is not None else source
 
     if ref and _FULL_SHA.fullmatch(ref):
         sha = _fetch_commit(source, remote, ref.lower(), into)
-        if not local.exists():
+        if local is None:
             _require_published(source, remote, sha, into)
         return into, sha
     if ref and _SHORT_SHA.fullmatch(ref):

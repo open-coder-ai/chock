@@ -118,7 +118,7 @@ def test_require_rejects_a_stale_command_set_hash_even_when_every_named_check_pa
 
 def test_require_rejects_a_failing_required_check_while_verify_still_exits_clean(repo: Path) -> None:
     """Acceptance #3 (H2): validity and outcome are judged separately."""
-    _write_config(repo, {"checks": {"always-fails": SCRIPT_ALWAYS_FAILS}, "required_checks": ["always-fails"]})
+    _commit_base_config(repo, {"checks": {"always-fails": SCRIPT_ALWAYS_FAILS}, "required_checks": ["always-fails"]})
     failing = build(repo, "main", {"kind": "agent", "id": "test"}, ["always-fails"])
     _write_evidence(repo, failing)
 
@@ -196,19 +196,8 @@ def test_a_branch_cannot_lower_the_attestation_floor(repo: Path) -> None:
     assert unattestable_paths(repo, "main") == ["docs/", "infra/"]
 
 
-def test_a_branch_may_add_a_check_the_base_does_not_know(repo: Path) -> None:
-    """Tightening applies at once; only loosening waits for the merge."""
-    _commit_base_config(repo, {"required_checks": ["validate"]})
-    _write_config(repo, {"checks": {"extra": ["python", "-c", "pass"]}, "required_checks": ["validate", "extra"]})
-
-    assert required_checks(repo, "main") == ["extra", "validate"]
-    evidence = build(repo, "main", {"kind": "agent", "id": "t"}, ["validate", "extra"])
-    _write_evidence(repo, evidence)
-    assert require(repo, "main") == []
-
-
 def test_a_recorded_failure_is_never_merge_ready_even_without_a_required_set(repo: Path) -> None:
-    _write_config(repo, {"checks": {"always-fails": SCRIPT_ALWAYS_FAILS}})
+    _commit_base_config(repo, {"checks": {"always-fails": SCRIPT_ALWAYS_FAILS}})
     _write_evidence(repo, build(repo, "main", {"kind": "agent", "id": "t"}, ["always-fails"]))
     (failure,) = require(repo, "main")
     assert failure.startswith("check(s) recorded failing: always-fails")

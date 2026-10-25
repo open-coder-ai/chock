@@ -38,7 +38,7 @@ MANIFEST_KEYS = (
 
 
 class PluginNameError(ValueError):
-    """A policy id that cannot be a conformant plugin name."""
+    """A policy id that is not a conformant plugin name, or a plugin path that is a link."""
 
 
 def plugin_name(policy_id: str) -> str:
@@ -229,13 +229,26 @@ def plugin_files(
     return files
 
 
+def _reject_links(target: Path, rel: Path) -> None:
+    """Refuse a destination that is, or sits under, a symlink inside the target."""
+    here = Path(target)
+    for part in rel.parts:
+        here = here / part
+        if here.is_symlink():
+            msg = f"{here} is a symlink; refusing to write through it. Remove the link and build again."
+            raise PluginNameError(msg)
+
+
 def build_plugin(
     policy_dir: Path, manifest: dict[str, Any], repo_root: Path, out_dir: Path | None = None
 ) -> list[Path]:
     """Write the Agent Plugins package for one policy. Defaults to in place."""
     target = Path(out_dir) if out_dir else Path(policy_dir)
     written: list[Path] = []
-    for rel, content in plugin_files(Path(policy_dir), manifest, Path(repo_root), packaged=out_dir is not None).items():
+    files = plugin_files(Path(policy_dir), manifest, Path(repo_root), packaged=out_dir is not None)
+    for rel in files:
+        _reject_links(target, rel)
+    for rel, content in files.items():
         dest = target / rel
         dest.parent.mkdir(parents=True, exist_ok=True)
         write_generated(dest, content)

@@ -96,7 +96,7 @@ def _disabled_list(config: dict[str, Any]) -> set[str]:
     disabled = _policies(config).get("disabled")
     if isinstance(disabled, str):
         return {disabled}
-    return {str(p) for p in disabled} if isinstance(disabled, list) else set()
+    return {p for p in disabled if isinstance(p, str)} if isinstance(disabled, list) else set()
 
 
 def policy_status(

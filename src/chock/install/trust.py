@@ -8,7 +8,7 @@ from pathlib import Path
 from chock.install import package
 from chock.install.resolve import REFUSED
 from chock.scaffold.add import IntegrityError
-from chock.scaffold.pin import INERT, REMOTE_TIMEOUT, _run
+from chock.scaffold.pin import INERT, REMOTE_TIMEOUT, _run, local_source
 
 
 def check_source(source: str, allowed: list[str]) -> None:
@@ -25,8 +25,8 @@ def check_source(source: str, allowed: list[str]) -> None:
 def require_on_branch(source: str, sha: str, into: Path) -> None:
     """Refuse `sha` unless it is reachable from the source's published branch (a fork's commit is not)."""
     branch = package.settings()["published_branch"]
-    local = Path(source).expanduser()
-    remote = str(local.resolve()) if local.exists() else source
+    local = local_source(source)
+    remote = str(local.resolve()) if local is not None else source
     clone = ["git", *INERT, "clone", "--quiet", "--bare", "--filter=blob:none", "--single-branch", "--branch"]
     result = _run([*clone, branch, "--", remote, str(into)], REMOTE_TIMEOUT)
     if result.returncode != 0:

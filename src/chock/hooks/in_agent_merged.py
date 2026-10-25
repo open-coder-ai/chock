@@ -15,10 +15,12 @@ from pathlib import Path
 from typing import NamedTuple
 
 from chock import vendors
-from chock.emit import write_generated_json
 from chock.hooks import heartbeat, stop_check
 from chock.hooks.in_agent_generic import load_config as _load_config
 from chock.hooks.runtime_vendor import owned_markers, runtime_rel, vendor_runtime
+from chock.scaffold.mcp_write import _lstat_checked, write_file
+
+_CONFIG_MODE = 0o600
 
 
 class Wiring(NamedTuple):
@@ -186,7 +188,9 @@ def install_merged(repo_root: Path, vendor: str, *, uninstall: bool = False) -> 
     repo_root = Path(repo_root)
     markers = owned_markers(vendor)
 
-    config_path = repo_root / vendors.config_path(vendor)
+    config_rel = Path(vendors.config_path(vendor))
+    config_path = repo_root / config_rel
+    _lstat_checked(repo_root, config_rel.as_posix())
     settings = _load_config(config_path)
     hooks = settings.setdefault("hooks", {}) if isinstance(settings.get("hooks", {}), dict) else {}
     settings["hooks"] = hooks
@@ -214,8 +218,7 @@ def install_merged(repo_root: Path, vendor: str, *, uninstall: bool = False) -> 
         if not vendor_wiring.write_when_absent and not hooks and not config_path.exists():
             return []
 
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    write_generated_json(config_path, settings)
+    write_file(repo_root, config_rel.as_posix(), json.dumps(settings, indent=2).encode("utf-8"), _CONFIG_MODE)
     return reported
 
 
