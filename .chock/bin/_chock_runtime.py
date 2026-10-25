@@ -838,7 +838,7 @@ def evaluate(argv: list[str], command: str, tool: str='', *, can_ask: bool | Non
     verdict, message = run_guard_detailed(guard, command, tool, can_ask=can_ask)
     GUARD_LAST['outcome'] = verdict
     if verdict == GUARD_BLOCKED:
-        return (VERDICT_DENY, f'Blocked by chock policy: {guard.stem}')
+        return (VERDICT_DENY, f'Blocked by chock policy: {guard.stem}: {message}')
     if verdict == GUARD_ASKED:
         return (VERDICT_ESCALATE, f'chock policy {guard.stem} asks before this runs: {message}' if message else f'chock policy {guard.stem} asks for confirmation before this runs (guard gave no reason).')
     if verdict == GUARD_ERRORED:
