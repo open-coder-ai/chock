@@ -31,7 +31,11 @@ BYTECODE_OFF = {'PYTHONDONTWRITEBYTECODE': '1'}
 
 PATTERN_SECONDS = 10
 
-PATTERN_JUDGE_SOURCE = 'import json, re, sys\nfor line in sys.stdin:\n    out = []\n    for pattern, texts in json.loads(line):\n        search = re.compile(pattern).search\n        out.append([index for index, text in enumerate(texts) if search(text)])\n    print(json.dumps(out), flush=True)\n'
+PATTERN_START_SECONDS = 10
+
+PATTERN_JUDGE_READY = 'ready'
+
+PATTERN_JUDGE_SOURCE = "import json, re, sys\nprint('ready', flush=True)\nfor line in sys.stdin:\n    out = []\n    for pattern, texts in json.loads(line):\n        search = re.compile(pattern).search\n        out.append([index for index, text in enumerate(texts) if search(text)])\n    print(json.dumps(out), flush=True)\n"
 
 def engine_deadline():
     """The monotonic instant this invocation's budget runs out."""
@@ -66,6 +70,14 @@ def _start_judge(judge):
     lines = _chock_queue.Queue()
     _chock_threading.Thread(target=_pump_lines, args=(proc, lines), daemon=True).start()
     judge['proc'], judge['lines'] = (proc, lines)
+    try:
+        ready = lines.get(timeout=PATTERN_START_SECONDS)
+    except _chock_queue.Empty:
+        close_judge(judge)
+        return f'the pattern judge did not start within {PATTERN_START_SECONDS}s'
+    if ready is None or ready.strip() != PATTERN_JUDGE_READY:
+        return f'the pattern judge exited early ({close_judge(judge)})'
+    return None
 
 def close_judge(judge):
     """Stop the judge's child, if one runs; the last line it wrote to stderr, or ""."""
@@ -85,6 +97,15 @@ def close_judge(judge):
             stream.close()
     return (spoken.strip().splitlines() or [''])[-1]
 
+def _ensure_judge(judge):
+    """None when the judge's child runs (started now if need be); otherwise why it could not."""
+    if judge['proc'] is not None:
+        return None
+    try:
+        return _start_judge(judge)
+    except OSError as exc:
+        return f'the pattern judge could not start ({exc})'
+
 def judge_patterns(judge, jobs, seconds):
     """(hits, None) or (None, why): per job of (pattern, texts), the indices of the texts the pattern matches.
 
@@ -93,11 +114,9 @@ def judge_patterns(judge, jobs, seconds):
     """
     if not any((texts for _, texts in jobs)):
         return ([[] for _ in jobs], None)
-    if judge['proc'] is None:
-        try:
-            _start_judge(judge)
-        except OSError as exc:
-            return (None, f'the pattern judge could not start ({exc})')
+    failed = _ensure_judge(judge)
+    if failed:
+        return (None, failed)
     proc, lines = (judge['proc'], judge['lines'])
     try:
         proc.stdin.write(json.dumps(jobs) + '\n')
@@ -265,7 +284,7 @@ def log_settings_read(path):
         problems.append(f'{path}: max_bytes must be {_LOG_BYTES_RANGE}, not {size!r}; using the next scope or 1048576')
     unknown = sorted(set(doc) - set(LOG_SETTINGS_KEYS))
     if unknown:
-        problems.append(f"{path}: unknown key(s) {', '.join(map(str, unknown))}; only level and max_bytes are read")
+        problems.append(f'{path}: unknown key(s) {', '.join(map(str, unknown))}; only level and max_bytes are read')
     return (found, problems)
 
 def log_settings_paths(repo_root):
@@ -643,7 +662,7 @@ GUARD_ASK_EXIT = 3
 
 PYTHON_SUFFIX = '.py'
 
-_CRASH_MARKERS = ('traceback (most recent call last)', 'syntax error', 'syntaxerror', 'unexpected eof')
+_CRASH_OPENING = _chock_re.compile('(?ix)\\A\\s*(traceback\\ \\(most\\ recent\\ call\\ last\\)|file\\ ".*",\\ line\\ \\d+|\\S+:\\ line\\ \\d+:\\ (syntax\\ error|unexpected\\ eof))')
 
 TOOL_UNKNOWN = 'unknown'
 
@@ -760,8 +779,7 @@ def normalize_tool(tool: str | None) -> str:
 
 def is_guard_crash(output: str) -> bool:
     """True when a guard's exit-1 output is empty or shows an interpreter crash, not a refusal."""
-    lowered = output.lower()
-    return not lowered or any((marker in lowered for marker in _CRASH_MARKERS))
+    return not output.strip() or _CRASH_OPENING.match(output) is not None
 
 def split_command(command: str) -> tuple[list[str], bool]:
     """POSIX `shlex.split` argv, else a whitespace split; the flag is True on the fallback."""
@@ -929,7 +947,7 @@ def dlog_target(event, repo):
     tool = str(getattr(event, 'tool', None) or '')
     mcp = _DLOG_MCP_TOOL.match(tool)
     if mcp:
-        return log_redact(f"{mcp['server']}/{mcp['tool']}")[:_DLOG_MCP_CAP]
+        return log_redact(f'{mcp['server']}/{mcp['tool']}')[:_DLOG_MCP_CAP]
     command, path = (getattr(event, 'command', None), getattr(event, 'path', None))
     if command:
         return dlog_command_print(command)
@@ -1055,8 +1073,8 @@ def _dlog_reason(source, outcome):
     if source == HALT_REASON:
         return HALT_REASON
     if source == 'guard' and 'outcome' in GUARD_LAST:
-        return f"guard-{GUARD_LAST['outcome']}"
-    return source if source == 'fault' else f"{source}-{_DLOG_SPOKEN.get(outcome, 'allow')}"
+        return f'guard-{GUARD_LAST['outcome']}'
+    return source if source == 'fault' else f'{source}-{_DLOG_SPOKEN.get(outcome, 'allow')}'
 
 def _dlog_paths(route, runtime, agent, event):
     """(log file, repository whose settings apply) for this call."""
@@ -1366,7 +1384,7 @@ def _patch_not_empty(state, text):
     if last is None or last['op'] != 'update':
         return
     if not last['body'] and state['mode'] == 'update':
-        _patch_refuse(state['number'], text, f"update of {last['path']!r} has no hunk")
+        _patch_refuse(state['number'], text, f'update of {last['path']!r} has no hunk')
     if last['body'] and (not (last['body'][-1]['old'] or last['body'][-1]['new'])):
         _patch_refuse(state['number'], text, 'a hunk has no lines')
 
@@ -1659,6 +1677,10 @@ SESSION_ID_MAX = 128
 
 SESSION_MASK = '***'
 
+SESSION_USERINFO = _chock_re.compile('([A-Za-z][A-Za-z0-9+.-]*://)[^/\\s@]+@')
+
+SESSION_DIR_MODE = 448
+
 SESSION_MODE_MASK, SESSION_MODE_FILE, SESSION_MODE_DIR = (61440, 32768, 16384)
 
 def tool_call_input(event):
@@ -1700,6 +1722,10 @@ def _mask_assignments(command):
         words.append(name + eq + SESSION_MASK if eq and name.isidentifier() else word)
     return ' '.join(words)
 
+def _scrubbed(text):
+    """`text` with URL userinfo removed and every value scan-secrets would block replaced."""
+    return log_redact(SESSION_USERINFO.sub('\\1', text))
+
 def _bare_url(url):
     """`url` without userinfo, query and fragment: where a token or a secret is usually carried."""
     url = url.split('#', 1)[0].split('?', 1)[0]
@@ -1724,9 +1750,9 @@ def session_summary(event):
     url = _first_str(tool_input, SESSION_URL_KEYS)
     summary = {}
     if isinstance(path, str) and path:
-        summary['path'] = path[:SESSION_FIELD_CAP]
+        summary['path'] = _scrubbed(path)[:SESSION_FIELD_CAP]
     if isinstance(command, str) and command:
-        summary['command'] = _mask_assignments(command.splitlines()[0] if command.strip() else '')[:SESSION_FIELD_CAP]
+        summary['command'] = _scrubbed(_mask_assignments(command.splitlines()[0] if command.strip() else ''))[:SESSION_FIELD_CAP]
     if url:
         summary['url'] = _bare_url(url)[:SESSION_FIELD_CAP]
     return summary
@@ -1808,7 +1834,7 @@ def session_record(root, event, phase, outcome=None):
     """Append one record for this call to its session's log. Best effort: never raises."""
     try:
         path = session_log_path(root, session_id_of(event))
-        path.parent.mkdir(parents=True, exist_ok=True)
+        path.parent.mkdir(mode=SESSION_DIR_MODE, parents=True, exist_ok=True)
         record = {'ts': _chock_datetime.now(_chock_timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), 'session_id': path.stem, 'phase': phase, 'tool': str(getattr(event, 'tool', None) or ''), 'input': session_summary(event), 'outcome': outcome, 'tool_use_id': getattr(event, 'tool_use_id', None)}
         _append_bounded(path, json.dumps(record, ensure_ascii=False, sort_keys=True), record)
         _prune_old(path.parent)

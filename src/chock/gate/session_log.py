@@ -10,8 +10,11 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
+
+from .runner.journal import log_redact
 
 SESSION_MAX_ENTRIES = 500
 SESSION_PRUNE_SECONDS = 7 * 24 * 3600
@@ -28,6 +31,9 @@ SESSION_RESPONSE_KEYS = ("tool_response", "toolResponse", "tool_result", "toolRe
 SESSION_UNKNOWN_ID = "unknown"
 SESSION_ID_MAX = 128
 SESSION_MASK = "***"
+#: `scheme://user:password@`: the userinfo of a URL written inside a command.
+SESSION_USERINFO = re.compile(r"([A-Za-z][A-Za-z0-9+.-]*://)[^/\s@]+@")
+SESSION_DIR_MODE = 0o700
 #: `st_mode`'s file-type bits and the two types the log's files and directories may be.
 SESSION_MODE_MASK, SESSION_MODE_FILE, SESSION_MODE_DIR = 0o170000, 0o100000, 0o040000
 
@@ -80,6 +86,11 @@ def _mask_assignments(command):
     return " ".join(words)
 
 
+def _scrubbed(text):
+    """`text` with URL userinfo removed and every value scan-secrets would block replaced."""
+    return log_redact(SESSION_USERINFO.sub(r"\1", text))
+
+
 def _bare_url(url):
     """`url` without userinfo, query and fragment: where a token or a secret is usually carried."""
     url = url.split("#", 1)[0].split("?", 1)[0]
@@ -106,9 +117,11 @@ def session_summary(event):
     url = _first_str(tool_input, SESSION_URL_KEYS)
     summary = {}
     if isinstance(path, str) and path:
-        summary["path"] = path[:SESSION_FIELD_CAP]
+        summary["path"] = _scrubbed(path)[:SESSION_FIELD_CAP]
     if isinstance(command, str) and command:
-        summary["command"] = _mask_assignments(command.splitlines()[0] if command.strip() else "")[:SESSION_FIELD_CAP]
+        summary["command"] = _scrubbed(_mask_assignments(command.splitlines()[0] if command.strip() else ""))[
+            :SESSION_FIELD_CAP
+        ]
     if url:
         summary["url"] = _bare_url(url)[:SESSION_FIELD_CAP]
     return summary
@@ -204,7 +217,7 @@ def session_record(root, event, phase, outcome=None):
     """Append one record for this call to its session's log. Best effort: never raises."""
     try:
         path = session_log_path(root, session_id_of(event))
-        path.parent.mkdir(parents=True, exist_ok=True)
+        path.parent.mkdir(mode=SESSION_DIR_MODE, parents=True, exist_ok=True)
         record = {
             "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "session_id": path.stem,

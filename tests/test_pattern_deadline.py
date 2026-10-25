@@ -170,3 +170,14 @@ def test_the_judge_keeps_text_whole_across_the_pipe() -> None:
         )
     finally:
         budget.close_judge(judge)
+
+
+def test_the_judges_start_up_is_not_charged_to_the_patterns_deadline(tmp_path: Path) -> None:
+    slow = tmp_path / "slow-python"
+    slow.write_text(f'#!/bin/sh\nsleep 1.5\nexec "{sys.executable}" "$@"\n', encoding="utf-8")
+    slow.chmod(0o755)
+    judge = budget.pattern_judge(str(slow))
+    try:
+        assert budget.judge_patterns(judge, [("a+", ["xa", "b"])], 1) == ([[0]], None)
+    finally:
+        budget.close_judge(judge)

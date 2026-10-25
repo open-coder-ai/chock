@@ -11,11 +11,14 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from chock.display import inert
 from chock.gate.runner import chain as log_chain
 from chock.gatelog_read import LOG_DIR, LOG_NAME, PLUGIN_LOG_NAME, ROUTES
 
-#: A kept head: `<seq>:<sha256>`, as `--verify-log` prints it and `witness export` carries it.
+#: A kept head: `<seq>:<sha256>`, optionally `@<log label>` to confirm it only in that log.
 _HEAD_SEP = ":"
+_LABEL_SEP = "@"
+_ANCHOR_NOTE = "a writer of the log can recompute its whole chain: keep a head outside anything it can write"
 _HASH_LEN = 64
 #: Why a line after the chain began carries no link; the writer's own reason follows in brackets.
 _UNCHAINED_WHY = "unchained line (a runtime without chaining wrote it — run the regen) or lock timeout"
@@ -167,17 +170,21 @@ def heads(repo_root: Path, agents: list[str] | None = None, home: Path | None = 
     return [{"log": c.label, **(c.head or {"seq": None, "sha256": None}), "intact": c.breaks is None} for c in found]
 
 
-def _kept(text: str) -> tuple[int, str]:
-    seq, _, digest = text.partition(_HEAD_SEP)
+def _kept(text: str) -> tuple[int, str, str | None]:
+    head, _, label = text.partition(_LABEL_SEP)
+    seq, _, digest = head.partition(_HEAD_SEP)
     if not seq.isdigit() or len(digest) != _HASH_LEN or any(c not in "0123456789abcdef" for c in digest):
-        msg = f"--head must be <seq>:<sha256>, not {text!r}"
+        msg = f"--head must be <seq>:<sha256>[@<log>], not {text!r}"
         raise argparse.ArgumentTypeError(msg)
-    return int(seq), digest
+    return int(seq), digest, label or None
 
 
-def _head_check(found: list[Chain], kept: tuple[int, str]) -> str | None:
-    """Where the kept head is confirmed, or None when no log still holds that record with that hash."""
-    return next((c.label for c in found if c.breaks is None and c.seqs.get(kept[0]) == kept[1]), None)
+def _head_check(found: list[Chain], kept: tuple[int, str, str | None]) -> str | None:
+    """Where the kept head is confirmed (only in the log it names, when it names one), or None."""
+    seq, digest, label = kept
+    return next(
+        (c.label for c in found if c.breaks is None and c.seqs.get(seq) == digest and label in (None, c.label)), None
+    )
 
 
 def _render(chain: Chain) -> str:
@@ -189,8 +196,9 @@ def _render(chain: Chain) -> str:
         b = chain.breaks
         lines.append(f"  BROKEN at {b['file']}:{b['line']} ({b['kind']}): expected {b['expected']}, found {b['found']}")
     elif chain.head:
-        lines.append(f"  intact; head {chain.head['seq']}{_HEAD_SEP}{chain.head['sha256']}")
-    return "\n".join(lines)
+        head = f"{chain.head['seq']}{_HEAD_SEP}{chain.head['sha256']}{_LABEL_SEP}{chain.label}"
+        lines.append(f"  intact; head {head} ({_ANCHOR_NOTE})")
+    return "\n".join(inert(line) for line in lines)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -206,13 +214,18 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         doc: dict[str, Any] = {"chains": [c.summary() for c in found]}
         if args.head:
-            doc["kept_head"] = {"seq": args.head[0], "sha256": args.head[1], "confirmed_in": confirmed}
+            doc["kept_head"] = {
+                "seq": args.head[0],
+                "sha256": args.head[1],
+                "log": args.head[2],
+                "confirmed_in": confirmed,
+            }
         sys.stdout.write(json.dumps(doc, indent=2) + "\n")
     else:
         sys.stdout.write(("\n".join(_render(c) for c in found) or "no decision log found") + "\n")
         if args.head:
             shown = f"confirmed in {confirmed}" if confirmed else "NOT found with that hash in any intact log"
-            sys.stdout.write(f"kept head {shown}\n")
+            sys.stdout.write(f"kept head {inert(shown)}\n")
     broken = any(c.breaks for c in found)
     return 1 if broken or (args.head and confirmed is None) else 0
 
