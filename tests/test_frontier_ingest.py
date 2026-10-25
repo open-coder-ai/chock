@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import email
+import io
 import json
+import urllib.request
+import urllib.response
 
 from chock.validation import frontier_ingest as fi
 
@@ -117,3 +121,45 @@ def test_main_all_offline_writes_every_seed(tmp_path, monkeypatch):
     monkeypatch.setattr(fi, "STANDARDS_DIR", tmp_path)
     assert fi.main(["--all", "--offline"]) == 0
     assert sorted(p.stem for p in tmp_path.glob("*.json")) == sorted(fi.SEEDS)
+
+
+class _Net(urllib.request.BaseHandler):
+    """In-memory network: https://a redirects to LOCATION; any other URL answers 200 'plain'."""
+
+    handler_order = 50
+
+    def __init__(self, location: str, body: str = "plain") -> None:
+        self.location, self.body, self.seen = location, body, []
+
+    def _answer(self, req, code, headers):
+        self.seen.append(req.full_url)
+        resp = urllib.response.addinfourl(io.BytesIO(self.body.encode()), headers, req.full_url, code)
+        resp.msg = "Found" if code == 302 else "OK"
+        return resp
+
+    def https_open(self, req):
+        if req.full_url == "https://spec.test/a":
+            return self._answer(req, 302, email.message_from_string(f"Location: {self.location}\n"))
+        return self._answer(req, 200, email.message_from_string(""))
+
+    http_open = https_open
+
+
+def _net_opener(monkeypatch, location):
+    net = _Net(location)
+    monkeypatch.setattr(
+        fi, "_OPENER", urllib.request.build_opener(urllib.request.ProxyHandler({}), fi._HttpsOnlyRedirect, net)
+    )
+    return net
+
+
+def test_fetch_url_refuses_redirect_to_http(monkeypatch, capsys):
+    net = _net_opener(monkeypatch, "http://spec.test/b")
+    assert fi.fetch_url("https://spec.test/a") == ""
+    assert net.seen == ["https://spec.test/a"]
+    assert "non-https" in capsys.readouterr().err
+
+
+def test_fetch_url_follows_redirect_to_https(monkeypatch):
+    _net_opener(monkeypatch, "https://spec.test/b")
+    assert fi.fetch_url("https://spec.test/a") == "plain"

@@ -11,6 +11,7 @@ import sys
 import urllib.request
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 STANDARDS_DIR = Path(__file__).parent / "frontier_standards"
 
@@ -70,17 +71,36 @@ SEEDS: dict[str, dict[str, Any]] = {
 }
 
 
+class _NotHttpsError(ValueError):
+    def __init__(self, url: str) -> None:
+        super().__init__(f"refusing redirect to non-https target: {url}")
+
+
+class _HttpsOnlyRedirect(urllib.request.HTTPRedirectHandler):
+    """Refuses any redirect target that is not https."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: PLR0913, PLR0917 -- stdlib override signature
+        if urlsplit(newurl).scheme != "https":
+            raise _NotHttpsError(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_OPENER = urllib.request.build_opener(_HttpsOnlyRedirect)
+
+
 def fetch_url(url: str) -> str:
-    """Best-effort HTTPS fetch. Falls back to empty string on failure."""
+    """Best-effort HTTPS fetch (redirects included). Falls back to empty string on failure."""
     if not url.startswith("https://"):
         print(f"WARN: refusing non-https fetch: {url}", file=sys.stderr)
         return ""
     try:
-        with urllib.request.urlopen(url, timeout=30) as response:  # noqa: S310 -- https:// enforced above
-            return response.read().decode("utf-8")
+        with _OPENER.open(url, timeout=30) as response:
+            if urlsplit(response.geturl()).scheme == "https":
+                return response.read().decode("utf-8")
+            print(f"WARN: refusing non-https final URL: {response.geturl()}", file=sys.stderr)
     except Exception as exc:  # noqa: BLE001 -- best-effort fetch, by contract: never raise, always return a string
         print(f"WARN: could not fetch {url}: {exc}", file=sys.stderr)
-        return ""
+    return ""
 
 
 def extract_number(text: str, patterns: list[str]) -> int | None:
