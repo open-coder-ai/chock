@@ -154,6 +154,8 @@ def evaluate(
     writes: Mapping[str, str] | None = None,
     added: Mapping[str, str] | None = None,
     session: Mapping[str, object] | None = None,
+    *,
+    case_blind: bool | None = None,
 ) -> Evaluation | tuple[int, str]:
     """Run a compiled gate's kind without reporting or logging: an Evaluation, or (exit code, verdict) when it ends early."""
     gate_path = Path(gate_path)
@@ -184,7 +186,10 @@ def evaluate(
     if declared not in _ACTION_RANK:
         print(f"gate: unknown action {declared!r} (block, ask or warn)", file=sys.stderr)
         return 2, VERDICT_ERROR
-    ctx = _context(event, spec, repo_root, push_stdin, base, head_ref, writes, added, own_paths(gate_path), session)
+    own = own_paths(gate_path)
+    ctx = _context(
+        event, spec, repo_root, push_stdin, base, head_ref, writes, added, own, session, case_blind=case_blind
+    )
     if ctx is None:
         return 2, VERDICT_ERROR
     if event == "ci" and base and not ctx.rev_exists(base):
@@ -226,6 +231,8 @@ def judge(
     added: Mapping[str, str] | None = None,
     session: Mapping[str, object] | None = None,
     fields: Mapping[str, object] | None = None,
+    *,
+    case_blind: bool | None = None,
 ) -> tuple[int, str]:
     """Run a compiled gate: (exit code, verdict), the verdict being allow, block, ask, warn or error.
 
@@ -234,7 +241,9 @@ def judge(
     halted = halt_git(Path(repo_root), event, _policy_id(Path(gate_path))) if event in _GIT_EVENTS else None
     if halted is not None:
         return halted
-    outcome = evaluate(gate_path, event, push_stdin, repo_root, base, head_ref, writes, added, session)
+    outcome = evaluate(
+        gate_path, event, push_stdin, repo_root, base, head_ref, writes, added, session, case_blind=case_blind
+    )
     if isinstance(outcome, tuple):
         return outcome
     if event == "ci":

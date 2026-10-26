@@ -204,8 +204,12 @@ class GateContext:
         scope: Sequence[str] | None = None,
         own: Sequence[str] = (),
         session: Mapping[str, object] | None = None,
+        *,
+        case_blind: bool | None = None,
     ) -> None:
         self.repo_root = Path(repo_root)
+        #: Whether paths and scope globs compare without regard to case; the platform's default unless told.
+        self.case_blind = sys.platform in CASE_BLIND_PLATFORMS if case_blind is None else case_blind
         #: The session-log handle a script gate receives; None when the hook named no session.
         self.session = dict(session) if session else None
         self._push_stdin = push_stdin or ""
@@ -216,21 +220,19 @@ class GateContext:
         #: Path prefixes this gate never judges: its own policy's source and compiled folders.
         self.own = tuple(own)
 
-    def is_own(self, path: str) -> bool:
-        """Whether `path` is in this policy's own source or compiled folder."""
-        return bool(self.own) and path.startswith(self.own)
-
-    def in_scope(self, path: str, *, judge_own: bool = False) -> bool:
+    def in_scope(self, path: str) -> bool:
         """Whether this policy may judge this file at all.
 
         fnmatch semantics, so `*` crosses `/` and `.github/workflows/*` covers nested files.
         A gate with no scope sees every changed file, which is what every gate did before
         applies_to.paths was read.
         """
-        if not judge_own and self.is_own(path):
+        if path.startswith(self.own):
             return False
         if _is_outside(path):
             return True
+        if self.case_blind:
+            return not self.scope or any(fnmatch.fnmatchcase(path.casefold(), g.casefold()) for g in self.scope)
         return not self.scope or any(fnmatch.fnmatchcase(path, g) for g in self.scope)
 
     def _range(self) -> list[str]:
@@ -275,9 +277,9 @@ class GateContext:
         """True when `ref` resolves to a commit. Used to fail CI closed on a missing base."""
         return bool(self._git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}").strip())
 
-    def staged_paths(self, diff_filter: str = "ACMRT", *, judge_own: bool = False) -> list[str]:
+    def staged_paths(self, diff_filter: str = "ACMRT") -> list[str]:
         paths = self._listing("diff", *self._range(), "--name-only", f"--diff-filter={diff_filter}")
-        return [path for path in paths if self.in_scope(path, judge_own=judge_own)]
+        return [path for path in paths if self.in_scope(path)]
 
     def _diff_text(self, path: str) -> str:
         """`path`'s `-U0` diff as git writes it, unconverted; raises DiffError when git fails."""
@@ -373,17 +375,18 @@ class WriteContext(GateContext):
         *,
         stop: bool = False,
         session: Mapping[str, object] | None = None,
+        case_blind: bool | None = None,
     ) -> None:
-        super().__init__(repo_root=repo_root, scope=scope, own=own, session=session)
+        super().__init__(repo_root=repo_root, scope=scope, own=own, session=session, case_blind=case_blind)
         self._writes = dict(writes)
         self._added = dict(added or {})
         self._stop = stop
 
-    def staged_paths(self, diff_filter: str = "ACMRT", *, judge_own: bool = False) -> list[str]:
+    def staged_paths(self, diff_filter: str = "ACMRT") -> list[str]:
         """Every write is a present file, so a filter asking only for deletions finds none."""
         if not set(diff_filter) & set("ACMRT"):
             return []
-        return [path for path in self._writes if self.in_scope(path, judge_own=judge_own)]
+        return [path for path in self._writes if self.in_scope(path)]
 
     def staged_blob(self, path: str) -> str:
         return self._writes.get(path, "")
@@ -416,6 +419,8 @@ class WriteContext(GateContext):
             return ""
 
 
+#: Platforms whose default filesystem ignores case: a path typed in another case names the same file.
+CASE_BLIND_PLATFORMS = ("darwin", "win32", "cygwin")
 #: Kinds whose question a write can answer. A branch name is not in a tool call, so
 #: forbidden_ref has nothing to read here; saying so beats passing it empty and calling
 #: that an allow.
@@ -663,19 +668,24 @@ def _waived(index: int, line: str, waivers: set[int], head: frozenset[str] | Non
     return index in waivers and (head is None or line in head)
 
 
+def _path_pattern(params: dict, ctx: GateContext) -> str | None:
+    """The gate's forbidden-path regex, matching without case where the filesystem ignores it."""
+    pattern = params.get("forbidden_path_regex")
+    return f"(?i){pattern}" if pattern and ctx.case_blind else pattern
+
+
 def _kind_content_regex(ctx: GateContext, params: dict, event: str) -> GateResult:
     pragma = _waiver_pattern(params, event)
     agent = event in HEAD_WAIVER_EVENTS
     whole = params.get("scan", "added_lines") == "staged_blob"
-    paths = ctx.staged_paths(params.get("diff_filter", "ACMRT"), judge_own=True)
+    paths = ctx.staged_paths(params.get("diff_filter", "ACMRT"))
     judge = pattern_judge()
     try:
-        forbidden = sorted(_hits(judge, [(params.get("forbidden_path_regex"), paths)])[0])
+        forbidden = sorted(_hits(judge, [(_path_pattern(params, ctx), paths)])[0])
         heads = {path: ctx.committed_blob(path) if agent else "" for path in paths}
         blobs = [heads[paths[index]] if agent else ctx.staged_blob(paths[index]) for index in forbidden]
         spans, texts = _lines(
-            [path for path in paths if not ctx.is_own(path)],
-            lambda path: ctx.staged_blob(path).splitlines() if whole else ctx.added_lines(path),
+            paths, lambda path: ctx.staged_blob(path).splitlines() if whole else ctx.added_lines(path)
         )
         jobs = [(pragma, blobs), (pragma, texts), (params["content_pattern"], texts)]
         blob_waivers, line_waivers, hits = _hits(judge, jobs)
@@ -686,7 +696,7 @@ def _kind_content_regex(ctx: GateContext, params: dict, event: str) -> GateResul
         if index in forbidden and forbidden.index(index) not in blob_waivers:
             matches.append(f"{path}: forbidden path")
         head = frozenset(heads[path].splitlines()) if agent else None
-        if any(n in hits and not _waived(n, texts[n], line_waivers, head) for n in spans.get(path, ())):
+        if any(n in hits and not _waived(n, texts[n], line_waivers, head) for n in spans[path]):
             matches.append(f"{path}: content pattern")
     return GateResult(allowed=not matches, matches=matches)
 
@@ -1131,6 +1141,8 @@ def _context(
     added: Mapping[str, str] | None = None,
     own: Sequence[str] = (),
     session: Mapping[str, object] | None = None,
+    *,
+    case_blind: bool | None = None,
 ) -> GateContext | None:
     """The material this event puts under judgement, or None when the kind cannot read it."""
     if event not in AGENT_EVENTS:
@@ -1153,6 +1165,7 @@ def _context(
         own=own,
         stop=event == STOP_EVENT,
         session=session,
+        case_blind=case_blind,
     )
 
 
@@ -1605,6 +1618,8 @@ def evaluate(
     writes: Mapping[str, str] | None = None,
     added: Mapping[str, str] | None = None,
     session: Mapping[str, object] | None = None,
+    *,
+    case_blind: bool | None = None,
 ) -> Evaluation | tuple[int, str]:
     """Run a compiled gate's kind without reporting or logging: an Evaluation, or (exit code, verdict) when it ends early."""
     gate_path = Path(gate_path)
@@ -1635,7 +1650,10 @@ def evaluate(
     if declared not in _ACTION_RANK:
         print(f"gate: unknown action {declared!r} (block, ask or warn)", file=sys.stderr)
         return 2, VERDICT_ERROR
-    ctx = _context(event, spec, repo_root, push_stdin, base, head_ref, writes, added, own_paths(gate_path), session)
+    own = own_paths(gate_path)
+    ctx = _context(
+        event, spec, repo_root, push_stdin, base, head_ref, writes, added, own, session, case_blind=case_blind
+    )
     if ctx is None:
         return 2, VERDICT_ERROR
     if event == "ci" and base and not ctx.rev_exists(base):
@@ -1677,6 +1695,8 @@ def judge(
     added: Mapping[str, str] | None = None,
     session: Mapping[str, object] | None = None,
     fields: Mapping[str, object] | None = None,
+    *,
+    case_blind: bool | None = None,
 ) -> tuple[int, str]:
     """Run a compiled gate: (exit code, verdict), the verdict being allow, block, ask, warn or error.
 
@@ -1685,7 +1705,9 @@ def judge(
     halted = halt_git(Path(repo_root), event, _policy_id(Path(gate_path))) if event in _GIT_EVENTS else None
     if halted is not None:
         return halted
-    outcome = evaluate(gate_path, event, push_stdin, repo_root, base, head_ref, writes, added, session)
+    outcome = evaluate(
+        gate_path, event, push_stdin, repo_root, base, head_ref, writes, added, session, case_blind=case_blind
+    )
     if isinstance(outcome, tuple):
         return outcome
     if event == "ci":
@@ -1804,8 +1826,7 @@ def log_settings_read(path):
         problems.append(f"{path}: max_bytes must be {_LOG_BYTES_RANGE}, not {size!r}; using the next scope or 1048576")
     unknown = sorted(set(doc) - set(LOG_SETTINGS_KEYS))
     if unknown:
-        names = ", ".join(map(str, unknown))
-        problems.append(f"{path}: unknown key(s) {names}; only level and max_bytes are read")
+        problems.append(f"{path}: unknown key(s) {', '.join(map(str, unknown))}; only level and max_bytes are read")
     return found, problems
 
 
@@ -2057,8 +2078,6 @@ _HALT_GITDIR = "gitdir:"
 _HALT_REASON_CAP = 200
 _HALT_UNREADABLE = ".chock/stop.json exists but cannot be read, so every agent is refused"
 _HALT_NO_REASON = "no reason given"
-#: Platforms whose default filesystem ignores case: a path typed in another case names the same repository.
-_HALT_CASELESS = ("darwin", "win32", "cygwin")
 
 
 def _halt_read_file(path, unreadable):
@@ -2093,7 +2112,7 @@ def halt_registry_dir():
 def halt_norm(path):
     """`path`'s realpath, casefolded where the filesystem ignores case (realpath keeps the case it was typed in)."""
     real = os.path.realpath(str(path))
-    return real.casefold() if sys.platform in _HALT_CASELESS else real
+    return real.casefold() if sys.platform in CASE_BLIND_PLATFORMS else real
 
 
 def halt_registry_entry(repo_root):
@@ -2474,6 +2493,16 @@ def _log_fields(raw: str) -> dict | None:
     return fields if isinstance(fields, dict) else None
 
 
+def _case_blind(raw: str) -> bool | None:
+    """The hook handler's word on whether paths compare without case, if it gave one."""
+    try:
+        payload = json.loads(raw or "{}")
+    except json.JSONDecodeError:
+        return None
+    flag = payload.get("case_blind") if isinstance(payload, dict) else None
+    return flag if isinstance(flag, bool) else None
+
+
 def _writes(raw: str) -> dict[str, str]:
     """The files this event puts under judgement, whole."""
     return _texts(raw, "writes")
@@ -2545,6 +2574,7 @@ def main(argv: list[str] | None = None) -> int:
             added=_texts(raw, "added"),
             session=_session(raw),
             fields=_log_fields(raw),
+            case_blind=_case_blind(raw),
         )
 
     push_stdin = sys.stdin.read() if args.event == "pre-push" and not sys.stdin.isatty() else None

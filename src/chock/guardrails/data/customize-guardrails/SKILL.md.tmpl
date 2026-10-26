@@ -10,6 +10,10 @@ entry is on. The file that switches them is `.chock/guardrails.json` in a reposi
 pull request that turns one off is reviewed as a loosening) or `~/.chock/guardrails.json` outside one.
 A repository's own file governs it; the user file counts only where the repository has none.
 
+A switch applies from the next session: a session honours an `off` only if its file and record were
+already in place when the session started, and the session start lists every member that is off. This is
+not a security boundary against an agent running as the person.
+
 ## Members
 
 | Policy | What it does in this agent |
@@ -39,7 +43,8 @@ it cannot be switched off.
 ## Never
 
 - Never write, edit, move, copy, link or delete `.chock/guardrails.json` or `~/.chock/guardrails.json`,
-  or its record under `.chock/state/`, and never run `chock bundle on`, `chock bundle off` or
+  its record or a session's binding (`guardrails-session-*.json`) under `.chock/state/`, and never run
+  `chock bundle on`, `chock bundle off` or
   `chock bundle status --adopt` yourself, even when asked: the built-in guard
   refuses it, and a guardrail switched off by the agent it constrains is no guardrail. Offer the
   command instead.

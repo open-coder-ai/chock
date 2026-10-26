@@ -10,6 +10,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .constants import CASE_BLIND_PLATFORMS
+
 # >>> gate.py 21
 #: A person's stop for one repository: local state, never committed (`chock init` ignores it).
 HALT_PARTS = (".chock", "stop.json")
@@ -52,8 +54,6 @@ _HALT_GITDIR = "gitdir:"
 _HALT_REASON_CAP = 200
 _HALT_UNREADABLE = ".chock/stop.json exists but cannot be read, so every agent is refused"
 _HALT_NO_REASON = "no reason given"
-#: Platforms whose default filesystem ignores case: a path typed in another case names the same repository.
-_HALT_CASELESS = ("darwin", "win32", "cygwin")
 
 
 def _halt_read_file(path, unreadable):
@@ -88,7 +88,7 @@ def halt_registry_dir():
 def halt_norm(path):
     """`path`'s realpath, casefolded where the filesystem ignores case (realpath keeps the case it was typed in)."""
     real = os.path.realpath(str(path))
-    return real.casefold() if sys.platform in _HALT_CASELESS else real
+    return real.casefold() if sys.platform in CASE_BLIND_PLATFORMS else real
 
 
 def halt_registry_entry(repo_root):

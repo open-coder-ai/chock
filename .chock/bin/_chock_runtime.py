@@ -286,8 +286,7 @@ def log_settings_read(path):
         problems.append(f'{path}: max_bytes must be {_LOG_BYTES_RANGE}, not {size!r}; using the next scope or 1048576')
     unknown = sorted(set(doc) - set(LOG_SETTINGS_KEYS))
     if unknown:
-        names = ', '.join(map(str, unknown))
-        problems.append(f'{path}: unknown key(s) {names}; only level and max_bytes are read')
+        problems.append(''.join([format(path), ': unknown key(s) ', format(', '.join(map(str, unknown))), '; only level and max_bytes are read']))
     return (found, problems)
 
 def log_settings_paths(repo_root):
@@ -505,8 +504,6 @@ _HALT_UNREADABLE = '.chock/stop.json exists but cannot be read, so every agent i
 
 _HALT_NO_REASON = 'no reason given'
 
-_HALT_CASELESS = ('darwin', 'win32', 'cygwin')
-
 def _halt_read_file(path, unreadable):
     """The stop `path` holds as {scope, reason, ...}, or None when there is no file. A file that exists but
     cannot be read or parsed, or names no valid scope, stops every agent: fail closed."""
@@ -536,7 +533,7 @@ def halt_registry_dir():
 def halt_norm(path):
     """`path`'s realpath, casefolded where the filesystem ignores case (realpath keeps the case it was typed in)."""
     real = _chock_os.path.realpath(str(path))
-    return real.casefold() if sys.platform in _HALT_CASELESS else real
+    return real.casefold() if sys.platform in CASE_BLIND_PLATFORMS else real
 
 def halt_registry_entry(repo_root):
     """The registry entry for `repo_root`, named by the sha256 of its normalised realpath."""
@@ -745,12 +742,14 @@ def interpreter_env(interpreter: str) -> dict[str, str]:
         env['PATH'] = str(usr_bin) + _chock_os.pathsep + env.get('PATH', '')
     return env
 
+_PROBE_SCRIPT = 'test -f "$1"'
+
 def find_bash(guard: _chock_Path, deadline: float | None=None) -> str | None:
     """First bash that can actually see `guard`, probed once per process; the probes draw on `deadline`."""
     if 'bash' in _FOUND_BASH:
         return _FOUND_BASH['bash']
     for candidate in bash_candidates():
-        argv = [candidate, '-c', f'test -f "{guard.as_posix()}"']
+        argv = [candidate, '-c', _PROBE_SCRIPT, '_', guard.as_posix()]
         try:
             limit = _BASH_PROBE_SECONDS if deadline is None else min(_BASH_PROBE_SECONDS, time_left(deadline, argv))
             proc = _chock_subprocess.run(argv, capture_output=True, timeout=limit, check=False)
@@ -859,7 +858,7 @@ def evaluate(argv: list[str], command: str, tool: str='', *, can_ask: bool | Non
     verdict, message = run_guard_detailed(guard, command, tool, can_ask=can_ask)
     GUARD_LAST['outcome'] = verdict
     if verdict == GUARD_BLOCKED:
-        return (VERDICT_DENY, f'Blocked by chock policy: {guard.stem}: {message}')
+        return (VERDICT_DENY, f'Blocked by chock policy: {guard.stem}')
     if verdict == GUARD_ASKED:
         return (VERDICT_ESCALATE, f'chock policy {guard.stem} asks before this runs: {message}' if message else f'chock policy {guard.stem} asks for confirmation before this runs (guard gave no reason).')
     if verdict == GUARD_ERRORED:
@@ -950,8 +949,7 @@ def dlog_target(event, repo):
     tool = str(getattr(event, 'tool', None) or '')
     mcp = _DLOG_MCP_TOOL.match(tool)
     if mcp:
-        server, name = (mcp['server'], mcp['tool'])
-        return log_redact(f'{server}/{name}')[:_DLOG_MCP_CAP]
+        return log_redact(''.join([format(mcp['server']), '/', format(mcp['tool'])]))[:_DLOG_MCP_CAP]
     command, path = (getattr(event, 'command', None), getattr(event, 'path', None))
     if command:
         return dlog_command_print(command)
@@ -1077,12 +1075,8 @@ def _dlog_reason(source, outcome):
     if source == HALT_REASON:
         return HALT_REASON
     if source == 'guard' and 'outcome' in GUARD_LAST:
-        guarded = GUARD_LAST['outcome']
-        return f'guard-{guarded}'
-    if source == 'fault':
-        return source
-    spoken = _DLOG_SPOKEN.get(outcome, 'allow')
-    return f'{source}-{spoken}'
+        return ''.join(['guard-', format(GUARD_LAST['outcome'])])
+    return source if source == 'fault' else ''.join([format(source), '-', format(_DLOG_SPOKEN.get(outcome, 'allow'))])
 
 def _dlog_paths(route, runtime, agent, event):
     """(log file, repository whose settings apply) for this call."""
@@ -1155,8 +1149,6 @@ _CRLF = '\r\n'
 
 _CREATE_TEXT = 'file_text'
 
-_CREATE_KEYS = ('content', _CREATE_TEXT)
-
 def _edit_call_input(event):
     raw = getattr(event, 'raw', None)
     tool_input = raw.get('tool_input') if isinstance(raw, dict) else None
@@ -1218,16 +1210,12 @@ def edited_text(event, root=None):
     return text
 
 def created_text(event):
-    """The whole file a write call carries: the adapter's content, else the call's own `content` or `file_text`.
-
-    An adapter reads an empty `content` as absent, so the call's own input is read too: a write of
-    nothing is still a write to its path.
-    """
+    """The whole file a write call carries: the adapter's content, else `tool_input.file_text`; None otherwise."""
     content = getattr(event, 'content', None)
     if isinstance(content, str):
         return content
-    tool_input = _edit_call_input(event)
-    return next((text for text in map(tool_input.get, _CREATE_KEYS) if isinstance(text, str)), None)
+    text = _edit_call_input(event).get(_CREATE_TEXT)
+    return text if isinstance(text, str) else None
 
 def added_from_event(event):
     """What an edit call introduces -- what `added_lines` means for it -- or {} for any other call."""
@@ -1398,8 +1386,7 @@ def _patch_not_empty(state, text):
     if last is None or last['op'] != 'update':
         return
     if not last['body'] and state['mode'] == 'update':
-        target = last['path']
-        _patch_refuse(state['number'], text, f'update of {target!r} has no hunk')
+        _patch_refuse(state['number'], text, ''.join(['update of ', format(repr(last['path'])), ' has no hunk']))
     if last['body'] and (not (last['body'][-1]['old'] or last['body'][-1]['new'])):
         _patch_refuse(state['number'], text, 'a hunk has no lines')
 
@@ -1529,11 +1516,7 @@ def _read(root, path):
         return None
 
 def patched_files(event, root=None):
-    """{path: text} for every file an apply_patch call adds or updates and can be rebuilt.
-
-    A file it deletes, or moves away from, is named with empty text: it has no content left to judge,
-    but its path is still a write that path-based gates must see.
-    """
+    """{path: text} for every file an apply_patch call adds or updates and can be rebuilt."""
     patch = patch_text(event)
     if patch is None:
         return {}
@@ -1545,7 +1528,7 @@ def patched_files(event, root=None):
             disk[key] = files[key] = ''.join((line + '\n' for line in body))
         elif op == 'delete':
             disk[key] = None
-            files[key] = ''
+            files.pop(key, None)
         else:
             before = disk[key] if key in disk else _read(root, key)
             after = apply_hunks(before, body) if before is not None else None
@@ -1553,7 +1536,7 @@ def patched_files(event, root=None):
                 target = _patch_key(event, moved_to) if moved_to else key
                 if target != key:
                     disk[key] = None
-                    files[key] = ''
+                    files.pop(key, None)
                 disk[target] = files[target] = after
     return files
 
@@ -1605,6 +1588,12 @@ _DRIVE_AT = 1
 
 _SEPARATORS = ('/', '\\')
 
+CASE_BLIND_PLATFORMS = ('darwin', 'win32', 'cygwin')
+
+def platform_case_blind():
+    """Whether this machine's filesystem ignores case by default."""
+    return sys.platform in CASE_BLIND_PLATFORMS
+
 def _slashed(path):
     return str(path).replace('\\', '/')
 
@@ -1631,8 +1620,11 @@ def _outside_fold(path):
     return '/'.join(parts)
 
 def declared_outside(path, root, patterns, *, windows=None):
-    """The absolute, slash-separated path when it is outside `root` and matches a declared glob; else None."""
-    windows = _chock_os.name == 'nt' if windows is None else windows
+    """The absolute, slash-separated path when it is outside `root` and matches a declared glob; else None.
+
+    `windows` is whether paths compare without regard to case; this machine's default unless told.
+    """
+    windows = platform_case_blind() if windows is None else windows
     text = _slashed(path)
     if not is_outside(text) or not patterns:
         return None
@@ -1653,7 +1645,7 @@ def outside_globs(gate):
         return []
     return [g for g in declared if isinstance(g, str)] if isinstance(declared, list) else []
 
-def judged_files(files, root, patterns, repo_names):
+def judged_files(files, root, patterns, repo_names, *, case_blind=None):
     """`files` ({path: text}) keyed the way a gate judges them.
 
     A path inside the repository is named by `repo_names(path)`; one outside is kept, under its
@@ -1665,7 +1657,7 @@ def judged_files(files, root, patterns, repo_names):
             if not is_outside(name):
                 kept[name] = text
                 continue
-            found = declared_outside(name, root, patterns)
+            found = declared_outside(name, root, patterns, windows=case_blind)
             if found is not None:
                 kept[found] = text
     return kept
@@ -2176,85 +2168,6 @@ def workspace_root(event):
     path = getattr(event, 'path', None)
     return next((root for root in roots if path and _holds(root, path)), roots[0] if roots else None)
 
-_CASE_BLIND = sys.platform in ('darwin', 'win32')
-
-def repo_relative(path, root):
-    """`path` relative to `root` in POSIX form, as scope globs are written; as given when outside `root`."""
-    text = str(path)
-    if root is None:
-        return text
-    windows = _chock_os.name == 'nt' or str(root)[1:2] == _DRIVE_COLON
-    flavour = _chock_PureWindowsPath if windows else _chock_PurePosixPath
-    try:
-        return _folded(flavour(str(root)) / text).relative_to(flavour(str(root))).as_posix()
-    except ValueError:
-        pass
-    if windows != (_chock_os.name == 'nt'):
-        return text
-    try:
-        return _chock_Path(root, text).resolve().relative_to(_chock_Path(root).resolve()).as_posix()
-    except (OSError, ValueError, RuntimeError):
-        return text
-
-def on_disk_case(name, root):
-    """`name` (repo-relative, POSIX) with each existing component spelled as the filesystem stores it."""
-    here, spelled = (_chock_Path(root), [])
-    for part in _chock_PurePosixPath(name).parts:
-        try:
-            stored = _chock_os.listdir(here)
-        except OSError:
-            stored = []
-        found = part if part in stored else next((s for s in stored if s.casefold() == part.casefold()), part)
-        spelled.append(found)
-        here = here / found
-    return _chock_PurePosixPath(*spelled).as_posix()
-
-def repo_paths(path, root, *, case_blind=_CASE_BLIND):
-    """Every repo-relative name a write is judged under: as written, and through symlinks and case."""
-    lexical = repo_relative(path, root)
-    if root is None or (str(root)[1:2] == _DRIVE_COLON) != (_chock_os.name == 'nt'):
-        return (lexical,)
-    try:
-        resolved = _chock_Path(root, str(path)).resolve().relative_to(_chock_Path(root).resolve()).as_posix()
-    except (OSError, ValueError, RuntimeError):
-        return (lexical,)
-    names = [lexical, resolved]
-    if case_blind:
-        names += [on_disk_case(name, root) for name in (lexical, resolved) if not is_outside(name)]
-    return tuple(dict.fromkeys(names))
-
-_MODE_LINK = 40960
-
-def _open_text(target, kind):
-    """(text, why) of a link's target or a regular file, opened without following a link or waiting on a pipe."""
-    try:
-        if kind == _MODE_LINK:
-            return (_chock_os.readlink(target), None)
-        if kind != STOP_MODE_FILE:
-            return (None, f'{target} is neither a file nor a link')
-        fd = _chock_os.open(target, _chock_os.O_RDONLY | getattr(_chock_os, 'O_NOFOLLOW', 0) | getattr(_chock_os, 'O_NONBLOCK', 0))
-        with _chock_os.fdopen(fd, 'rb') as handle:
-            return (handle.read().decode('utf-8'), None)
-    except UnicodeDecodeError:
-        return (None, None)
-    except OSError as exc:
-        return (None, f'{target} could not be read ({exc})')
-
-def worktree_text(target):
-    """(text, why): `target` as the worktree holds it, never opening a FIFO, device or the file a link names.
-
-    A file that is gone reads as "" (its path is still judged), a directory or undecodable file as no
-    text, a link as the target git stores for it. Anything else is refused with a reason: opening a
-    FIFO or device can block the hook until its client's timeout, which a client may read as an allow.
-    """
-    try:
-        kind = _chock_os.lstat(target).st_mode & STOP_MODE_MASK
-    except FileNotFoundError:
-        return ('', None)
-    except OSError as exc:
-        return (None, f'{target} could not be examined ({exc})')
-    return (None, None) if kind == STOP_MODE_DIR else _open_text(target, kind)
-
 _REPO_STOP_PROJECT_ENV = ('CLAUDE_PROJECT_DIR', 'GEMINI_PROJECT_DIR', 'OPENHANDS_PROJECT_DIR')
 
 _REPO_STOP_PROJECT_KEYS = ('workspacePaths',)
@@ -2381,29 +2294,18 @@ _SEVERITY = (VERDICT_DENY, VERDICT_ESCALATE, VERDICT_WARN)
 
 _GIT_DIR = '.git'
 
-def repository_of(folder):
+def _repository(folder):
     """The repository `folder` is in: the nearest folder holding `.git`, or None outside one."""
     here = _chock_Path(folder).absolute()
-    if not here.is_dir():
-        return None
     return next((f for f in (here, *here.parents) if (f / _GIT_DIR).exists()), None)
 
-def judged_root(named):
-    """The top level of `named`'s repository; `named` as given when relative (a drive-lettered root on POSIX)."""
-    path = _chock_Path(named)
-    return repository_of(path) or path if path.is_absolute() else path
-
 def stop_roots(event, fallback):
-    """The top level of each repository the event's `cwd` and workspace roots are in; else [fallback].
-
-    The top level, not the named folder: `git status` lists paths relative to it, so a subdirectory
-    would resolve every listed path against the wrong folder and judge nothing.
-    """
+    """The event's `cwd` and every workspace root inside a repository, the first per repository; else [fallback]."""
     by_repository = {}
     for named in filter(None, (getattr(event, 'cwd', None), *workspace_roots(event))):
-        repository = repository_of(named)
+        repository = _repository(named)
         if repository is not None:
-            by_repository.setdefault(repository, judged_root(named))
+            by_repository.setdefault(repository, _chock_Path(named))
     return list(by_repository.values()) or [fallback]
 
 def per_root(said):
@@ -2481,8 +2383,37 @@ def writes_from_event(event, root=None):
         return {}
     return {str(path): content}
 
+def repo_relative(path, root):
+    """`path` relative to `root` in POSIX form, as scope globs are written; as given when outside `root`."""
+    text = str(path)
+    if root is None:
+        return text
+    windows = _chock_os.name == 'nt' or str(root)[1:2] == _DRIVE_COLON
+    flavour = _chock_PureWindowsPath if windows else _chock_PurePosixPath
+    try:
+        return _folded(flavour(str(root)) / text).relative_to(flavour(str(root))).as_posix()
+    except ValueError:
+        pass
+    if windows != (_chock_os.name == 'nt'):
+        return text
+    try:
+        return _chock_Path(root, text).resolve().relative_to(_chock_Path(root).resolve()).as_posix()
+    except (OSError, ValueError, RuntimeError):
+        return text
+
+def repo_paths(path, root):
+    """Every repo-relative name a write is judged under: as written, and through symlinks and case."""
+    lexical = repo_relative(path, root)
+    if root is None or (str(root)[1:2] == _DRIVE_COLON) != (_chock_os.name == 'nt'):
+        return (lexical,)
+    try:
+        resolved = _chock_Path(root, str(path)).resolve().relative_to(_chock_Path(root).resolve()).as_posix()
+    except (OSError, ValueError, RuntimeError):
+        return (lexical,)
+    return tuple(dict.fromkeys((lexical, resolved)))
+
 def changed_paths(repo_root, deadline=None, why=None):
-    """Every uncommitted path, a deleted file and a rename's old name included; None (reason in `why`) when git gave no answer."""
+    """Every uncommitted path; None (reason appended to `why`) when git gave no answer, [] only outside a repository."""
     deadline, why = (engine_deadline() if deadline is None else deadline, [] if why is None else why)
     argv = [_GIT, '-C', str(repo_root), 'status', '--porcelain=v1', '--untracked-files=all', '-z']
     try:
@@ -2506,8 +2437,8 @@ def changed_paths(repo_root, deadline=None, why=None):
     for field in fields:
         status, path = (field[:2], field[3:])
         if status.startswith(_RENAMED):
-            paths.append(next(fields, ''))
-        if path:
+            next(fields, None)
+        if _DELETED not in status and path:
             paths.append(path)
     return paths
 
@@ -2523,14 +2454,10 @@ def writes_from_worktree(repo_root, deadline=None, why=None):
         return None
     writes = {}
     for path in paths:
-        text, unsafe = worktree_text(_chock_Path(repo_root, path))
-        if unsafe:
-            if why is not None:
-                why.append(unsafe)
-            sys.stderr.write(f'chock: {unsafe}, worktree not checked\n')
-            return None
-        if text is not None:
-            writes[path] = text
+        try:
+            writes[path] = _chock_Path(repo_root, path).read_text(encoding='utf-8')
+        except (OSError, UnicodeDecodeError):
+            continue
     return writes
 
 def run_gate(gate, writes, event, run_in, deadline):
@@ -2569,7 +2496,7 @@ def root_for(gate):
     return parents[_GATE_DEPTH_TO_CHOCK].parent
 
 def repo_root_for(event, gate):
-    """The repository under judgement: the compiled layout's root, else the top level of the event's cwd or workspace root.
+    """The repository under judgement: the compiled layout's root, else the event's cwd, else its workspace root.
 
     Of several workspace roots, the one holding the written path; this process's cwd only when there are none.
     """
@@ -2577,7 +2504,7 @@ def repo_root_for(event, gate):
     if root is not None:
         return root
     cwd = getattr(event, 'cwd', None) or workspace_root(event)
-    return judged_root(cwd) if cwd else _chock_Path.cwd()
+    return _chock_Path(cwd) if cwd else _chock_Path.cwd()
 
 def writes_for(event, gate, deadline=None, why=None, root=None):
     """What this event puts under judgement: the call's own text, or what the turn left behind (None: unlisted)."""
@@ -2590,7 +2517,7 @@ def _missing_gate(gate):
     """A gate the hook names but that is not on disk: a broken install, so a refusal that says so."""
     return (VERDICT_DENY, f'chock gate {gate} is missing, so this write cannot be checked. Run `chock sync --repo .` to rebuild the compiled gates.')
 
-def _gate_says(gate, event, name, deadline, root):
+def _gate_says(gate, event, deadline, root, case_blind):
     """(decision, judged files): what the compiled gate says about this event in `root`, before a re-entered stop."""
     if not gate.exists():
         return (_missing_gate(gate), {})
@@ -2599,28 +2526,27 @@ def _gate_says(gate, event, name, deadline, root):
     listed = writes_for(event, gate, deadline, why, root)
     if listed is None:
         return (gate_decision(GATE_ERRORED, why[-1] if why else 'git status gave no answer', gate), {})
-    writes = judged_files(listed, root, outside, lambda path: repo_paths(path, root))
+    writes = judged_files(listed, root, outside, lambda path: repo_paths(path, root), case_blind=case_blind)
     if not writes:
         return (None, writes)
     added = {**patch_added(event), **added_from_event(event)} if event.event == PRE_TOOL else {}
-    added = judged_files(added, root, outside, lambda path: repo_paths(path, root))
+    added = judged_files(added, root, outside, lambda path: repo_paths(path, root), case_blind=case_blind)
     added = {path: text for path, text in added.items() if path in writes}
-    extra = {**({'added': added} if added else {}), 'session': session_for(event, root), 'log': dlog_fields(event, root)}
-    outcome, message = run_gate(gate, writes, name, (root, extra), deadline)
+    extra = {**({'added': added} if added else {}), 'session': session_for(event, root), 'log': dlog_fields(event, root), 'case_blind': case_blind}
+    outcome, message = run_gate(gate, writes, _EVENT_ARG[event.event], (root, extra), deadline)
     return (gate_decision(outcome, message, gate), writes)
 
-def evaluate_gate(argv, event):
+def evaluate_gate(argv, event, *, case_blind=None):
     """The decision this event earns from a compiled gate, or None when it has nothing to say."""
     GATE_LAST.clear()
     gate = gate_path_from_argv(argv)
-    name = _EVENT_ARG.get(getattr(event, 'event', ''))
-    if gate is None or name is None:
+    if gate is None or getattr(event, 'event', '') not in _EVENT_ARG:
         return None
     deadline = engine_deadline()
     if event.event == PRE_TOOL:
-        return _gate_says(gate, event, name, deadline, repo_root_for(event, gate))[0]
+        return _gate_says(gate, event, deadline, repo_root_for(event, gate), case_blind)[0]
     roots = [repo_root_for(event, gate)] if root_for(gate) else stop_roots(event, repo_root_for(event, gate))
-    decision, judged = per_root([(root, *_gate_says(gate, event, name, deadline, root)) for root in roots])
+    decision, judged = per_root([(root, *_gate_says(gate, event, deadline, root, case_blind)) for root in roots])
     return settle_stop(event, roots[0], gate, decision, judged)
 
 TOOL_CALL_FLAG = '--tool-call'

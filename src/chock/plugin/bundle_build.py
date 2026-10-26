@@ -253,6 +253,7 @@ def merged_files(
     hooks = _merge_into(hooks, guardrails.verify_at_stop(protect_doc, client.agent))
     beat = heartbeat.plugin_doc(client.agent, hooks)
     if beat is not None:  # one session_start line per session, from the runtime the protection already ships
+        beat = guardrails.at_session_start(beat, client.agent)
         hooks = _merge_into(hooks, hook_dir.store_timeout(client.own_layout, beat) if client.own_layout else beat)
     stop = stop_check.plugin_doc(client.agent, hooks, generic=client.generic)  # `chock stop`: every tool, never toggled
     hooks = _merge_into(hooks, hook_dir.store_timeout(client.own_layout, stop) if client.own_layout else stop)

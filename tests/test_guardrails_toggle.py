@@ -6,6 +6,7 @@ import json
 import re
 from pathlib import Path
 
+import client_payloads
 import jsonschema
 import pytest
 from bundle_fixtures import BUNDLE_ID, GATE_ID, GUARD_ID
@@ -44,11 +45,13 @@ def test_a_member_switched_off_allows_and_logs_one_line(
     monkeypatch.delenv("CHOCK_GATE_LOG")  # every log here lands in the test's own folders
     plugin, repo, commands = build(tmp_path, client)
     payload = shell(client, repo, RM)
-    assert any_refused(commands, plugin, repo, payload, home), "on by default: no file at all"
+    assert any_refused(commands, plugin, repo, client_payloads.in_session(payload, "s1"), home), (
+        "on by default: no file at all"
+    )
     set_toggles(repo, {BUNDLE_ID: {GUARD_ID: "on"}})
-    assert any_refused(commands, plugin, repo, payload, home), "an explicit on"
+    assert any_refused(commands, plugin, repo, client_payloads.in_session(payload, "s2"), home), "an explicit on"
     set_toggles(repo, {BUNDLE_ID: {GUARD_ID: "off"}})
-    procs = outcomes(commands, plugin, repo, payload, home)
+    procs = outcomes(commands, plugin, repo, client_payloads.in_session(payload, "s3"), home)
     assert not any(p.returncode or '"deny"' in p.stdout or '"block"' in p.stdout for p in procs), [
         (p.returncode, p.stdout, p.stderr) for p in procs
     ]
@@ -68,10 +71,10 @@ def test_off_reaches_only_its_own_member_and_bundle(tmp_path: Path, home: Path, 
 def test_a_write_gate_member_switches_too(tmp_path: Path, home: Path, client: str) -> None:
     plugin, repo, commands = build(tmp_path, client)
     payload = write_call(client, repo, str(repo / "src" / "App.java"))
-    if not any_refused(commands, plugin, repo, payload, home):
+    if not any_refused(commands, plugin, repo, client_payloads.in_session(payload, "s1"), home):
         pytest.skip(f"{client}: the gate is judged at turn end only, not at the write")
     set_toggles(repo, {BUNDLE_ID: {GATE_ID: "off"}})
-    assert not any_refused(commands, plugin, repo, payload, home)
+    assert not any_refused(commands, plugin, repo, client_payloads.in_session(payload, "s2"), home)
 
 
 @pytest.mark.parametrize(
@@ -113,13 +116,17 @@ def test_the_user_file_governs_only_where_the_repository_has_none(
     plugin, repo, commands = build(tmp_path, "claude")
     payload = shell("claude", repo, RM)
     set_toggles(home, {BUNDLE_ID: {GUARD_ID: "off"}})
-    assert not any_refused(commands, plugin, repo, payload, home)
+    assert not any_refused(commands, plugin, repo, client_payloads.in_session(payload, "s1"), home)
     assert (home / ".chock/log/gate-events.jsonl").is_file(), "logged beside the governing file"
     set_toggles(repo, {})
-    assert any_refused(commands, plugin, repo, payload, home), "the repository's own file governs it"
+    assert any_refused(commands, plugin, repo, client_payloads.in_session(payload, "s2"), home), (
+        "the repository's own file governs it"
+    )
     outside = tmp_path / "scratch"
     outside.mkdir()
-    assert not any_refused(commands, plugin, outside, shell("claude", outside, RM), home)
+    assert not any_refused(
+        commands, plugin, outside, client_payloads.in_session(shell("claude", outside, RM), "s3"), home
+    )
 
 
 def test_the_built_in_protection_cannot_be_switched_off(tmp_path: Path, home: Path) -> None:
