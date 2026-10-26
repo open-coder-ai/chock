@@ -232,3 +232,28 @@ def test_no_helper_without_a_script_gate(tmp_path: Path) -> None:
     repo = make_repo(tmp_path, tool_call_gate())
     install_hooks(repo, "claude_code")
     assert not (repo / ".chock" / "bin" / "chock_session.py").exists()
+
+
+def test_a_credential_in_a_command_or_path_is_not_stored(tmp_path: Path) -> None:
+    token = "ghp_" + "a1B2c3D4e5" * 3 + "a1B2c3"
+    bearer = _event(tool_input={"command": f"curl -H 'Authorization: Bearer {token}' https://x.test"}, call="c1")
+    clone = _event(tool_input={"command": "git clone https://bot:hunter2pw@github.com/o/r.git"}, call="c2")
+    path = _event(tool="Read", tool_input={"file_path": f"/tmp/{token}.txt"}, call="c3")
+    for event in (bearer, clone, path):
+        session_log.session_record(tmp_path, event, "pre")
+
+    text = session_log.session_log_path(tmp_path, "s1").read_text(encoding="utf-8")
+
+    assert token not in text
+    assert "hunter2pw" not in text
+    assert "github.com/o/r.git" in text
+
+
+def test_the_state_folder_and_log_are_owner_only(tmp_path: Path) -> None:
+    session_log.session_record(tmp_path, _event(tool_input={"command": "make test"}), "pre")
+
+    path = session_log.session_log_path(tmp_path, "s1")
+
+    if os.name != "nt":
+        assert path.parent.stat().st_mode & 0o077 == 0
+        assert path.stat().st_mode & 0o077 == 0

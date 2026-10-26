@@ -55,7 +55,7 @@ def _cell(value: Any) -> str:
     The log is writable by whatever runs in the repo, so a value cannot open a link or image either.
     """
     text = inert(value)
-    for char in "\\|[]":
+    for char in "\\|[]!@":
         text = text.replace(char, "\\" + char)
     return text.replace("`", "'").replace("<", "&lt;")
 

@@ -36,6 +36,17 @@ def test_markdown_cells_cannot_open_a_link_or_double_a_backslash(tmp_path: Path,
     assert row.startswith("| \\[ok\\](https://example.test) x\\\\\\|y |")
 
 
+def test_markdown_cells_cannot_mention_a_user_or_team(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+    write_log(tmp_path, [event(1, "block", agent="@acme/security please approve ![x](y)")])
+
+    assert main(["--repo", str(tmp_path), "--format", "md", "--by", "agent"]) == 0
+
+    out = capsys.readouterr().out
+    assert "\\@acme/security" in out
+    assert [c for c in out.split("@")[:-1] if not c.endswith("\\")] == []
+    assert "\\!" in out
+
+
 def test_text_output_drops_terminal_control_characters(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
     write_log(tmp_path, [event(1, "block", agent="evil\x1b]0;title\x07agent"), event(2, "block", agent="plain")])
 

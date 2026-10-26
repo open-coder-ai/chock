@@ -1,1 +1,3 @@
 build
+# Build backend for `python -m build --no-isolation`; same pin as dev.txt, runtime.txt and binary.txt.
+setuptools==84.0.0

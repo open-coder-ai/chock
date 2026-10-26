@@ -14,6 +14,7 @@ from chock.compile.levels import Grade, render_grade
 from chock.compile.surfaces import AGENTS_ARG_REQUIRED_MSG
 from chock.config import agents_from_config as _agents_from_config
 from chock.config import load_config, policy_status, set_disabled
+from chock.display import inert
 from chock.gate.build import CatastrophicPatternError
 from chock.index.cli import cmd_refresh
 from chock.manifest import ManifestSourceError, load_manifest
@@ -151,7 +152,7 @@ def policies_main(argv: list[str] | None) -> int:
             cov_str = next(iter(cov.values()))
         else:
             cov_str = "; ".join(f"{a}: {v}" for a, v in sorted(cov.items()))
-        rows.append((policy_id, status["state"], cov_str, "yes" if status["mandatory"] else "no"))
+        rows.append((inert(policy_id), inert(status["state"]), inert(cov_str), "yes" if status["mandatory"] else "no"))
 
     if not rows:
         print("No policies installed. This repo enforces nothing.")

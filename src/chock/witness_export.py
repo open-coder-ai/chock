@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import hmac
 import json
 import os
 import platform
 import re
+import secrets
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -117,13 +120,32 @@ def catalog_refs(agent: str, records: list[dict[str, Any]], repo_root: Path) -> 
     return sorted(refs)
 
 
+_FINGERPRINT = re.compile(r"sha256:[0-9a-f]{64}")
+
+
+def rekey(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """`records` with each `target` fingerprint keyed by a random key made for this export and then dropped.
+
+    Equal targets stay equal inside the file; a guessed path or command can no longer be confirmed offline.
+    """
+    key = secrets.token_bytes(32)
+
+    def keyed(match: re.Match[str]) -> str:
+        return "hmac-sha256:" + hmac.new(key, match.group(0).encode(), hashlib.sha256).hexdigest()
+
+    return [
+        {**r, "target": _FINGERPRINT.sub(keyed, r["target"])} if isinstance(r.get("target"), str) else r
+        for r in records
+    ]
+
+
 def bundle(agent: str, records: list[dict[str, Any]], repo_root: Path, since: int | None) -> dict[str, Any]:
     """The export: the evidence form's fields, then the records; everything read from a log or a marker is redacted."""
     from chock.scaffold.pin import engine_commit  # noqa: PLC0415 -- a git call, made only for an export
 
     home = os.path.expanduser("~")
     refs = redact(catalog_refs(agent, records, repo_root), home)
-    records = redact([{k: v for k, v in r.items() if k not in LOCAL_ONLY} for r in records], home)
+    records = rekey(redact([{k: v for k, v in r.items() if k not in LOCAL_ONLY} for r in records], home))
     plugins = sorted({f"{r['plugin']} {r.get('plugin_version') or ''}".strip() for r in records if r.get("plugin")})
     return {
         "format": DATA["format"],

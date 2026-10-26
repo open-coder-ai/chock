@@ -6,7 +6,8 @@ name = "chock"
 version = "0.15.2"
 description = "Blocks your coding agent's wrong moves before they land."
 readme = "README.md"
-# PEP 639 SPDX expression; needs setuptools >= 77 (pinned in build-system below).
+# PEP 639 SPDX expression; needs setuptools >= 77 (range in build-system below; CI and release use the hash-pinned
+# setuptools==84.0.0 from requirements/*.txt with --no-build-isolation).
 license = "Apache-2.0"
 requires-python = ">=3.11"
 # No email: SECURITY.md routes vulnerability reports through GitHub advisories, and a

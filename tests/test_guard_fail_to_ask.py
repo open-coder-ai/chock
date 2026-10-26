@@ -230,3 +230,29 @@ def test_a_runner_deny_without_a_reason_names_only_the_policy(tmp_path: Path) ->
         "Blocked by chock policy: pol",
     )
     assert gate_outcome.gate_decision(gate_outcome.GATE_BLOCKED, "why", gate)[1] == "why"
+
+
+def test_a_refusal_echoing_agent_text_is_never_taken_for_a_crash(tmp_path: Path) -> None:
+    """The refusal names the command's own words: "syntax error" in them must not turn a block into an ask."""
+    guard = make_guard(tmp_path, "rm.sh", "echo \"BLOCKED: rm targeting '$CHOCK_RAW_COMMAND'\" >&2; exit 1")
+
+    for command in (
+        'rm -rf "/tmp/syntax error" ~',
+        "rm -rf ~ # SyntaxError unexpected EOF Traceback (most recent call last)",
+    ):
+        assert guard_runner.run_guard(guard, command) == guard_runner.GUARD_BLOCKED, command
+
+
+def test_a_shell_guard_that_cannot_parse_still_asks(tmp_path: Path) -> None:
+    shell = make_guard(tmp_path, "broken.sh", "if then fi\n")
+
+    assert guard_runner.run_guard(shell, "ls") == guard_runner.GUARD_ERRORED
+
+
+def test_is_guard_crash_reads_only_the_start_of_the_output() -> None:
+    assert guard_runner.is_guard_crash("")
+    assert guard_runner.is_guard_crash("Traceback (most recent call last):\n  File x")
+    assert guard_runner.is_guard_crash('  File "/g/guard.py", line 3\n    if x\nSyntaxError: invalid syntax')
+    assert guard_runner.is_guard_crash("/g/guard.sh: line 3: syntax error near unexpected token `fi'")
+    assert not guard_runner.is_guard_crash("BLOCKED: rm targeting '/tmp/syntax error'")
+    assert not guard_runner.is_guard_crash("BLOCKED: x\nTraceback (most recent call last)")

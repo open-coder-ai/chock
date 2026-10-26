@@ -6,7 +6,9 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import TextIO
 
+from chock.display import inert
 from chock.emit import write_generated
 from chock.output import error
 from chock.review.evidence import (
@@ -19,8 +21,14 @@ from chock.review.evidence import (
     required_checks,
     verify,
 )
+from chock.review.policy import deferred_checks
 
 DEFAULT_BASE = "origin/main"
+
+
+def _say(text: str, file: TextIO | None = None) -> None:
+    """Print one line of evidence-derived text inert; machine formats keep the raw value."""
+    print(inert(text), file=file)
 
 
 def _emit(args: argparse.Namespace) -> int:
@@ -34,16 +42,16 @@ def _emit(args: argparse.Namespace) -> int:
     write_generated(dest, json.dumps(evidence, indent=2) + "\n")
 
     failed = [e["check"] for e in evidence["verified"] if e["result"] == "fail"]
-    print(f"Wrote {dest.relative_to(root) if dest.is_relative_to(root) else dest}")
-    print(f"  diff {evidence['diff_sha'][:12]} against {args.base}")
-    print(
+    _say(f"Wrote {dest.relative_to(root) if dest.is_relative_to(root) else dest}")
+    _say(f"  diff {evidence['diff_sha'][:12]} against {args.base}")
+    _say(
         f"  verified: {len(evidence['verified'])} check(s)"
         + (f", {len(failed)} failing: {', '.join(failed)}" if failed else "")
     )
-    print("  attested: 0 -- a machine cannot attest. Add judgement claims before requesting review.")
+    _say("  attested: 0 -- a machine cannot attest. Add judgement claims before requesting review.")
     narrowed = sorted(set(registry) - set(checks))
     if narrowed:
-        print(
+        _say(
             f"  WARNING: {len(narrowed)} registered check(s) not run: {', '.join(narrowed)}. "
             "`review verify` rejects evidence that does not cover the registry."
         )
@@ -57,48 +65,50 @@ def _verify(args: argparse.Namespace) -> int:
 
     attested = evidence.get("attested") or []
     if failures:
-        print(f"Evidence does not hold ({len(failures)} problem(s)):", file=sys.stderr)
+        _say(f"Evidence does not hold ({len(failures)} problem(s)):", file=sys.stderr)
         for failure in failures:
-            print(f"  - {failure}", file=sys.stderr)
+            _say(f"  - {failure}", file=sys.stderr)
         return 1
 
     who = evidence.get("produced_by", {})
     registry = sorted(check_registry(root, args.base))
     named = {e.get("check") for e in evidence.get("verified") or []}
-    print(f"Evidence holds: {len(evidence.get('verified') or [])} check(s) re-derived and matching.")
+    _say(f"Evidence holds: {len(evidence.get('verified') or [])} check(s) re-derived and matching.")
     uncovered = sorted(set(registry) - named)
     required = required_checks(root, args.base)
     scope = "required set" if required else "registry"
-    print(
+    _say(
         f"  coverage: {len(named & set(registry))} of {len(registry)} registered check(s)"
         + (f" -- NOT covered: {', '.join(uncovered)}" if uncovered else "")
     )
     if uncovered and not required:
-        print(
+        _say(
             f"  this repository declares no `required_checks`, so the {scope} is not enforced; "
             "an author chose which checks to run."
         )
-    print(f"  produced by {who.get('kind', '?')} {who.get('id', '?')}")
+    _say(f"  produced by {who.get('kind', '?')} {who.get('id', '?')}")
     if attested:
-        print(f"  {len(attested)} attestation(s), NOT verified -- a human decides whether to believe them:")
+        _say(f"  {len(attested)} attestation(s), NOT verified -- a human decides whether to believe them:")
         for item in attested:
             confidence = f" [{item['confidence']}]" if item.get("confidence") else ""
-            print(f"    ({item.get('criterion', '?')}){confidence} {item.get('claim', '')}")
-            print(f"      basis: {item.get('basis', '')}")
+            _say(f"    ({item.get('criterion', '?')}){confidence} {item.get('claim', '')}")
+            _say(f"      basis: {item.get('basis', '')}")
     else:
-        print("  0 attestations. Every criterion needing judgement is unaddressed.")
+        _say("  0 attestations. Every criterion needing judgement is unaddressed.")
     return 0
 
 
 def _require(args: argparse.Namespace) -> int:
     root = Path(args.repo).resolve()
     failures = require(root, args.base)
+    for name in deferred_checks(root, args.base):
+        print(f"{name} is added by this change and is required from the merge on.", file=sys.stderr)
     if failures:
-        print(f"PR is not merge-ready ({len(failures)} problem(s)):", file=sys.stderr)
+        _say(f"PR is not merge-ready ({len(failures)} problem(s)):", file=sys.stderr)
         for failure in failures:
-            print(f"  - {failure}", file=sys.stderr)
+            _say(f"  - {failure}", file=sys.stderr)
         return 1
-    print(f"PR is merge-ready: evidence present, valid, sufficient, passing, and attested against {args.base}.")
+    _say(f"PR is merge-ready: evidence present, valid, sufficient, passing, and attested against {args.base}.")
     return 0
 
 

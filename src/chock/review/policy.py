@@ -74,14 +74,35 @@ def unattestable_paths(root: Path, base_ref: str | None = None) -> list[str]:
     return sorted(paths)
 
 
+def _required_names(review: dict[str, Any] | None) -> set[str]:
+    configured = (review or {}).get("required_checks")
+    return {str(n) for n in configured} if isinstance(configured, list) else set()
+
+
+def _base_and_head_required(root: Path, base_ref: str | None) -> tuple[set[str], set[str]]:
+    """(names the base requires, names the head requires); without a base ref the working tree is the head."""
+    head = _required_names(_review_section(load_config(root)))
+    return (_required_names(_review_at(root, base_ref)) if base_ref else set()), head
+
+
 def required_checks(root: Path, base_ref: str | None = None) -> list[str]:
-    """The repository's own required set, unioned across base and head. Never from evidence."""
-    names: set[str] = set()
-    for review in review_policies(root, base_ref):
-        configured = review.get("required_checks")
-        if isinstance(configured, list):
-            names |= {str(n) for n in configured}
-    return sorted(names)
+    """The repository's own required set, unioned across base and head. Never from evidence.
+
+    With a base ref, a name only the head requires and the base does not define is not required yet: see
+    `deferred_checks`. A name the base requires stays required, defined or not (an undefined one fails as unknown).
+    """
+    base, head = _base_and_head_required(root, base_ref)
+    if base_ref:
+        head &= set(check_registry(root, base_ref)) | base
+    return sorted(base | head)
+
+
+def deferred_checks(root: Path, base_ref: str | None = None) -> list[str]:
+    """Checks only the head requires and the base does not define: a change that adds one is bound from the merge on."""
+    if not base_ref:
+        return []
+    base, head = _base_and_head_required(root, base_ref)
+    return sorted((head - base) - set(check_registry(root, base_ref)))
 
 
 def attestation_floor(root: Path, base_ref: str | None = None) -> int:
@@ -105,9 +126,19 @@ def command_set_hash(root: Path, base_ref: str | None = None) -> str:
 
 
 def check_registry(root: Path, base_ref: str | None = None) -> dict[str, list[str]]:
-    """Built-in checks plus any the repository declares; a check the base defines runs as the base defines it."""
+    """The built-in checks plus the ones the base declares; with a base, nothing the head declares is ever defined.
+
+    A pull request edits `.chock/config.yaml`, so a built-in redefined there, or a check added there, would
+    run the author's command inside the gate that is judging the author. Without a base ref there is no
+    other side, and the working tree's own config defines.
+    """
     registry = dict(BUILTIN_CHECKS)
-    for review in reversed(review_policies(root, base_ref)):
+    if not base_ref:
+        defining = [_review_section(load_config(root))]
+    else:
+        base = _review_at(root, base_ref)
+        defining = [] if base is None else [base]
+    for review in defining:
         checks = review.get("checks")
         for name, argv in checks.items() if isinstance(checks, dict) else ():
             if isinstance(argv, list) and all(isinstance(a, str) for a in argv):

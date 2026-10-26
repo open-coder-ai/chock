@@ -61,7 +61,9 @@ def _too_deep(text: str) -> bool:
                 return True
         elif char in "]}":
             depth = max(depth - 1, 0)
-    return any(len(line) - len(line.lstrip(" ")) > 2 * _MAX_DEPTH for line in text.splitlines())
+    if any(len(line) - len(line.lstrip(" ")) > 2 * _MAX_DEPTH for line in text.splitlines()):
+        return True
+    return yamlio.nests_deeper_than(text, _MAX_DEPTH)
 
 
 def _parsed(text: str | None, cap: int) -> dict:

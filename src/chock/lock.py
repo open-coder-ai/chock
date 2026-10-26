@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from chock.policies import discover_policy_dirs
+from chock.scaffold.pin import is_remote_source
 from chock.vendored import vendored_differences
 
 LOCKFILE_NAME = "chock.lock"
@@ -114,6 +115,8 @@ def is_local_source(source: object, repo_root: Path) -> bool:
         return False
     if source in {LOCAL_SOURCE, "."}:
         return True
+    if is_remote_source(source):
+        return False
     try:
         return Path(source).expanduser().resolve() == repo_root.resolve()
     except (OSError, RuntimeError):

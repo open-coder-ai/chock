@@ -65,7 +65,7 @@ jobs:
         run: |
           sed -i -E "s#<img src=\"docs/assets/#<img src=\"https://raw.githubusercontent.com/${REPO}/${REF}/docs/assets/#g" README.md
       - name: Build sdist and wheel
-        run: python -m build
+        run: python -m build --no-isolation
       - name: Refuse unless dist holds exactly this version's sdist and wheel
         run: |
           version=${GITHUB_REF_NAME#v}
@@ -106,7 +106,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        run: python -m pip install --require-hashes -r requirements/binary.txt && pip install -e . --no-deps
+        run: python -m pip install --require-hashes -r requirements/binary.txt && pip install -e . --no-deps --no-build-isolation
       - name: Build one-file binary
         run: pyinstaller packaging/chock.spec
       - name: Rename binary with OS

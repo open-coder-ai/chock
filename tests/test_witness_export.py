@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -156,3 +157,26 @@ def test_the_default_name_is_written_owner_only(tmp_path: Path, home: Path, monk
     if os.name == "posix":
         assert (tmp_path / written).stat().st_mode & 0o777 == 0o600
     assert cli_main(["witness", "export", "--client", "goose", "--repo", str(tmp_path)]) == 2
+
+
+def test_fingerprints_in_an_export_cannot_be_confirmed_by_guessing(home: Path) -> None:
+
+    guess = hashlib.sha256(b"/home/alice/.ssh/id_rsa").hexdigest()
+    command = hashlib.sha256(b"mysql -uroot -pletmein db").hexdigest()
+    records = [
+        _record("claude-code", target=f"outside:sha256:{guess}"),
+        _record("claude-code", target=f"mysql sha256:{command}"),
+        _record("claude-code", target=f"outside:sha256:{guess}"),
+        _record("claude-code", target="src/app.py"),
+    ]
+
+    made = we.bundle("claude-code", records, home, None)
+    text = json.dumps(made)
+    targets = [r["target"] for r in made["records"]]
+
+    assert guess not in text
+    assert command not in text
+    assert targets[0] == targets[2] != targets[1]
+    assert targets[3] == "src/app.py"
+    assert targets[1].startswith("mysql ")
+    assert we.bundle("claude-code", records, home, None)["records"][0]["target"] != targets[0]

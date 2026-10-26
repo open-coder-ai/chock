@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -18,9 +19,13 @@ GUARD_ASK_EXIT = 3
 
 PYTHON_SUFFIX = ".py"
 
-#: Lower-cased markers of an interpreter crash: exit 1 with one of these (or with no output at
-#: all) is a guard that failed, not one that refused, so it asks instead of blocking.
-_CRASH_MARKERS = ("traceback (most recent call last)", "syntax error", "syntaxerror", "unexpected eof")
+#: How an interpreter's own crash opens the output: a Python traceback or a `File "...", line N` syntax error,
+#: or bash's `[<script>: ]line N: syntax error`. Exit 1 with one of these as the first line (or with no output
+#: at all) is a guard that failed, not one that refused, so it asks. A refusal's words are the guard's own,
+#: so text the agent chose can never be the start of the output.
+_CRASH_OPENING = re.compile(
+    r"""(?ix)\A\s*(traceback\ \(most\ recent\ call\ last\)|file\ ".*",\ line\ \d+|(\S+:\ )?line\ \d+:\ (syntax\ error|unexpected\ eof))"""
+)
 #: What CHOCK_TOOL says when the hook payload names no shell tool this runner recognises.
 TOOL_UNKNOWN = "unknown"
 #: Set to 1 in the guard's environment when argv is a plain whitespace split, not a shell parse.
@@ -138,8 +143,7 @@ def normalize_tool(tool: str | None) -> str:
 
 def is_guard_crash(output: str) -> bool:
     """True when a guard's exit-1 output is empty or shows an interpreter crash, not a refusal."""
-    lowered = output.lower()
-    return not lowered or any(marker in lowered for marker in _CRASH_MARKERS)
+    return not output.strip() or _CRASH_OPENING.match(output) is not None
 
 
 def split_command(command: str) -> tuple[list[str], bool]:
