@@ -52,7 +52,11 @@ def snapshot(fmt: str, root: Path) -> dict:
 
 
 @pytest.mark.parametrize("fmt", TARGETS)
-def test_a_build_matches_its_golden_layout_manifest_and_hooks(tmp_path: Path, fmt: str) -> None:
+def test_a_build_matches_its_golden_layout_manifest_and_hooks(
+    tmp_path: Path, fmt: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The golden is the POSIX form on every platform (also under CHOCK_REGEN_GOLDENS=1); the Windows form has its own tests.
+    monkeypatch.setattr(hook_dir, "build_windows", lambda: False)
     found = snapshot(fmt, tmp_path)
     assert found == frozen_json(GOLDEN / f"{fmt}.json", found)
 
