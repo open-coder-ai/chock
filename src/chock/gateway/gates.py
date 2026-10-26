@@ -115,7 +115,7 @@ def _call_paths(spec: dict[str, Any], arguments: Any) -> list[str]:
     return list(dict.fromkeys(paths))
 
 
-def _in_scope(path: str, scope: list[str], blind: bool) -> bool:
+def _in_scope(path: str, scope: list[str], *, blind: bool) -> bool:
     """A path is in a gate's bound when a glob matches it, or when it cannot be placed inside the repository."""
     fold = str.casefold if blind else str
     return ".." in path.split("/") or any(fnmatch.fnmatchcase(fold(path), fold(g)) for g in scope)
@@ -132,7 +132,7 @@ def _eval_content_regex(spec: dict[str, Any], arguments: Any) -> str | None:
     if scope:
         # A path-bounded gate judges only what it can place inside its bound.
         blind = _blind(spec)
-        paths = [p for p in paths if _in_scope(p, scope, blind)]
+        paths = [p for p in paths if _in_scope(p, scope, blind=blind)]
         if not paths:
             return None
     forbidden = params.get("forbidden_path_regex")
