@@ -3,7 +3,8 @@ name: "Guardrails toggle protection"
 version: "1.2.0"
 description: >
   Built into every chock bundle and never switched off: refuses an agent's write to .chock/guardrails.json
-  and ~/.chock/guardrails.json, the files that switch a bundle's guardrails on and off, through a shell
+  and ~/.chock/guardrails.json (and their record and the session binding, .chock/state/guardrails-session-*.json), the
+  files that switch a bundle's guardrails on and off, through a shell
   command (best effort) or an Edit/Write (links followed, case ignored), and an agent's `chock bundle on|off`.
   Also refuses an agent's `chock install --trust-local` and its write to an install marker
   (chock.selection.json), which would accept custom code for a person, and its write to the decision log's

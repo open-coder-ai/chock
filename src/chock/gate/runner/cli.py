@@ -59,6 +59,16 @@ def _log_fields(raw: str) -> dict | None:
     return fields if isinstance(fields, dict) else None
 
 
+def _case_blind(raw: str) -> bool | None:
+    """The hook handler's word on whether paths compare without case, if it gave one."""
+    try:
+        payload = json.loads(raw or "{}")
+    except json.JSONDecodeError:
+        return None
+    flag = payload.get("case_blind") if isinstance(payload, dict) else None
+    return flag if isinstance(flag, bool) else None
+
+
 def _writes(raw: str) -> dict[str, str]:
     """The files this event puts under judgement, whole."""
     return _texts(raw, "writes")
@@ -130,6 +140,7 @@ def main(argv: list[str] | None = None) -> int:
             added=_texts(raw, "added"),
             session=_session(raw),
             fields=_log_fields(raw),
+            case_blind=_case_blind(raw),
         )
 
     push_stdin = sys.stdin.read() if args.event == "pre-push" and not sys.stdin.isatty() else None

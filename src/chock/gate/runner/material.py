@@ -47,6 +47,8 @@ def _context(
     added: Mapping[str, str] | None = None,
     own: Sequence[str] = (),
     session: Mapping[str, object] | None = None,
+    *,
+    case_blind: bool | None = None,
 ) -> GateContext | None:
     """The material this event puts under judgement, or None when the kind cannot read it."""
     if event not in AGENT_EVENTS:
@@ -69,4 +71,5 @@ def _context(
         own=own,
         stop=event == STOP_EVENT,
         session=session,
+        case_blind=case_blind,
     )

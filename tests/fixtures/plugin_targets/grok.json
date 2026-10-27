@@ -8,6 +8,7 @@
     "scripts/chock_bundle.json",
     "scripts/chock_bundle.py",
     "scripts/chock_bundle_log.py",
+    "scripts/chock_bundle_state.py",
     "scripts/chock_chain.py",
     "scripts/chock_journal.py",
     "scripts/demo-shell-guard/demo-shell-guard.py",
@@ -56,7 +57,7 @@
           "hooks": [
             {
               "type": "command",
-              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${GROK_PLUGIN_ROOT}/scripts/launch.sh\" \"${GROK_PLUGIN_ROOT}/scripts/grok.py\"",
+              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${GROK_PLUGIN_ROOT}/scripts/launch.sh\" \"${GROK_PLUGIN_ROOT}/scripts/chock_bundle.py\" --session-start \"${GROK_PLUGIN_ROOT}/scripts/grok.py\"",
               "timeout": 45
             }
           ]

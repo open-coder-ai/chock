@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Iterator
 from urllib.parse import unquote
 
+from chock.gate.outside_repo import platform_case_blind
 from chock.gate.session_log import SESSION_PATH_KEYS
 
 GATEWAY_DIRNAME = "mcp-gateway"
@@ -94,6 +95,12 @@ def _hosts_in(text: str) -> Iterator[str]:
             yield from _emit(authority)
 
 
+def _blind(spec: dict[str, Any]) -> bool:
+    """Whether the gate compares paths without regard to case: the spec's word, else this machine's default."""
+    flag = spec.get("case_blind")
+    return flag if isinstance(flag, bool) else platform_case_blind()
+
+
 def _call_paths(spec: dict[str, Any], arguments: Any) -> list[str]:
     """Write targets the call names, repo-relative: the same argument keys the session log reads."""
     if not isinstance(arguments, dict):
@@ -105,7 +112,8 @@ def _call_paths(spec: dict[str, Any], arguments: Any) -> list[str]:
         if not isinstance(value, str) or not value:
             continue
         path = value.replace("\\", "/")
-        if root and path.startswith(root + "/"):
+        prefix = root + "/"
+        if root and (path.casefold().startswith(prefix.casefold()) if _blind(spec) else path.startswith(prefix)):
             path = path[len(root) + 1 :]
         paths.append(path.removeprefix("./"))
     return paths
@@ -121,11 +129,12 @@ def _eval_content_regex(spec: dict[str, Any], arguments: Any) -> str | None:
     paths = _call_paths(spec, arguments)
     if scope:
         # A path-bounded gate judges only what it can place inside its bound.
-        paths = [p for p in paths if any(fnmatch.fnmatchcase(p, g) for g in scope)]
+        fold = str.casefold if _blind(spec) else str
+        paths = [p for p in paths if any(fnmatch.fnmatchcase(fold(p), fold(g)) for g in scope)]
         if not paths:
             return None
     forbidden = params.get("forbidden_path_regex")
-    if forbidden and any(re.search(forbidden, p) for p in paths):
+    if forbidden and any(re.search(forbidden, p, re.IGNORECASE if _blind(spec) else 0) for p in paths):
         return message
     # allowlist_pragma is deliberately not honoured: the gateway is an agent-side surface,
     # and a waiver the agent writes into its own tool call must never lift the block.
@@ -174,8 +183,13 @@ RUNTIME_KINDS = tuple(sorted(_EVALUATORS))
 FAULT = "fault"
 
 
-def judge(gates: list[dict[str, Any]], _tool_name: str, arguments: Any) -> list[tuple[str, str, str]]:
-    """(policy_id, action, message) for every gate that fires, in order; `fault` when a gate cannot judge."""
+def judge(
+    gates: list[dict[str, Any]], _tool_name: str, arguments: Any, *, case_blind: bool | None = None
+) -> list[tuple[str, str, str]]:
+    """(policy_id, action, message) for every gate that fires, in order; `fault` when a gate cannot judge.
+
+    `case_blind` says whether paths compare without regard to case; this machine's default unless told.
+    """
     findings: list[tuple[str, str, str]] = []
     for spec in gates:
         policy = str(spec.get("policy_id", "?"))
@@ -185,7 +199,7 @@ def judge(gates: list[dict[str, Any]], _tool_name: str, arguments: Any) -> list[
             findings.append((policy, FAULT, f"unevaluable gateway gate kind {kind!r}; refusing (fail closed)"))
             continue
         try:
-            message = evaluator(spec, arguments)
+            message = evaluator(spec if case_blind is None else {**spec, "case_blind": case_blind}, arguments)
         except Exception as exc:  # noqa: BLE001 -- a gate that cannot run refuses the call, never allows it
             findings.append((policy, FAULT, f"gateway gate failed ({type(exc).__name__}); refusing (fail closed)"))
             continue
@@ -194,9 +208,11 @@ def judge(gates: list[dict[str, Any]], _tool_name: str, arguments: Any) -> list[
     return findings
 
 
-def evaluate(gates: list[dict[str, Any]], tool_name: str, arguments: Any) -> str | None:
+def evaluate(
+    gates: list[dict[str, Any]], tool_name: str, arguments: Any, *, case_blind: bool | None = None
+) -> str | None:
     """First blocking message across all gates, or None to allow."""
-    return refusal(judge(gates, tool_name, arguments))
+    return refusal(judge(gates, tool_name, arguments, case_blind=case_blind))
 
 
 def refusal(findings: list[tuple[str, str, str]]) -> str | None:

@@ -63,6 +63,51 @@ class _Renamer(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
+    def visit_JoinedStr(self, node: ast.JoinedStr) -> ast.AST:
+        self.generic_visit(node)
+        return _lower(node) if _has_string_literal(node) else node
+
+
+_CONVERSIONS = {ord("s"): "str", ord("r"): "repr", ord("a"): "ascii"}
+
+
+def _has_string_literal(node: ast.JoinedStr) -> bool:
+    """True when a replacement field holds a string literal or a quote: the quotes `ast.unparse` picks for it depend on the interpreter."""
+    for field in node.values:
+        if not isinstance(field, ast.FormattedValue):
+            continue
+        if any(
+            isinstance(inner, ast.Constant) and isinstance(inner.value, (str, bytes)) for inner in ast.walk(field.value)
+        ):
+            return True
+        for part in field.format_spec.values if field.format_spec else ():
+            quoted = isinstance(part, ast.Constant) and ("'" in part.value or '"' in part.value)
+            if quoted or (isinstance(part, ast.FormattedValue) and _has_string_literal(ast.JoinedStr([part]))):
+                return True
+    return False
+
+
+def _call(func: ast.expr, *args: ast.expr) -> ast.Call:
+    return ast.Call(func=func, args=list(args), keywords=[])
+
+
+def _lower(node: ast.JoinedStr) -> ast.expr:
+    """`f"{', '.join(x)}"` as `''.join([format(', '.join(x))])`: no f-string quoting left to differ between 3.11 and 3.12.x."""
+    parts: list[ast.expr] = []
+    for field in node.values:
+        if isinstance(field, ast.Constant):
+            parts.append(field)
+            continue
+        value = field.value
+        if field.conversion in _CONVERSIONS:
+            value = _call(ast.Name(_CONVERSIONS[field.conversion], ast.Load()), value)
+        spec = [_lower(field.format_spec)] if field.format_spec else []
+        parts.append(_call(ast.Name("format", ast.Load()), value, *spec))
+    if all(isinstance(part, ast.Constant) for part in parts):
+        return ast.Constant("".join(part.value for part in parts))
+    joiner = ast.Attribute(ast.Constant(""), "join", ast.Load())
+    return ast.copy_location(_call(joiner, ast.List(parts, ast.Load())), node)
+
 
 def _segment(lines: list[bytes], node: ast.stmt) -> str:
     """`ast.get_source_segment` over lines split once: it re-splits the whole source on every call."""

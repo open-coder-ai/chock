@@ -57,8 +57,8 @@ def _at_turn_end(client: str, tmp_path: Path, home: Path):
     verify = [c for c in commands if f'{WRAPPER}" {toggle.VERIFY}' in c]
     assert len(verify) == 1, commands
 
-    def judge() -> str:
-        (proc,) = outcomes(verify, plugin, repo, _stop(client, repo), home)
+    def judge(session: str = "s1") -> str:
+        (proc,) = outcomes(verify, plugin, repo, client_payloads.in_session(_stop(client, repo), session), home)
         return _verdict(proc)
 
     return repo, judge
@@ -77,13 +77,13 @@ def test_the_persons_change_through_the_cli_passes_and_a_raw_write_is_refused(
     repo, judge = _at_turn_end(client, tmp_path, home)
     assert judge() == "allowed", "no file, no record"
     _switch(repo, monkeypatch, "off", GUARD_ID)
-    assert judge() == "allowed", "written by chock bundle"
+    assert judge("s2") == "allowed", "written by chock bundle, before this session started"
     path = repo / TOGGLE
     # A write the best-effort shell guard missed: the file changes with no record of it.
     path.write_text(json.dumps({"version": 1, "bundles": {BUNDLE_ID: {GUARD_ID: "off", "demo-write-gate": "off"}}}))
-    assert judge() == "refused"
+    assert judge("s2") == "refused"
     _switch(repo, monkeypatch, "status", "--adopt")
-    assert judge() == "allowed", "a person reviewed and adopted it"
+    assert judge("s3") == "allowed", "a person reviewed and adopted it, before this session started"
 
 
 @pytest.mark.parametrize("client", MERGED_CLIENTS)
@@ -261,11 +261,12 @@ def test_an_agent_written_off_is_ignored_at_hook_time_until_a_person_adopts_it(
     plugin, repo, commands = build(tmp_path, client)
     payload = shell(client, repo, "rm -rf /")
     set_toggles(repo, {BUNDLE_ID: {GUARD_ID: "off"}}, recorded=False)
-    procs = outcomes(commands, plugin, repo, payload, home)
+    procs = outcomes(commands, plugin, repo, client_payloads.in_session(payload, "s1"), home)
     assert any(refused(p) for p in procs), "an unrecorded off switches nothing off"
     assert any(toggle.DRIFTED in p.stderr for p in procs)
     _switch(repo, monkeypatch, "status", "--adopt")
-    assert not any_refused(commands, plugin, repo, payload, home), "honoured once the person adopted it"
+    next_session = client_payloads.in_session(payload, "s2")
+    assert not any_refused(commands, plugin, repo, next_session, home), "honoured once adopted, next session"
 
 
 def test_the_cli_refuses_to_build_on_a_file_it_did_not_record(

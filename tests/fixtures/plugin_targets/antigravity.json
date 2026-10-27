@@ -15,6 +15,7 @@
     "scripts/chock_bundle.json",
     "scripts/chock_bundle.py",
     "scripts/chock_bundle_log.py",
+    "scripts/chock_bundle_state.py",
     "scripts/chock_chain.py",
     "scripts/chock_journal.py",
     "scripts/demo-shell-guard/demo-shell-guard.py",

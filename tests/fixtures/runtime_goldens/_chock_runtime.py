@@ -286,7 +286,7 @@ def log_settings_read(path):
         problems.append(f'{path}: max_bytes must be {_LOG_BYTES_RANGE}, not {size!r}; using the next scope or 1048576')
     unknown = sorted(set(doc) - set(LOG_SETTINGS_KEYS))
     if unknown:
-        problems.append(f"{path}: unknown key(s) {', '.join(map(str, unknown))}; only level and max_bytes are read")
+        problems.append(''.join([format(path), ': unknown key(s) ', format(', '.join(map(str, unknown))), '; only level and max_bytes are read']))
     return (found, problems)
 
 def log_settings_paths(repo_root):
@@ -504,8 +504,6 @@ _HALT_UNREADABLE = '.chock/stop.json exists but cannot be read, so every agent i
 
 _HALT_NO_REASON = 'no reason given'
 
-_HALT_CASELESS = ('darwin', 'win32', 'cygwin')
-
 def _halt_read_file(path, unreadable):
     """The stop `path` holds as {scope, reason, ...}, or None when there is no file. A file that exists but
     cannot be read or parsed, or names no valid scope, stops every agent: fail closed."""
@@ -535,7 +533,7 @@ def halt_registry_dir():
 def halt_norm(path):
     """`path`'s realpath, casefolded where the filesystem ignores case (realpath keeps the case it was typed in)."""
     real = _chock_os.path.realpath(str(path))
-    return real.casefold() if sys.platform in _HALT_CASELESS else real
+    return real.casefold() if sys.platform in CASE_BLIND_PLATFORMS else real
 
 def halt_registry_entry(repo_root):
     """The registry entry for `repo_root`, named by the sha256 of its normalised realpath."""
@@ -744,12 +742,14 @@ def interpreter_env(interpreter: str) -> dict[str, str]:
         env['PATH'] = str(usr_bin) + _chock_os.pathsep + env.get('PATH', '')
     return env
 
+_PROBE_SCRIPT = 'test -f "$1"'
+
 def find_bash(guard: _chock_Path, deadline: float | None=None) -> str | None:
     """First bash that can actually see `guard`, probed once per process; the probes draw on `deadline`."""
     if 'bash' in _FOUND_BASH:
         return _FOUND_BASH['bash']
     for candidate in bash_candidates():
-        argv = [candidate, '-c', f'test -f "{guard.as_posix()}"']
+        argv = [candidate, '-c', _PROBE_SCRIPT, '_', guard.as_posix()]
         try:
             limit = _BASH_PROBE_SECONDS if deadline is None else min(_BASH_PROBE_SECONDS, time_left(deadline, argv))
             proc = _chock_subprocess.run(argv, capture_output=True, timeout=limit, check=False)
@@ -949,7 +949,7 @@ def dlog_target(event, repo):
     tool = str(getattr(event, 'tool', None) or '')
     mcp = _DLOG_MCP_TOOL.match(tool)
     if mcp:
-        return log_redact(f"{mcp['server']}/{mcp['tool']}")[:_DLOG_MCP_CAP]
+        return log_redact(''.join([format(mcp['server']), '/', format(mcp['tool'])]))[:_DLOG_MCP_CAP]
     command, path = (getattr(event, 'command', None), getattr(event, 'path', None))
     if command:
         return dlog_command_print(command)
@@ -1075,8 +1075,8 @@ def _dlog_reason(source, outcome):
     if source == HALT_REASON:
         return HALT_REASON
     if source == 'guard' and 'outcome' in GUARD_LAST:
-        return f"guard-{GUARD_LAST['outcome']}"
-    return source if source == 'fault' else f"{source}-{_DLOG_SPOKEN.get(outcome, 'allow')}"
+        return ''.join(['guard-', format(GUARD_LAST['outcome'])])
+    return source if source == 'fault' else ''.join([format(source), '-', format(_DLOG_SPOKEN.get(outcome, 'allow'))])
 
 def _dlog_paths(route, runtime, agent, event):
     """(log file, repository whose settings apply) for this call."""
@@ -1386,7 +1386,7 @@ def _patch_not_empty(state, text):
     if last is None or last['op'] != 'update':
         return
     if not last['body'] and state['mode'] == 'update':
-        _patch_refuse(state['number'], text, f"update of {last['path']!r} has no hunk")
+        _patch_refuse(state['number'], text, ''.join(['update of ', format(repr(last['path'])), ' has no hunk']))
     if last['body'] and (not (last['body'][-1]['old'] or last['body'][-1]['new'])):
         _patch_refuse(state['number'], text, 'a hunk has no lines')
 
@@ -1588,6 +1588,12 @@ _DRIVE_AT = 1
 
 _SEPARATORS = ('/', '\\')
 
+CASE_BLIND_PLATFORMS = ('darwin', 'win32', 'cygwin')
+
+def platform_case_blind():
+    """Whether this machine's filesystem ignores case by default."""
+    return sys.platform in CASE_BLIND_PLATFORMS
+
 def _slashed(path):
     return str(path).replace('\\', '/')
 
@@ -1614,8 +1620,11 @@ def _outside_fold(path):
     return '/'.join(parts)
 
 def declared_outside(path, root, patterns, *, windows=None):
-    """The absolute, slash-separated path when it is outside `root` and matches a declared glob; else None."""
-    windows = _chock_os.name == 'nt' if windows is None else windows
+    """The absolute, slash-separated path when it is outside `root` and matches a declared glob; else None.
+
+    `windows` is whether paths compare without regard to case; this machine's default unless told.
+    """
+    windows = platform_case_blind() if windows is None else windows
     text = _slashed(path)
     if not is_outside(text) or not patterns:
         return None
@@ -1636,7 +1645,7 @@ def outside_globs(gate):
         return []
     return [g for g in declared if isinstance(g, str)] if isinstance(declared, list) else []
 
-def judged_files(files, root, patterns, repo_names):
+def judged_files(files, root, patterns, repo_names, *, case_blind=None):
     """`files` ({path: text}) keyed the way a gate judges them.
 
     A path inside the repository is named by `repo_names(path)`; one outside is kept, under its
@@ -1648,7 +1657,7 @@ def judged_files(files, root, patterns, repo_names):
             if not is_outside(name):
                 kept[name] = text
                 continue
-            found = declared_outside(name, root, patterns)
+            found = declared_outside(name, root, patterns, windows=case_blind)
             if found is not None:
                 kept[found] = text
     return kept
@@ -2508,7 +2517,7 @@ def _missing_gate(gate):
     """A gate the hook names but that is not on disk: a broken install, so a refusal that says so."""
     return (VERDICT_DENY, f'chock gate {gate} is missing, so this write cannot be checked. Run `chock sync --repo .` to rebuild the compiled gates.')
 
-def _gate_says(gate, event, name, deadline, root):
+def _gate_says(gate, event, deadline, root, case_blind):
     """(decision, judged files): what the compiled gate says about this event in `root`, before a re-entered stop."""
     if not gate.exists():
         return (_missing_gate(gate), {})
@@ -2517,28 +2526,27 @@ def _gate_says(gate, event, name, deadline, root):
     listed = writes_for(event, gate, deadline, why, root)
     if listed is None:
         return (gate_decision(GATE_ERRORED, why[-1] if why else 'git status gave no answer', gate), {})
-    writes = judged_files(listed, root, outside, lambda path: repo_paths(path, root))
+    writes = judged_files(listed, root, outside, lambda path: repo_paths(path, root), case_blind=case_blind)
     if not writes:
         return (None, writes)
     added = {**patch_added(event), **added_from_event(event)} if event.event == PRE_TOOL else {}
-    added = judged_files(added, root, outside, lambda path: repo_paths(path, root))
+    added = judged_files(added, root, outside, lambda path: repo_paths(path, root), case_blind=case_blind)
     added = {path: text for path, text in added.items() if path in writes}
-    extra = {**({'added': added} if added else {}), 'session': session_for(event, root), 'log': dlog_fields(event, root)}
-    outcome, message = run_gate(gate, writes, name, (root, extra), deadline)
+    extra = {**({'added': added} if added else {}), 'session': session_for(event, root), 'log': dlog_fields(event, root), 'case_blind': case_blind}
+    outcome, message = run_gate(gate, writes, _EVENT_ARG[event.event], (root, extra), deadline)
     return (gate_decision(outcome, message, gate), writes)
 
-def evaluate_gate(argv, event):
+def evaluate_gate(argv, event, *, case_blind=None):
     """The decision this event earns from a compiled gate, or None when it has nothing to say."""
     GATE_LAST.clear()
     gate = gate_path_from_argv(argv)
-    name = _EVENT_ARG.get(getattr(event, 'event', ''))
-    if gate is None or name is None:
+    if gate is None or getattr(event, 'event', '') not in _EVENT_ARG:
         return None
     deadline = engine_deadline()
     if event.event == PRE_TOOL:
-        return _gate_says(gate, event, name, deadline, repo_root_for(event, gate))[0]
+        return _gate_says(gate, event, deadline, repo_root_for(event, gate), case_blind)[0]
     roots = [repo_root_for(event, gate)] if root_for(gate) else stop_roots(event, repo_root_for(event, gate))
-    decision, judged = per_root([(root, *_gate_says(gate, event, name, deadline, root)) for root in roots])
+    decision, judged = per_root([(root, *_gate_says(gate, event, deadline, root, case_blind)) for root in roots])
     return settle_stop(event, roots[0], gate, decision, judged)
 
 TOOL_CALL_FLAG = '--tool-call'

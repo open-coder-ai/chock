@@ -45,6 +45,12 @@ def _waived(index: int, line: str, waivers: set[int], head: frozenset[str] | Non
     return index in waivers and (head is None or line in head)
 
 
+def _path_pattern(params: dict, ctx: GateContext) -> str | None:
+    """The gate's forbidden-path regex, matching without case where the filesystem ignores it."""
+    pattern = params.get("forbidden_path_regex")
+    return f"(?i){pattern}" if pattern and ctx.case_blind else pattern
+
+
 def _kind_content_regex(ctx: GateContext, params: dict, event: str) -> GateResult:
     pragma = _waiver_pattern(params, event)
     agent = event in HEAD_WAIVER_EVENTS
@@ -52,7 +58,7 @@ def _kind_content_regex(ctx: GateContext, params: dict, event: str) -> GateResul
     paths = ctx.staged_paths(params.get("diff_filter", "ACMRT"))
     judge = pattern_judge()
     try:
-        forbidden = sorted(_hits(judge, [(params.get("forbidden_path_regex"), paths)])[0])
+        forbidden = sorted(_hits(judge, [(_path_pattern(params, ctx), paths)])[0])
         heads = {path: ctx.committed_blob(path) if agent else "" for path in paths}
         blobs = [heads[paths[index]] if agent else ctx.staged_blob(paths[index]) for index in forbidden]
         spans, texts = _lines(

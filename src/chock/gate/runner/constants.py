@@ -16,6 +16,7 @@ __all__ = [
     "AGENT_EVENTS",
     "AI_AGENT_ENV",
     "ALLOW_ENV",
+    "CASE_BLIND_PLATFORMS",
     "CLAUDECODE_ENV",
     "COMPILED_PREFIX",
     "CONFIG_AGENT_ENV_KEY",
@@ -59,6 +60,8 @@ __all__ = [
 ]
 
 # >>> gate.py 02
+#: Platforms whose default filesystem ignores case: a path typed in another case names the same file.
+CASE_BLIND_PLATFORMS = ("darwin", "win32", "cygwin")
 #: Kinds whose question a write can answer. A branch name is not in a tool call, so
 #: forbidden_ref has nothing to read here; saying so beats passing it empty and calling
 #: that an allow.

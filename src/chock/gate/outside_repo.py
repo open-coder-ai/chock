@@ -11,11 +11,19 @@ from __future__ import annotations
 import fnmatch
 import json
 import os
+import sys
 
 OUTSIDE_KEY = "outside_repo"
 _UP = ".."
 _DRIVE_AT = 1
 _SEPARATORS = ("/", "\\")
+#: Platforms whose default filesystem ignores case: a path typed in another case names the same file.
+CASE_BLIND_PLATFORMS = ("darwin", "win32", "cygwin")
+
+
+def platform_case_blind():
+    """Whether this machine's filesystem ignores case by default."""
+    return sys.platform in CASE_BLIND_PLATFORMS
 
 
 def _slashed(path):
@@ -48,8 +56,11 @@ def _outside_fold(path):
 
 
 def declared_outside(path, root, patterns, *, windows=None):
-    """The absolute, slash-separated path when it is outside `root` and matches a declared glob; else None."""
-    windows = os.name == "nt" if windows is None else windows
+    """The absolute, slash-separated path when it is outside `root` and matches a declared glob; else None.
+
+    `windows` is whether paths compare without regard to case; this machine's default unless told.
+    """
+    windows = platform_case_blind() if windows is None else windows
     text = _slashed(path)
     if not is_outside(text) or not patterns:
         return None
@@ -72,7 +83,7 @@ def outside_globs(gate):
     return [g for g in declared if isinstance(g, str)] if isinstance(declared, list) else []
 
 
-def judged_files(files, root, patterns, repo_names):
+def judged_files(files, root, patterns, repo_names, *, case_blind=None):
     """`files` ({path: text}) keyed the way a gate judges them.
 
     A path inside the repository is named by `repo_names(path)`; one outside is kept, under its
@@ -84,7 +95,7 @@ def judged_files(files, root, patterns, repo_names):
             if not is_outside(name):
                 kept[name] = text
                 continue
-            found = declared_outside(name, root, patterns)
+            found = declared_outside(name, root, patterns, windows=case_blind)
             if found is not None:
                 kept[found] = text
     return kept

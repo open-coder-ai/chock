@@ -103,12 +103,16 @@ def interpreter_env(interpreter: str) -> dict[str, str]:
     return env
 
 
+#: The probe's shell text is fixed; the guard path arrives as `$1`, so no character in it is ever shell syntax.
+_PROBE_SCRIPT = 'test -f "$1"'
+
+
 def find_bash(guard: Path, deadline: float | None = None) -> str | None:
     """First bash that can actually see `guard`, probed once per process; the probes draw on `deadline`."""
     if "bash" in _FOUND_BASH:
         return _FOUND_BASH["bash"]
     for candidate in bash_candidates():
-        argv = [candidate, "-c", f'test -f "{guard.as_posix()}"']
+        argv = [candidate, "-c", _PROBE_SCRIPT, "_", guard.as_posix()]
         try:
             limit = _BASH_PROBE_SECONDS if deadline is None else min(_BASH_PROBE_SECONDS, time_left(deadline, argv))
             proc = subprocess.run(argv, capture_output=True, timeout=limit, check=False)  # noqa: S603 -- probing is the job

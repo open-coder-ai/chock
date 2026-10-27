@@ -67,3 +67,14 @@ def test_the_bash_probe_runs_once_per_process(tmp_path, monkeypatch) -> None:
     assert first is not None
     assert guard_runner.find_bash(_touch(tmp_path / "other.sh")) == first
     assert len(spawns) == 1
+
+
+@pytest.mark.skipif(os.name == "nt", reason="a POSIX shell is probed with the path as its own argument")
+@pytest.mark.parametrize("name", ["a$(touch pwned)b.sh", "a`touch pwned`b.sh", 'a"b.sh', "a'b.sh"])
+def test_the_bash_probe_takes_the_guard_path_literally(tmp_path, monkeypatch, name) -> None:
+    """The guard path is an argument of the probe, never part of the shell string it runs."""
+    guard = _touch(tmp_path / name)
+    monkeypatch.chdir(tmp_path)
+
+    assert guard_runner.find_bash(guard) is not None
+    assert not (tmp_path / "pwned").exists()

@@ -84,3 +84,17 @@ Each custom member reads `custom, not reviewed; <what its hooks do>` in install'
 and in the plugin's "customize guardrails" skill. Switch one off like any member: `chock bundle off <id>`.
 
 To propose a policy to the catalog instead, follow the catalog's CONTRIBUTING steps and drop the `my-` prefix.
+
+## 5. When an `off` takes effect
+
+A plugin honours an `off` in the repository's or the user's guardrails toggle file only in a session that started after
+that file's record (the sha256 `chock bundle` keeps beside it) last changed. The plugin binds each session to the files it
+first saw; if either file changes during the session, every member stays on for the rest of it, and the change takes
+effect in the next session. A session start lists every member that is off, by scope, and the Stop-time check refuses a
+turn's end while a file changed during the session switches a member off. The built-in self-protection is never
+switchable. A client that sends no session id honours an `off` only after a session-start event.
+
+**A toggle is not a security boundary against an agent running as you.** That agent can write the file and its record
+(chock cannot tell a script from your shell), so the rule above only keeps it from switching a guardrail off for the
+session it is working in: you see what is off at the start of the next one. Treat `chock bundle status` and the
+session-start list as the review point. Confirming a change interactively is a later step.

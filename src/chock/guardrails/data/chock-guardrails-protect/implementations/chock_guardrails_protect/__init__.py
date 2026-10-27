@@ -1,9 +1,8 @@
 """Which shell commands and writes would change a guardrails toggle file or accept custom code (stdlib only).
 
-Paths are folded the way protect-agent-config folds them: backslashes read as slashes, `//` and `/./`
-collapsed, `..` folded, letter case ignored, and links followed to the file they name. The shell side
-is best effort: any word naming a file called guardrails.json, or the `.chock` folder in a command that
-can move a folder into place, counts, and only commands that read are let through.
+Paths are folded as protect-agent-config folds them: backslashes read as slashes, `//`, `/./` and `..` folded, case
+ignored, links followed. The shell side is best effort: any word naming a file called guardrails.json, or the `.chock`
+folder in a command that can move a folder into place, counts, and only commands that read are let through.
 """
 
 from __future__ import annotations
@@ -20,7 +19,9 @@ from pathlib import Path
 NAME = "guardrails.json"
 #: The sha256 `chock bundle` records of the file it wrote, under `.chock/state/`: protected as the file is.
 RECORD = "guardrails.sha256"
-NAMES = (NAME, RECORD)
+SESSION = "guardrails-session-"  # a session's binding to the toggle files it saw, in `.chock/state/`
+NAMES = (NAME, RECORD, SESSION)
+SAMPLES = (NAME, RECORD, f"{SESSION}x.json")
 FOLDER = ".chock"
 TOGGLE = f"{FOLDER}/{NAME}"
 PROTECTED = (TOGGLE, f"{FOLDER}/state/{RECORD}")
@@ -33,7 +34,7 @@ TRUST_FLAG = "--trust"
 
 REFUSED = (
     "chock: an agent may not change .chock/guardrails.json or ~/.chock/guardrails.json (or their .chock/state "
-    "record), the files that switch "
+    "record or session binding), the files that switch "
     "this bundle's guardrails on and off, nor run `chock bundle on|off` or `--adopt`. Reading is fine. Show the person "
     "the exact `chock bundle on|off <policy-id>` command to run in their own shell, and wait."
 )
@@ -120,8 +121,8 @@ def _real(token: str, cwd: Path) -> str:
 
 def names_toggle(token: str, cwd: Path) -> bool:
     """Whether a shell word can name a toggle file or its record: as written, folded, or through a link."""
-    folded, real = fold(token), _real(token, cwd)
-    return any(name in folded or _base_is(folded, name) or _base_is(real, name) for name in NAMES)
+    texts = (fold(token), _real(token, cwd))
+    return any(n in t for t in texts for n in NAMES) or any(_base_is(t, s) for t in texts for s in SAMPLES)
 
 
 def names_folder(token: str, cwd: Path) -> bool:
@@ -154,7 +155,7 @@ def is_marker_path(path: str, root: Path) -> bool:
 def is_toggle_path(path: str, root: Path) -> bool:
     """Whether a written path is a toggle file or its record (anywhere), as written or through links."""
     return any(
-        folded == want or folded.endswith("/" + want)
+        folded == want or folded.endswith("/" + want) or f"/{FOLDER}/state/{SESSION}" in "/" + folded
         for folded in (fold(path), _real(path, root))
         for want in PROTECTED
     )

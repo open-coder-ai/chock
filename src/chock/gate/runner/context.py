@@ -6,11 +6,12 @@ import difflib
 import fnmatch
 import shutil
 import subprocess
+import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .constants import _PUSH_LINE_MIN_PARTS
+from .constants import _PUSH_LINE_MIN_PARTS, CASE_BLIND_PLATFORMS
 from .gitparse import DiffError, ListingError, _diff_sides, _nul_paths
 
 # >>> gate.py 01
@@ -50,8 +51,12 @@ class GateContext:
         scope: Sequence[str] | None = None,
         own: Sequence[str] = (),
         session: Mapping[str, object] | None = None,
+        *,
+        case_blind: bool | None = None,
     ) -> None:
         self.repo_root = Path(repo_root)
+        #: Whether paths and scope globs compare without regard to case; the platform's default unless told.
+        self.case_blind = sys.platform in CASE_BLIND_PLATFORMS if case_blind is None else case_blind
         #: The session-log handle a script gate receives; None when the hook named no session.
         self.session = dict(session) if session else None
         self._push_stdin = push_stdin or ""
@@ -73,6 +78,8 @@ class GateContext:
             return False
         if _is_outside(path):
             return True
+        if self.case_blind:
+            return not self.scope or any(fnmatch.fnmatchcase(path.casefold(), g.casefold()) for g in self.scope)
         return not self.scope or any(fnmatch.fnmatchcase(path, g) for g in self.scope)
 
     def _range(self) -> list[str]:
@@ -215,8 +222,9 @@ class WriteContext(GateContext):
         *,
         stop: bool = False,
         session: Mapping[str, object] | None = None,
+        case_blind: bool | None = None,
     ) -> None:
-        super().__init__(repo_root=repo_root, scope=scope, own=own, session=session)
+        super().__init__(repo_root=repo_root, scope=scope, own=own, session=session, case_blind=case_blind)
         self._writes = dict(writes)
         self._added = dict(added or {})
         self._stop = stop

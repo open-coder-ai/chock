@@ -147,3 +147,9 @@ def write_resolved(folder: Path, files: dict[Path, str]) -> Path:
 def skip_rootless(client: str) -> None:
     if rootless(client):
         pytest.skip(f"{client} names its folder by path: test_plugin_install_targets moves the folder instead")
+
+
+def in_session(payload: dict[str, Any], session: str) -> dict[str, Any]:
+    """`payload` as the client's session `session` sends it: every session or conversation key it has, else `session_id`."""
+    keys = [k for k in ("session_id", "sessionId", "conversation_id", "conversationId") if k in payload]
+    return {**payload, **dict.fromkeys(keys or ["session_id"], session)}
