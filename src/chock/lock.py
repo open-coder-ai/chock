@@ -107,7 +107,7 @@ def pack_hash_matches(pack_dir: Path, expected: object) -> bool:
     """True when `pack_dir` hashes to `expected` under v2, or under v1 while no file holds a NUL byte.
 
     With a NUL byte in a file v1's framing is ambiguous (two file sets can share a hash), so a v1 hash is
-    refused there. Every comparison of a stored or given pack hash goes through this function.
+    refused there. v1 is accepted for all of 1.x and removed in 2.0. Every comparison of a stored or given pack hash goes through this function.
     """
     if not isinstance(expected, str):
         return False

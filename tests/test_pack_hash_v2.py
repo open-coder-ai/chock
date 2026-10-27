@@ -245,3 +245,12 @@ def test_artifacts_hash_goes_through_pack_hash_matches(tmp_path: Path, spy: list
     spy.clear()
     assert verify_lock(repo)[0]
     assert spy.count(lock_mod.__name__) >= 2, "the pack hash and the compiled-artifacts hash"
+
+
+def test_marketplace_v1_lock_with_foreign_keys_is_refused_unread(tmp_path: Path, spy: list[str]) -> None:
+    dist = _dist(tmp_path, nul=False)
+    (tmp_path / "x").mkdir()
+    text = json.dumps({"lockfile_version": 1, "plugins": {"../x": "0" * 64}}, indent=2, sort_keys=True) + "\n"
+    (dist / marketplace_core.LOCKFILE_NAME).write_text(text, encoding="utf-8")
+    assert marketplace_core.lock_differences(dist) == [f"differs: {marketplace_core.LOCKFILE_NAME}"]
+    assert spy == [], "no path from the lock was hashed"
