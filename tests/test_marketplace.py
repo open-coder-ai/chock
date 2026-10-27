@@ -107,7 +107,7 @@ def test_lockfile_content_addresses_every_published_directory(dist: Path) -> Non
     marketplace_main(["build", "--dist", str(dist)])
     lock = _json.loads((dist / LOCKFILE_NAME).read_text(encoding="utf-8"))
 
-    assert lock["lockfile_version"] == 1
+    assert lock["lockfile_version"] == 2
     expected = {f"{fmt}/{manifest['id']}" for fmt in FORMATS for manifest in MANIFESTS}
     assert set(lock["plugins"]) == expected, "every tree is covered, not just the one the index points at"
     assert all(len(h) == 64 for h in lock["plugins"].values())

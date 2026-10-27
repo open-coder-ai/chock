@@ -20,13 +20,15 @@ PACK = "demo"
 FILES = {"Z.txt": b"z\n", "a.txt": b"a\n", "manifest.yaml": f"id: {PACK}\n".encode()}
 CODE_POINT_ORDER = ("Z.txt", "a.txt", "manifest.yaml")
 CASE_FOLDED_ORDER = ("a.txt", "manifest.yaml", "Z.txt")
-PINNED_DIGEST = "0ee91daec41c3df916c05b5b6a01dd53999ca1d5cf192e39ad461db9ad1c4ed0"
+PINNED_V1_DIGEST = "0ee91daec41c3df916c05b5b6a01dd53999ca1d5cf192e39ad461db9ad1c4ed0"
+PINNED_DIGEST = "eda1211fffc5defc75a9112764acd6a4f97894dc53cbfc9a9ad641764191d311"
 
 
 def _digest(order: tuple[str, ...]) -> str:
-    h = hashlib.sha256()
+    h = hashlib.sha256(b"chock-pack-hash-v2\n")
     for name in order:
-        h.update(name.encode("utf-8") + b"\0" + FILES[name] + b"\0")
+        raw = name.encode("utf-8")
+        h.update(len(raw).to_bytes(8, "big") + raw + len(FILES[name]).to_bytes(8, "big") + FILES[name])
     return h.hexdigest()
 
 

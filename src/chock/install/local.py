@@ -21,7 +21,7 @@ from chock.install import package
 from chock.install.resolve import REFUSED
 from chock.install.selection import LOCAL
 from chock.lifecycle import check_main
-from chock.lock import compute_pack_hash
+from chock.lock import compute_pack_hash, pack_hash_matches
 from chock.scaffold.add import IntegrityError
 from chock.scaffold.pin import INERT, _run
 
@@ -139,7 +139,7 @@ def snapshot(chosen: dict[str, Any], base: Path | None, into: Path) -> list[Loca
         _copy(policy_id, folder, copy)
         _check_manifest(policy_id, copy)
         digest = compute_pack_hash(copy)
-        if "sha256" in entry and entry["sha256"] != digest:
+        if "sha256" in entry and not pack_hash_matches(copy, entry["sha256"]):
             raise _refuse(policy_id, f"the selection pins sha256 {entry['sha256']}, the folder hashes to {digest}")
         found.append(Local(policy_id, folder, copy, digest))
     return found
@@ -200,7 +200,7 @@ def _check_given(found: list[Local], given: dict[str, str]) -> None:
         msg = f"--trust-local names {', '.join(unknown)}, which is not a local policy of this selection. {REFUSED}"
         raise IntegrityError(msg)
     for item in found:
-        if item.id in given and given[item.id] != item.sha256:
+        if item.id in given and not pack_hash_matches(item.snapshot, given[item.id]):
             raise _refuse(item.id, f"--trust-local gives sha256 {given[item.id]}, the folder hashes to {item.sha256}")
 
 
@@ -213,7 +213,7 @@ def confirm(found: list[Local], trust: Trust, out: TextIO | None = None) -> dict
     out = out or sys.stdout
     _check_given(found, trust.given)
     for item in found:
-        if trust.accepted.get(item.id) == item.sha256 and item.id not in trust.given:
+        if pack_hash_matches(item.snapshot, trust.accepted.get(item.id)) and item.id not in trust.given:
             print(_summary(item), file=out)
             continue
         show(item, out)
