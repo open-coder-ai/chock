@@ -8,6 +8,7 @@ import json
 import os
 import re
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 VERSION = 1
@@ -186,19 +187,34 @@ def has_off(path: Path) -> bool:
         return False
 
 
-def listed_off(paths: list[Path], governing: Path | None, user: Path) -> list[str]:
-    """One line per recorded file in `paths` that switches a member off; `governing` is the file that applies here."""
-    lines = []
+def listed_off(
+    paths: list[Path],
+    governing: Path | None,
+    user: Path,
+    vouch: Callable[[Path, dict], tuple[dict, list[str]]] | None = None,
+) -> tuple[list[str], list[str]]:
+    """(one line per recorded file in `paths` that switches a member off, one per file whose offs `vouch` held back).
+
+    `governing` is the file that applies here; `vouch(path, toggles)` is (the toggles still off, the offs it dropped).
+    """
+    lines, held = [], []
     for path in paths:
         if not os.path.lexists(path) or drift(path):
             continue
         try:
-            off = sorted(
-                f"{b}/{i}" for b, ms in read(path).items() for i, s in ms.items() if s == OFF and i != PROTECT_ID
-            )
+            toggles = read(path)
         except ToggleError:
             continue
-        if off:
-            shadowed = "" if governing in (None, path) else " (not applied here: the repository's own file governs)"
-            lines.append(f"{'user' if path == user else 'repo'} ({path}){shadowed}: {', '.join(off)}")
-    return lines
+        dropped = []
+        if vouch is not None:
+            toggles, dropped = vouch(path, toggles)
+        shadowed = "" if governing in (None, path) else " (not applied here: the repository's own file governs)"
+        kept = sorted(d for d in dropped if d.split("/", 1)[1] != PROTECT_ID)
+        for found, into in ((_offs(toggles), lines), (kept, held)):
+            if found:
+                into.append(f"{'user' if path == user else 'repo'} ({path}){shadowed}: {', '.join(found)}")
+    return lines, held
+
+
+def _offs(toggles: dict[str, dict[str, str]]) -> list[str]:
+    return sorted(f"{b}/{i}" for b, ms in toggles.items() for i, s in ms.items() if s == OFF and i != PROTECT_ID)

@@ -64,6 +64,43 @@ def test_off_then_on_round_trips_at_repo_scope(repo: Path, capsys: pytest.Captur
     toggle.parse((repo / toggle.FILENAME).read_text(encoding="utf-8"))
 
 
+def test_off_ends_with_the_commit_and_next_session_line_at_repo_scope_only(
+    repo: Path, home: Path, capsys: pytest.CaptureFixture
+) -> None:
+    line = f"This applies only once {toggle.FILENAME} is committed, and from the next session."
+    assert cli.main(["off", P]) == 0
+    assert capsys.readouterr().out.rstrip().endswith(line)
+    assert cli.main(["on", P]) == 0
+    assert line not in capsys.readouterr().out
+    assert cli.main(["off", Q, "--scope", "user"]) == 0
+    assert line not in capsys.readouterr().out
+
+
+def test_status_shows_an_uncommitted_off_as_on_until_committed(repo: Path, capsys: pytest.CaptureFixture) -> None:
+    assert cli.main(["off", P]) == 0
+    capsys.readouterr()
+    assert cli.main(["status"]) == 0
+    out = capsys.readouterr().out
+    assert re.search(rf"{P} +on ", out) and toggle.UNCOMMITTED in out
+    commit_toggles(repo)
+    assert cli.main(["status"]) == 0
+    out = capsys.readouterr().out
+    assert re.search(rf"{P} +off ", out) and toggle.UNCOMMITTED not in out
+
+
+def test_status_at_user_scope_needs_no_commit(
+    repo: Path, home: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    outside = repo.parent / "plain"
+    outside.mkdir()
+    monkeypatch.chdir(outside)
+    assert cli.main(["off", P]) == 0
+    capsys.readouterr()
+    assert cli.main(["status"]) == 0
+    out = capsys.readouterr().out
+    assert re.search(rf"{P} +off ", out) and toggle.UNCOMMITTED not in out
+
+
 def test_user_scope_writes_the_home_file_and_says_the_repo_governs(
     repo: Path, home: Path, capsys: pytest.CaptureFixture
 ) -> None:
