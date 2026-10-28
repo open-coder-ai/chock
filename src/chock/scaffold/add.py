@@ -14,7 +14,15 @@ import yaml
 
 from chock import yamlio
 from chock.config import agents_from_config as _agents_from_config
-from chock.lock import LOCAL_SOURCE, compute_pack_hash, is_local_source, pack_bytecode, read_lock, write_lock
+from chock.lock import (
+    LOCAL_SOURCE,
+    compute_pack_hash,
+    is_local_source,
+    pack_bytecode,
+    pack_hash_matches,
+    read_lock,
+    write_lock,
+)
 from chock.output import error
 from chock.scaffold.pin import PinError, fetch_catalog, redact_source
 from chock.scaffold.recompile import BookkeepingError, recompile
@@ -111,7 +119,7 @@ def verified_pack(catalog: Path, artifact_id: str, verify_sha: str | None) -> tu
     _reject_bytecode(src, artifact_id)
     _reject_foreign_id(src, artifact_id)
     digest = compute_pack_hash(src)
-    if verify_sha and digest != verify_sha:
+    if verify_sha and not pack_hash_matches(src, verify_sha):
         msg = f"{artifact_id}: expected sha256 {verify_sha}, got {digest}. Nothing was installed."
         raise IntegrityError(msg)
     return src, area, digest

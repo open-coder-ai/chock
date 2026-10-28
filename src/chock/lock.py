@@ -14,7 +14,7 @@ from chock.scaffold.pin import is_remote_source
 from chock.vendored import vendored_differences
 
 LOCKFILE_NAME = "chock.lock"
-LOCKFILE_VERSION = "1"
+LOCKFILE_VERSION = "2"
 ENGINE_CONSTRAINT = ">=0.1,<0.2"
 POLICIES_REL = Path(".agents") / "policies"
 LOCAL_SOURCE = "local"
@@ -63,15 +63,58 @@ def _pack_files(pack_dir: Path) -> list[tuple[str, Path]]:
     return sorted(named, key=lambda item: item[0])
 
 
+#: v2 domain separator: the first bytes hashed, so a pack hash is never a sha256 of anything else chock hashes.
+PACK_HASH_V2_DOMAIN = b"chock-pack-hash-v2\n"
+
+
 def compute_pack_hash(pack_dir: Path) -> str:
-    """Return a single sha256 for all files in a pack directory, bytecode left out."""
-    h = hashlib.sha256()
-    for rel, f in _pack_files(pack_dir):
-        h.update(rel.encode("utf-8"))
-        h.update(b"\0")
-        h.update(f.read_bytes())
-        h.update(b"\0")
+    """Pack hash v2: lowercase hex sha256 of a framed byte stream; every writer writes this.
+
+    Files are every regular file under `pack_dir` except bytecode (`__pycache__` anywhere in the path,
+    `.pyc`, `.pyo`), named by their posix path relative to `pack_dir`, sorted by the UTF-8 bytes of the name
+    (the same as code-point order). Content is the raw bytes, no newline conversion. The stream is
+
+        "chock-pack-hash-v2\n"                                                  (19 ASCII bytes)
+        then per file:  u64be(len(name_utf8)) name_utf8 u64be(len(content)) content
+
+    where u64be is an 8-byte big-endian unsigned integer. An empty pack hashes the domain bytes alone.
+    """
+    return _hash_v2(_read_pack(pack_dir))
+
+
+def _read_pack(pack_dir: Path) -> list[tuple[bytes, bytes]]:
+    """(utf-8 name, content) per pack file, in hash order."""
+    return [(rel.encode("utf-8"), f.read_bytes()) for rel, f in _pack_files(pack_dir)]
+
+
+def _hash_v2(files: list[tuple[bytes, bytes]]) -> str:
+    h = hashlib.sha256(PACK_HASH_V2_DOMAIN)
+    for name, content in files:
+        h.update(len(name).to_bytes(8, "big") + name + len(content).to_bytes(8, "big"))
+        h.update(content)
     return h.hexdigest()
+
+
+def _hash_v1(files: list[tuple[bytes, bytes]]) -> str:
+    """Pack hash v1 (`name NUL content NUL` per file): kept only to recognise old hashes, never written."""
+    h = hashlib.sha256()
+    for name, content in files:
+        h.update(name + b"\0" + content + b"\0")
+    return h.hexdigest()
+
+
+def pack_hash_matches(pack_dir: Path, expected: object) -> bool:
+    """True when `pack_dir` hashes to `expected` under v2, or under v1 while no file holds a NUL byte.
+
+    With a NUL byte in a file v1's framing is ambiguous (two file sets can share a hash), so a v1 hash is
+    refused there. v1 is accepted for all of 1.x and removed in 2.0. Every comparison of a stored or given pack hash goes through this function.
+    """
+    if not isinstance(expected, str):
+        return False
+    files = _read_pack(pack_dir)
+    if _hash_v2(files) == expected:
+        return True
+    return all(b"\0" not in content for _name, content in files) and _hash_v1(files) == expected
 
 
 def read_lock(repo_root: Path | None = None) -> dict[str, Any]:
@@ -160,7 +203,7 @@ def build_lock(repo_root: Path) -> dict[str, Any]:
         if pack_dir.parent != repo_root / POLICIES_REL:
             entry["path"] = pack_dir.relative_to(repo_root).as_posix()
         fetched = prior.get(pack_dir.relative_to(repo_root).as_posix())
-        if fetched and fetched.get("sha256") == entry["sha256"]:
+        if fetched and pack_hash_matches(pack_dir, fetched.get("sha256")):
             entry.update({k: fetched[k] for k in _PROVENANCE_KEYS if k in fetched})
         artifacts = compute_artifacts_hash(repo_root, pack_dir.name)
         if artifacts is not None:
@@ -198,20 +241,21 @@ def verify_lock(repo_root: Path | None = None) -> tuple[bool, list[str]]:
             f"{entry['id']}: ships build artifact {name} (bytecode is never catalog content; delete it)"
             for name in pack_bytecode(pack_dir)
         ]
-        actual = compute_pack_hash(pack_dir)
-        if actual != entry.get("sha256"):
-            failures.append(f"{entry['id']}: hash mismatch (expected {entry.get('sha256')}, got {actual})")
+        if not pack_hash_matches(pack_dir, entry.get("sha256")):
+            failures.append(
+                f"{entry['id']}: hash mismatch (expected {entry.get('sha256')}, got {compute_pack_hash(pack_dir)})"
+            )
 
         expected_artifacts = entry.get("artifacts_sha256")
         if expected_artifacts is None:
             continue
-        actual_artifacts = compute_artifacts_hash(repo_root, entry["id"])
-        if actual_artifacts is None:
+        compiled_dir = repo_root / ".chock" / "compiled" / entry["id"]
+        if not compiled_dir.is_dir():
             failures.append(f"{entry['id']}: compiled artifacts missing (nothing is enforcing this policy)")
-        elif actual_artifacts != expected_artifacts:
+        elif not pack_hash_matches(compiled_dir, expected_artifacts):
             failures.append(
                 f"{entry['id']}: compiled artifact hash mismatch "
-                f"(expected {expected_artifacts}, got {actual_artifacts}) -- "
+                f"(expected {expected_artifacts}, got {compute_artifacts_hash(repo_root, entry['id'])}) -- "
                 "the artifact that enforces is not the one that was locked"
             )
 

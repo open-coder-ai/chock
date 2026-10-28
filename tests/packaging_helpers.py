@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+from chock.plugin import hook_dir
+
 
 def tree_bytes(root: Path) -> dict[str, bytes]:
     """Every file under `root`, by relative path, as bytes."""
@@ -20,3 +22,10 @@ def frozen_json(path: Path, found: object) -> object:
         path.write_text(json.dumps(found, indent=2) + "\n", encoding="utf-8")
         pytest.skip(f"{path.name} regenerated -- commit the diff")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def golden_posix(monkeypatch: pytest.MonkeyPatch, path: Path, build) -> None:
+    """Compare `build()` with the golden at `path`, always in the POSIX form (also under CHOCK_REGEN_GOLDENS=1)."""
+    monkeypatch.setattr(hook_dir, "build_windows", lambda: False)
+    found = build()
+    assert found == frozen_json(path, found)
