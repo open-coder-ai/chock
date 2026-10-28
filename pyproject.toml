@@ -72,7 +72,7 @@ dev = [
     "pytest-bdd>=8.0",
     # Property-based tests (tests/test_properties.py) generate inputs for the parsers
     # whose outputs become shell tokens and paths.
-    "hypothesis>=6.0",
+    "hypothesis>=6.170.5",
     # Pin the minor: ruff's formatter changes behavior across minors (0.16 began
     # formatting Python inside Markdown), which silently breaks CI on unrelated PRs.
     "ruff>=0.16,<0.17",
@@ -80,7 +80,7 @@ dev = [
     "pre-commit>=3.0",
 ]
 build = [
-    "build>=1.0",
+    "build>=1.6.1",
     "pyinstaller>=6.0",
 ]
 

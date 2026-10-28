@@ -2,4 +2,4 @@ pyyaml>=6.0
 jsonschema>=4.18,<5
 referencing>=0.35,<0.38
 agentseam @ https://github.com/open-coder-ai/agentseam/archive/683f95b5f2784dc3446acb1c91636ebc5ee7bee6.tar.gz
-cairosvg==2.9.0
+cairosvg==2.9.1
