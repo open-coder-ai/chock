@@ -6,7 +6,7 @@ name = "chock"
 version = "0.15.2"
 description = "Blocks your coding agent's wrong moves before they land."
 readme = "README.md"
-# PEP 639 SPDX expression; needs setuptools >= 77 (range in build-system below; CI and release use the hash-pinned
+# PEP 639 SPDX expression; needs setuptools >= 84.2.1 (range in build-system below; CI and release use the hash-pinned
 # setuptools==84.0.0 from requirements/*.txt with --no-build-isolation).
 license = "Apache-2.0"
 requires-python = ">=3.11"
