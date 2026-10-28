@@ -153,3 +153,4 @@ def test_a_timed_out_guard_does_not_echo_the_command_to_stderr(
 def test_both_vendored_runners_agree_on_the_log_contract() -> None:
     """gate.py and every runtime carry the one journal; the legacy switch name is the same everywhere."""
     assert journal.LOG_LEGACY_ENV == runner.GATE_LOG_ENV
+    assert journal.LOG_DEFAULT_MAX_BYTES == runner._LOG_MAX_BYTES

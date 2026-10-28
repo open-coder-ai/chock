@@ -7,6 +7,7 @@ from .cli import main
 from .constants import (
     _EVENT_NAME,
     _LOG_MATCH_CAP,
+    _LOG_MAX_BYTES,
     ACTION_ASK,
     ACTION_BLOCK,
     ACTION_WARN,
@@ -73,6 +74,7 @@ __all__ = [
     "WRITE_PATH_KINDS",
     "_EVENT_NAME",
     "_LOG_MATCH_CAP",
+    "_LOG_MAX_BYTES",
     "Evaluation",
     "GateContext",
     "GateResult",
