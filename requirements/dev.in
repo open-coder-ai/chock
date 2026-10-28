@@ -1,9 +1,9 @@
 -r binary.in
 pytest>=7.0
 pytest-bdd>=8.0
-hypothesis>=6.0
+hypothesis>=6.170.5
 ruff>=0.16,<0.17
 pre-commit>=3.0
-build>=1.0
+build>=1.6.1
 # pytest's and build's Windows-only dep (marker dropped by pip-compile on Linux).
 colorama>=0.4
