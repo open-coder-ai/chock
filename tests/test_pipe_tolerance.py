@@ -155,3 +155,28 @@ def test_broken_pipe_on_the_escaped_retry_is_tolerated() -> None:
     writer.write("ok � end")
 
     assert writer.closed_by_reader
+
+
+def test_eval_output_with_unencodable_text_survives_a_cp1252_console(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """IR-F31: `chock check --only evals` printing U+FFFD to a Windows cp1252 console must not raise."""
+    import shutil
+
+    import chock.eval.cli as eval_cli
+    from chock.cli import main
+
+    target = tmp_path / ".agents" / "policies" / "agent-discipline"
+    target.parent.mkdir(parents=True)
+    shutil.copytree(ROOT / ".agents" / "policies" / "agent-discipline", target)
+
+    real_render = eval_cli.render_text
+    monkeypatch.setattr(eval_cli, "render_text", lambda *a, **k: real_render(*a, **k) + "\nguard said � bad byte")
+    raw = io.BytesIO()
+    stream = io.TextIOWrapper(raw, encoding="cp1252", errors="strict")
+    monkeypatch.setattr(sys, "stdout", stream)
+
+    main(["check", "--only", "evals", "--repo", str(tmp_path)])
+    sys.stdout.flush()
+
+    assert b"guard said \\ufffd bad byte" in raw.getvalue()
