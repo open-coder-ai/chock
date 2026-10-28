@@ -75,7 +75,7 @@ dev = [
     "hypothesis>=6.0",
     # Pin the minor: ruff's formatter changes behavior across minors (0.16 began
     # formatting Python inside Markdown), which silently breaks CI on unrelated PRs.
-    "ruff>=0.16,<0.17",
+    "ruff>=0.17.1,<0.18",
     # Runs the DCO sign-off hook in .pre-commit-config.yaml.
     "pre-commit>=3.0",
 ]
