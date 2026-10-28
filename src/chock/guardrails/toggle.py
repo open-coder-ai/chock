@@ -51,6 +51,7 @@ _NOTICE = (
     "them):\n{listed}\nA toggle is not a security boundary against an agent running as the person; a change made "
     "during a session applies from the next one."
 )
+_HELD = "chock: these guardrails stay on:\n{held}\nEach {uncommitted}."
 
 
 def user_path() -> Path:
@@ -135,9 +136,18 @@ def moved(starts: list[Path], bound: dict | None) -> list[Path]:
     return ts.moved(_states(starts), bound)
 
 
-def switched_off(starts: list[Path]) -> list[str]:
-    """One line per toggle file in scope that switches a member off: its scope, path and members."""
-    return listed_off(list(dict.fromkeys(p for s in starts for p in scopes(s))), source(starts[0])[0], user_path())
+def switched_off(starts: list[Path]) -> tuple[list[str], list[str]]:
+    """(one line per toggle file in scope that switches a member off, one per repo file whose offs HEAD does not hold).
+
+    A repo file's offs go through `vouched`, as the guard reads them: its scope, path and members.
+    """
+    repo_files = {r / FILENAME for r in map(repo_root, starts) if r}
+
+    def vouch(path: Path, toggles: dict[str, dict[str, str]]) -> tuple[dict, list[str]]:
+        return vouched(toggles, committed(path.parent.parent)) if path in repo_files else (toggles, [])
+
+    paths = list(dict.fromkeys(p for s in starts for p in scopes(s)))
+    return listed_off(paths, source(starts[0])[0], user_path(), vouch)
 
 
 def handed_to_user() -> str | None:
@@ -223,8 +233,10 @@ def start(argv: list[str], payload: bytes) -> None:
         if decision is not None or getattr(event, "event", "") != "session_start":
             return decision
         bind(wheres, session, fresh=resumed)
-        listed = switched_off(wheres)
-        return adapter.Decision.allow(context=_NOTICE.format(listed="\n".join(listed))) if listed else None
+        listed, held = switched_off(wheres)
+        notice = [_NOTICE.format(listed="\n".join(listed))] if listed else []
+        notice += [_HELD.format(held="\n".join(held), uncommitted=UNCOMMITTED)] if held else []
+        return adapter.Decision.allow(context="\n".join(notice)) if notice else None
 
     adapter.handle = handle
     sys.argv = list(argv)
