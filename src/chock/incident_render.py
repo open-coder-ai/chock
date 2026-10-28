@@ -3,11 +3,20 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from chock.gate.runner.report import _cell as md_cell
 from chock.gate.runner.report import inert
-from chock.incident import ALLOWED, DATA, Timeline
+from chock.resources import package_data_dir
+
+if TYPE_CHECKING:
+    from chock.incident import Timeline
+
+DATA: dict[str, str] = json.loads(
+    package_data_dir("chock", "data").joinpath("incident.json").read_text(encoding="utf-8")
+)
+#: A plain allowed tool call: counted per session, never listed or put to a policy (GAP-2b).
+ALLOWED = "allowed"
 
 
 def chain_line(found: dict[str, Any]) -> str:

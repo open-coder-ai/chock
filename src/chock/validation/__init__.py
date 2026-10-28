@@ -85,7 +85,6 @@ from chock.validation.loading import (  # noqa: F401
     validate_yaml_against_schema,
 )
 from chock.validation.patterns import (  # noqa: F401
-    _DETERMINISTIC_HEURISTIC_PATTERNS,
     _INT3_GRANDFATHERED_IDS,
     _VERB_PREFIXES,
     AGENT_SPECIFIC_KEYWORDS,

@@ -52,7 +52,6 @@ __all__ = [
     "_LOG_FIELDS",
     "_LOG_FIELD_CAP",
     "_LOG_MATCH_CAP",
-    "_LOG_MAX_BYTES",
     "_MIN_COMPILED_PATH_DEPTH",
     "_OBSERVE_NOTE",
     "_PUSH_LINE_MIN_PARTS",
@@ -134,7 +133,6 @@ _CONFIG_ROLLOUT_RE = re.compile(r"^rollout:[ \t]*(?P<rest>[^#\n]*)")
 
 # >>> gate.py 09
 GATE_LOG_ENV = "CHOCK_GATE_LOG"
-_LOG_MAX_BYTES = 1_048_576
 _LOG_MATCH_CAP = 20
 #: What an agent hook's runtime hands gate.py for its decision line (the `log` stdin key), each capped.
 _LOG_FIELDS = ("session_id", "actor", "target", "call")

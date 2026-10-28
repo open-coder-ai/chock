@@ -177,7 +177,7 @@ def test_oversized_log_rotates_once(tmp_path: Path) -> None:
     gate = compiled_gate(tmp_path, "scan-secrets", SECRET_SPEC)
     path = log_path(tmp_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("x" * (gate_runner._LOG_MAX_BYTES + 1), encoding="utf-8")
+    path.write_text("x" * (gate_runner.journal.LOG_DEFAULT_MAX_BYTES + 1), encoding="utf-8")
 
     run(gate, "pre-commit", None, tmp_path)
 
