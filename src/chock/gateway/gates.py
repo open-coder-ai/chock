@@ -12,6 +12,7 @@ from urllib.parse import unquote
 
 from chock.gate.outside_repo import platform_case_blind
 from chock.gate.session_log import SESSION_PATH_KEYS
+from chock.gate.write_gate import repo_paths
 
 GATEWAY_DIRNAME = "mcp-gateway"
 GATE_FILENAME = "gateway-gate.json"
@@ -102,21 +103,22 @@ def _blind(spec: dict[str, Any]) -> bool:
 
 
 def _call_paths(spec: dict[str, Any], arguments: Any) -> list[str]:
-    """Write targets the call names, repo-relative: the same argument keys the session log reads."""
+    """Write targets the call names, under every spelling `write_gate.repo_paths` judges (folded, resolved, cased)."""
     if not isinstance(arguments, dict):
         return []
-    root = str(spec.get("repo_root") or "").replace("\\", "/").rstrip("/")
+    root = str(spec.get("repo_root") or "") or None
     paths: list[str] = []
     for key in SESSION_PATH_KEYS:
         value = arguments.get(key)
-        if not isinstance(value, str) or not value:
-            continue
-        path = value.replace("\\", "/")
-        prefix = root + "/"
-        if root and (path.casefold().startswith(prefix.casefold()) if _blind(spec) else path.startswith(prefix)):
-            path = path[len(root) + 1 :]
-        paths.append(path.removeprefix("./"))
-    return paths
+        if isinstance(value, str) and value:
+            paths.extend(repo_paths(value.replace("\\", "/"), root, case_blind=_blind(spec)))
+    return list(dict.fromkeys(paths))
+
+
+def _in_scope(path: str, scope: list[str], *, blind: bool) -> bool:
+    """A path is in a gate's bound when a glob matches it, or when it cannot be placed inside the repository."""
+    fold = str.casefold if blind else str
+    return ".." in path.split("/") or any(fnmatch.fnmatchcase(fold(path), fold(g)) for g in scope)
 
 
 def _eval_content_regex(spec: dict[str, Any], arguments: Any) -> str | None:
@@ -129,8 +131,8 @@ def _eval_content_regex(spec: dict[str, Any], arguments: Any) -> str | None:
     paths = _call_paths(spec, arguments)
     if scope:
         # A path-bounded gate judges only what it can place inside its bound.
-        fold = str.casefold if _blind(spec) else str
-        paths = [p for p in paths if any(fnmatch.fnmatchcase(fold(p), fold(g)) for g in scope)]
+        blind = _blind(spec)
+        paths = [p for p in paths if _in_scope(p, scope, blind=blind)]
         if not paths:
             return None
     forbidden = params.get("forbidden_path_regex")

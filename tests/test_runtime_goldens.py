@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import inspect
 import os
 import shutil
 from pathlib import Path
@@ -10,7 +11,7 @@ from pathlib import Path
 import pytest
 from agentseam import bundler, contract
 
-from chock.gate import runtime_bundle, write_gate
+from chock.gate import runtime_bundle, runtime_shared, write_gate
 
 GOLDEN = Path(__file__).resolve().parent / "fixtures" / "runtime_goldens"
 
@@ -81,3 +82,30 @@ def test_chock_handler_shadows_no_agentseam_name(agent: str) -> None:
     shared = _top_level_names(head + tail) & _top_level_names(runtime_bundle._handler_source(agent))
     assert shared <= {"PRE_TOOL"}, f"{agent}: chock's handler rebinds agentseam's {sorted(shared)}"
     assert write_gate.PRE_TOOL == contract.PRE_TOOL
+
+
+def _quoting_fstrings(source: str) -> list[int]:
+    """Lines of f-strings whose replacement fields hold a string or another f-string: `ast.unparse` quotes those by Python patch level."""
+    return sorted(
+        {
+            node.lineno
+            for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.FormattedValue)
+            for inner in ast.walk(node.value)
+            if isinstance(inner, ast.JoinedStr) or (isinstance(inner, ast.Constant) and isinstance(inner.value, str))
+        }
+    )
+
+
+def test_the_scan_finds_a_nested_quote_however_deep() -> None:
+    assert _quoting_fstrings('a = f"{x[\'k\']}"\nb = f"{\', \'.join(y)}"\nc = f"{x}-{y!r}"\n') == [1, 2]
+
+
+def test_no_handler_module_has_an_fstring_whose_unparse_depends_on_the_python_patch_level() -> None:
+    """3.12.3 prints f"{m['k']}" as f'{m['k']}', 3.12.13 as f"{m['k']}": the rendered bytes would follow the interpreter."""
+    found = {
+        module.__name__: lines
+        for module in runtime_shared._HANDLER_MODULES
+        if (lines := _quoting_fstrings(inspect.getsource(module)))
+    }
+    assert not found, f"hoist the quoted part of these f-strings into a local: {found}"

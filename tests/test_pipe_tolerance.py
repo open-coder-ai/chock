@@ -117,3 +117,66 @@ def test_recompile_finishes_its_bookkeeping_when_the_reader_closes_early(tmp_pat
         f"just installed now fail every commit:\n{output}"
     )
     assert "index_freshness" not in output, f"INDEX.md was left stale by the truncated run:\n{output}"
+
+
+def test_unencodable_character_is_escaped_not_raised() -> None:
+    """IR-F18: U+FFFD on a cp1252 stream (Windows console) must not crash the command."""
+    raw = io.BytesIO()
+    stream = io.TextIOWrapper(raw, encoding="cp1252", errors="strict")
+    writer = PipeTolerantWriter(stream)
+
+    writer.write("ok � end")
+    writer.flush()
+
+    assert raw.getvalue() == b"ok \\ufffd end"
+
+
+def test_representable_text_is_written_unchanged() -> None:
+    raw = io.BytesIO()
+    writer = PipeTolerantWriter(io.TextIOWrapper(raw, encoding="cp1252", errors="strict"))
+
+    writer.write("café €")
+    writer.flush()
+
+    assert raw.getvalue() == "café €".encode("cp1252")
+
+
+def test_broken_pipe_on_the_escaped_retry_is_tolerated() -> None:
+    class _Cp1252ThenClosed(io.StringIO):
+        encoding = "cp1252"
+
+        def write(self, text: str) -> int:
+            if "�" in text:
+                raise UnicodeEncodeError("charmap", text, 0, 1, "undefined")
+            raise BrokenPipeError(32, "Broken pipe")
+
+    writer = PipeTolerantWriter(_Cp1252ThenClosed())
+
+    writer.write("ok � end")
+
+    assert writer.closed_by_reader
+
+
+def test_eval_output_with_unencodable_text_survives_a_cp1252_console(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """IR-F31: `chock check --only evals` printing U+FFFD to a Windows cp1252 console must not raise."""
+    import shutil
+
+    import chock.eval.cli as eval_cli
+    from chock.cli import main
+
+    target = tmp_path / ".agents" / "policies" / "agent-discipline"
+    target.parent.mkdir(parents=True)
+    shutil.copytree(ROOT / ".agents" / "policies" / "agent-discipline", target)
+
+    real_render = eval_cli.render_text
+    monkeypatch.setattr(eval_cli, "render_text", lambda *a, **k: real_render(*a, **k) + "\nguard said � bad byte")
+    raw = io.BytesIO()
+    stream = io.TextIOWrapper(raw, encoding="cp1252", errors="strict")
+    monkeypatch.setattr(sys, "stdout", stream)
+
+    main(["check", "--only", "evals", "--repo", str(tmp_path)])
+    sys.stdout.flush()
+
+    assert b"guard said \\ufffd bad byte" in raw.getvalue()

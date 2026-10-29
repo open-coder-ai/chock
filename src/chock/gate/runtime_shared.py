@@ -20,6 +20,7 @@ from . import (
     outside_repo,
     patch_apply,
     patch_image,
+    repo_names,
     repo_stop,
     session_log,
     stop_reentry,
@@ -27,6 +28,7 @@ from . import (
     tool_call_gate,
     unreadable_stop,
     workspace_root,
+    worktree_read,
     write_gate,
 )
 from .runner import chain, halt, journal
@@ -148,6 +150,8 @@ _HANDLER_MODULES = (
     stop_reentry,
     unreadable_stop,
     workspace_root,
+    repo_names,
+    worktree_read,
     repo_stop,
     stop_roots,
     write_gate,

@@ -14,7 +14,7 @@ from runtime_payloads import DENY_ON_THE_WIRE, PAYLOADS
 from runtime_support import write_runtime
 
 from chock import evidence
-from chock.gate import budget, guard_runner, runtime_bundle
+from chock.gate import budget, gate_outcome, guard_runner, runtime_bundle
 
 
 @pytest.fixture(scope="module")
@@ -209,6 +209,27 @@ def test_every_gated_runtime_is_covered_here() -> None:
     assert set(ASK_ON_THE_WIRE) == set(runtime_bundle.RUNTIME_AGENTS)
     assert set(DENY_ON_THE_WIRE) == set(runtime_bundle.RUNTIME_AGENTS)
     assert set(PAYLOADS) == set(runtime_bundle.RUNTIME_AGENTS)
+
+
+@pytest.mark.parametrize("agent", sorted(DENY_ON_THE_WIRE))
+def test_a_deny_carries_the_guards_own_reason_after_the_policy_name(agent: str, tmp_path: Path, runtimes) -> None:
+    guard = make_guard(tmp_path, "refuse.sh", 'echo "BLOCKED: rm -rf on .git is not allowed" >&2; exit 1')
+
+    verdict = decision(run(runtimes, agent, guard, "rm -rf .git"))
+
+    assert verdict["decision"] == DENY_ON_THE_WIRE[agent]
+    assert verdict["reason"].startswith("Blocked by chock policy: refuse")
+    assert "rm -rf on .git is not allowed" in verdict["reason"]
+
+
+def test_a_runner_deny_without_a_reason_names_only_the_policy(tmp_path: Path) -> None:
+    gate = tmp_path / "pol" / "implementations" / "gate.py"
+
+    assert gate_outcome.gate_decision(gate_outcome.GATE_BLOCKED, "", gate) == (
+        guard_runner.VERDICT_DENY,
+        "Blocked by chock policy: pol",
+    )
+    assert gate_outcome.gate_decision(gate_outcome.GATE_BLOCKED, "why", gate)[1] == "why"
 
 
 def test_a_refusal_echoing_agent_text_is_never_taken_for_a_crash(tmp_path: Path) -> None:
