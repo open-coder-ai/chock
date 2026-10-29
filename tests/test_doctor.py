@@ -9,8 +9,7 @@ import pytest
 from agentseam import recordings
 from runtime_support import write_runtime
 
-import chock
-from chock import vendors
+from chock import __version__, vendors
 from chock.doctor import checks, cli
 from chock.doctor.targets import Target, plugin_targets, sync_targets
 from chock.gate import runtime_bundle
@@ -45,7 +44,7 @@ def _sync_repo(tmp_path: Path, agent: str = AGENT) -> Path:
     return repo
 
 
-def _plugin(home: Path, *, version: str = chock.__version__) -> Path:
+def _plugin(home: Path, *, version: str = __version__) -> Path:
     folder = home / ".chock" / "marketplace" / CLIENT / "claude" / "obs-bundle"
     (folder / "scripts").mkdir(parents=True)
     write_runtime(folder / "scripts" / f"{AGENT}.py", AGENT)
@@ -128,7 +127,7 @@ def test_a_plugin_recorded_by_another_engine_version_warns_with_the_rebuild_fix(
 
 def test_an_install_marker_stamps_the_building_engine():
     block = package.marker({"client": CLIENT}, {})["marker"]
-    assert block["engine"] == {"version": chock.__version__, "commit": engine_commit()}
+    assert block["engine"] == {"version": __version__, "commit": engine_commit()}
 
 
 def test_agents_without_a_session_start_event_list_no_heartbeat_available(tmp_path, home):

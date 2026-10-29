@@ -7,7 +7,13 @@ from typing import Any
 
 from chock.gate.runner.report import _cell as md_cell
 from chock.gate.runner.report import inert
-from chock.incident import ALLOWED, DATA, Timeline
+from chock.resources import package_data_dir
+
+DATA: dict[str, str] = json.loads(
+    package_data_dir("chock", "data").joinpath("incident.json").read_text(encoding="utf-8")
+)
+#: A plain allowed tool call: counted per session, never listed or put to a policy (GAP-2b).
+ALLOWED = "allowed"
 
 
 def chain_line(found: dict[str, Any]) -> str:
@@ -32,13 +38,13 @@ def _fields(entry: dict[str, Any]) -> list[tuple[str, object]]:
     return [(k, v) for k, v in entry.items() if k not in ("ts", "kind", "at")]
 
 
-def _header(timeline: Timeline) -> list[str]:
+def _header(timeline: Any) -> list[str]:
     window = f"{timeline.since} to {timeline.until or 'now'} (UTC; the start is included, the end is not)"
     privacy = DATA["share_notice"] if timeline.share else DATA["local_notice"]
     return [window, DATA["notice"], privacy, "Logs read: " + (", ".join(timeline.logs) or "no decision log found")]
 
 
-def render_text(timeline: Timeline) -> str:
+def render_text(timeline: Any) -> str:
     """Plain text; every value from the log is made inert before it reaches a terminal."""
     lines = ["chock incident: " + inert(_header(timeline)[0]), *map(inert, _header(timeline)[1:]), ""]
     lines.append(f"Timeline ({len(timeline.entries)} entries)")
@@ -56,7 +62,7 @@ def render_text(timeline: Timeline) -> str:
     return "\n".join(lines) + "\n"
 
 
-def render_md(timeline: Timeline) -> str:
+def render_md(timeline: Any) -> str:
     """Markdown; every value from the log stays inside its cell or bullet, inert."""
     head = _header(timeline)
     lines = [
@@ -84,7 +90,7 @@ def render_md(timeline: Timeline) -> str:
     return "\n".join(lines) + "\n"
 
 
-def render_json(timeline: Timeline) -> str:
+def render_json(timeline: Any) -> str:
     """JSON (ASCII only: a control character is written as an escape, never raw)."""
     doc = {
         "format": DATA["format"],

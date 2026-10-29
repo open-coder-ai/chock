@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -12,11 +13,16 @@ from chock.policy_id import CUSTOM_PREFIX
 from chock.registry.core import is_shipped_file
 from chock.validation.checks_security import _is_script_file
 from chock.validation.patterns import (
-    _DETERMINISTIC_HEURISTIC_PATTERNS,
     _INT3_GRANDFATHERED_IDS,
     _VERB_PREFIXES,
 )
 from chock.validation.report import Finding, Report
+
+_DETERMINISTIC_HEURISTIC_PATTERNS = [
+    re.compile(r"\\b\(\?:|\(\?\w|\\[dws]\b|\\b\b|\[\^?"),
+    re.compile(r"\b(grep|awk|sed|find|jq|python -c|bash -c|sh -c|perl -e|ruby -e)\b"),
+    re.compile(r"\b(?:re\.search|re\.match|re\.compile|re\.findall|regex)\b"),
+]
 
 
 def check_verb_first_naming(artifact_dir: Path, manifest: dict[str, Any], artifact_type: str, report: Report) -> None:

@@ -61,7 +61,7 @@ def _strip_ours(node: dict, marker: str) -> None:
                 del node[key]
         elif isinstance(value, dict) and value:
             _strip_ours(value, marker)
-            if not value:
+            if not node[key]:
                 del node[key]
 
 

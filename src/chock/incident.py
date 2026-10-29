@@ -17,20 +17,15 @@ from chock.gate.runner import chain as log_chain
 from chock.gate.runner import journal
 from chock.gatelog_chain import Chain, chains, walk
 from chock.gatelog_read import HEARTBEAT_EVENT, ROUTES
-from chock.resources import package_data_dir
+from chock.incident_render import ALLOWED, RENDER
 from chock.witness_export import LOCAL_ONLY, redact
 
-DATA: dict[str, str] = json.loads(
-    package_data_dir("chock", "data").joinpath("incident.json").read_text(encoding="utf-8")
-)
 FORMATS = ("text", "md", "json")
 _STAMP = "%Y-%m-%dT%H:%M:%SZ"
 _STAMPED = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 _RELATIVE = re.compile(r"^(\d+)([mhd])$")
 _UNITS = {"m": "minutes", "h": "hours", "d": "days"}
 STOP_EVENTS = ("repo_stop", "repo_resume")
-#: A plain allowed tool call: counted per session, never listed or put to a policy (GAP-2b).
-ALLOWED = "allowed"
 #: The fields an entry shows, in this order; every other field stays in the log.
 SHOWN = (
     "route",
@@ -256,7 +251,5 @@ def main(argv: list[str] | None = None) -> int:
     if args.until is not None and args.until <= args.since:
         parser.error(f"--until {args.until} is not after --since {args.since}")
     timeline = build(Path(args.repo).resolve(), args.since, args.until, route=args.route, share=args.share)
-    from chock.incident_render import RENDER  # noqa: PLC0415 -- it imports this module's Timeline
-
     sys.stdout.write(RENDER[args.format](timeline))
     return 0
