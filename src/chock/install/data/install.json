@@ -35,6 +35,11 @@
         {"command": ["claude", "plugin", "marketplace", "add", "__DEST__"]},
         {"command": ["claude", "plugin", "install", "__PLUGIN__@__MARKETPLACE__"]},
         {"note": "Both commands are safe to repeat. The plugin loads in place from the directory: restart the Claude Code session, or run /reload-plugins in it, to pick up a rebuild."}
+      ],
+      "remove": [
+        {"command": ["claude", "plugin", "uninstall", "__PLUGIN__@__MARKETPLACE__"]},
+        {"note": "Delete the build folder __PLUGIN_DIR__: `chock bundle status` lists a build for as long as its folder exists."},
+        {"note": "Only if no other chock build for this agent is still installed (every chock build made with the marketplace name __MARKETPLACE__ shares it, so removing it takes their registration too): `claude plugin marketplace remove __MARKETPLACE__`. Otherwise leave it registered."}
       ]
     },
     "copilot": {
@@ -51,6 +56,13 @@
         {"command": ["copilot", "plugin", "install", "__PLUGIN__@__MARKETPLACE__"]},
         {"note": "VS Code finds plugins the Copilot CLI installed. Without the CLI, add the plugin folder to your VS Code user settings yourself:"},
         {"settings": {"chat.pluginLocations": {"__PLUGIN_DIR__": true}}}
+      ],
+      "remove": [
+        {"note": "`copilot plugin uninstall` only disables the plugin (seen in a live run): it removes nothing from disk and leaves the marketplace registered."},
+        {"command": ["copilot", "plugin", "uninstall", "__PLUGIN__@__MARKETPLACE__"]},
+        {"note": "Delete the build folder __PLUGIN_DIR__: `chock bundle status` lists a build for as long as its folder exists."},
+        {"note": "Only if no other chock build for this agent is still installed (every chock build made with the marketplace name __MARKETPLACE__ shares it, so removing it takes their registration too): `copilot plugin marketplace remove __MARKETPLACE__`. Otherwise leave it registered."},
+        {"note": "In VS Code, remove the \"__PLUGIN_DIR__\" entry from chat.pluginLocations in your user settings (chock does not edit them)."}
       ]
     },
     "codex": {
@@ -84,6 +96,9 @@
       "gate_turn_end_only": false,
       "steps": [
         {"note": "Cursor loads __PLUGIN_DIR__ as a local plugin: run \"Developer: Reload Window\" (or restart Cursor), then check it under Customize. There is no command to run."}
+      ],
+      "remove": [
+        {"note": "Delete the build folder __PLUGIN_DIR__ (Cursor loads it from there), then run \"Developer: Reload Window\" (or restart Cursor). `chock bundle status` lists a build for as long as its folder exists."}
       ]
     },
     "devin": {
@@ -99,6 +114,10 @@
         {"note": "On Windows, `devin plugins install --local` creates a symbolic link, so it needs Developer Mode (Settings > System > For developers) or an elevated shell; otherwise it fails with \"os error 1314: A required privilege is not held by the client\"."},
         {"command": ["devin", "plugins", "install", "--local", "__PLUGIN_DIR__"]},
         {"note": "The plugin is linked in place: a rebuild applies from the next Devin session."}
+      ],
+      "remove": [
+        {"command": ["devin", "plugins", "remove", "__PLUGIN__", "--local"]},
+        {"note": "Delete the build folder __PLUGIN_DIR__: `chock bundle status` lists a build for as long as its folder exists."}
       ]
     },
     "goose": {
@@ -112,6 +131,9 @@
       "gate_turn_end_only": false,
       "steps": [
         {"note": "goose discovers __PLUGIN_DIR__ as a user plugin, in every project: start a new goose session. There is no command to run (`goose plugin install` takes a git URL only). To turn it off, add __PLUGIN__ to disabledPlugins in ~/.config/goose/settings.json."}
+      ],
+      "remove": [
+        {"note": "Delete the build folder __PLUGIN_DIR__ (goose discovers it there), then start a new goose session. `chock bundle status` lists a build for as long as its folder exists."}
       ]
     },
     "grok": {
@@ -126,6 +148,10 @@
       "steps": [
         {"command": ["grok", "plugin", "install", "__PLUGIN_DIR__", "--trust"]},
         {"note": "Plugins are off in grok until enabled, and chock does not edit grok's config: run `grok plugin list` for the name grok gave this plugin (chock expects __PLUGIN__, its folder name; the docs do not say how a plugin with no plugin.json is named), then `grok plugin enable <name>`, or add it to `enabled` under [plugins] in ~/.grok/config.toml, or press Space on it in the Plugins tab. Re-run the install command after a rebuild."}
+      ],
+      "remove": [
+        {"note": "Run `grok plugin list` for the name grok gave this plugin, then `grok plugin uninstall <name>`."},
+        {"note": "Delete the build folder __PLUGIN_DIR__: `chock bundle status` lists a build for as long as its folder exists."}
       ]
     },
     "antigravity": {
@@ -153,6 +179,10 @@
       "gate_turn_end_only": false,
       "steps": [
         {"note": "OpenHands loads a local plugin when it starts: run `openhands --plugin __PLUGIN_DIR__`, or add \"__PLUGIN_DIR__\" to sources under [plugins] in ~/.openhands/config.toml (chock does not edit it). Its hooks name __PLUGIN_DIR__ by absolute path (OpenHands documents no plugin-root variable), so keep that folder where it is; a rebuild applies from the next start."}
+      ],
+      "remove": [
+        {"note": "Stop passing `--plugin __PLUGIN_DIR__`, and remove \"__PLUGIN_DIR__\" from sources under [plugins] in ~/.openhands/config.toml if you added it (chock does not edit it)."},
+        {"note": "Delete the build folder __PLUGIN_DIR__: `chock bundle status` lists a build for as long as its folder exists."}
       ]
     },
     "kimi-code": {
@@ -182,6 +212,12 @@
         {"command": ["droid", "plugin", "marketplace", "add", "__DEST__"]},
         {"command": ["droid", "plugin", "install", "__PLUGIN__@__MARKETPLACE__", "--scope", "project"]},
         {"note": "Droid names a local marketplace from its source; if `droid plugin marketplace list` shows a name other than __MARKETPLACE__ (a --dest folder named otherwise), install __PLUGIN__@<that name>. Droid copies the plugin into its cache: after a rebuild run `droid plugin marketplace update` and `droid plugin update __PLUGIN__@__MARKETPLACE__ --scope project`, then start a new session."}
+      ],
+      "remove": [
+        {"note": "Run these from the root of the project the plugin was installed for."},
+        {"command": ["droid", "plugin", "uninstall", "__PLUGIN__@__MARKETPLACE__", "--scope", "project"]},
+        {"note": "Delete the build folder __PLUGIN_DIR__: `chock bundle status` lists a build for as long as its folder exists."},
+        {"note": "Only if no other chock build for this agent is still installed (every chock build made with the marketplace name __MARKETPLACE__ shares it, so removing it takes their registration too): `droid plugin marketplace remove __MARKETPLACE__`. Otherwise leave it registered."}
       ]
     }
   }

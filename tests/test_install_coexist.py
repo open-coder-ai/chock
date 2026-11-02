@@ -130,4 +130,4 @@ def test_migrating_a_schema_1_marketplace_keeps_it_chocks(catalog, tmp_path: Pat
     place.migrate_legacy(dest)
     assert not (dest / package.MARKER).exists()
     assert _read(dest / place.MARKETPLACE_MARKER)["client"] == "claude-code"
-    place.check_owned("claude-code", dest, "set-two")
+    place.check_owned("claude-code", dest, "set-two", package.marketplace())

@@ -141,7 +141,9 @@ def switch(policy_id: str, state: str, bundle: str | None, scope: str | None) ->
     if scope == toggle.USER and root is not None and os.path.lexists(root / toggle.FILENAME):
         print(f"note: {root / toggle.FILENAME} governs this repository; the user file applies only outside it.")
     if scope == toggle.REPO and state == toggle.OFF:
-        print("Commit it: `chock check --only baseline` reports a policy switched off against the base as a loosening.")
+        print("Commit it: a policy is off in a repository only once HEAD's copy says so, and")
+        print("`chock check --only baseline` reports a policy switched off against the base as a loosening.")
+        print(f"This applies only once {toggle.FILENAME} is committed, and from the next session.")
     return 0
 
 

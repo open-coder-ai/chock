@@ -205,3 +205,34 @@ def test_each_warning_kind_fires_only_on_its_condition(tmp_path: Path) -> None:
     (tmp_path / "allow.txt").write_text("x", encoding="utf-8")
     quiet = warnings.warnings_for(warnings.Context(["a-one", "a-two", "b-one", "c-one"], {}, tmp_path, "cursor"), RULES)
     assert quiet == []
+
+
+@pytest.mark.parametrize("quote", ["'", '"'])
+def test_one_surrounding_quote_pair_is_stripped_from_a_code_or_link(valid: dict, quote: str) -> None:
+    """cmd.exe hands `--selection 'CODE'` over with the quotes still on."""
+    bare = sel.load(code(valid))
+    assert sel.load(f"{quote}{code(valid)}{quote}") == bare
+    assert sel.load(f"{quote}https://chock.sh/build#s={code(valid)}{quote}") == bare
+
+
+@pytest.mark.parametrize(
+    ("given", "expected"),
+    [
+        ("'abc'", "abc"),
+        ('"abc"', "abc"),
+        ("''abc''", "'abc'"),
+        ("'abc\"", "'abc\""),
+        ("'abc", "'abc"),
+        ("'", "'"),
+        ("", ""),
+    ],
+)
+def test_unquote_strips_exactly_one_matching_pair(given: str, expected: str) -> None:
+    assert sel._unquote(given) == expected
+
+
+def test_a_code_that_fails_to_decode_says_cmd_exe_passes_quotes_through() -> None:
+    with pytest.raises(
+        sel.SelectionError, match=r"not base64url-encoded JSON.*cmd\.exe passes quotes through.*needs none"
+    ):
+        sel.load("'oops")

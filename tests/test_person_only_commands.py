@@ -101,6 +101,26 @@ def test_reading_commands_stay_open_to_an_agent(
     assert REFUSED not in capsys.readouterr().err
 
 
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["disable", "--", "--check"],
+        ["remove", "--", "--check"],
+        ["init", "--", "--check"],
+        ["install-hooks", "--check"],
+        ["sync", "--", "--check"],
+        ["enable", "--check", POLICY],
+    ],
+)
+def test_a_check_token_that_is_not_the_flag_does_not_open_the_command(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], argv: list[str]
+) -> None:
+    """`--check` after `--`, or on a command that has no such flag, is a positional value."""
+    monkeypatch.setenv("CLAUDECODE", "1")
+    assert cli.main([*argv, "--repo", str(repo)]) == 1
+    assert REFUSED in capsys.readouterr().err
+
+
 def test_a_persons_shell_still_runs_them(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """No vendor marker, with or without `CHOCK_AGENT_COMMIT=0`: the person's own shell."""
     monkeypatch.setenv("CHOCK_AGENT_COMMIT", "0")

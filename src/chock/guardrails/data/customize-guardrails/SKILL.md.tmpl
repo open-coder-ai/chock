@@ -11,7 +11,10 @@ pull request that turns one off is reviewed as a loosening) or `~/.chock/guardra
 A repository's own file governs it; the user file counts only where the repository has none.
 
 A switch applies from the next session: a session honours an `off` only if its file and record were
-already in place when the session started, and the session start lists every member that is off. This is
+already in place when the session started, and the session start lists every member that is off.
+In a repository an `off` also needs a commit: it applies only once `.chock/guardrails.json` is committed
+(HEAD's copy must hold it too), and from the next session. Until then the member stays on, and
+`chock bundle status` and the session start say so. The user file has no commit rule. This is
 not a security boundary against an agent running as the person.
 
 ## Members

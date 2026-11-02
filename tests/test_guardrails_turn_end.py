@@ -9,7 +9,7 @@ from pathlib import Path
 import client_payloads
 import pytest
 from bundle_fixtures import ALL_ROOTS, BUNDLE_ID, GUARD_ID
-from conftest import run_hook_command
+from conftest import init_repo, run_hook_command
 from guardrails_support import MERGED_CLIENTS, TOGGLE, any_refused, build, outcomes, refused, set_toggles, shell
 
 from chock.guardrails import cli, toggle
@@ -244,8 +244,8 @@ def test_the_user_file_is_checked_too(tmp_path: Path, home: Path, monkeypatch: p
 
 
 def test_a_file_that_differs_from_its_record_switches_nothing_off(tmp_path: Path, home: Path) -> None:
-    repo = tmp_path / "r"
-    (repo / ".git").mkdir(parents=True)
+    (tmp_path / "r").mkdir()
+    repo = init_repo(tmp_path / "r")
     set_toggles(repo, {BUNDLE_ID: {GUARD_ID: "off"}}, recorded=False)
     _path, _scope, toggles, warning = toggle.load(repo)
     assert toggles == {} and toggle.DRIFTED in (warning or "")

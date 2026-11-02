@@ -12,10 +12,9 @@ invokes, so a policy cannot mean one thing at commit and another in the session.
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
-from pathlib import Path, PurePosixPath, PureWindowsPath
+from pathlib import Path
 
 from .budget import allowed_seconds, engine_deadline, time_left
 from .decision_log import GATE_LAST
@@ -24,10 +23,12 @@ from .edit_image import added_from_event, created_text, edited_text
 from .gate_outcome import GATE_ERRORED, gate_decision, runner_outcome
 from .outside_repo import judged_files, outside_globs
 from .patch_image import patch_added, patched_files
+from .repo_names import repo_paths
 from .session_log import session_for
 from .stop_reentry import settle_stop
-from .stop_roots import per_root, stop_roots
-from .workspace_root import _DRIVE_COLON, _folded, workspace_root
+from .stop_roots import judged_root, per_root, stop_roots
+from .workspace_root import workspace_root
+from .worktree_read import worktree_text
 
 GATE_FLAG = "--gate"
 #: A plugin's Stop hook shares the pre-tool `gate.json`; this flag tells the runtime which event it serves.
@@ -98,39 +99,8 @@ def writes_from_event(event, root=None):
     return {str(path): content}
 
 
-def repo_relative(path, root):
-    """`path` relative to `root` in POSIX form, as scope globs are written; as given when outside `root`."""
-    text = str(path)
-    if root is None:
-        return text
-    windows = os.name == "nt" or str(root)[1:2] == _DRIVE_COLON
-    flavour = PureWindowsPath if windows else PurePosixPath
-    try:
-        return _folded(flavour(str(root)) / text).relative_to(flavour(str(root))).as_posix()
-    except ValueError:
-        pass
-    if windows != (os.name == "nt"):
-        return text
-    try:
-        return Path(root, text).resolve().relative_to(Path(root).resolve()).as_posix()
-    except (OSError, ValueError, RuntimeError):
-        return text
-
-
-def repo_paths(path, root):
-    """Every repo-relative name a write is judged under: as written, and through symlinks and case."""
-    lexical = repo_relative(path, root)
-    if root is None or (str(root)[1:2] == _DRIVE_COLON) != (os.name == "nt"):
-        return (lexical,)
-    try:
-        resolved = Path(root, str(path)).resolve().relative_to(Path(root).resolve()).as_posix()
-    except (OSError, ValueError, RuntimeError):
-        return (lexical,)
-    return tuple(dict.fromkeys((lexical, resolved)))
-
-
 def changed_paths(repo_root, deadline=None, why=None):
-    """Every uncommitted path; None (reason appended to `why`) when git gave no answer, [] only outside a repository."""
+    """Every uncommitted path, a deleted file and a rename's old name included; None (reason in `why`) when git gave no answer."""
     deadline, why = engine_deadline() if deadline is None else deadline, [] if why is None else why
     argv = [_GIT, "-C", str(repo_root), "status", "--porcelain=v1", "--untracked-files=all", "-z"]
     try:
@@ -156,8 +126,8 @@ def changed_paths(repo_root, deadline=None, why=None):
     for field in fields:
         status, path = field[:2], field[3:]
         if status.startswith(_RENAMED):
-            next(fields, None)
-        if _DELETED not in status and path:
+            paths.append(next(fields, ""))
+        if path:
             paths.append(path)
     return paths
 
@@ -174,10 +144,14 @@ def writes_from_worktree(repo_root, deadline=None, why=None):
         return None
     writes = {}
     for path in paths:
-        try:
-            writes[path] = Path(repo_root, path).read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            continue
+        text, unsafe = worktree_text(Path(repo_root, path))
+        if unsafe:
+            if why is not None:
+                why.append(unsafe)
+            sys.stderr.write(f"chock: {unsafe}, worktree not checked\n")
+            return None
+        if text is not None:
+            writes[path] = text
     return writes
 
 
@@ -233,7 +207,7 @@ def root_for(gate):
 
 
 def repo_root_for(event, gate):
-    """The repository under judgement: the compiled layout's root, else the event's cwd, else its workspace root.
+    """The repository under judgement: the compiled layout's root, else the top level of the event's cwd or workspace root.
 
     Of several workspace roots, the one holding the written path; this process's cwd only when there are none.
     """
@@ -241,7 +215,7 @@ def repo_root_for(event, gate):
     if root is not None:
         return root
     cwd = getattr(event, "cwd", None) or workspace_root(event)
-    return Path(cwd) if cwd else Path.cwd()
+    return judged_root(cwd) if cwd else Path.cwd()
 
 
 def writes_for(event, gate, deadline=None, why=None, root=None):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -78,12 +79,30 @@ def any_refused(commands: list[str], plugin: Path, repo: Path, payload: dict, ho
     return any(refused(p) for p in outcomes(commands, plugin, repo, payload, home))
 
 
-def set_toggles(where: Path, bundles: dict[str, dict[str, str]] | str, *, recorded: bool = True) -> Path:
-    """Write a toggle file at `where/.chock/guardrails.json` (a string as is), recorded as `chock bundle` records it."""
+def commit_toggles(where: Path) -> None:
+    """Commit the toggle file in the repository at `where`, as a person does: a member is off only once HEAD says so."""
+    git = ["git", "-C", str(where), "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"]
+    if subprocess.run([*git, "rev-parse", "--git-dir"], capture_output=True, check=False).returncode:
+        return
+    subprocess.run([*git, "add", "-f", TOGGLE], check=True, capture_output=True)
+    subprocess.run(
+        [*git, "commit", "-q", "--no-verify", "-m", "toggles", "--allow-empty"], check=True, capture_output=True
+    )
+
+
+def set_toggles(
+    where: Path, bundles: dict[str, dict[str, str]] | str, *, recorded: bool = True, committed: bool = True
+) -> Path:
+    """Write a toggle file at `where/.chock/guardrails.json` (a string as is), recorded as `chock bundle` records it.
+
+    In a git repository it is also committed, unless `committed=False`.
+    """
     path = where / TOGGLE
     path.parent.mkdir(parents=True, exist_ok=True)
     text = bundles if isinstance(bundles, str) else json.dumps({"version": 1, "bundles": bundles})
     path.write_text(text, encoding="utf-8")
     if recorded:
         record(path)
+    if committed and (where / ".git").exists():
+        commit_toggles(where)
     return path

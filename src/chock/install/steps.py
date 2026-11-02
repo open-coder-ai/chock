@@ -36,6 +36,11 @@ def render(client_id: str, tokens: dict[str, str]) -> list[Step]:
     return render_steps(package.client(client_id)["steps"], tokens)
 
 
+def render_remove(client_id: str, tokens: dict[str, str]) -> list[Step]:
+    """The client's removal steps with every token filled in; empty when chock has no confirmed removal for it."""
+    return render_steps(package.client(client_id).get("remove", []), tokens)
+
+
 def render_steps(data: list[dict[str, Any]], tokens: dict[str, str]) -> list[Step]:
     """Step records (`command`, `settings` or `note`) with every token filled in."""
     out = []

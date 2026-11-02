@@ -189,19 +189,39 @@ mere presence of two files.
 
 The Agent Plugins 1.0 standard carries no hooks, so an `agent-plugins` package is advisory
 by construction. Enforcement travels in five vendor plugin formats built from the same
-policies (`chock plugin build --format claude|copilot|cursor|codex|devin`). Four of them are
-published in a generated distribution repo of their own, and each of those is **witnessed
-denying a destructive command on a real install**:
+policies (`chock plugin build --format claude|copilot|cursor|codex|devin`). A user gets them as
+one merged plugin from a chock.sh selection, built on their machine:
 
-| Vendor repo | Client(s) | Deny dialect |
+```
+chock install --selection <code> --client <client> --apply
+```
+
+`--apply` runs the client's own commands where it has them; otherwise the step is yours.
+Four formats are each **witnessed denying a destructive command on a real install**:
+
+| Format | Client(s) | Deny dialect |
 | :--- | :--- | :--- |
-| [chock-claude-plugins](https://github.com/open-coder-ai/chock-claude-plugins) | Claude Code | exit 2 |
-| [chock-copilot-plugins](https://github.com/open-coder-ai/chock-copilot-plugins) | Copilot CLI, VS Code | exit 2 |
-| [chock-cursor-plugins](https://github.com/open-coder-ai/chock-cursor-plugins) | Cursor | stdout `{"permission": "deny"}` |
-| [chock-codex-plugins](https://github.com/open-coder-ai/chock-codex-plugins) | Codex (after its per-hook trust review) | exit 0 + `permissionDecision` JSON |
+| claude | Claude Code | exit 0 + `permissionDecision` deny JSON (measured 2026-10-21, Claude Code 2.1.305) |
+| copilot | Copilot CLI, VS Code | exit 0 + `permissionDecision` deny JSON (from the adapter's copilot_respond template; unmeasured this session) |
+| cursor | Cursor | stdout `{"permission": "deny"}` |
+| codex | Codex (after its per-hook trust review) | exit 0 + `permissionDecision` JSON |
 
 One guard, one adapter, byte-identical across all four — only the envelope each client
 reads differs.
+
+| `--client` | Client | `--apply` runs | You do |
+| :--- | :--- | :--- | :--- |
+| `claude-code` | Claude Code | `claude plugin marketplace add`, `claude plugin install` | restart the session or `/reload-plugins` |
+| `copilot` | GitHub Copilot | `copilot plugin marketplace add`, `copilot plugin install` | VS Code without the CLI: add the plugin folder to `chat.pluginLocations` |
+| `codex` | Codex | `codex plugin marketplace add` | install in `/plugins`, trust its hooks in `/hooks` |
+| `cursor` | Cursor | nothing | Developer: Reload Window |
+| `devin` | Devin | `devin plugins install --local` | nothing |
+| `goose` | goose | nothing | start a new session |
+| `grok` | Grok | `grok plugin install --trust` | nothing |
+| `antigravity` | Antigravity | `agy plugin install` | nothing |
+| `openhands` | OpenHands | nothing | `openhands --plugin <plugin folder>`, or add it to `[plugins]` sources in `~/.openhands/config.toml`; keep the folder in place |
+| `kimi-code` | Kimi Code | nothing | in its TUI, `/plugins install <plugin folder>` then `/reload`; again after a rebuild |
+| `factory-droid` | Factory Droid | `droid plugin marketplace add`, `droid plugin install --scope project` | nothing |
 
 Every hook-carrying format also carries a policy's **gate** when the gate declares
 `tool_use`: the compiled `scripts/gate.json`, the stdlib runner beside it as `scripts/gate.py`,
@@ -224,3 +244,57 @@ case there reproduces a witnessed failure), and the probe evidence is recorded i
 0.4.0 CHANGELOG entry. Codex additionally installs every hook **untrusted** until a human approves
 it, and that trust is bound to a hash of the hook command, so a plugin update silently
 voids it until re-approved.
+
+## Host it in your own marketplace
+
+An organisation that does not want every developer running a build builds once and hosts the result.
+An admin runs the build without `--apply`, into a folder of their choice:
+
+```
+chock install --selection <code> --client <client> --dest <folder> --marketplace-name <org>-chock
+```
+
+Nothing is installed and no client command runs. For the marketplace-layout clients (`claude-code`,
+`copilot`, `codex`, `factory-droid`) the folder is a complete local marketplace:
+
+```text
+<folder>/
+├── .claude-plugin/marketplace.json      # the index the client reads (codex: .agents/plugins/marketplace.json)
+├── chock.marketplace.json               # which client's marketplace this is
+└── claude/chock-guardrails/             # the plugin (<format>/<bundle name>)
+    ├── .claude-plugin/plugin.json
+    ├── hooks/hooks.json                 # every guard, gate and the turn-end check
+    ├── scripts/                         # the guards and gates, the vendored runtime, launch.sh
+    └── chock.selection.json             # the marker
+```
+
+The marker records the selection, catalog commit, engine version and each custom policy's sha256. The other clients
+(`cursor`, `devin`, `goose`, `grok`, `antigravity`, `openhands`, `kimi-code`) build the plugin folder.
+
+**Name the marketplace.** Every build calls its marketplace `chock-local`; a second folder under that name re-points
+the first. `--marketplace-name <name>` (lowercase, digits, hyphens; at most 64 characters) names it instead:
+developers install `chock-guardrails@<name>` beside a personal `chock-guardrails@chock-local`, and neither moves.
+
+1. **Review.** Read `chock.selection.json` and `hooks/hooks.json`; `chock bundle status` lists only
+   bundles installed in a client's default folder, so it does not see a `--dest` build.
+2. **Commit** the folder to the organisation's own marketplace repository.
+3. **Developers install** with the client's own commands, for example `claude plugin marketplace add
+   <org>/<repo>` and `claude plugin install chock-guardrails@<name>`.
+4. **Update** by building on a newer catalog pin and committing again; the marker's catalog commit is the version.
+
+Hook commands reach their scripts through the client's plugin-root variable (`${CLAUDE_PLUGIN_ROOT}` for Claude Code),
+so the folder works anywhere. **Antigravity and OpenHands document none** (`plugin_root: null`): their hooks use the
+build folder's absolute path, so install a hosted copy at that path.
+
+Measured for Claude Code 2.1.305: a moved three-policy build's `hooks.json` commands, with `CLAUDE_PLUGIN_ROOT` set to
+the new folder, refused `rm -rf /` and passed `ls -la`; `claude plugin marketplace add` and `install` succeeded.
+Unmeasured: a `--marketplace-name` build (tests only), a live refusal, other clients.
+
+**Developers need no chock.** The plugin imports nothing from chock; it needs Python 3.11+, git and a bash (Git for
+Windows includes one). Measured in a venv without chock (Python 3.11.15, 3.12.3), a fixture-catalog plugin refused a
+guarded write and allowed `notes.txt`; Windows unmeasured. **No machine can run chock?** The
+[`chock-*-plugins`](https://github.com/open-coder-ai/chock-claude-plugins) repos stay as a per-policy marketplace,
+republished each release. One route per policy.
+
+Pre-installing a marketplace on every machine is the vendor's feature, not chock's: Claude Code's
+[docs](https://code.claude.com/docs/en/plugin-marketplaces) say an administrator can require one (unmeasured).

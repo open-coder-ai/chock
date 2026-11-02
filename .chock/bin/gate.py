@@ -220,14 +220,18 @@ class GateContext:
         #: Path prefixes this gate never judges: its own policy's source and compiled folders.
         self.own = tuple(own)
 
-    def in_scope(self, path: str) -> bool:
+    def is_own(self, path: str) -> bool:
+        """Whether `path` is in this policy's own source or compiled folder."""
+        return bool(self.own) and path.startswith(self.own)
+
+    def in_scope(self, path: str, *, judge_own: bool = False) -> bool:
         """Whether this policy may judge this file at all.
 
         fnmatch semantics, so `*` crosses `/` and `.github/workflows/*` covers nested files.
         A gate with no scope sees every changed file, which is what every gate did before
         applies_to.paths was read.
         """
-        if path.startswith(self.own):
+        if not judge_own and self.is_own(path):
             return False
         if _is_outside(path):
             return True
@@ -277,9 +281,9 @@ class GateContext:
         """True when `ref` resolves to a commit. Used to fail CI closed on a missing base."""
         return bool(self._git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}").strip())
 
-    def staged_paths(self, diff_filter: str = "ACMRT") -> list[str]:
+    def staged_paths(self, diff_filter: str = "ACMRT", *, judge_own: bool = False) -> list[str]:
         paths = self._listing("diff", *self._range(), "--name-only", f"--diff-filter={diff_filter}")
-        return [path for path in paths if self.in_scope(path)]
+        return [path for path in paths if self.in_scope(path, judge_own=judge_own)]
 
     def _diff_text(self, path: str) -> str:
         """`path`'s `-U0` diff as git writes it, unconverted; raises DiffError when git fails."""
@@ -382,11 +386,11 @@ class WriteContext(GateContext):
         self._added = dict(added or {})
         self._stop = stop
 
-    def staged_paths(self, diff_filter: str = "ACMRT") -> list[str]:
+    def staged_paths(self, diff_filter: str = "ACMRT", *, judge_own: bool = False) -> list[str]:
         """Every write is a present file, so a filter asking only for deletions finds none."""
         if not set(diff_filter) & set("ACMRT"):
             return []
-        return [path for path in self._writes if self.in_scope(path)]
+        return [path for path in self._writes if self.in_scope(path, judge_own=judge_own)]
 
     def staged_blob(self, path: str) -> str:
         return self._writes.get(path, "")
@@ -678,14 +682,15 @@ def _kind_content_regex(ctx: GateContext, params: dict, event: str) -> GateResul
     pragma = _waiver_pattern(params, event)
     agent = event in HEAD_WAIVER_EVENTS
     whole = params.get("scan", "added_lines") == "staged_blob"
-    paths = ctx.staged_paths(params.get("diff_filter", "ACMRT"))
+    paths = ctx.staged_paths(params.get("diff_filter", "ACMRT"), judge_own=True)
     judge = pattern_judge()
     try:
         forbidden = sorted(_hits(judge, [(_path_pattern(params, ctx), paths)])[0])
         heads = {path: ctx.committed_blob(path) if agent else "" for path in paths}
         blobs = [heads[paths[index]] if agent else ctx.staged_blob(paths[index]) for index in forbidden]
         spans, texts = _lines(
-            paths, lambda path: ctx.staged_blob(path).splitlines() if whole else ctx.added_lines(path)
+            [path for path in paths if not ctx.is_own(path)],
+            lambda path: ctx.staged_blob(path).splitlines() if whole else ctx.added_lines(path),
         )
         jobs = [(pragma, blobs), (pragma, texts), (params["content_pattern"], texts)]
         blob_waivers, line_waivers, hits = _hits(judge, jobs)
@@ -696,7 +701,7 @@ def _kind_content_regex(ctx: GateContext, params: dict, event: str) -> GateResul
         if index in forbidden and forbidden.index(index) not in blob_waivers:
             matches.append(f"{path}: forbidden path")
         head = frozenset(heads[path].splitlines()) if agent else None
-        if any(n in hits and not _waived(n, texts[n], line_waivers, head) for n in spans[path]):
+        if any(n in hits and not _waived(n, texts[n], line_waivers, head) for n in spans.get(path, ())):
             matches.append(f"{path}: content pattern")
     return GateResult(allowed=not matches, matches=matches)
 
@@ -1826,7 +1831,8 @@ def log_settings_read(path):
         problems.append(f"{path}: max_bytes must be {_LOG_BYTES_RANGE}, not {size!r}; using the next scope or 1048576")
     unknown = sorted(set(doc) - set(LOG_SETTINGS_KEYS))
     if unknown:
-        problems.append(f"{path}: unknown key(s) {', '.join(map(str, unknown))}; only level and max_bytes are read")
+        names = ", ".join(map(str, unknown))
+        problems.append(f"{path}: unknown key(s) {names}; only level and max_bytes are read")
     return found, problems
 
 

@@ -1,0 +1,7 @@
+- **Security: engine hardening, round 2.** Path handling and the person-only checks are stricter.
+  - The write gate, the turn-end check and the MCP gateway judge the same canonical spellings of a path.
+  - Every kind of file change, deletions and moves included, reaches the gates that judge paths.
+  - A policy's path gate also covers that policy's own folders.
+  - A plugin gate judges from the repository top level, and the turn-end read of the worktree is bounded to regular files.
+  - A guardrails member is off in a repository only when the committed toggle file says so.
+  - `--check` opens a person-only command to an agent only where the command defines it.

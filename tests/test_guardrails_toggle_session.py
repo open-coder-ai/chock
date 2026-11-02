@@ -82,6 +82,32 @@ def test_a_session_start_lists_every_member_that_is_off_by_scope(tmp_path: Path,
     assert "not a security boundary" in out
 
 
+def _notice(commands, plugin, repo, home, session) -> str:
+    out = json.loads(_start(commands, plugin, repo, home, session).stdout)
+    return out["hookSpecificOutput"]["additionalContext"]
+
+
+def test_a_session_start_does_not_list_an_uncommitted_repo_off_as_off(tmp_path: Path, home: Path) -> None:
+    plugin, repo, commands = build(tmp_path, "claude")
+    set_toggles(repo, {BUNDLE_ID: {GUARD_ID: "off"}}, committed=False)
+    out = _notice(commands, plugin, repo, home, "one")
+    assert "switched off for this session" not in out
+    assert f"repo ({repo / toggle.FILENAME}): {BUNDLE_ID}/{GUARD_ID}" in out
+    assert "stay on" in out and toggle.UNCOMMITTED in out
+
+
+def test_a_session_start_lists_a_committed_repo_off_and_an_uncommitted_user_off(tmp_path: Path, home: Path) -> None:
+    plugin, repo, commands = build(tmp_path, "claude")
+    outside = tmp_path / "scratch"
+    outside.mkdir()
+    set_toggles(repo, {BUNDLE_ID: {GUARD_ID: "off"}})
+    set_toggles(home, {BUNDLE_ID: {GATE_ID: "off"}}, committed=False)
+    assert toggle.UNCOMMITTED not in _notice(commands, plugin, repo, home, "one")
+    out = _notice(commands, plugin, outside, home, "two")
+    assert "switched off for this session" in out and toggle.UNCOMMITTED not in out
+    assert f"user ({home / toggle.FILENAME}): {BUNDLE_ID}/{GATE_ID}" in out
+
+
 def test_a_session_start_binds_the_session_and_a_compaction_does_not_rebind_it(tmp_path: Path, home: Path) -> None:
     plugin, repo, commands = build(tmp_path, "claude")
     mine = client_payloads.in_session(shell("claude", repo, RM), "one")

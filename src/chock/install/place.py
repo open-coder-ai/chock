@@ -44,8 +44,17 @@ def _marketplace_client(dest: Path) -> str | None:
     return selection.SCHEMA1_CLIENT if (dest / package.MARKER).is_file() else None
 
 
-def check_owned(client_id: str, dest: Path, name: str) -> None:
-    """Refuse a destination chock did not build, or built for another client; never touch either."""
+def _marketplace_name(dest: Path) -> str:
+    """The marketplace name a chock marketplace at `dest` was built with; the default for one that records none."""
+    try:
+        return str(json.loads((dest / MARKETPLACE_MARKER).read_text(encoding="utf-8"))["marketplace"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return package.marketplace()
+
+
+def check_owned(client_id: str, dest: Path, name: str, marketplace: str | None = None) -> None:
+    """Refuse a destination chock did not build, built for another client or under another marketplace name."""
+    marketplace = package.marketplace(marketplace)
     if package.client(client_id)["layout"] == MARKETPLACE and dest.exists() and any(dest.iterdir()):
         found = _marketplace_client(dest)
         if found is None:
@@ -53,6 +62,13 @@ def check_owned(client_id: str, dest: Path, name: str) -> None:
             raise FileExistsError(msg)
         if found != client_id:
             msg = f"{dest} is chock's marketplace for {found}, not {client_id}; choose another --dest"
+            raise FileExistsError(msg)
+        if _marketplace_name(dest) != marketplace:
+            msg = (
+                f"{dest} is the {_marketplace_name(dest)} marketplace; renaming it to {marketplace} would re-point "
+                f"every plugin installed from it. Choose another --dest, or build with --marketplace-name "
+                f"{_marketplace_name(dest)}"
+            )
             raise FileExistsError(msg)
         return
     marker = package.read_marker(plugin_dir(client_id, dest, name))
@@ -77,12 +93,12 @@ def migrate_legacy(dest: Path) -> None:
     folder, marker = legacy
     if folder.is_dir() and package.read_marker(folder) is None:
         write_generated(folder / package.MARKER, json.dumps(marker, indent=2, sort_keys=True) + "\n")
-    _write_marketplace_marker(dest, selection.SCHEMA1_CLIENT)
+    _write_marketplace_marker(dest, selection.SCHEMA1_CLIENT, package.marketplace())
     (dest / package.MARKER).unlink()
 
 
-def _write_marketplace_marker(dest: Path, client_id: str) -> None:
-    marker = {"client": client_id, "marketplace": package.settings()["marketplace"]}
+def _write_marketplace_marker(dest: Path, client_id: str, marketplace: str) -> None:
+    marker = {"client": client_id, "marketplace": marketplace}
     write_generated(dest / MARKETPLACE_MARKER, json.dumps(marker, indent=2, sort_keys=True) + "\n")
 
 
@@ -118,13 +134,13 @@ def _index(spec: dict[str, Any], dest: Path, fmt: str, marketplace: str) -> dict
     return {"name": marketplace, "plugins": plugins}
 
 
-def write_marketplace(client_id: str, dest: Path) -> list[Path]:
+def write_marketplace(client_id: str, dest: Path, marketplace: str | None = None) -> list[Path]:
     """The marketplace marker and the client's index files, rebuilt over every plugin now in `dest`."""
+    marketplace = package.marketplace(marketplace)
     data = package.client(client_id)
     if data["layout"] != MARKETPLACE:
         return []
-    marketplace = package.settings()["marketplace"]
-    _write_marketplace_marker(dest, client_id)
+    _write_marketplace_marker(dest, client_id, marketplace)
     written = []
     for spec in data["index"]:
         path = dest / spec["path"]
