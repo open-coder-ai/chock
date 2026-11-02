@@ -6,7 +6,7 @@ Until 1.0, only the latest release of the current minor line gets security fixes
 
 | Version | Supported |
 |---|---|
-| 0.15.x (latest) | yes |
+| 1.0.x (latest) | yes |
 | older | no |
 
 ## Reporting a vulnerability

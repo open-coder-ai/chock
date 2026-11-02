@@ -1,1 +1,0 @@
-- **Security: the gate names no path when its compiled file cannot be read.** The message now carries the exception type, not the path or the raw error text; the gate still exits 2.

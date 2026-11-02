@@ -1,6 +1,6 @@
 # Chock changelog
 
-## Unreleased
+## 1.0.0 - 2026-11-02
 
 - Entries for unreleased changes now live in `changelog.d/` (one file per change); see
   `changelog.d/README.md`.
@@ -292,6 +292,703 @@
   installers on a scratch copy of each wired vendor's committed config and reports `differs`
   where chock's own entries disagree; foreign entries and list order are ignored. The repo's own
   hook configs, coverage and `chock_session.py` runtime are regenerated.
+- **Hardening: `chock add --from` never stores or prints a URL's credentials.** The `user:token@` part of a
+  catalog URL is dropped before the source is written to `chock.lock`, printed, or put in an error message.
+- **Hardening: `chock add` finds a pack only inside the catalog.** The fallback lookup (`<area>/<id>`) now
+  applies the same containment check as a `registry.yaml` entry, a pack directory that is itself a symlink
+  is refused, and the copy never follows a link.
+- **Security: `chock add --ref <sha>` accepts only a commit on a branch or tag the source publishes.** A
+  remote can serve by id any commit in its repository network, including a fork's or a
+  `refs/pull/N/head` commit, so a copied `--from <official url> --ref <sha>` could install code the
+  source never published. After the commit is fetched, `add` now fetches the source's branches and tags
+  (no blobs) and refuses, installing nothing (exit 2), unless the commit is reachable from one of them;
+  `refs/pull/*` and other namespaces never count and there is no override. To use a fork's commit, pass
+  the fork's own URL as `--from`. A local directory source is the user's own checkout and is not
+  checked; branch and tag refs are unchanged.
+- **An agent cannot switch chock off.** `chock sync`, `recompile`, `install-hooks`, `enable`, `disable`,
+  `add`, `remove`, `init` and `compile`, the commands that change `.chock/config.yaml`, `chock.lock` or the
+  compiled tree, refuse under an agent marker (`CLAUDECODE=1`, `AI_AGENT`, a truthy `CHOCK_AGENT_COMMIT`, a
+  configured `agent_commit_env` name) with the rule `chock resume` applies: a person runs them from their own
+  shell. The refusal is logged (`policy_id: chock-cli`). `sync --check`, `check` and `status` stay open. One
+  actor rule now serves every check: `CHOCK_AGENT_COMMIT=0` unsets that one variable and clears no vendor
+  marker, so `CHOCK_ALLOW=<id> CHOCK_AGENT_COMMIT=0` in an agent's terminal no longer answers an ask and
+  `CHOCK_ROLLOUT` is ignored there; a person's own shell, which has no marker, keeps both. A refused ask tells
+  a person the `CHOCK_ALLOW` line and tells an agent to ask the person, naming no override. For the agent
+  asking `chock_guidance`, a `policies.disabled` entry counts only once committed (HEAD), the way the
+  committed rollout caps the working tree's. docs/assurance-case.md restates "tamper-evident" to what the
+  mechanism gives and lists the bytecode and runtime-pin limits.
+- **chock depends on the released `agentseam==0.4.0`.** The build-time dependency was a direct
+  reference to an agentseam commit, which PyPI refuses; it is now the PyPI release, and the
+  runtime, brand-assets, dev and binary lockfiles carry its PyPI hashes.
+- **Antigravity: hooks.json now uses the documented schema, so Antigravity loads chock's hooks.**
+  Antigravity rejected the plugin's hooks.json (`invalid hook "agentseam": command hook must specify
+  'command'`, a maintainer's witness run, 2026-10-17) because Stop was written as a `{hooks}` group.
+  agentseam is pinned to main 945ceb0, which writes Stop handlers bare (`{type, command}`) and gives every
+  PreToolUse/PostToolUse group `matcher: "*"`, per antigravity.google/docs/hooks (read 2026-10-17). Both the
+  plugin's hooks.json and `chock sync`'s `.agents/hooks.json` follow. Not witnessed yet: the corrected file
+  has not been run in Antigravity.
+- **Antigravity's plugin is witnessed: `chock install --selection --client antigravity` no longer warns "Untested" or
+  asks for evidence.** In Antigravity IDE on Windows 11 (version not recorded), chock's shipped plugin, built on Windows
+  (quote-free hook command), refused `block-no-verify` on a shell command before it ran and `pin-github-actions` on a
+  workflow write at turn end, not at the write, while `git status` ran (org-plan
+  `witness/results/witness-antigravity-2026-10-18.md`). The claim is for a Windows build only. The turn-end and
+  fail-mode warning stays.
+- **Antigravity on Windows: plugin hook commands are now quote-free, so cmd.exe hands them to git intact.**
+  Antigravity IDE on Windows runs a hook `command` through cmd.exe and passes each `"` on as `\"`, so the
+  single-quoted git alias split (`unknown option: -f`) and a double-quoted one did too (a maintainer's witness
+  run, 2026-10-18; agentseam 683f95b records the cmd.exe runner). Built on Windows, the Antigravity plugin now
+  runs `git -c alias.chock-sh=!<refusal> chock-sh <launcher> <args>` with no quote or space in any argument:
+  words split by `${IFS}` in git's sh, every cmd.exe operator caret-escaped, and the missing-launcher refusal
+  (exit 2) kept. A plugin folder whose path holds a space, quote or cmd.exe metacharacter is refused at install
+  with an error naming the path. The fact is store data (`windows_hook_command: quote_free`); every other
+  client, and every non-Windows build, is byte-identical. Not witnessed yet: the built command has not been run
+  in Antigravity.
+- **Antigravity on Windows: `chock sync` writes quote-free hook commands too, following the plugin's rule.**
+  The repo route's double-quoted git alias reaches cmd.exe the same way the plugin's did, so on Windows, for a
+  client whose store data says `windows_hook_command: quote_free`, sync now writes each command in
+  `.agents/hooks.json` as `git -c alias.chock-hook=!<refusal> chock-hook <runtime> <args>` with no quote or
+  space in any argument; the missing-launcher refusal (exit 2) is kept, and an argument that cannot be carried
+  bare is refused. `.chock/compiled` is unchanged; every other client and every non-Windows sync is
+  byte-identical. A committed `.agents/hooks.json` synced on Windows is the Windows form. Not witnessed yet.
+- **goose's guard note and Antigravity's posture render their witness clause from the ledger.** goose's note
+  now cites its witness row and says goose runs every hook with `sh -c`, so sh (Git for Windows' sh on Windows)
+  must be on PATH, else every tool call is denied (org-plan `witness/results/witness-goose-2026-10-18.md`).
+  Antigravity's posture says "not witnessed by chock" until its ledger row lands.
+- **Per-policy on/off inside the agent (builder v2, 2.1b).** Every merged plugin `chock install --selection`
+  builds now checks `.chock/guardrails.json` (repo scope, committed) or `~/.chock/guardrails.json` (user
+  scope, where the repository has none) before each member judges, honouring it only while it matches the
+  record `chock bundle` keeps (below):
+  `{"version": 1, "bundles": {"<bundle.name>": {"<policy-id>": "on"|"off"}}}`, schema in
+  `guardrails.schema.json`. An absent entry is on; on and off only. A file that is unreadable or invalid
+  switches nothing off and prints a one-line warning. A member switched off answers the client's own
+  allow and writes one line to `.chock/log/gate-events.jsonl` beside the governing file.
+- **`chock bundle on|off <policy-id> [--bundle <name>] [--scope repo|user]` and `chock bundle status`** are the
+  file's only writers and its reader. `status` lists every chock bundle installed in a client's default
+  folder with each member's state and label. Every merged plugin also carries a "customize guardrails"
+  skill that shows the members and prints the command for a person to run; it never writes the file.
+- **Built-in self-protection, not switchable:** every merged plugin refuses an agent's write to either
+  toggle file (shell guard, best effort, and an Edit/Write gate; case, `//`, `..`, backslashes and links
+  folded) and an agent's own `chock bundle on|off` or `status --adopt`. Reads pass.
+- **Turn-end check of the toggle files:** `chock bundle on|off` records each file's sha256 in
+  `.chock/state/guardrails.sha256` beside it. Every merged plugin's Stop hook refuses a turn's end, in the
+  client's own words and with the usual re-entry cap, while a toggle file in scope (repo or user) differs from
+  that record: changed, deleted, or never recorded. That catches a write the best-effort shell guard missed,
+  including on Copilot and Devin, which judge no write tool. The hook-time lookup honours a toggle file only
+  while it matches that record; otherwise every guardrail stays on, with a one-line warning, so a file an agent
+  wrote by any trick switches nothing off.
+- **`chock sync` records a committed `.chock/guardrails.json` only when it is byte-identical to the remote
+  default branch** (`origin/HEAD`, else `origin/main`), so a teammate's fresh clone honours the reviewed file
+  once synced, and prints its on/off summary. A local commit that is not on the remote is never recorded: a
+  person reviews it and runs `chock bundle status --adopt`, which the built-in guard refuses from an agent.
+- **`chock check --only baseline` reports a member switched off in `.chock/guardrails.json` against the
+  base branch, or the committed file deleted, as a loosening.**
+- **Hardening: a catalog URL is never read as a path in the working directory.** A source spelled as a URL
+  or `user@host:path` is always fetched from the remote, and its published-branch checks always run, even
+  when a directory of the same shape exists under the current directory. A local catalog is a path.
+- **`chock sync --ci` pins the engine in the generated workflow.** It used to install
+  `git+https://github.com/open-coder-ai/chock` with no ref, so an adopter's CI ran whatever chock
+  `main` held. It now installs the exact commit that generated the file (the same commit the install
+  marker records). When no commit is known (a PyPI install), it pins the installed version from PyPI
+  and says so in a comment. Re-run `chock sync --ci` to move the pin.
+- **Claude Code's plugin is witnessed.** In Claude Code 2.1.283 on Windows, the chock plugin refused
+  `block-no-verify` at `PreToolUse:Bash` and `pin-github-actions` at the `PreToolUse:Write`, before either ran
+  (org-plan `witness/results/witness-claude-code-2026-10-12.md`). The ledger row is for the plugin-hook surface
+  only: the repo-hook route and the Stop (turn-end) refusal were not witnessed.
+- **`chock sync`'s "Untested" now means no live run of chock's repo hooks in this client.** A plugin witness covers
+  `chock install`, not the hooks sync wires, so sync no longer counts one. Sync now calls claude_code, codex_cli
+  and cursor Untested; vscode_copilot, witnessed on agent-hooks, is not.
+- **`chock new` and `chock check` agree with what they print.** `chock new` now prints two
+  next steps, `python -m chock sync --repo <root>` then `python -m chock check --repo <root>`
+  (no `&&`, which Windows PowerShell 5.1 lacks); the old `chock check <root>` exited 2
+  (`check` takes `--repo`). `chock check` ends with one line,
+  `== result: PASS` or `== result: FAIL (exit <n>; see the FAIL above)`, so a failing section is no longer
+  followed by a later section's `[PASS]` as the last word; the exit code is unchanged.
+- **The `content_regex` template no longer flags itself.** Its gate message said the marker
+  it refuses, and INDEX.md quotes the message, so committing a fresh scaffold was blocked by
+  its own policy. The message now spells the marker `DO-NOT-COMMIT`, which the pattern does not
+  match.
+- **Codex is witnessed: `chock install --selection --client codex` no longer warns "Untested".** An install in
+  Codex CLI 0.157.1 on Windows was witnessed (guard, write gate, turn-end gate, self-protection and per-policy
+  on/off), so the `client` warning that chock has not witnessed an install now names only Copilot, Cursor and
+  Devin. Codex still warns that its plugin hooks stay advisory until trusted in `/hooks`.
+- **Copilot's plugin is witnessed.** In GitHub Copilot CLI 1.0.94 on Windows, the chock plugin refused
+  `pin-github-actions` on a workflow `create` and `chock-guardrails-protect` on a shell write to
+  `.chock/guardrails.json`, both at `preToolUse`, before either landed (org-plan
+  `witness/results/witness-copilot-2026-10-11.md`). The ledger row is keyed `copilot`, agentseam's id for the plugin
+  bundle format, and covers the plugin-hook surface in Copilot CLI only: VS Code agent mode, a toggle-file write through
+  the edit tool and a delete-only `apply_patch` were not covered. `chock install --client copilot` prints the same
+  warnings as before.
+- **Copilot and Devin are witnessed: `chock install --selection --client copilot|devin` no longer warns "Untested".**
+  Installs in GitHub Copilot CLI and Devin CLI on Windows were witnessed (org-plan
+  `witness/results/witness-copilot-2026-10-08.md` and `witness/results/witness-devin-2026-10-08.md`: guard, turn-end
+  gate, self-protection and per-policy on/off), so the "Untested" `client` warning now names only Cursor. Both still
+  warn that a gate judges what a turn wrote only at turn end, and Devin that its hooks fail open.
+- **Devin's install steps say Windows needs Developer Mode.** `devin plugins install --local` creates a symbolic link,
+  so on Windows it needs Developer Mode or an elevated shell; without either it fails with "os error 1314: A required
+  privilege is not held by the client".
+- **`chock bundle status --adopt` refuses an invalid toggle file.** It used to record a file such as `{}` as it was,
+  leaving `chock bundle on|off` refusing it with no way out but deleting it. Adopt now exits non-zero, records nothing
+  and names the reset: `chock bundle status --adopt --reset` rewrites each invalid toggle file in scope as a valid
+  all-on file and records it. A reset never switches anything off, leaves valid files as they are and never removes a
+  folder. `chock bundle on|off` on an invalid file names the same command.
+- **Copilot CLI: the write gate and the toggle-file guard now judge `create` and `apply_patch` before the write.**
+  Copilot runs a plugin's `PreToolUse` hook on `Write|Edit` for its `create`, `edit`, `str_replace_editor` and
+  `apply_patch` tools, but passes the tool's own arguments: `create` carries `file_text`, and `apply_patch`
+  carries the patch as the bare `tool_input` string (or under `input`/`patch`). The runtime read neither, so in
+  the Copilot witness run (2026-10-08) an unpinned workflow and a write of `{}` to `.chock/guardrails.json`
+  landed and were refused only at turn end. Both are now read, and the turn-end check stays. `edit`
+  (`old_str`/`new_str`) was already judged. An `apply_patch` that deletes a file is still not refused at
+  write time; a deletion that loosens a toggle is refused at turn end. Copilot keeps its "turn end only" label
+  until a witness re-run.
+- **Copilot's label says the write is judged before it lands.** Copilot CLI 1.0.94 on Windows refused an
+  unpinned workflow `create` at `preToolUse`, and nothing landed (org-plan
+  `witness/results/witness-copilot-2026-10-11.md`). `chock install --client copilot` now reads "blocks on an
+  agent's file writes and at turn end", and a client note says VS Code agent mode's write path is unmeasured.
+- **Fix: Cursor's write gate on Windows judges the write inside its workspace.** Cursor sends no `cwd` and
+  spells its root `/C:/...`; the gate now takes the repository root from `workspace_roots` (the one holding
+  the written path), so a Write under `.github/workflows/` is judged instead of passing as outside the repository.
+  The guardrails wrapper now refuses (exit 2, with the reason) when it fails before the adapter answers.
+- **Cursor is witnessed: `chock install --selection --client cursor` no longer warns "Untested".** On Windows,
+  Cursor refused `block-no-verify` at `beforeShellExecution` and `pin-github-actions` at the `preToolUse` write
+  (org-plan `witness/results/witness-cursor-2026-10-11.md`). The `client` warning that chock has not witnessed
+  an install now names no client. Cursor's admin-setting warning stays.
+- **The decision log is hash-chained.** Every line on every route carries `seq` and `prev`, the
+  sha256 of the line before it; the first line after a rotation names the rotated file's last.
+  Writers take the log's lock, so hooks running at once never fork the chain; a line that cannot be
+  chained is still written, marked `unchained`, and no verdict changes. `chock status --verify-log`
+  reports the first break (file, line, expected and found) and exits 1; `--head <seq>:<sha256>`
+  confirms a head kept earlier. `chock witness export` carries each log's head (`chain`, an
+  additive optional key; the format stays `chock-witness-export/1`), and a person's
+  git-hook overrides without the approver. It shows tampering to someone who kept a head; it does not
+  stop a local admin from rewriting the whole file.
+  An intact chain needs every runtime regenerated (`chock sync`); until then, an older runtime's line
+  after the chain began is reported as an `unchained` break.
+- **An allowed tool call is one decision-log line, not one per policy hook.** At `info`, however many
+  policy hooks judge a call, its plain allow is written once, at once, by its first hook, and names no
+  policy (`debug` still writes every hook's line). `chock status` counts allowed calls in total
+  (`allowed_calls`), never per policy; per-policy columns show blocks, asks, warns and overrides. With no
+  client call id, identical calls in the same second are one line. Every block, ask, warn, fault and
+  override keeps its own line per policy. The `target` fingerprint is
+  tighter: a Windows drive or UNC path on macOS or Linux is hashed as outside the repository; a shell
+  program is named only when it is a common command or a plain word with no folder, digit, quote or
+  redirect, else `-`; an MCP `server/tool` is redacted and cut to 128 characters; `client_type` keeps only
+  `[a-z0-9_-]`, at most 32; and a path that is not UTF-8 no longer drops its line. `chock doctor` now warns
+  at `info` when sessions start but no hook fires. The fingerprints are unsalted, so anyone holding the
+  log can confirm a guess; docs/decision-log.md says so.
+- **The decision log now says who did what on every line.** Each line carries `actor` (`agent:<client>`
+  or `person`, by the agent rule a commit is judged by), the client's `session_id`, and on a tool call a
+  `target` fingerprint, never content: a repository-relative path, `outside:sha256:<hex>` for a path
+  outside the repository, `<program> sha256:<hex of the whole command>` for a shell command (no argument
+  is ever written), or `<server>/<tool>` for an MCP call. Every allowed tool call is now logged at the
+  default `info` level as one such fingerprint line, so the log can answer "what did the agent touch"; it
+  was debug-only before. Redaction still runs first, files stay owner-only, and nothing leaves the machine.
+- **A refusal says why, and `--selection` takes a quoted code.** A hook deny now reads `Blocked by chock policy:
+  <policy>: <the guard's own line>` (for example `BLOCKED: destructive rm command targeting '.git' is not allowed
+  without approval.`), the way an ask already carried its reason; exit codes and each client's JSON are unchanged.
+  `chock install --selection` strips one surrounding pair of single or double quotes before decoding, because
+  cmd.exe passes them through, and a code that still fails to decode says so.
+- **Devin is witnessed through its plugin: the Devin plugin's posture now says "witnessed blocking on Devin CLI
+  3000.11.3 (local session), Windows, 2026-10-08" instead of "not witnessed by chock".** A chock plugin installed with
+  `devin plugins install --local` refused `git commit --no-verify` and an agent's `chock bundle off` before either ran;
+  `pin-github-actions` let the write through and refused only at turn end; self-protection held (org-plan
+  `witness/results/witness-devin-2026-10-08.md`). The ledger row is for the plugin-hook surface only: the repo-hook
+  route was not witnessed, so `chock sync` still prints "Untested" for devin.
+- **Security: engine hardening, round 2.** Path handling and the person-only checks are stricter.
+  - The write gate, the turn-end check and the MCP gateway judge the same canonical spellings of a path.
+  - Every kind of file change, deletions and moves included, reaches the gates that judge paths.
+  - A policy's path gate also covers that policy's own folders.
+  - A plugin gate judges from the repository top level, and the turn-end read of the worktree is bounded to regular files.
+  - A guardrails member is off in a repository only when the committed toggle file says so.
+  - `--check` opens a person-only command to an agent only where the command defines it.
+- **Hardening: `chock eval export` writes only under `--out`.** A policy whose manifest `id` is not a valid
+  policy id (`^[a-z][a-z0-9-]{2,63}$`) is reported as an error and exports nothing.
+- Hardening: the frontier-standard fetch refuses a redirect to a non-https target and checks the final
+  URL's scheme before reading.
+- **Added and removed lines are read from the diff's structure, not by prefix.** The vendored gate runtime
+  dropped every added line whose text began with `++` (and every removed line beginning with `--`) as if it
+  were a file header, and `str.splitlines` cut a line at a form feed or Unicode separator so its tail lost
+  its `+`; blocked content on such a line was allowed. File headers are now read only before a file's first
+  hunk, hunk lines are classified by their first character and bounded by the hunk's counts, and a diff that
+  git cannot produce or that does not parse refuses (exit 2). The diff is read without colour, external diff
+  drivers or textconv. `chock review require` and the gate-log check list paths with `-z`, so a name with a
+  space, a newline or non-ASCII is matched verbatim.
+- **`chock status --only log --format md` escapes `@` and `!`** in every cell, as the runtime's own report does, so a
+  logged value pasted into GitHub cannot mention a user or team or open an image.
+- **The write gate reads an `apply_patch` text the way Codex does, so nothing the patch writes escapes it.**
+  The patch reader cut the text at the first `*** End Patch` anywhere, even inside an added line, so the rest
+  went unjudged. It matched headers without Codex's whitespace trimming: an indented `*** Add File:` after a
+  delete or an add was not seen, so its file was judged under the wrong path or not at all. It placed hunks
+  only by exact or trailing-space match, so a hunk Codex places by trimmed or ASCII-punctuation match left
+  the file unjudged. It also read paths from the repository root rather than the agent's working directory,
+  and read each file from disk even when an earlier file in the same patch had already written it. Blocked
+  content on any of these paths was allowed (measured with Codex CLI 0.162.1's `apply_patch`: 12 payloads
+  that Codex writes were allowed; all are now refused). The reader now ports Codex's own parser and hunk
+  placement. A patch Codex would not parse is refused rather than guessed at.
+- **A gate pattern cannot hang a commit or fail a hook open.** A `content_regex` or `test_integrity`
+  pattern a backtracking engine can run in exponential time (`^(a+)+$` on a 60-character line) used to
+  hang `git commit` on every platform, burn the client's hook timeout in the agent (which fails open) and
+  wedge `chock check --history` on Windows. Now every gate pattern runs in a child interpreter the engine
+  kills at a deadline (`PATTERN_SECONDS`, 10 s per judgement), on every platform: the git hook exits 2
+  naming the gate, the write and tool_call paths refuse naming it, and the history scan errors naming it.
+  `chock validate` and the compile step also refuse, naming the param and the pattern, a pattern whose
+  nested repeats can run into each other (a linear-time check; overlapping alternation is left to the
+  deadline). The vendored runtimes under `.chock/bin` are regenerated; `chock sync` rewrites them.
+- **Security: the gate names no path when its compiled file cannot be read.** The message now carries the exception type, not the path or the raw error text; the gate still exits 2.
+- **A changed file is judged under its own name, however git would quote it.** The vendored gate runtime lists
+  changed paths with `git diff -z` and keeps each name verbatim. A staged file whose name held ESC, a newline
+  or a leading space was C-quoted or stripped, could not be read back, and was allowed unjudged. A listing git
+  cannot produce, or one that is not NUL-terminated UTF-8, now refuses (exit 2) instead of judging an empty
+  change. Paths reach git as literal pathspecs, never globs.
+- **`chock gateway` writes the decision log.** Every judged `tools/call` gets a line in
+  `<repo>/.chock/log/gate-events.jsonl` with the fields every hook writes: one `allow` line per
+  forwarded call (no policy), one `block` line per refusing policy (`gate-block`, `gate-ask`, or
+  `fault` for a gate that cannot run), `target` `<server>/<tool>` redacted and capped at 128
+  characters, and never the call's arguments. A gate that raises now refuses the call (`fault`)
+  instead of stopping the gateway. A log that cannot be written changes no verdict.
+- **`chock gateway` honours `chock stop`.** While a stop reaches the MCP client, every `tools/call`
+  is refused with `stopped: <reason>` and logged (`block`, reason `stopped`, policy `chock-stop`);
+  `initialize` and `tools/list` still pass. A stop file that cannot be read refuses.
+- **goose's plugin is witnessed: `chock install --selection --client goose` no longer warns "Untested" or asks for
+  evidence.** In goose 1.55.0 on Windows 11, chock's plugin refused `block-no-verify` on a `git commit --no-verify`
+  shell command before it ran and `pin-github-actions` on a workflow write at the write, while `git status` ran
+  (org-plan `witness/results/witness-goose-2026-10-18.md`). That held only with Git for Windows' `sh` on PATH: goose
+  runs every hook with `sh -c`, and without `sh` it denied every tool call (`on_failure: block`). The goose install
+  output now warns about this on Windows.
+- **`chock install --client grok` no longer asks for evidence.** Grok's plugin is witnessed (org-plan
+  `witness/results/witness-grok-2026-10-17.md` and `witness-grok-claude-plugin-2026-10-17.md`), so the "Evidence
+  wanted ... agentseam#188" warning is gone, as for Codex, Cursor, Copilot and Devin. The fail-open warning stays.
+- **Grok's plugin is witnessed: `chock install --selection --client grok` no longer warns "Untested".** In Grok Build
+  1.0.62 on Windows 11, a chock plugin installed with `grok plugin install --trust` (no hook trust prompt) and enabled
+  under Grok's generated name refused `block-no-verify` on a `git commit --no-verify` shell command before it ran
+  (org-plan `witness/results/witness-grok-2026-10-17.md`). The ledger row is keyed `grok` and covers the guard only:
+  `pin-github-actions` is advisory on Grok and the workflow write landed, as labelled, so no gate refusal is claimed.
+  Grok still warns that its hooks fail open, and the agentseam evidence issue stays linked.
+- **Guards learn whether the client can prompt (`CHOCK_CAN_ASK`).** A guard run by a vendored hook
+  runtime now sees `CHOCK_CAN_ASK=1` when the event that fired turns an ask (exit 3) into a prompt, and
+  `0` when it turns it into a block or the runtime cannot name the event: 1 at Claude Code, Copilot and
+  Gemini CLI pre-tool and Cursor `beforeShellExecution`; 0 at Cursor `preToolUse`, Codex, Devin, Grok,
+  Tabnine and Windsurf. It is unset everywhere else (eval replay, direct calls) and never inherited from
+  the caller's environment; a guard treats unset as "can ask". Opt-in: no guard reads it yet, so no
+  verdict changes.
+- **A guard's exit-1 refusal stays a deny when it echoes command text:** a crash is now recognised only from the
+  interpreter's own opening line (a traceback, a `File "...", line N` syntax error, bash's `<script>: line N: syntax
+  error`) or from no output, never from words elsewhere in the output. Changes the vendored runtime: a person runs
+  `chock sync` to render it.
+- **Hardening: the bash probe takes the guard path as an argument.** `find_bash` no longer builds the guard's path
+  into the shell string it runs, so a path holding shell syntax is probed as plain text.
+- **Hardening: a protected path is protected in any letter case on macOS and Windows.** The write gate, the MCP
+  gateway's path check and the outside-repository globs now match forbidden-path patterns and scope globs
+  without regard to case on those platforms, so a protected file that does not exist yet is covered as well.
+- **Hardening: the rendered runtime no longer depends on the Python patch release.** Python 3.12.0 to 3.12.x
+  `ast.unparse` writes same-quote nested f-strings that are a SyntaxError on 3.11; the renderer now lowers any
+  f-string holding a string literal to plain `''.join([...])` source, so the runtime is byte-identical and
+  parses on 3.11 whichever supported interpreter renders it.
+- **Hardening: an `off` in `.chock/guardrails.json` or `~/.chock/guardrails.json` is honoured only by a session that
+  started after that file's record last changed.** A merged plugin binds each session, by the session id the session
+  log keeps (else the conversation id), to the toggle files and records it first sees; if one changes during the
+  session, every member stays on for the rest of it with a one-line warning, and the change applies from the next
+  session. Where the client documents a session-start event, the plugin's session-start hook binds the session and
+  lists every member that is off, by scope; a compaction does not rebind. The Stop-time check also refuses a turn's
+  end while a file changed during the session switches a member off. A client that sends no session id honours an
+  `off` only after a session start. The built-in protect member stays non-toggleable. docs/custom-policies.md and the
+  "customize guardrails" skill state that a toggle is not a security boundary against an agent running as the person.
+  The built-in protection also refuses an agent's write to a session's binding (`guardrails-session-*.json` under
+  `.chock/state/`), by shell or Edit/Write.
+- **Hardening: a hook command refuses a word a shell would read.** `hook_command` accepts plain words and
+  double-quoted paths without `"`, `$`, a backtick, a backslash or a line break; any other word raises
+  instead of being joined into the command line.
+- **The engine's time limits now always fire before the client's hook timeout, on every hook path.** A client's
+  hook timeout fails OPEN (the command runs); chock's own limits ask a person or deny. One budget,
+  `ENGINE_BUDGET_SECONDS` (30 s), is now shared by the guard, the write gate, tool-call scripts and script gates,
+  and one hook invocation spends it once: the bash probes, `git status` and the gate runner each get what is
+  left, where a turn's end could take 30 s of `git status` then 30 s of gate (60 s) against a 45 s client
+  timeout. A `git status` that does not finish at Stop now refuses with a reason on stderr, instead of reading as
+  a clean worktree and allowing. The emitted timeout is the budget plus a 15 s start-up margin (45 s), in each
+  client's own unit, and now also reaches the in-agent entries of Antigravity, Codex, Devin, Gemini CLI (45000 ms),
+  Grok and Tabnine (45000 ms), which carried no key and ran on the client's default (Grok 5 s, Antigravity 30 s,
+  Gemini 60 s, Codex 600 s). Windsurf's documented hook entry has no timeout field, so it still runs on its own
+  undocumented default. Plugin packages (Claude Code, Codex, Copilot, Cursor, Devin) always carried the key. Run
+  `chock sync` to rewrite installed hook configs.
+  A `git status` that fails for any other reason at Stop (exit 128 "dubious ownership", git missing from PATH) now
+  refuses with that reason too, where it used to read as a clean worktree and allow; only "not a git repository"
+  still reads as empty. Timeout messages now report the time the call was actually allowed, not the full budget.
+- **`chock incident`** prints an ordered, redacted timeline of the local decision log for a window
+  (`--since`, `--until`, both routes, rotated files included): sessions, actors, policies fired,
+  verdicts, target fingerprints, stops, resumes and overrides, with each hash-chain break and
+  unreadable line shown in place and a per-log chain line. Plain allowed calls are counted per
+  session. `--format text|md|json`; text and Markdown are terminal-inert. The approver's email is
+  shown locally; `--share` leaves out `approver` and `who`. It is evidence for a report, never a report,
+  and sends nothing.
+- **A finding can no longer drive the terminal or the CI log through the gate's own output.** The vendored gate
+  runtime's commit-time and ask refusals on stderr, its `::error`/`::warning` workflow commands and its step
+  summary now apply the same rule as `chock.display.inert`: ANSI/OSC escapes (OSC 8 links, OSC 52 clipboard),
+  BEL, C0/C1 controls, lone surrogates, line and paragraph separators, bidi overrides and isolates and invisible
+  format characters are shown as visible escapes (ESC as `\x1b`), and a newline inside a path or finding shows
+  as `\n` instead of starting a forged line. A script's own multi-line message keeps its lines; workflow-command
+  data still encodes `%`, CR and LF. Verdicts, exit codes and the decision log are unchanged.
+- **A logged string can no longer drive the terminal or fake a record.** `chock status --only log` (text, `--by`,
+  `--format md`), `chock status --summary`, `chock doctor`, `chock witness export`'s printed lines, `chock check
+  --history` paths and SARIF message text now pass every logged or repo-derived string through one sanitiser,
+  `chock.display.inert`: ANSI/OSC escapes (OSC 8 links, OSC 52 clipboard), BEL, backspace, CR, C1 controls, bidi
+  overrides and invisible format characters are shown as visible escapes (`\x1b`, `\u202e`), and a newline inside
+  a value shows as `\n` instead of starting a forged line. Other languages pass unchanged. The log itself is not
+  changed; `--follow` and `--json` stay JSON.
+- **`chock install` offers the Claude Code plugin where another agent was witnessed running it.**
+  `chock install --client <agent>` prints an "Also works: the Claude Code plugin" block, with that agent's
+  steps for the `--client claude-code` build, only where agentseam's `loads_claude_plugins` records a
+  witnessed refusal: Grok and Codex (guard and gate refused), Copilot CLI (marketplace route), VS Code
+  (Chat panel only) and Devin (turn end only; its own chock plugin is the better install).
+  `--client claude-code` lists those agents. Cursor is never offered: its third-party import called the
+  hooks but nothing was refused. Each block warns against installing both builds (double checks), that
+  such events are logged as `claude_code`, and, for Copilot, how to remove the `chock-local` marketplace
+  name chock's Copilot build already registered. agentseam is pinned to main 683f95b.
+- **`chock install --client openhands` (untested in OpenHands).** OpenHands gets `.plugin/plugin.json`
+  plus `hooks/hooks.json`, staged in `~/.chock/marketplace/openhands/` for `openhands --plugin <path>`;
+  OpenHands documents no plugin-root variable, so its hook commands name the folder by absolute path.
+  chock's Claude package is not reused for OpenHands: its matchers never match OpenHands' `terminal` or
+  `file_editor` and its runtime lets an OpenHands `rm -rf /` through (measured in
+  `tests/test_plugin_install_targets_openhands.py`). Its warnings link its agentseam evidence issue.
+  `chock plugin build --format openhands` builds the same package per policy.
+- **An installed Antigravity `plugin.json` no longer carries `keywords`.** The per-member manifest
+  `chock install` writes added an empty `keywords` list to every client's manifest, which Antigravity's
+  closed manifest schema refuses; it is now kept only where the client's manifest has one.
+- **`chock install --client goose|grok|antigravity` (untested in each client).** goose gets a manifest-less
+  user plugin in `~/.agents/plugins/<name>/` with `hooks/hooks.json` and `on_failure: block` on every entry;
+  grok gets a manifest-less plugin staged in `~/.chock/marketplace/grok/` for `grok plugin install <path>
+  --trust`, and the install prints the enable step instead of editing grok's config; Antigravity gets
+  `plugin.json` (`name`, `description`) plus `hooks.json` for `agy plugin install <path>`. Antigravity
+  documents no plugin-root variable, so its hook commands name the installed folder by absolute path. The
+  hook documents are agentseam's rendering; the folder layouts are chock's own record, with the vendor
+  pages they were read from (`src/chock/plugin/data/stores/`), until agentseam's packaging data covers
+  these agents. Labels come from agentseam's tier table, an ask gate is labelled not enforced where the
+  client cannot prompt, and each client's warnings link its agentseam "evidence wanted" issue.
+  `chock plugin build --format goose|grok|antigravity` builds the same packages per policy.
+- **An unreadable Stop payload is refused in Antigravity's Stop grammar.** Antigravity names no event, so
+  the refusal was rendered in the pre-tool grammar (`deny`), which an Antigravity Stop reads as allow. The
+  runtime now answers an unreadable Stop with `continue`, from the vendor's required Stop field
+  (`src/chock/data/shape_events.json`), kept only when agentseam parses it as a Stop. This also covers
+  `chock sync`'s Antigravity Stop gate.
+- **The guardrails toggle lookup reads goose's `working_dir` and Antigravity's `workspacePaths`.** It read
+  only `cwd` and `workspace_roots`, so in those clients it looked from the hook's own working directory.
+- **`chock install --client kimi-code|factory-droid` (untested in each client).** Kimi Code gets
+  `kimi.plugin.json` (`name`, `version`, `description`, `skills: ./skills/`) whose `hooks` array carries
+  the hook rules, staged in `~/.chock/marketplace/kimi-code/`; Kimi installs plugins from its TUI only, so
+  chock prints the `/plugins install <path>` and `/reload` steps and runs nothing. Its hooks reach the
+  scripts by `${KIMI_PLUGIN_ROOT}`, the variable the vendor documents, and carry chock's 45 s `timeout`
+  (Kimi's default is 30 s, below the engine's own budget). Factory Droid gets `.factory-plugin/plugin.json`
+  plus `hooks/hooks.json` (`${DROID_PLUGIN_ROOT}`), wrapped in a local marketplace
+  `~/.chock/marketplace/factory-droid/chock-local/` with `.factory-plugin/marketplace.json`, for
+  `droid plugin marketplace add <path>` then `droid plugin install <plugin>@chock-local --scope project`
+  (run with `--apply` where `droid` is on PATH). Nothing is published. Labels come from agentseam's tier
+  table: an ask is not enforced in either client. Each client's warnings link its agentseam evidence
+  issue (#135, #184). `chock plugin build --format kimi|droid` builds the same packages per policy.
+- **`chock install` builds your own policies beside catalog ones (`from: local`).** Install contains each path in
+  the selection file's folder (no `..`, no symbolic links, text files only), hashes a snapshot, checks a pinned
+  `sha256`, runs `chock check --only validate`, prints every file with its id, hash and the label "custom, not
+  reviewed", and asks. The evals run only after you accept, because they execute the policy's code. Without a
+  terminal, `--trust-local <id>=<sha256>` accepts exactly that hash; there is no `--yes`. The install marker is
+  versioned (engine version and commit, accepted local hashes): an unchanged hash prints one line, a changed one
+  asks again. Custom members are labelled "custom, not reviewed" in install's output, `chock bundle status` and the
+  "customize guardrails" skill. The built-in self-protection in every merged plugin refuses an agent's
+  `chock install --trust-local` (any spelling) and its write to an install marker (`chock.selection.json`), so an
+  agent cannot accept its own code; `--trust-local` takes no abbreviation.
+- **`chock new policy <id> --kind {content_regex,guard,script,rule,skill}`** writes a template that validates and
+  passes its own evals; outside a catalog the id gains `my-`.
+- **SEC-5's own remedy now validates.** `ambient_override: true` with an `ambient_override_reason` is in the
+  manifest schema, so a sandbox-tier rule passes without claiming review.
+- **`chock install --marketplace-name <name>` names the build's local marketplace.** Without it nothing changes
+  (`chock-local`). A team's own build, for example `--marketplace-name acme-chock`, installs as
+  `chock-guardrails@acme-chock` beside a personal `chock-guardrails@chock-local`, so adding the team folder no longer
+  re-points the shared `chock-local` registration and every plugin installed from it. The marketplace file, the next
+  steps, `--apply`, the removal steps and the Copilot CLI "already registered" note all use the chosen name. The name
+  is lowercase letters, digits and single hyphens (at most 64); anything else is refused, and so is rebuilding a
+  folder under a different name than it was built with.
+- **`chock install` prints "To remove it:" after the install steps.** The agent's own plugin removal, then deleting the
+  build folder (`chock bundle status` lists a build for as long as its folder exists), then the shared `chock-local`
+  marketplace, only when no other chock build for that agent is still installed. Codex, Antigravity and Kimi Code print
+  none yet: their remove command is not confirmed. `chock bundle status` still reads the build folders only; it cannot
+  tell that an agent has uninstalled a build.
+- **`chock install --selection` builds for any of the five agents: selection schema 2 and `--client`.**
+  `selection.schema.json` now defines schema 2: `client` (claude-code, cursor, codex, copilot, devin),
+  `bundle: {name (default chock-guardrails), version}`, and entries `{from: catalog, id, version, sha256}` or
+  `{from: local, id, path, sha256?, version?}` (id must start `my-`, the prefix reserved for custom policies;
+  path relative to the selection file, with no `..`, backslash, drive letter or leading `/`). A local entry is valid
+  in the schema but refused at install as not yet supported.
+  Schema 1 is still read and is mapped to schema 2 (bundle `chock-guardrails` 1.0.0, same version digest).
+  `--client` overrides the selection's client. Each client has its own default folder
+  (`~/.chock/marketplace/<client>`; Cursor `~/.cursor/plugins/local/<bundle.name>`), its own layout
+  (a marketplace for Claude Code, Copilot and Codex; a plugin folder for Cursor and Devin), its own index (Codex:
+  `.agents/plugins/marketplace.json`), its own steps (`--apply` runs only the client's commands, only when its
+  binary is on PATH, and never edits a client's settings), label qualifiers (Codex: until its hooks are trusted;
+  Devin: best-effort, fails open; Copilot and Devin: a gate judges at turn end only) and `client` warnings. Only
+  Claude Code has been witnessed; the others are labelled untested. The plugin's name is `bundle.name` and its
+  version `<bundle.version>+<digest12>`, so several bundles coexist per client, a second client never replaces
+  the first, and install warns when a picked policy is already in another chock plugin for that client.
+- **Breaking: the `bundles.yaml` route is retired.** `chock plugin build` no longer reads `bundles.yaml` or
+  takes `--bundles`, writes no `chock-bundles.json`, and Claude bundles are no longer a `dependencies`
+  meta-plugin: a bundle is a selection, built as one merged plugin by `chock install --selection`. Per-policy
+  `chock plugin build` output is unchanged; a previously built bundle directory under `--out-dir` is now stale.
+- **`chock install --selection` builds a chock.sh selection into one Claude Code plugin.** It takes a
+  `chock.selection.yaml`, a URL whose `#s=` fragment carries the selection, or the bare code, checks it against
+  the new `selection.schema.json` (schema 1, `client: claude-code` only), fetches the catalog at the pinned
+  40-hex commit with `chock add`'s fetch code, and refuses a policy whose id is missing, whose version differs
+  from `registry.yaml`, or whose sha256 differs (the `chock add --verify-sha` hash). The policies are merged into
+  one plugin, `chock-guardrails`, in a local marketplace (`~/.chock/marketplace`, or `--dest`). It labels each
+  policy on its own (what it does, and blocks, asks, warns or advisory on Claude Code; no aggregate grade, and
+  the plugin's description carries none either), prints the selection warnings (twins, duplicates,
+  allowlist-first policies, observe and advisory policies; data in `chock/install/data/warnings.json`) and the
+  two `claude plugin` commands; `--apply` runs them. A re-run rebuilds beside the old directory and swaps it in.
+- **Security: a selection cannot choose where its code comes from.** `chock install` refuses a
+  `catalog.source` other than the official chock-catalog unless the user passes `--allow-source <exact source>`,
+  and refuses a `catalog.ref` that is not on the source's `main` branch (a commit served only by a fork). The
+  source and ref are printed before anything is fetched.
+- **Installed content is what `verify` says it is.** `chock add` and `chock verify` refuse a pack that
+  ships `__pycache__` or `.pyc`/`.pyo` (build artifacts, never catalog content), and policy scripts now
+  run with `PYTHONDONTWRITEBYTECODE=1`, so running a gate no longer leaves bytecode in the pack. Each
+  vendored runtime entry now hashes the shared runtime's bytes before executing them and compares that to
+  its pin, instead of trusting a digest the file declares about itself. The agent-event runner exits 2 on
+  stdin that is not UTF-8 instead of judging text with replacement characters. Run `chock sync` to
+  refresh `.chock/bin`.
+- **Hardening: the remaining hook installers write through no link.** The generic, owned-file and session-start
+  installers now refuse a symlink or non-regular file anywhere on a hook config's path, as the Claude and Cursor
+  installer already did, and replace the file atomically (mode 0600) instead of writing through the path.
+- **Decision logging with levels, on both routes.** Every hook now logs one line per decision at a
+  level a person sets: `off`, `info` (the default: blocks, asks, warns, guard faults and overrides)
+  or `debug` (every call, allows included, plus a redacted, capped trace; never file contents).
+  Allows are no longer written at `info`. The plugin route (`chock install`), which logged nowhere,
+  writes one file per client, `~/.chock/log/<agent>/events.jsonl`, shared by every plugin there (each
+  line names its `plugin`; single-append lines, rotation under a lock); the sync route keeps
+  `.chock/log/gate-events.jsonl`.
+  Level and rotation size (`max_bytes`, default 1 MiB, 64 KiB to 1 GiB) come from `CHOCK_LOG_LEVEL`,
+  then `.chock/chock-log.json`, then `~/.chock/chock-log.json`; `CHOCK_GATE_LOG=0` is a deprecated
+  alias for `off`. Every bundle refuses an agent's write to either settings file. `chock status --only log`
+  reads both routes and adds `--route`, `--level`, `--verdict`, `--plugin` and `--follow`. See
+  [Decision log](docs/decision-log.md).
+- **`chock marketplace build` writes `llms.txt` and `.github/ISSUE_TEMPLATE/config.yml`.** A plugin
+  repo is rebuilt from chock-catalog, so an issue filed there cannot be fixed there and it had no
+  machine-readable summary. The build now emits an `llms.txt` (one line per published plugin, its
+  posture in this client and its catalog page) and an issue config that disables blank issues and
+  routes policy issues to chock-catalog, build bugs to chock and vulnerabilities to chock's private
+  advisory route. `--check` reports either file missing or hand-edited. The devin tree's file says
+  best-effort, never enforces.
+- **`chock doctor` and a session-start heartbeat.** `chock doctor [--client X] [--repo .]` checks
+  each client's hooks on the sync and plugin routes: the hooks file runs chock's runtime, the
+  launcher and a Python 3.11+ are there, the runtime is the one the installed chock builds (and a
+  plugin's recorded engine version and commit match), Codex-style trust, the client version
+  against agentseam's witnessed ones, and when each hook surface last fired. Each line is PASS,
+  WARN, FAIL or INFO with a one-line fix; it reads only, never runs a client and never uses the
+  network. Where a client documents a session-start event, `chock sync` and `chock install` now
+  wire a heartbeat hook that writes one `session_start` line per session at `info`; it never
+  blocks. Clients without one are listed as "no heartbeat available".
+- **Decision-log summary and evidence export.** `chock status --summary` reports fires per policy and
+  per client, block/ask/warn/fault rates, p50/p95 hook latency with a WARN when p95 is within 25% of
+  the client's hook timeout (a timeout fails open), the top guard faults, and heartbeat gaps (hook
+  records with no `session_start`, and `session_start` records with no hook record). `chock witness
+  export --client <c>` writes that client's records, redacted, to a local file in the shape agentseam
+  evidence reports ask for, and prints the client's "evidence wanted" issue; it never uploads. See
+  [Decision log](docs/decision-log.md#summary).
+- **A repo-scope `off` the guard does not honour is no longer reported as off.** The session-start notice now lists an
+  `off` that HEAD's copy of the toggle file does not hold as staying on until that change is committed, as
+  `chock bundle status` already did, and `chock bundle off` at repo scope ends with a line saying the change applies
+  only once the file is committed and from the next session. User scope is unchanged.
+- **The `optimize` skill reads the decision log and witness exports as traces.** Its new
+  `scripts/traces.py` (stdlib only) reads `.chock/log` JSONL lines and `chock witness export` files and
+  groups misfire candidates per policy: a refusal a person later overrode with `CHOCK_ALLOW`. A stop's
+  records (`reason: stopped`, `chock-stop`) and plain allowed calls never count toward a policy, and no
+  approver's email is copied out. Malformed input exits 2 with one line naming the file and line.
+- **A pack hashes the same on every platform and every checkout.** `compute_pack_hash` orders files by
+  their posix-relative name as a string; sorting `Path` objects compared case-insensitively on Windows,
+  so a pack holding `LICENSE` beside `hooks/` (catalog `base/java-security`, `base/review-like-a-red-team`)
+  hashed differently there and `chock install` refused it. A local `--from <dir>` source with no `--ref`
+  is now read as a clone reads it: a git checkout is cloned at its HEAD (uncommitted edits are left
+  out and the commit is recorded as `source_commit`), a plain directory is copied with its text files
+  normalised to LF. Every git call chock runs for a fetch sets `core.autocrlf=false` and
+  `core.eol=lf`, so a clone under Windows' usual `core.autocrlf=true` no longer flips a pack to CRLF.
+  The `chock add` unpinned hint names the commit to pin instead of calling it "the default branch".
+- **Pack hash v2 (length-prefixed, domain-separated).** file names and contents are length-prefixed under a domain prefix, so a NUL byte in a file can no longer make two packs share a hash. Every writer (`chock.lock`, `chock-market.lock`, `chock add`, local installs) writes v2 and `chock.lock` is `lockfile_version` 2. A v1 hash is still accepted by `--verify-sha`, selection pins, `--trust-local`, `chock.lock` and marketplace locks, but only while no file in the pack holds a NUL byte; catalog provenance (`source_commit`) is kept when the old hash matches under v1. v1 acceptance lasts all of 1.x and ends in 2.0. Run `chock sync` to rewrite a lockfile as v2.
+- **A gate's pattern judge says when it is ready:** its child interpreter's start-up (up to 10 s) is no longer
+  counted against the 10 s a pattern gets, so a slow start is not reported as a catastrophic pattern. Changes the
+  vendored runtime: a person runs `chock sync` to render it.
+- Hardening: release and CI builds use the hash-pinned `setuptools` from `requirements/` with
+  `--no-build-isolation`; a test fails if a workflow builds or editable-installs with isolation.
+- **Hardening: `chock plugin build` in place refuses a symlink under the policy tree.** The build no longer
+  writes through a link at any path it generates; it stops with an error naming the link and writes nothing.
+- **Fix: a plugin's guard ships everything it imports or reads, and a script gate is never wired as a command guard.** A built guard now carries the whole of its policy's `implementations/` folder (flat helper modules, sub-packages and `data/` tables) beside it, so eight catalog guards no longer crash on every shell command in all five clients' plugins (Claude Code, Cursor and Copilot prompted on each command; Codex and Devin refused each one). A policy whose `<id>.py` is its JSON-in script gate (`hook.gate.kind: script`) no longer gets that file wired as a shell guard. `tests/test_plugin_builds_run.py` builds policies in every client format and runs every built hook on a benign command, write and turn end; set `CHOCK_CATALOG_DIR` to run it over the whole catalog.
+- **A plugin package ships a policy's shell guard AND its tool_use gate when the policy has both.**
+  A guard used to displace the gate in every store (`claude`, `codex`, `copilot`, `cursor`,
+  `devin`), so a plugin-only install of a policy like protect-agent-config refused a shell write to
+  a protected path and let an Edit or Write to the same path through, while its description and
+  skill called the policy enforced. Each half now ships where the client runs it: one hooks file
+  wires the guard (`--guard`) and the gate (`--gate`, plus `--stop` where the turn's end blocks),
+  matching what `chock sync` installs in a repo. A gate the client cannot run is neither shipped
+  nor claimed. The description states both halves' fail conditions (`Shell guard: ... Write gate:
+  ...`), the skill note names both, a bundle member's line and the catalog page count each half,
+  and a Stop-only gate beside a guard never reads as judging the write. Two halves that would
+  write different bytes to one package path, or disagree on a hooks setting, refuse to package.
+  A policy with one half packages byte for byte as before. `chock plugin build --check` reports a
+  tree built before this change as stale; rebuild published plugin trees after updating chock.
+- **Plugins carry the repo stop's own check.** Every `chock install` bundle and every hook-carrying
+  `chock plugin build` package, in every client format (Claude Code, Codex, Copilot, Cursor, Devin, goose,
+  Grok, Antigravity, Gemini CLI, OpenHands, Kimi Code, Factory Droid), now runs the runtime with
+  `--stop-check` on every tool call, with no matcher and outside a bundle's member toggles, as
+  `chock sync` already wires. While `chock stop` reaches the agent, a Read that no installed policy
+  matches is refused on the plugin route too. Unstopped, the check allows; each installed package runs
+  its own. Advisory-only packages ship no hooks and get none. The plugin repos pick it up at their next
+  release.
+- **Release: the tag workflow refuses a tag that is off `main` or not `v` + the version.**
+  `release.yml`'s guard now also checks that the tagged commit is on `main`. The PyPI job refuses
+  unless the build produced exactly that version's sdist and wheel. Each job now declares only
+  the permissions it needs (workflow default `{}`). PyPI publishing stays in `release.yml`
+  (trusted publisher: workflow `release.yml`, environment `pypi`) with its build-provenance
+  attestation.
+- **`chock stop` and `chock resume`: a person's stop on agents in one repository.** `chock stop [--agent
+  <client>] [--reason ...]` writes .chock/stop.json (scope, reason, who, when); `chock resume` removes it;
+  `chock status` shows it on its first line. While it exists, every tool call by an agent in scope is
+  refused at Chock's pre-tool hooks, reads included and the Devin hook too, with `stopped: <reason>`, and an
+  agent's commit or push is refused at the git hooks; a person's passes. Neither `CHOCK_ALLOW` nor the
+  rollout level loosens it, and a file that exists but cannot be read refuses every agent. Each refusal is a
+  decision-log line with reason `stopped`; the stop and the resume are logged with who and when. `chock
+  init` lists the file in `.gitignore`. Sync wires one matcher-less `--stop-check` hook per client beside chock's
+  others, so a stop sees every tool call whatever the policies match. Only a person changes a stop: `chock
+  stop` and `chock resume` refuse in a shell with an agent marker. Limits: it reaches only agents whose hooks
+  Chock wires (a `chock install` plugin has no stop check); Devin's hook is best-effort and fail-open per the vendor; it refuses the
+  next action, ends no running process and revokes no credential. `chock stop` also writes a `0o600` machine
+  registry entry under `~/.chock/stops/`: a hook whose client names no project root refuses while any entry is
+  in force. Paths are resolved through symlinks and read from anywhere in a call's input; git hooks find the
+  stop through `GIT_DIR`, `GIT_WORK_TREE` and the common dir and run only the main checkout's gate.py; a bare
+  repository's stop reaches its worktrees; `CHOCK_AGENT_COMMIT=0` clears no agent marker for a stop. `chock
+  resume` needs a person at a terminal (stdin and stdout TTYs) who types the repository's name. The hook reads
+  each word of a shell command as a path too; it reads no input while no stop is near or registered, and caps
+  its read otherwise (past the cap it refuses). Registry entries use the case-folded realpath on macOS and
+  Windows. A stop holds against agents in the stopped scope. An agent running unstopped elsewhere on the same machine, with a shell, can remove the stop (for example by deleting the files); the hook and protect-agent-config refuse the common forms, not every one. Installing the git hooks writes `.chock/bin/gate.py` when it is
+  missing, so a person's commit passes while a stop is in force in a repository with no policy.
+- **A `CHOCK_ALLOW` override names its approver.** The override's log line carries `approver`, the git
+  `user.email` of the person's shell, beside its `policy_id`. It stays in the local `0o600` log: `chock
+  witness export` leaves it out, and Chock sends nothing.
+- **`chock install --client gemini-cli` is retired: use `--client antigravity`.** Google replaced Gemini CLI
+  with Antigravity CLI for unpaid and Google One users (2026-06-18), and Gemini CLI is not optimized for
+  Gemini 4 Argon, so chock no longer builds a Gemini CLI extension. `--client gemini-cli`, or a selection
+  naming it, exits 1 with one line pointing to `--client antigravity`; `chock plugin build --format gemini` is
+  gone. `chock sync` still wires Gemini CLI's repo hooks (`.gemini/settings.json`) for paid users who run it.
+- **Hardening: `chock review` defines checks from the base only.** With a base ref, the built-in checks and
+  the checks the base's `.chock/config.yaml` declares are the whole registry. A check a pull request adds
+  to its own config, or a built-in it redefines there, is neither run nor part of `command_set_hash`.
+  A check a pull request both adds and requires is not required of that pull request: `chock review require`
+  prints that it is required from the merge on. Without a base ref the working tree still defines.
+- **`chock review emit|verify|require` print evidence-derived text inert** (attestation fields, producer id,
+  failure strings), so contributor-written evidence cannot move the cursor or fake a verdict line in a terminal or CI log.
+- **One shared runtime beside the per-agent entries.** `chock sync` writes `.chock/bin/_chock_runtime.py`, the
+  stdlib-only guard logic every `.chock/bin/<agent>.py` loads from its own folder, and each entry shrinks to
+  its vendor's adapter and dispatch. Plugin packages (`chock plugin build`, `chock install`) ship it beside
+  their entry. The module is bytecode-cached, so the hook no longer recompiles about 3,400 lines on every
+  call. An entry refuses every call, in its client's own grammar, when the shared runtime is missing,
+  unreadable, fails to import or carries another version's digest; it never allows. Verdicts are unchanged.
+- **Internal: the gate runner is a package, `chock.gate.runner`, no longer one 1,482-line file.**
+  Ten modules (constants, context, actor, kinds, script, log, material, report, verdict, cli), each
+  under 300 lines and with no import cycle. Every public name, and the private helpers chock's own
+  code reads, is re-exported, so `from chock.gate.runner import ...` keeps working (the other private
+  helpers and stdlib imports now live only in their module); `python -m chock.gate.runner` still runs
+  the command line. The vendored `.chock/bin/gate.py` stays
+  one stdlib-only file: `chock.gate.assemble` builds it from a prelude and the modules' numbered
+  fragments, refuses to build if a declared module or fragment is missing, and its output is
+  byte-identical to the old `runner.py`. No change to what any gate decides.
+- The vendored runtime renders byte-identically on every supported Python. Five f-strings whose replacement fields held
+  quoted strings were printed with different quotes by `ast.unparse` on Python 3.12.3 than on 3.12.13, so `chock sync`
+  on one patch level failed `sync --check` on another. They are rewritten, so the next `chock sync` rewrites `.chock/bin`
+  once.
+- **The workflow `chock sync --ci` installs refuses a pull request that weakens the policy set.** A
+  new step runs `chock check --only baseline --base "origin/$BASE_REF"` on `pull_request`, before the
+  compiled gates, with the base branch passed through `env:` (never `${{ }}` in shell text) and read
+  from the checkout's full history (`fetch-depth: 0`); a base that does not resolve fails the step.
+  chock's own CI already ran it; adopters now get it on their next `chock sync --ci`. A
+  `pull_request` run uses the pull request's own copy of the workflow, so a pull request that also
+  deletes the step is not caught by it; nothing yet checks the installed workflow against the template.
+- **The write-path door of a shell guard or an event script is declared and validated (DET-6).**
+  `hook.script` runs only from the git hook, so it keeps its `commit`/`push`/`commit-msg` events;
+  the Edit/Write door is a `hook.gate` with `tool_use` in `on` -- `kind: script` for logic, or a
+  path gate (`content_regex`, `forbidden_path_regex`, `content_pattern: '(?!)'`) as
+  protect-agent-config ships. New `manifest_write_path` errors: a `hook.script` event outside the
+  git events (the message names both gate forms), a `'(?!)'` gate with no path (it can never
+  refuse), and a guard's path gate without `tool_use`. The validator no longer crashes with a
+  `KeyError` on `hook.script.on: [tool_use]`. Schema descriptions and `spec/script-backed-gates.md`
+  state the pairing.
+- **The per-session tool-call log redacts what it stores:** a command's first line and a path pass through the same
+  scan-secrets redaction as the decision log, and URL userinfo inside a command is removed. `.chock/state` is created
+  owner-only (the log files already were). Changes the vendored runtime: a person runs `chock sync` to render it.
+- **`chock status` prints the policy table inert:** ids, states and coverage cells read from the repo can no longer
+  move the cursor, recolour or fake a row on a terminal.
+- **Command output no longer crashes on a character the stream cannot encode.** `chock check` on a
+  Windows runner (stdout cp1252) raised `UnicodeEncodeError` on U+FFFD while printing eval results. The
+  stdout wrapper now retries with `backslashreplace` in the stream's encoding; text the encoding can
+  represent prints unchanged.
+- **`chock stop --everywhere`: one stop for every agent on the machine.** It writes
+  `~/.chock/stops/_everywhere.json`, and while it exists every Chock hook refuses every tool call, in every
+  repository and session: the sync hooks, every plugin's `--stop-check`, the MCP gateway, and an agent's commit
+  or push at the git hooks. An unreadable, corrupt or non-regular file refuses too. `chock resume --everywhere`
+  is person-only (no agent shell, a TTY, the typed word `everywhere`) and lifts no per-repository stop.
+  `chock status` and `chock doctor` show it; inside a repository both commands log with `"everywhere": true`.
+- **A fresh clone arms itself again, from what is committed: `chock sync --committed`.** Since `chock sync` became
+  person-only, the SessionStart hook could not arm a clone from inside an agent's session. `--committed` takes only
+  `--repo`, runs under an agent marker, and refuses (the same person-only message, naming the file) when
+  `.chock/config.yaml`, `chock.lock` or anything under `.agents/policies` differs from HEAD or HEAD cannot be read;
+  otherwise it is the normal recompile. Every other `sync` form stays person-only. The SessionStart arm calls it;
+  the AGENTS.md pointer block, README and docs now say a person runs `chock sync` to change what is enforced.
+- **`chock sync` wires Factory Droid, goose, OpenHands and Mistral Vibe.** The agent list comes from
+  agentseam's adapter registry: every adapter is a valid `supported_agents` name (`factory-droid`, `goose`,
+  `openhands`, `mistral-vibe`, `cline`), and every one whose hook config sits in the repository as JSON or TOML
+  gets its hook entries and a `.chock/bin/<agent>.py` runtime. Vibe's rules go in one owned block in
+  `.vibe/hooks.toml`; goose's go in `.agents/plugins/chock/hooks/hooks.json`. Each answers in its own
+  grammar; none can prompt, so an ask is a refusal there and `CHOCK_CAN_ASK` is 0. Cline (one executable per
+  event) and Junie and Kimi Code (home-directory config) are selectable but not yet wired.
+- **Sync prints each wired agent's pre-tool row from agentseam's tier table**, with its basis and date, and
+  says "Untested" for an agent chock has no live witness of.
+- **agentseam is pinned to main commit bebbfa6** as a direct reference until its next release.
+- **Hardening: `chock sync` refuses an agent config that is a symlink.** Writing hooks into
+  `.claude/settings.json` and the other merged vendor configs now goes through the same no-follow writer as
+  the MCP registration: a link at the file or any directory above it stops the sync, and nothing is written.
+  The merged config file is now written with owner-only permissions.
+- **Canonical tagline: "A kill switch for your coding agent's wrong moves."** It replaces the old
+  "guardrails" / "governance-as-code" lines in the README (tagline, hero alt, and the sub-line "Chock kills
+  that action, nothing else: no suggestions, no rewrites."), `llms.txt`, the PyPI summary
+  (`[project].description`), the CITATION.cff abstract, the chock and org social banners, and the generated
+  marketplace description. The Devin marketplace description reads "A best-effort kill switch for your
+  Devin agent's wrong moves."
+- **Tagline: "Blocks your coding agent's wrong moves before they land."** It replaces "A kill switch for
+  your coding agent's wrong moves.", since Chock blocks one action and never stops the agent. Changed in the
+  README (tagline, hero alt; the sub-line now reads "Chock blocks that action"), `llms.txt`, the PyPI
+  summary, the CITATION.cff abstract, the chock and org social banners, and the generated marketplace
+  description. The Devin marketplace description reads "Blocks your Devin agent's wrong moves before they
+  merge."
+- **Devin marketplace description now reads "Blocks your Devin agent's wrong moves before they land."**
+  Devin has hooks, so its description takes the standard tagline form in place of "before they merge."
+- **A deleted guardrails toggle file no longer refuses a turn end (Codex witness, 2026-10-07).** An absent
+  `.chock/guardrails.json` means every member is on, so deleting it only tightens. The turn-end check now
+  passes it and drops the stale record; `chock bundle status` still reports it. Deleting the repository file
+  still refuses when the user file that then governs switches a member off or has no record. A file changed,
+  created with no record, unreadable or a link still refuses.
+- **The turn-end checks judge every workspace root.** A Stop that names several `workspace_roots` (Cursor)
+  checks the payload's `cwd` and every root inside a repository, one per repository, and reports each
+  root's findings under its own name. They checked only the first root.
+- **`chock status --verify-log` prints every log-derived value inert** (break fields, chain start, folder labels, the
+  confirmed label), and `--head` accepts `<seq>:<sha256>@<log>` to confirm a kept head only in the log it came from.
+  The printed head now carries its log and says a head needs keeping outside anything the log's writer can write.
+- **Policy labels, install warnings and witness notes now use short plain sentences (VOICE-3a).** The grade text
+  that `chock install` prints and the catalog's registry reads no longer chains clauses with semicolons, and no
+  longer says "judged" or "fails open". A gate that runs only at turn end now reads "blocks at turn end only. It
+  does not check a file write when it happens". Devin's label and the labels of clients graded from agentseam's
+  tier table say "a hook error lets the action through" where they said "fails open" or "fail mode open". No
+  label claims more than before, and every caveat is kept. Code that matches the old wording, such as the
+  catalog's `tools/label_honesty.py`, needs the new text.
+- **`chock validate` no longer warns on the `my-` prefix `chock new` adds.** INT-3 (verb-first
+  ids) took `my` as the first word of every policy scaffolded outside a catalog, so
+  `my-block-marker` warned "does not start with a verb". It now reads the word after the
+  prefix: `my-block-marker` passes, `my-tf-destroy` still warns.
+- **`chock witness export` re-keys every record's `target` fingerprint** with a random key made for that export and
+  discarded, so equal targets still match inside the file but a guessed path or command cannot be confirmed offline.
+- **Hardening: repo YAML cannot hang or crash the guidance server or `chock check`.** Only string entries
+  of `policies.disabled` are read (an alias-built nested value is no longer stringified), and
+  the guidance config's nesting limit is measured on parser events, so compact block nesting is refused
+  like bracket and indent nesting.
 
 ## 0.15.2 — Script hashes skip Python bytecode
 
