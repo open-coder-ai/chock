@@ -3,7 +3,7 @@ name = "chock"
 # Version contract (docs/compatibility.md): PATCH releases are emitter-byte-identical;
 # MINOR releases may change compiled output. 0.1.0 is the first public release; the
 # 0.0.1a0 pre-release exists only because PyPI names are claimed by uploading.
-version = "0.15.2"
+version = "1.0.0"
 description = "Blocks your coding agent's wrong moves before they land."
 readme = "README.md"
 # PEP 639 SPDX expression; needs setuptools >= 77 (range in build-system below; CI and release use the hash-pinned
@@ -59,10 +59,8 @@ dependencies = [
     # Build-time only: chock's plugin packaging consumes agentseam's per-agent layout
     # data (packaging.plan/supports/plugin_root/executable_ref) to render plugin bundles.
     # It never ships to an adopter repo -- the vendored PreToolUse/SessionStart runners
-    # stay self-contained stdlib-only files, unaffected by this dependency. Pre-1.0 it is
-    # pinned to an agentseam main commit (its newest adapters are unreleased); release week
-    # swaps this for the released version, since PyPI refuses a direct reference.
-    "agentseam @ git+https://github.com/open-coder-ai/agentseam@683f95b5f2784dc3446acb1c91636ebc5ee7bee6",
+    # stay self-contained stdlib-only files, unaffected by this dependency.
+    "agentseam==0.4.0",
 ]
 
 [project.optional-dependencies]

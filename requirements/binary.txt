@@ -4,8 +4,9 @@
 #
 #    pip-compile --allow-unsafe --generate-hashes --output-file=requirements/binary.txt --strip-extras requirements/binary.in
 #
-agentseam @ https://github.com/open-coder-ai/agentseam/archive/683f95b5f2784dc3446acb1c91636ebc5ee7bee6.tar.gz \
-    --hash=sha256:87e52fd9e92963f1d8feb4db7af1b6069ca15c3eb6d633245544850aef9c2f59
+agentseam==0.4.0 \
+    --hash=sha256:4e65cb6eb637b76667baabec20e47b6eeae2947f3d02afcc51c6ce346807acb9 \
+    --hash=sha256:f790af4156e81a5f0f2423618d62e9a94215c1fa3e5531a5f156238f13983786
     # via -r requirements/runtime.in
 altgraph==0.17.5 \
     --hash=sha256:c87b395dd12fabde9c99573a9749d67da8d29ef9de0125c7f536699b4a9bc9e7 \
