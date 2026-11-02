@@ -1,6 +1,6 @@
 -r binary.in
 pytest>=7.0
-pytest-bdd>=8.0
+pytest-bdd>=9.0.0
 hypothesis>=6.170.9
 ruff==0.17.2
 pre-commit>=3.0
