@@ -59,8 +59,18 @@ def _unreadable_source(agent: str) -> str:
 
 
 #: agentseam's `main` allows a payload it cannot read; the replacement refuses in the client's dialect.
-_UNREADABLE_BRANCH = """    except Exception:
+_UNREADABLE_BRANCH = """    except json.JSONDecodeError:
         # Malformed input is not the agent's fault to pay for: allow, stay silent.
+        if exit:
+            sys.exit(0)
+        return 0
+    except (ValueError, RecursionError, MemoryError):
+        # Valid JSON this file cannot decode: nothing to judge, so the blocking exit code.
+        _report(traceback.format_exc())
+        if exit:
+            sys.exit(2)
+        return 2
+    except Exception:
         if exit:
             sys.exit(0)
         return 0
