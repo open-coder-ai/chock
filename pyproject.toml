@@ -60,7 +60,7 @@ dependencies = [
     # data (packaging.plan/supports/plugin_root/executable_ref) to render plugin bundles.
     # It never ships to an adopter repo -- the vendored PreToolUse/SessionStart runners
     # stay self-contained stdlib-only files, unaffected by this dependency.
-    "agentseam==0.4.0",
+    "agentseam==0.4.1",
 ]
 
 [project.optional-dependencies]
