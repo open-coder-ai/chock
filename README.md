@@ -22,10 +22,10 @@ Agent folders at this repo's root (`.claude/`, `.cursor/`, …) are chock's comp
 
 ## Install
 
-chock is on PyPI, but the release there (0.15.2, 30 Sep 2026) is older than the engine this page describes. Install the frozen engine from its commit (Python 3.11 or newer):
+chock 1.0.0 is on PyPI (Python 3.11 or newer):
 
 ```bash
-pip install "chock @ git+https://github.com/open-coder-ai/chock@992711af4cf8d4fd9c4c861f10ef6e53374d75d7"
+pipx install chock==1.0.0
 ```
 
 ### Two ways to adopt it
