@@ -75,7 +75,7 @@ def _member_thread(member, judge_one, slot):
     MEMBER_DEADLINE.set(time.monotonic() + float(member.get("timeout", MEMBER_DEFAULT_SECONDS)))
     try:
         slot["verdict"] = judge_one(member["argv"])
-    except BaseException as exc:  # noqa: BLE001 -- a crashing member, even a SystemExit, refuses its own call at once
+    except (Exception, SystemExit) as exc:  # noqa: BLE001 -- a crashing member, even a SystemExit, refuses its own call at once
         slot["verdict"] = _fault(member, exc)
     slot["done"] = True
 

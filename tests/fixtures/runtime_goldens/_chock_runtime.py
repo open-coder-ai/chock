@@ -2885,7 +2885,7 @@ def _member_thread(member, judge_one, slot):
     MEMBER_DEADLINE.set(_chock_time.monotonic() + float(member.get('timeout', MEMBER_DEFAULT_SECONDS)))
     try:
         slot['verdict'] = judge_one(member['argv'])
-    except BaseException as exc:
+    except (Exception, SystemExit) as exc:
         slot['verdict'] = _fault(member, exc)
     slot['done'] = True
 
