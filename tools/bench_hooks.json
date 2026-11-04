@@ -1,0 +1,68 @@
+{
+  "catalog_ref": "1e60d211c1bb767152c6ab0167932da06ab3a10f",
+  "policies": [
+    {
+      "id": "block-destructive-commands",
+      "verify_sha": "cec4264eaaf8862aa26873c4127dae8aff5ea716e81086b3b3e57edcd3a18085"
+    },
+    {
+      "id": "block-invisible-unicode",
+      "verify_sha": "518f716868c54ba0207b09ce633758471cca37ad63a2d88c67f7be56836fa662"
+    },
+    {
+      "id": "block-no-verify",
+      "verify_sha": "45055c8896e8401c430fbf27f60a83194fd8a6aad93e75442b3aae3b0146c330"
+    },
+    {
+      "id": "block-wildcard-agent-permissions",
+      "verify_sha": "821175c32e1301aa7c40448f0ee33ac677d8445448264bb000d8cecbcea48b61"
+    },
+    {
+      "id": "pin-github-actions",
+      "verify_sha": "ef86d2b0c6a1b7f143ed6a4f85eb48821c901b08013cb5853a776b8858388424"
+    },
+    {
+      "id": "protect-agent-config",
+      "verify_sha": "b102a0f64c869c94ad8b6c6233749a66f8785358da2a1aac1f58f532651e2a64"
+    },
+    {
+      "id": "protect-commit-privacy",
+      "verify_sha": "a45e03826170f98796f98cbd48462c3a16f28d3f4b49acb6446468d234a58508"
+    },
+    {
+      "id": "scan-secrets",
+      "verify_sha": "c7cf363c6eb8a8ed47287beef9c06fe76dfd2d9c0ccc203fe74e32fba0e92a94"
+    },
+    {
+      "id": "token-efficiency",
+      "verify_sha": "2ac1683e59b7bc765a4aef536cfd7b9eb47788e2198b2652038dfb322d21a65d"
+    }
+  ],
+  "events": {
+    "Bash": {
+      "event": "PreToolUse",
+      "payload": {
+        "hook_event_name": "PreToolUse",
+        "session_id": "bench",
+        "cwd": "__REPO__",
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "ls -la"
+        }
+      }
+    },
+    "Write": {
+      "event": "PreToolUse",
+      "payload": {
+        "hook_event_name": "PreToolUse",
+        "session_id": "bench",
+        "cwd": "__REPO__",
+        "tool_name": "Write",
+        "tool_input": {
+          "file_path": "__REPO__/notes/bench.txt",
+          "content": "hello\n"
+        }
+      }
+    }
+  }
+}
