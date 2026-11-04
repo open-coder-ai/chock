@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from _members import unfold
 from conftest import baseline_policy, run_hook_command
 
 from chock.compile.compiler import compile_policy
@@ -78,7 +79,7 @@ def test_install_writes_the_compiled_entry_and_preserves_foreign_entries() -> No
     theirs = {"command": "./scripts/audit.sh"}
     hooks_path.write_text(json.dumps({"version": 1, "hooks": {"beforeShellExecution": [theirs]}}), encoding="utf-8")
     install_hooks(repo, "cursor")
-    entries = json.loads(hooks_path.read_text(encoding="utf-8"))["hooks"]["beforeShellExecution"]
+    entries = unfold(repo, json.loads(hooks_path.read_text(encoding="utf-8")))["hooks"]["beforeShellExecution"]
     assert entries[0] == theirs, "the adopter's own entry must survive, first"
     assert len(entries) == 2
     compiled = repo / ".chock" / "compiled" / "block-destructive-commands" / "pre-tool-use" / "cursor-hooks.json"

@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from _members import drop_members, unfold
 
 from chock import vendors
 from chock.compile.compiler import compile_policy
@@ -94,7 +95,7 @@ def test_the_compiled_tree_carries_both_fragments(repo: Path) -> None:
 def test_every_installer_merges_the_guard_and_the_gate(repo: Path, vendor: str) -> None:
     assert install_hooks(repo, vendor)
 
-    commands = _commands(json.loads(_config_path(repo, vendor).read_text(encoding="utf-8")))
+    commands = _commands(unfold(repo, json.loads(_config_path(repo, vendor).read_text(encoding="utf-8"))))
     assert any("--guard" in c and f"{POLICY_ID}.sh" in c for c in commands), "the shell guard is installed"
     # The stop surface also installs a `--gate` entry, so name the write-path gate's own file.
     write_gate = "agent-hooks/gate.json" if vendor == "vscode_copilot" else "pre-tool-use/gate.json"
@@ -110,14 +111,10 @@ def test_a_policy_missing_half_its_entries_is_not_installed(repo: Path, vendor: 
     text = path.read_text(encoding="utf-8")
     doc = json.loads(text)
 
-    def drop_gate(node: object) -> object:
-        if isinstance(node, dict):
-            return {k: drop_gate(v) for k, v in node.items()}
-        if isinstance(node, list):
-            return [drop_gate(v) for v in node if not ("--gate" in json.dumps(v) and "/stop/" not in json.dumps(v))]
-        return node
+    def is_write_gate(member_command: str) -> bool:
+        return "--gate" in member_command and "/stop/" not in member_command
 
-    path.write_text(json.dumps(drop_gate(doc)), encoding="utf-8")
+    path.write_text(json.dumps(drop_members(repo, doc, is_write_gate)), encoding="utf-8")
 
     assert installed_policy_ids(repo, vendor) == set()
 

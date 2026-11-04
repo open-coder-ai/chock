@@ -10,6 +10,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+from _members import unfold
 from conftest import baseline_policy
 
 FRAMEWORK_ROOT = Path(__file__).resolve().parents[1]
@@ -49,11 +50,11 @@ def test_one_sync_wires_and_claims_every_guard_surface() -> None:
     proc = _sync(repo)
     assert proc.returncode == 0, proc.stdout + proc.stderr
 
-    settings = json.loads((repo / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    settings = unfold(repo, json.loads((repo / ".claude" / "settings.json").read_text(encoding="utf-8")))
     commands = [h["command"] for e in settings["hooks"]["PreToolUse"] for h in e["hooks"]]
     assert any("block-destructive" in c for c in commands), "sync must install the PreToolUse fragment"
 
-    cursor = json.loads((repo / ".cursor" / "hooks.json").read_text(encoding="utf-8"))
+    cursor = unfold(repo, json.loads((repo / ".cursor" / "hooks.json").read_text(encoding="utf-8")))
     assert any("block-destructive" in e["command"] for e in cursor["hooks"]["beforeShellExecution"]), (
         "sync must install the Cursor hook entry"
     )

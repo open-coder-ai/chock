@@ -93,5 +93,6 @@ def wiring_differences(repo_root: Path | str, wired: tuple[str, ...]) -> list[st
                 diffs.append(f"stale: {rel.as_posix()}")
             elif _canonical(expected) != _canonical(actual):
                 diffs.append(f"differs: {rel.as_posix()}")
-        diffs += _index_differences(_index_files(shadow, wired), _index_files(repo_root, wired))
+        written = tuple(vendor for vendor in wired if (repo_root / rels[vendor]).is_file())
+        diffs += _index_differences(_index_files(shadow, written), _index_files(repo_root, written))
     return diffs

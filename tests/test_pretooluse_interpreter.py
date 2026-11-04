@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from _members import unfold
 from conftest import baseline_policy, bash_executable, run_hook_command
 
 from chock.compile.compiler import compile_policy
@@ -62,7 +63,7 @@ def _settings_path(repo: Path) -> Path:
 
 
 def _pre_tool_command(repo: Path) -> str:
-    settings = json.loads(_settings_path(repo).read_text(encoding="utf-8"))
+    settings = unfold(repo, json.loads(_settings_path(repo).read_text(encoding="utf-8")))
     return settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
 
 
@@ -167,7 +168,7 @@ def test_an_old_baked_entry_is_replaced_by_the_launcher_form_and_foreign_entries
         "an old-form entry is not current: sync must rewrite it"
     )
     install_hooks(repo, "claude_code")
-    entries = json.loads(path.read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
+    entries = unfold(repo, json.loads(path.read_text(encoding="utf-8")))["hooks"]["PreToolUse"]
     assert entries[0] == theirs, "the adopter's own entry must survive, first"
     assert len(entries) == 3, "the old entry is ours: replaced, not kept beside the new one (and the stop check)"
     assert entries[1]["hooks"][0]["command"] == hook_command(".chock/bin/claude_code.py", "--guard", GUARD)

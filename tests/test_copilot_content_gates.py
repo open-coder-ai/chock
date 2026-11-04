@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from _members import unfold
 from conftest import run_hook_command
 
 from chock.compile.compiler import compile_policy
@@ -61,7 +62,7 @@ def _repo(tmp_path: Path, *, install: bool = True) -> Path:
 
 
 def _hooks(repo: Path) -> dict:
-    return json.loads((repo / agent_hooks_rel()).read_text(encoding="utf-8"))["hooks"]
+    return unfold(repo, json.loads((repo / agent_hooks_rel()).read_text(encoding="utf-8")))["hooks"]
 
 
 def _pre(tool: str, tool_input: dict, cwd: Path) -> str:
