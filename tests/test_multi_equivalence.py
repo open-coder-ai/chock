@@ -1,6 +1,6 @@
 """One hook process per event decides exactly what one process per policy decides, over this repo's compiled policies.
 
-Not part of CI. `CHOCK_EQUIVALENCE_REPO=<repo root> python -m pytest tests/test_multi_equivalence.py` runs it over
+Runs in CI with the rest of the suite. `CHOCK_EQUIVALENCE_REPO=<repo root> python -m pytest tests/test_multi_equivalence.py` runs it over
 another repository's `.agents/policies` and `.chock/compiled` (a catalog clone); a policy without a payload in
 `VIOLATING` is then checked on its clean and faulting payloads only.
 """
@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 from decision_log_support import hook_env
 from runtime_support import write_runtime
 
@@ -30,8 +31,8 @@ CLEAN = "clean"
 FAULT = "fault"
 VIOLATING_KIND = "violating"
 
-#: Per (policy, flag): a call the policy refuses, as (tool, tool_input). Two gates have none here: this repo's own
-#: hooks refuse to write a file holding a wildcard permission grant or a secret, so those are unmeasured, not skipped.
+#: Per (policy, flag): a call the policy refuses, as (tool, tool_input). The two content gates whose violating text
+#: this repo's own hooks refuse to have written into a file take theirs from the policy's committed eval suite at test time.
 VIOLATING = {
     ("block-destructive-commands", "--guard"): ("Bash", {"command": "rm -rf /"}),
     ("block-no-verify", "--guard"): ("Bash", {"command": "git commit --no-verify -m x"}),
@@ -44,6 +45,24 @@ VIOLATING = {
     ),
     ("protect-agent-config", "--gate"): ("Write", {"file_path": "AGENTS.md", "content": "x"}),
 }
+
+
+def _suite_payload(policy: str) -> tuple[str, dict] | None:
+    """The first single-file staged case the policy's own eval suite expects to be blocked, as a Write call."""
+    suite = ROOT / ".agents" / "policies" / policy / "evals" / "suite.yaml"
+    if not suite.is_file():
+        return None
+    for case in yaml.safe_load(suite.read_text(encoding="utf-8"))["suite"]["cases"]:
+        execute = case.get("execute") or {}
+        if execute.get("expect") == "block" and len(execute.get("files") or {}) == 1:
+            ((path, content),) = execute["files"].items()
+            return "Write", {"file_path": path, "content": content}
+    return None
+
+
+for _policy_id in ("block-wildcard-agent-permissions", "scan-secrets"):
+    if (_found := _suite_payload(_policy_id)) is not None:
+        VIOLATING[(_policy_id, "--gate")] = _found
 CLEAN_INPUT = {"Bash": {"command": "echo hello"}, "Write": {"file_path": "notes.txt", "content": "hello"}}
 #: A payload no policy can read: the tool input is not what its tool promises.
 FAULT_INPUT = {"Bash": {"command": 123}, "Write": {"file_path": ["a"], "content": None}}
@@ -141,6 +160,17 @@ def test_every_policy_with_a_hook_is_a_member_and_the_rest_carry_none(world: dic
     members = {_policy(m)[0] for m in _members(world)}
     assert members <= compiled
     assert members, "no compiled policy carries a hook: nothing to compare"
+
+
+def test_the_two_gates_with_unwritable_payloads_are_measured_from_their_suites(world: dict) -> None:
+    """A member whose policy ships an eval suite is sent a call that suite expects blocked, never only clean and fault."""
+    members = {_policy(m) for m in _members(world)}
+    for policy in ("block-wildcard-agent-permissions", "scan-secrets"):
+        if (ROOT / ".agents" / "policies" / policy / "evals" / "suite.yaml").is_file() and (
+            policy,
+            "--gate",
+        ) in members:
+            assert (policy, "--gate") in VIOLATING, policy
 
 
 def test_each_member_decides_alone_what_its_single_policy_entry_decides(world: dict) -> None:
