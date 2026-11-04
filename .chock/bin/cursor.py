@@ -16,6 +16,7 @@ _json = json
 import os
 import sys
 
+import copy as _chock_copy
 import os as _chock_os
 import time as _chock_time
 from pathlib import Path as _chock_Path
@@ -703,7 +704,7 @@ def degrade(decision, event):
 # Not self-contained: chock's guard logic lives in the sibling _chock_runtime.py, loaded from this
 # file's own folder and pinned to the sha256 of that file's bytes (CRLF read as LF), hashed before they are executed.
 # Missing, unreadable, another version, or failing to import: every call refuses (_CHOCK_RUNTIME_FAULT), never allows.
-_CHOCK_RUNTIME_PIN = 'a7302f5f8e1deb74d6f245a97474228ce9258ed2c04313a30af7799787a9d259'
+_CHOCK_RUNTIME_PIN = '1a65cedb5f304f9b196c70b67a92ac6c1d47c81c39dd271361b7671537d6c5e6'
 
 
 def _chock_load_runtime():
@@ -868,6 +869,16 @@ def _spoken(verdict):
     return Decision.escalate(reason) if outcome == ESCALATE else Decision.deny(reason)
 
 
+#: Set by a multi-policy hook: its exit ends what a hung member left running and does not wait for its thread.
+_CHOCK_LEAVE = []
+
+
+def _chock_leave(code):
+    if _CHOCK_LEAVE:
+        flush_and_exit(code)
+    sys.exit(code)
+
+
 def _chock_timed(judged, stage, ask):
     started = _chock_time.monotonic()
     try:
@@ -876,28 +887,74 @@ def _chock_timed(judged, stage, ask):
         judged[3][stage] = round((_chock_time.monotonic() - started) * 1000)
 
 
-def _judge(event, judged):
+def _judge(event, judged, argv):
     halted = repo_stop_refusal(event)
     if halted is not None:
         judged[0:2] = [HALT_REASON, ".chock/stop.json"]
         return Decision.deny(halted)
     if event.event == "pre_tool" and event.command:
         verdict = _chock_timed(judged, "guard", lambda: evaluate(
-            sys.argv[1:], event.command, event.tool or "", can_ask=_chock_can_ask(event.raw)
+            argv, event.command, event.tool or "", can_ask=_chock_can_ask(event.raw)
         ))
         if verdict is not None:
-            judged[0:2] = ["guard", _chock_Path(guard_path_from_argv(sys.argv[1:])).stem]
+            judged[0:2] = ["guard", _chock_Path(guard_path_from_argv(argv)).stem]
             outcome, reason = verdict
             return Decision.escalate(reason) if outcome == ESCALATE else Decision.deny(reason)
-    gated = _chock_timed(judged, "gate", lambda: evaluate_gate(sys.argv[1:], event))
+    gated = _chock_timed(judged, "gate", lambda: evaluate_gate(argv, event))
     if gated is not None:
-        judged[0:2] = ["gate", gate_path_from_argv(sys.argv[1:]).parent.parent.name]
+        judged[0:2] = ["gate", gate_path_from_argv(argv).parent.parent.name]
         return _spoken(gated)
-    called = _chock_timed(judged, "tool_call", lambda: evaluate_tool_call(sys.argv[1:], event))
+    called = _chock_timed(judged, "tool_call", lambda: evaluate_tool_call(argv, event))
     if called is not None:
         judged[0:2] = ["tool_call", str(event.tool or "")]
         return _spoken(called)
     return None
+
+
+def _chock_member_verdict(event, record, argv):
+    """One member's verdict on the event it was handed; its decision and last-run state wait in `record` for the log."""
+    judged = [None, None, _chock_time.monotonic(), {}]
+    try:
+        decision = _judge(event, judged, argv)
+    except Exception as exc:  # noqa: BLE001 -- any failure here must refuse, never fall through
+        judged[0:2] = ["fault", type(exc).__name__]
+        decision = Decision.deny(
+            "chock could not check this call (%s: %s). Refusing rather than reporting an "
+            "allow it never established." % (type(exc).__name__, exc)
+        )
+    record[id(argv)] = (decision, judged, dict(last_state(GUARD_LAST)), dict(last_state(GATE_LAST)))
+    return None if decision is None else (decision.outcome, decision.reason)
+
+
+def _chock_multi_log(event, members, verdicts, record, context):
+    """Each member's decision log line, in index order, once every member has finished."""
+    for member, verdict in zip(members, verdicts):
+        decision, judged, guard, gate = record.get(
+            id(member["argv"]), (None if verdict is None else _spoken(verdict), ["fault", "member"], {}, {})
+        )
+        for var, state in ((GUARD_LAST, guard), (GATE_LAST, gate)):
+            last_state(var).clear()
+            last_state(var).update(state)
+        log_decision(member["argv"], event, decision, judged, context)
+
+
+def _chock_multi(event, pinned, context):
+    """The one decision of every policy the pinned index lists, each judged on this event, never on stdin."""
+    members, why = load_index(pinned[0], pinned[1], _chock_Path.cwd())
+    if members is None:
+        _report(why + "\n")
+        return Decision.deny(why)
+    record = {}
+    verdicts = run_members(
+        members,
+        lambda argv: _chock_member_verdict(_chock_copy.deepcopy(event), record, argv),
+        can_ask=context["can_ask"],
+    )
+    kill_live_trees()
+    if event.event != "session_start":
+        _chock_multi_log(event, members, verdicts, record, context)
+    combined = combine(verdicts)
+    return None if combined is None else _spoken(combined)
 
 
 def handle(event):
@@ -910,20 +967,31 @@ def handle(event):
     # A door that cannot decide refuses. An exception escaping here would exit the hook
     # with a traceback, which every client reads as a non-blocking error: fail-open, with
     # the reason on a stderr nobody watches. The refusal carries the reason instead.
+    context = {"manifests": _CHOCK_PLUGIN_MANIFESTS}
+    try:
+        context.update(wire=_chock_wire(event.raw), can_ask=_chock_can_ask(event.raw))
+    except Exception:  # noqa: BLE001 -- the log's context must never change the decision
+        pass
+    pinned = multi_from_argv(sys.argv[1:])
+    if pinned is not None:
+        context.setdefault("can_ask", False)
+        _CHOCK_LEAVE.append(True)
+        try:
+            return _chock_multi(event, pinned, context)
+        except Exception as exc:  # noqa: BLE001 -- any failure here must refuse, never fall through
+            return Decision.deny(
+                "chock could not check this call (%s: %s). Refusing rather than reporting an "
+                "allow it never established." % (type(exc).__name__, exc)
+            )
     judged = [None, None, _chock_time.monotonic(), {}]
     try:
-        decision = _judge(event, judged)
+        decision = _judge(event, judged, sys.argv[1:])
     except Exception as exc:  # noqa: BLE001 -- any failure here must refuse, never fall through
         judged[0:2] = ["fault", type(exc).__name__]
         decision = Decision.deny(
             "chock could not check this call (%s: %s). Refusing rather than reporting an "
             "allow it never established." % (type(exc).__name__, exc)
         )
-    context = {"manifests": _CHOCK_PLUGIN_MANIFESTS}
-    try:
-        context.update(wire=_chock_wire(event.raw), can_ask=_chock_can_ask(event.raw))
-    except Exception:  # noqa: BLE001 -- the log's context must never change the decision
-        pass
     if not starting:  # a session start's one line is its heartbeat
         log_decision(sys.argv[1:], event, decision, judged, context)
     return decision
@@ -1073,7 +1141,7 @@ def main(stdin=None, stdout=None, exit=True):
     if text:
         _emit(out, text)
     if exit:
-        sys.exit(code)
+        _chock_leave(code)
     return code
 
 

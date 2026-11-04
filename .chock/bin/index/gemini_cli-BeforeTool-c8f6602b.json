@@ -1,0 +1,35 @@
+{
+  "members": [
+    {
+      "argv": [
+        "--tool-call",
+        ".chock/compiled/token-efficiency/pre-tool-use/tool-call-gate.json"
+      ],
+      "files": {
+        ".agents/policies/token-efficiency/evals/suite.yaml": "8a5edfed37558d524f7cbee915fea152b94bf92a7b083384080e2b82b60f1287",
+        ".agents/policies/token-efficiency/implementations/token-efficiency-gate.py": "340247776932bc92b9bd62fdd03d24c020f66dfab0dba9d3da3ece11641b11a6",
+        ".agents/policies/token-efficiency/manifest.yaml": "391e30d410147a5dbbdb6c6dae305096a3efe5151c6a1c9e547c75d2af42c294",
+        ".agents/policies/token-efficiency/plugin.json": "84424435dcb432b409f03c2f4458ebf4a05c60006aa9ca773682c2dafdd26380",
+        ".agents/policies/token-efficiency/skills/token-efficiency/SKILL.md": "b45661a6d72b25e9bdf4dc800a54689eb1b92bb3e333c13a5c86c20dcab8f2e2",
+        ".chock/compiled/token-efficiency/agent-hooks/tool-call-gate.json": "0689304b5bacd25e9a371674d0faa8f9b8d9d35132d2faf7917c2b165a1a93fa",
+        ".chock/compiled/token-efficiency/agent-hooks/tool-call-hooks.json": "7300181bc92f845f81e316813adc9eb6cfd58d8a94525126455203df7fb08e6a",
+        ".chock/compiled/token-efficiency/ambient-rule/ambient.md": "6d94b590c79d340fe25c48dc119b41ece181c5c605b4a38a853e54b54f4e9156",
+        ".chock/compiled/token-efficiency/managed-setting/managed-settings.json": "859d05e0265611518ac5329c0a52141581f55956fd86e952206d6651820f018b",
+        ".chock/compiled/token-efficiency/pre-tool-use/codex_cli-tool-call-hooks.json": "a80d3ca758064cba6407f75213a659ec24321eddd85b2adc444cf9f367c5e741",
+        ".chock/compiled/token-efficiency/pre-tool-use/cursor-post-hooks.json": "4348e99148692cafca9417a6dba71e01bda26a404733926415313428bb7f2d93",
+        ".chock/compiled/token-efficiency/pre-tool-use/cursor-postfailure-hooks.json": "9c1e9f0f10255027115cfe5f74ac955be9f66f29973905f8eae319293285f2ab",
+        ".chock/compiled/token-efficiency/pre-tool-use/cursor-tool-call-hooks.json": "e913f5625ab0c20f33372a1510ddcb475e265fc1fd9b13d1b38e52e3fd79c591",
+        ".chock/compiled/token-efficiency/pre-tool-use/factory_droid-tool-call-hooks.json": "5afbd11c0e5cd2b3a03a29003f9191954676babd5642aa4806fe0eb245745d61",
+        ".chock/compiled/token-efficiency/pre-tool-use/gemini_cli-tool-call-hooks.json": "d6e9dbc2ec1977ce54e04c945a8a0c35851a58a4d84aa8ed80c05fc80e5e7f4b",
+        ".chock/compiled/token-efficiency/pre-tool-use/goose-tool-call-hooks.json": "79e76587f80fb6e13628f5a19084d3fafeb292c1de3e624bb5a8eb26e30c0ae0",
+        ".chock/compiled/token-efficiency/pre-tool-use/mistral_vibe-tool-call-hooks.json": "45c46faf7450bc1355fa60a4e758e639d239203c600fb44a40b94d390a03ed3a",
+        ".chock/compiled/token-efficiency/pre-tool-use/openhands-tool-call-hooks.json": "c0d5f1de2914cd29bac863738058af974ede6adabd753502b73ad801e7ef4f09",
+        ".chock/compiled/token-efficiency/pre-tool-use/posttooluse.json": "55c8de96218a7b35718a7952f832bc0654715f8e6c00031fe86821bc15b893f8",
+        ".chock/compiled/token-efficiency/pre-tool-use/posttoolusefailure.json": "55c8de96218a7b35718a7952f832bc0654715f8e6c00031fe86821bc15b893f8",
+        ".chock/compiled/token-efficiency/pre-tool-use/pretooluse-toolcall.json": "0082ae9ed2342f8a22c275e37eb6d38df106775e5b5ba1b4255724771a5b77d0",
+        ".chock/compiled/token-efficiency/pre-tool-use/tool-call-gate.json": "0689304b5bacd25e9a371674d0faa8f9b8d9d35132d2faf7917c2b165a1a93fa"
+      },
+      "timeout": 30
+    }
+  ]
+}

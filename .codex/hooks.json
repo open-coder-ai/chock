@@ -5,8 +5,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive-commands.py\"",
-            "commandWindows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive-commands.py\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
+            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --multi \".chock/bin/index/codex_cli-PreToolUse-14533f34.json\" --index-sha256 ebfc8620b51af8d70e3d11b25aeab3c58c3f13fedc2dc2c8d07541f2e0bf911a",
+            "commandWindows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --multi \".chock/bin/index/codex_cli-PreToolUse-14533f34.json\" --index-sha256 ebfc8620b51af8d70e3d11b25aeab3c58c3f13fedc2dc2c8d07541f2e0bf911a; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
             "timeout": 45
           }
         ],
@@ -16,8 +16,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --gate \".chock/compiled/block-invisible-unicode/pre-tool-use/gate.json\"",
-            "commandWindows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --gate \".chock/compiled/block-invisible-unicode/pre-tool-use/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
+            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --multi \".chock/bin/index/codex_cli-PreToolUse-d2160b00.json\" --index-sha256 2ff022397098e742808806927b5c3194e3f0aa0c162d50d22cd98eef4756f022",
+            "commandWindows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --multi \".chock/bin/index/codex_cli-PreToolUse-d2160b00.json\" --index-sha256 2ff022397098e742808806927b5c3194e3f0aa0c162d50d22cd98eef4756f022; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
             "timeout": 45
           }
         ],
@@ -27,85 +27,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.py\"",
-            "commandWindows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.py\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
-            "timeout": 45
-          }
-        ],
-        "matcher": "Bash"
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --gate \".chock/compiled/block-wildcard-agent-permissions/pre-tool-use/gate.json\"",
-            "commandWindows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --gate \".chock/compiled/block-wildcard-agent-permissions/pre-tool-use/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
-            "timeout": 45
-          }
-        ],
-        "matcher": "apply_patch"
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --gate \".chock/compiled/pin-github-actions/pre-tool-use/gate.json\"",
-            "commandWindows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --gate \".chock/compiled/pin-github-actions/pre-tool-use/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
-            "timeout": 45
-          }
-        ],
-        "matcher": "apply_patch"
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.py\"",
-            "commandWindows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.py\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
-            "timeout": 45
-          }
-        ],
-        "matcher": "Bash"
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --gate \".chock/compiled/protect-agent-config/pre-tool-use/gate.json\"",
-            "commandWindows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --gate \".chock/compiled/protect-agent-config/pre-tool-use/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
-            "timeout": 45
-          }
-        ],
-        "matcher": "apply_patch"
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.py\"",
-            "commandWindows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.py\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
-            "timeout": 45
-          }
-        ],
-        "matcher": "Bash"
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --gate \".chock/compiled/scan-secrets/pre-tool-use/gate.json\"",
-            "commandWindows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --gate \".chock/compiled/scan-secrets/pre-tool-use/gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
-            "timeout": 45
-          }
-        ],
-        "matcher": "apply_patch"
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --tool-call \".chock/compiled/token-efficiency/pre-tool-use/tool-call-gate.json\"",
-            "commandWindows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --tool-call \".chock/compiled/token-efficiency/pre-tool-use/tool-call-gate.json\"; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
+            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --multi \".chock/bin/index/codex_cli-PreToolUse-186bd88e.json\" --index-sha256 8acaa1f45d082758ffa5270a722263da96ccfd24038713be8e13a11220bd4d2d",
+            "commandWindows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --multi \".chock/bin/index/codex_cli-PreToolUse-186bd88e.json\" --index-sha256 8acaa1f45d082758ffa5270a722263da96ccfd24038713be8e13a11220bd4d2d; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
             "timeout": 45
           }
         ]
