@@ -25,6 +25,7 @@ def load_config(path: Path) -> dict:
 
 
 GIT = shutil.which("git") or "git"
+SHELL = shutil.which("bash") or shutil.which("sh") or "sh"
 STUB_HOOKS = 4
 
 
@@ -84,9 +85,7 @@ class HookFailedError(RuntimeError):
 
 def fire(hook: dict, payload: bytes, repo: Path) -> int:
     """Run one hook command as the agent does (shell, repo root, payload on stdin); return 0 or raise."""
-    done = subprocess.run(  # noqa: S602 - the real hook command runs through a shell, as the agent runs it
-        hook["command"], shell=True, cwd=repo, input=payload, capture_output=True, check=False
-    )
+    done = subprocess.run([SHELL, "-c", hook["command"]], cwd=repo, input=payload, capture_output=True, check=False)  # noqa: S603
     if done.returncode:
         raise HookFailedError(hook["command"], done.returncode, done.stderr.decode("utf-8", "replace"))
     return done.returncode
