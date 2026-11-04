@@ -69,3 +69,22 @@ def test_member_deadline_is_per_thread_and_defaults_to_the_engine_budget():
     assert seen == {"a": 111.0, "b": 222.0}
     assert budget.MEMBER_DEADLINE.get() is None
     assert budget.engine_deadline() - time.monotonic() == pytest.approx(budget.ENGINE_BUDGET_SECONDS, abs=1)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the POSIX process-group kill; Windows uses taskkill /T")
+def test_close_judge_kills_the_judges_own_children(tmp_path):
+    pidfile = tmp_path / "pid"
+    script = _SPAWNER.replace("print(kid.pid, flush=True)", f"open({str(pidfile)!r}, 'w').write(str(kid.pid))")
+    script += "\n"
+    judge = budget.pattern_judge()
+    judge["argv"] = [sys.executable, "-c", f"print({budget.PATTERN_JUDGE_READY!r}, flush=True)\n{script}"]
+    assert budget._ensure_judge(judge) is None
+    deadline = time.monotonic() + 5
+    while not pidfile.exists() and time.monotonic() < deadline:
+        time.sleep(0.05)
+    pid = int(pidfile.read_text())
+    budget.close_judge(judge)
+    deadline = time.monotonic() + 5
+    while _alive(pid) and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert not _alive(pid)

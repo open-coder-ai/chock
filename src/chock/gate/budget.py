@@ -145,6 +145,7 @@ def _start_judge(judge):
         stderr=subprocess.PIPE,
         text=True,
         encoding="utf-8",
+        **tree_spawn_options(),
     )
     lines = queue.Queue()
     threading.Thread(target=_pump_lines, args=(proc, lines), daemon=True).start()
@@ -166,7 +167,7 @@ def close_judge(judge):
     if proc is None:
         return ""
     if proc.poll() is None:
-        proc.kill()  # before closing stdout: the reader thread holds it until the child's EOF
+        kill_tree(proc)  # before closing stdout: the reader thread holds it until the child's EOF
     proc.wait()
     try:
         spoken = proc.stderr.read()
