@@ -10,6 +10,7 @@ import yaml
 
 from chock.compile.emitters.in_agent_hooks import adapter_rel
 from chock.hooks.launch import hook_command
+from chock.hooks.multi_wiring import INDEX_DIR
 from chock.hooks.wiring_drift import wiring_differences
 from chock.scaffold.recompile import compiled_differences, recompile, wired_vendors
 
@@ -223,14 +224,50 @@ def test_a_freshly_synced_repo_has_no_wiring_drift(wired_repo: Path) -> None:
     assert not wiring_differences(wired_repo, wired_vendors(AGENTS))
 
 
+def test_the_index_folder_is_tolerated_by_lock_verify_and_compiled_drift(wired_repo: Path) -> None:
+    """The index sits under a path protect-agent-config guards, and nothing counts it as stale or unlocked."""
+    from chock.lock import build_lock, verify_lock, write_lock
+    from chock.validation.checks_drift import check_compiled_drift
+    from chock.validation.report import Report
+
+    assert any((wired_repo / INDEX_DIR).glob("claude_code-PreToolUse-*.json"))
+    (wired_repo / ".chock" / "config.yaml").write_text("chock:\n  supported_agents: [claude]\n", encoding="utf-8")
+    write_lock(build_lock(wired_repo), wired_repo)
+
+    assert verify_lock(wired_repo) == (True, [])
+    assert not compiled_differences(wired_repo, AGENTS)
+    report = Report()
+    check_compiled_drift(wired_repo, report)
+    assert report.is_clean()
+
+
+def test_the_index_folder_is_a_path_the_agent_config_guard_protects() -> None:
+    """INDEX_DIR matches the forbidden_path_regex of protect-agent-config, so an agent cannot rewrite an index."""
+    import re
+
+    manifest = yaml.safe_load(
+        (Path(__file__).resolve().parents[1] / ".agents/policies/protect-agent-config/manifest.yaml").read_text(
+            encoding="utf-8"
+        )
+    )
+    patterns = re.findall(r"forbidden_path_regex: '([^']+)'", yaml.safe_dump(manifest, width=10**6)) or re.findall(
+        r"forbidden_path_regex: '([^']+)'",
+        (Path(__file__).resolve().parents[1] / ".agents/policies/protect-agent-config/manifest.yaml").read_text(
+            encoding="utf-8"
+        ),
+    )
+    assert patterns
+    assert all(re.search(p, f"{INDEX_DIR.as_posix()}/claude_code-PreToolUse-0.json") for p in patterns)
+
+
 def test_wiring_naming_a_missing_guard_is_drift(wired_repo: Path) -> None:
     """The defect as found: the config kept pointing at a guard script a later sync replaced."""
-    index = next((wired_repo / ".chock" / "index").glob("claude_code-PreToolUse-*.json"))
+    index = next((wired_repo / INDEX_DIR).glob("claude_code-PreToolUse-*.json"))
     text = index.read_text(encoding="utf-8")
     assert "block-destructive-commands.py" in text
     index.write_text(text.replace("block-destructive-commands.py", "block-destructive.sh"), encoding="utf-8")
 
-    assert f"differs: .chock/index/{index.name}" in compiled_differences(wired_repo, AGENTS)
+    assert f"differs: {INDEX_DIR.as_posix()}/{index.name}" in compiled_differences(wired_repo, AGENTS)
 
 
 def test_a_config_from_before_the_index_is_drift_and_still_runs_its_policies(wired_repo: Path) -> None:

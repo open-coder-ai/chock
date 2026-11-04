@@ -18,8 +18,8 @@ from chock.manifest import CANONICAL_MANIFEST
 from chock.policies import discover_policy_dirs
 from chock.scaffold.mcp_write import remove_file, write_file
 
-#: Where the pinned indexes live, one per (vendor, event, matcher), beside the runtimes that read them.
-INDEX_DIR = Path(".chock") / "index"
+#: Where the pinned indexes live, one per (vendor, event, matcher): a path protect-agent-config guards, beside the runtimes.
+INDEX_DIR = Path(".chock") / "bin" / "index"
 #: The flags that make a hook command judge one policy: a member's argv starts at the first of them.
 POLICY_FLAGS = ("--guard", "--gate", "--tool-call")
 MULTI_FLAG, INDEX_SHA_FLAG = "--multi", "--index-sha256"

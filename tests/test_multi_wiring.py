@@ -118,7 +118,7 @@ def test_a_member_file_edited_after_sync_is_index_drift(wired: Path, tmp_path: P
     shutil.copytree(wired, root)
     guard = root / ".agents" / "policies" / GUARDS[1] / "implementations" / f"{GUARDS[1]}.py"
     guard.write_text(guard.read_text(encoding="utf-8") + "\n# edited\n", encoding="utf-8")
-    assert any(d.startswith("differs: .chock/index/claude_code-") for d in wiring_differences(root, ("claude_code",)))
+    assert any(d.startswith(f"differs: {INDEX_DIR.as_posix()}/claude_code-") for d in wiring_differences(root, ("claude_code",)))
 
 
 def test_uninstalling_a_vendor_removes_its_indexes(wired: Path, tmp_path: Path) -> None:
