@@ -56,6 +56,22 @@ def last_state(var):
         var.set(state)
     return state
 
+LIVE_TREES = {}
+
+def track_tree(proc):
+    """Record `proc` (started with `tree_spawn_options`) as a tree to end if the hook leaves while it runs."""
+    LIVE_TREES[proc.pid] = proc
+
+def untrack_tree(proc):
+    """Forget `proc`: it ended, or its tree was killed."""
+    LIVE_TREES.pop(proc.pid, None)
+
+def kill_live_trees():
+    """Kill every tree still recorded, whichever thread started it."""
+    for proc in tuple(LIVE_TREES.copy().values()):
+        kill_tree(proc)
+        untrack_tree(proc)
+
 def tree_spawn_options():
     """Popen options that put a child in its own process group (POSIX session; Windows new process group)."""
     if _chock_os.name == 'nt':
@@ -83,12 +99,15 @@ def run_tree(argv, *, timeout=None, **options):
     if 'text' in options or 'encoding' in options:
         options['text'] = True
     with _chock_subprocess.Popen(argv, **options, **tree_spawn_options()) as proc:
+        track_tree(proc)
         try:
             out, err = proc.communicate(stdin_text, timeout=timeout)
         except BaseException:
             kill_tree(proc)
             proc.communicate()
             raise
+        finally:
+            untrack_tree(proc)
     return _chock_subprocess.CompletedProcess(argv, proc.returncode, out, err)
 
 def engine_remaining(deadline):
@@ -120,6 +139,7 @@ def _start_judge(judge):
     lines = _chock_queue.Queue()
     _chock_threading.Thread(target=_pump_lines, args=(proc, lines), daemon=True).start()
     judge['proc'], judge['lines'] = (proc, lines)
+    track_tree(proc)
     try:
         ready = lines.get(timeout=PATTERN_START_SECONDS)
     except _chock_queue.Empty:
@@ -138,6 +158,7 @@ def close_judge(judge):
     if proc.poll() is None:
         kill_tree(proc)
     proc.wait()
+    untrack_tree(proc)
     try:
         spoken = proc.stderr.read()
     except (OSError, ValueError):
@@ -2840,6 +2861,8 @@ def load_index(path, pin, root):
         if not pin or _sha256_of(path) != pin:
             return (None, f'the policy index {path} does not match the hash the hook pins')
         members = json.loads(_chock_Path(path).read_text(encoding='utf-8'))['members']
+        if not isinstance(members, list) or not members:
+            return (None, f'the policy index {path} lists no policies, which is a build fault, never an allow')
         for member in members:
             for relative, expected in member['files'].items():
                 if _sha256_of(_chock_Path(root) / relative) != expected:
@@ -2861,27 +2884,46 @@ def _member_thread(member, judge_one, slot):
     MEMBER_DEADLINE.set(_chock_time.monotonic() + float(member.get('timeout', MEMBER_DEFAULT_SECONDS)))
     try:
         slot['verdict'] = judge_one(member['argv'])
-    except Exception as exc:
+    except BaseException as exc:
         slot['verdict'] = _fault(member, exc)
     slot['done'] = True
 
-def run_members(members, judge_one):
-    """Each member's verdict (or None), in index order. A member past its own deadline refuses its own call."""
+def settle(verdict, *, can_ask=True, warn_speaks=True):
+    """One member's verdict as the client can honour it: an ask the client ignores is a deny, a warn it never shows is nothing."""
+    if verdict is None:
+        return None
+    kind, reason = verdict
+    if kind == VERDICT_ESCALATE and (not can_ask):
+        return (VERDICT_DENY, reason)
+    if kind == VERDICT_WARN and (not warn_speaks):
+        return None
+    return verdict
+
+def run_members(members, judge_one, *, can_ask=True, warn_speaks=True):
+    """Each member's settled verdict (or None), in index order. A member past its own deadline refuses its own call.
+
+    The members share this process's streams, so they get none: stdin is empty and what they print is dropped.
+    """
     started = _chock_time.monotonic()
-    running = []
-    for member in members:
-        slot = {'done': False, 'verdict': None}
-        thread = _chock_threading.Thread(target=_member_thread, args=(member, judge_one, slot), daemon=True)
-        thread.start()
-        running.append((member, thread, slot))
-    verdicts = []
-    for member, thread, slot in running:
-        allowed = float(member.get('timeout', MEMBER_DEFAULT_SECONDS))
-        thread.join(max(started + allowed - _chock_time.monotonic(), 0.0))
-        if slot['done']:
-            verdicts.append(slot['verdict'])
-        else:
-            verdicts.append((VERDICT_DENY, f'{member_name(member)} gave no verdict within {allowed:g}s, so it refuses this call.'))
+    saved = (sys.stdin, sys.stdout, sys.stderr)
+    sys.stdin, sys.stdout, sys.stderr = (io.StringIO(''), io.StringIO(), io.StringIO())
+    try:
+        running = []
+        for member in members:
+            slot = {'done': False, 'verdict': None}
+            thread = _chock_threading.Thread(target=_member_thread, args=(member, judge_one, slot), daemon=True)
+            thread.start()
+            running.append((member, thread, slot))
+        verdicts = []
+        for member, thread, slot in running:
+            allowed = float(member.get('timeout', MEMBER_DEFAULT_SECONDS))
+            thread.join(max(started + allowed - _chock_time.monotonic(), 0.0))
+            if slot['done']:
+                verdicts.append(settle(slot['verdict'], can_ask=can_ask, warn_speaks=warn_speaks))
+            else:
+                verdicts.append((VERDICT_DENY, f'{member_name(member)} gave no verdict within {allowed:g}s, so it refuses this call.'))
+    finally:
+        sys.stdin, sys.stdout, sys.stderr = saved
     return verdicts
 
 def combine(verdicts):
@@ -2893,7 +2935,8 @@ def combine(verdicts):
     return None
 
 def flush_and_exit(code):
-    """Write what was said, then leave without waiting for a member thread that is still running."""
+    """End every child tree a member left running, write what was said, then leave without waiting for its thread."""
+    kill_live_trees()
     for stream in (sys.stdout, sys.stderr):
         with contextlib.suppress(OSError, ValueError):
             stream.flush()

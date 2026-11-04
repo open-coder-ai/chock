@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import io
 import json
 import os
 import sys
@@ -11,7 +12,7 @@ import threading
 import time
 from pathlib import Path
 
-from .budget import MEMBER_DEADLINE
+from .budget import MEMBER_DEADLINE, kill_live_trees
 from .gate_outcome import VERDICT_WARN
 from .guard_runner import VERDICT_DENY, VERDICT_ESCALATE
 
@@ -44,6 +45,8 @@ def load_index(path, pin, root):
         if not pin or _sha256_of(path) != pin:
             return None, f"the policy index {path} does not match the hash the hook pins"
         members = json.loads(Path(path).read_text(encoding="utf-8"))["members"]
+        if not isinstance(members, list) or not members:
+            return None, f"the policy index {path} lists no policies, which is a build fault, never an allow"
         for member in members:
             for relative, expected in member["files"].items():
                 if _sha256_of(Path(root) / relative) != expected:
@@ -72,30 +75,53 @@ def _member_thread(member, judge_one, slot):
     MEMBER_DEADLINE.set(time.monotonic() + float(member.get("timeout", MEMBER_DEFAULT_SECONDS)))
     try:
         slot["verdict"] = judge_one(member["argv"])
-    except Exception as exc:  # noqa: BLE001 -- a crashing member refuses its own call, never the others'
+    except BaseException as exc:  # noqa: BLE001 -- a crashing member, even a SystemExit, refuses its own call at once
         slot["verdict"] = _fault(member, exc)
     slot["done"] = True
 
 
-def run_members(members, judge_one):
-    """Each member's verdict (or None), in index order. A member past its own deadline refuses its own call."""
+def settle(verdict, *, can_ask=True, warn_speaks=True):
+    """One member's verdict as the client can honour it: an ask the client ignores is a deny, a warn it never shows is nothing."""
+    if verdict is None:
+        return None
+    kind, reason = verdict
+    if kind == VERDICT_ESCALATE and not can_ask:
+        return VERDICT_DENY, reason
+    if kind == VERDICT_WARN and not warn_speaks:
+        return None
+    return verdict
+
+
+def run_members(members, judge_one, *, can_ask=True, warn_speaks=True):
+    """Each member's settled verdict (or None), in index order. A member past its own deadline refuses its own call.
+
+    The members share this process's streams, so they get none: stdin is empty and what they print is dropped.
+    """
     started = time.monotonic()
-    running = []
-    for member in members:
-        slot = {"done": False, "verdict": None}
-        thread = threading.Thread(target=_member_thread, args=(member, judge_one, slot), daemon=True)
-        thread.start()
-        running.append((member, thread, slot))
-    verdicts = []
-    for member, thread, slot in running:
-        allowed = float(member.get("timeout", MEMBER_DEFAULT_SECONDS))
-        thread.join(max(started + allowed - time.monotonic(), 0.0))
-        if slot["done"]:
-            verdicts.append(slot["verdict"])
-        else:
-            verdicts.append(
-                (VERDICT_DENY, f"{member_name(member)} gave no verdict within {allowed:g}s, so it refuses this call.")
-            )
+    saved = sys.stdin, sys.stdout, sys.stderr
+    sys.stdin, sys.stdout, sys.stderr = io.StringIO(""), io.StringIO(), io.StringIO()
+    try:
+        running = []
+        for member in members:
+            slot = {"done": False, "verdict": None}
+            thread = threading.Thread(target=_member_thread, args=(member, judge_one, slot), daemon=True)
+            thread.start()
+            running.append((member, thread, slot))
+        verdicts = []
+        for member, thread, slot in running:
+            allowed = float(member.get("timeout", MEMBER_DEFAULT_SECONDS))
+            thread.join(max(started + allowed - time.monotonic(), 0.0))
+            if slot["done"]:
+                verdicts.append(settle(slot["verdict"], can_ask=can_ask, warn_speaks=warn_speaks))
+            else:
+                verdicts.append(
+                    (
+                        VERDICT_DENY,
+                        f"{member_name(member)} gave no verdict within {allowed:g}s, so it refuses this call.",
+                    )
+                )
+    finally:
+        sys.stdin, sys.stdout, sys.stderr = saved
     return verdicts
 
 
@@ -111,7 +137,8 @@ def combine(verdicts):
 
 
 def flush_and_exit(code):
-    """Write what was said, then leave without waiting for a member thread that is still running."""
+    """End every child tree a member left running, write what was said, then leave without waiting for its thread."""
+    kill_live_trees()
     for stream in (sys.stdout, sys.stderr):
         with contextlib.suppress(OSError, ValueError):
             stream.flush()

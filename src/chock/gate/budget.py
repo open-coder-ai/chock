@@ -79,6 +79,28 @@ def last_state(var):
     return state
 
 
+#: Every child process tree still running, by pid: `run_tree` and the pattern judge enter theirs, so a multi-policy
+#: hook can end what a member that never returned left behind before it exits.
+LIVE_TREES = {}
+
+
+def track_tree(proc):
+    """Record `proc` (started with `tree_spawn_options`) as a tree to end if the hook leaves while it runs."""
+    LIVE_TREES[proc.pid] = proc
+
+
+def untrack_tree(proc):
+    """Forget `proc`: it ended, or its tree was killed."""
+    LIVE_TREES.pop(proc.pid, None)
+
+
+def kill_live_trees():
+    """Kill every tree still recorded, whichever thread started it."""
+    for proc in tuple(LIVE_TREES.copy().values()):
+        kill_tree(proc)
+        untrack_tree(proc)
+
+
 def tree_spawn_options():
     """Popen options that put a child in its own process group (POSIX session; Windows new process group)."""
     if os.name == "nt":
@@ -108,12 +130,15 @@ def run_tree(argv, *, timeout=None, **options):
     if "text" in options or "encoding" in options:
         options["text"] = True
     with subprocess.Popen(argv, **options, **tree_spawn_options()) as proc:  # noqa: S603 -- callers pass their own fixed argv
+        track_tree(proc)
         try:
             out, err = proc.communicate(stdin_text, timeout=timeout)
         except BaseException:
             kill_tree(proc)
             proc.communicate()
             raise
+        finally:
+            untrack_tree(proc)
     return subprocess.CompletedProcess(argv, proc.returncode, out, err)
 
 
@@ -159,6 +184,7 @@ def _start_judge(judge):
     lines = queue.Queue()
     threading.Thread(target=_pump_lines, args=(proc, lines), daemon=True).start()
     judge["proc"], judge["lines"] = proc, lines
+    track_tree(proc)
     try:
         ready = lines.get(timeout=PATTERN_START_SECONDS)
     except queue.Empty:
@@ -178,6 +204,7 @@ def close_judge(judge):
     if proc.poll() is None:
         kill_tree(proc)  # before closing stdout: the reader thread holds it until the child's EOF
     proc.wait()
+    untrack_tree(proc)
     try:
         spoken = proc.stderr.read()
     except (OSError, ValueError):
