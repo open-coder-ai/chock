@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from chock import vendors
-from chock.hooks import config_write, heartbeat, launch, stop_check
+from chock.hooks import config_write, heartbeat, launch, multi_wiring, stop_check
 from chock.hooks.in_agent_toml import install_toml, installed_toml_ids
 from chock.hooks.runtime_vendor import runtime_rel, vendor_runtime
 
@@ -101,6 +101,11 @@ def _fragments(repo_root: Path, vendor: str) -> list[tuple[str, Any]]:
     return found
 
 
+def pre_tool_events(vendor: str) -> tuple[str, ...]:
+    """The event keys whose per-policy entries fold into pinned indexes: the ones that judge a call before it runs."""
+    return tuple({vendors.pre_tool_event(vendor), vendors.shell_gate_event(vendor)})
+
+
 def quote_free(vendor: str) -> bool:
     """Whether sync writes `vendor`'s commands quote-free: the rule and store data its plugin follows (hook_dir.quote_free)."""
     from chock.plugin import hook_dir  # noqa: PLC0415 -- the plugin side imports this package
@@ -158,6 +163,7 @@ def install_generic(repo_root: Path, vendor: str, *, uninstall: bool = False) ->
     _strip_ours(settings, marker)
 
     if not fragments:
+        multi_wiring.prune(repo_root, vendor, set())
         _sync_runtime(repo_root, vendor, wanted=False)
         if config_path.exists() and prior:
             if settings:
@@ -171,6 +177,9 @@ def install_generic(repo_root: Path, vendor: str, *, uninstall: bool = False) ->
     beats = [("heartbeat", beat)] if isinstance(beat, dict) else []
     for _policy_id, fragment in _for_runner(vendor, [*fragments, *stopping, *beats]):
         _merge(settings, fragment)
+    kept: set[str] = set()
+    multi_wiring.collapse_events(repo_root, vendor, settings, pre_tool_events(vendor), kept)
+    multi_wiring.prune(repo_root, vendor, kept)
     config_write.write_json(repo_root, config_rel, settings)
     return [policy_id for policy_id, _ in fragments]
 
@@ -197,6 +206,7 @@ def installed_generic_ids(repo_root: Path, vendor: str) -> set[str]:
         _collect_ours(fragment, marker, wanted)
         if wanted:
             wanted_by.add(policy_id)
-        if not set(wanted) <= set(present):
+        absent = [entry for key, entry in wanted.items() if key not in present]
+        if any(not multi_wiring.member_installed(repo_root, vendor, settings, entry) for entry in absent):
             missing.add(policy_id)
     return wanted_by - missing

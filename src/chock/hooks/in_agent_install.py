@@ -13,7 +13,7 @@ from chock.compile.emitters.in_agent import (
     GENERIC_VENDORS,
 )
 from chock.compile.emitters.in_agent_tool_call import COPILOT_FILE
-from chock.hooks import config_write, heartbeat, stop_check
+from chock.hooks import config_write, heartbeat, multi_wiring, stop_check
 from chock.hooks.in_agent_generic import install_generic, installed_generic_ids
 from chock.hooks.in_agent_merged import MERGED, install_merged, installed_merged_ids
 from chock.hooks.runtime_vendor import vendor_runtime
@@ -109,6 +109,7 @@ def _install_agent_hooks(repo_root: Path, *, uninstall: bool = False) -> list[st
     config_write.check_unlinked(repo_root, rel)
     if not entries:
         config_write.remove(repo_root, rel)
+        multi_wiring.prune(repo_root, _OWNED_FILE_VENDOR, set())
         return []
     vendor_runtime(repo_root, _OWNED_FILE_VENDOR)
     events: dict[str, list[dict]] = {}
@@ -119,6 +120,10 @@ def _install_agent_hooks(repo_root: Path, *, uninstall: bool = False) -> list[st
         events.setdefault(event, []).extend(stop)
     for event, beat in heartbeat.copilot_entries(_OWNED_FILE_VENDOR).items():
         events.setdefault(event, []).extend(beat)
+    kept: set[str] = set()
+    for event in {AGENT_HOOKS_EVENT, vendors.pre_tool_event(_OWNED_FILE_VENDOR)} & events.keys():
+        events[event] = multi_wiring.collapse_list(repo_root, _OWNED_FILE_VENDOR, event, events[event], kept)
+    multi_wiring.prune(repo_root, _OWNED_FILE_VENDOR, kept)
     doc = {**AGENT_HOOKS_ENVELOPE, "hooks": dict(sorted(events.items()))}
     config_write.write_json(repo_root, rel, doc)
     return sorted(entries)
@@ -176,6 +181,10 @@ def installed_policy_ids(repo_root: Path, vendor: str) -> set[str]:
         return {
             pid
             for pid, by_event in _compiled_agent_hooks(repo_root).items()
-            if all(entry in installed.get(event, []) for event, kept in by_event.items() for entry in kept)
+            if all(
+                entry in installed.get(event, []) or multi_wiring.member_installed(repo_root, vendor, installed, entry)
+                for event, kept in by_event.items()
+                for entry in kept
+            )
         }
     return installed_merged_ids(repo_root, vendor)

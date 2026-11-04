@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from chock import vendors
-from chock.hooks import heartbeat, stop_check
+from chock.hooks import heartbeat, multi_wiring, stop_check
 from chock.hooks.in_agent_generic import load_config as _load_config
 from chock.hooks.runtime_vendor import owned_markers, runtime_rel, vendor_runtime
 from chock.scaffold.mcp_write import _lstat_checked, write_file
@@ -30,6 +30,8 @@ class Wiring(NamedTuple):
     fragment_glob: str
     flat: bool
     report_key: str
+    #: Whether the per-policy entries under this event fold into one entry per matcher (a pinned policy index).
+    multi: bool = False
 
 
 class VendorWiring(NamedTuple):
@@ -51,6 +53,7 @@ MERGED = {
                 fragment_glob="*/pre-tool-use/pretooluse*.json",
                 flat=False,
                 report_key="matcher",
+                multi=True,
             ),
             # The same settings file, a second event key. Held apart from the one above
             # rather than folded into its glob: entries under one event are not entries
@@ -88,6 +91,7 @@ MERGED = {
                 fragment_glob="*/pre-tool-use/cursor-hooks.json",
                 flat=True,
                 report_key="command",
+                multi=True,
             ),
             # The generic pre-tool event, a different key from the shell one above: a content
             # gate judges the file a Write would leave, the shell guard judges a command.
@@ -97,6 +101,7 @@ MERGED = {
                 fragment_glob="*/pre-tool-use/cursor-[wt]*-hooks.json",
                 flat=True,
                 report_key="command",
+                multi=True,
             ),
             Wiring(
                 event=vendors.stop_event("cursor"),
@@ -204,6 +209,11 @@ def install_merged(repo_root: Path, vendor: str, *, uninstall: bool = False) -> 
     for wiring, wanted in zip(vendor_wiring.wirings, wanted_by, strict=True):
         stops = stopping.get(wiring.event, [])  # last, matching every tool, whatever the policies match
         reported.extend(_merge_event(hooks, wiring, [*wanted, *stops], markers)[: len(wanted)])
+    kept: set[str] = set()
+    for wiring in vendor_wiring.wirings:
+        if wiring.multi and isinstance(hooks.get(wiring.event), list):
+            hooks[wiring.event] = multi_wiring.collapse_list(repo_root, vendor, wiring.event, hooks[wiring.event], kept)
+    multi_wiring.prune(repo_root, vendor, kept)
     _merge_heartbeat(hooks, vendor, markers, wanted=installed_any)
 
     if installed_any or _runtime_referenced(hooks, vendor):
@@ -278,6 +288,8 @@ def installed_merged_ids(repo_root: Path, vendor: str) -> set[str]:
             wanted = list(fragment.get(wiring.event, []) or []) if wiring.flat else [fragment]
             for candidate in wanted:
                 wanted_by.add(policy_id)
-                if not any(e == candidate for e in entries if isinstance(e, dict)):
+                if not any(e == candidate for e in entries if isinstance(e, dict)) and not (
+                    wiring.multi and multi_wiring.member_installed(repo_root, vendor, hooks, candidate)
+                ):
                     missing.add(policy_id)
     return wanted_by - missing
