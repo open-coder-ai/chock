@@ -2860,6 +2860,19 @@ def _escapes(path):
     """True for a path that is absolute or climbs out of the root by a `..` part, on either path flavour."""
     return any((flavour(path).is_absolute() or '..' in flavour(path).parts or flavour(path).drive for flavour in (_chock_PurePosixPath, _chock_PureWindowsPath)))
 
+def _member_fault(member, root):
+    """Why one index member cannot be trusted (an escaping path, a file off its pin, an unreadable shape), else None."""
+    named = [*member['files'], *(a for a in member['argv'] if isinstance(a, str) and (not a.startswith('-')))]
+    for relative in named:
+        if not isinstance(relative, str) or _escapes(relative):
+            return f'the policy index names {relative!r}, which is outside the repository root'
+    for relative, expected in member['files'].items():
+        if _sha256_of(_chock_Path(root) / relative) != expected:
+            return f'{relative} does not match the hash the policy index pins'
+    if not isinstance(member['argv'], list) or not float(member.get('timeout', MEMBER_DEFAULT_SECONDS)) > 0:
+        return 'the policy index holds a member chock cannot read'
+    return None
+
 def load_index(path, pin, root):
     """(members, None) when the index matches its pin and every member's files match theirs; else (None, why)."""
     try:
@@ -2869,15 +2882,9 @@ def load_index(path, pin, root):
         if not isinstance(members, list) or not members:
             return (None, f'the policy index {path} lists no policies, which is a build fault, never an allow')
         for member in members:
-            named = [*member['files'], *(a for a in member['argv'] if isinstance(a, str) and (not a.startswith('-')))]
-            for relative in named:
-                if not isinstance(relative, str) or _escapes(relative):
-                    return (None, f'the policy index names {relative!r}, which is outside the repository root')
-            for relative, expected in member['files'].items():
-                if _sha256_of(_chock_Path(root) / relative) != expected:
-                    return (None, f'{relative} does not match the hash the policy index pins')
-            if not isinstance(member['argv'], list) or not float(member.get('timeout', MEMBER_DEFAULT_SECONDS)) > 0:
-                return (None, 'the policy index holds a member chock cannot read')
+            why = _member_fault(member, root)
+            if why:
+                return (None, why)
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
         return (None, f'the policy index {path} cannot be read ({type(exc).__name__})')
     return (members, None)

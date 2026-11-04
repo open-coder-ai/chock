@@ -70,7 +70,12 @@ def test_every_member_carries_the_timeout_its_policy_runs_under_today(wired: Pat
     for policy in GUARDS:
         compiled = json.loads((wired / ".chock/compiled" / policy / "pre-tool-use/pretooluse.json").read_text("utf-8"))
         assert {h["timeout"] for h in compiled["hooks"]} == {TIMEOUT_SECONDS}
-    seen = [m["timeout"] for v in FOLDED for i in _indexes(wired, v) for m in _members(wired, i.relative_to(wired).as_posix())]
+    seen = [
+        m["timeout"]
+        for v in FOLDED
+        for i in _indexes(wired, v)
+        for m in _members(wired, i.relative_to(wired).as_posix())
+    ]
     assert seen
     assert set(seen) == {ENGINE_BUDGET_SECONDS} == {TIMEOUT_SECONDS - STARTUP_MARGIN_SECONDS}
 
@@ -131,7 +136,10 @@ def test_a_member_file_edited_after_sync_is_index_drift(wired: Path, tmp_path: P
     shutil.copytree(wired, root)
     guard = root / ".agents" / "policies" / GUARDS[1] / "implementations" / f"{GUARDS[1]}.py"
     guard.write_text(guard.read_text(encoding="utf-8") + "\n# edited\n", encoding="utf-8")
-    assert any(d.startswith(f"differs: {INDEX_DIR.as_posix()}/claude_code-") for d in wiring_differences(root, ("claude_code",)))
+    assert any(
+        d.startswith(f"differs: {INDEX_DIR.as_posix()}/claude_code-")
+        for d in wiring_differences(root, ("claude_code",))
+    )
 
 
 def test_uninstalling_a_vendor_removes_its_indexes(wired: Path, tmp_path: Path) -> None:
