@@ -62,6 +62,19 @@ def test_the_guards_share_one_entry_whose_pin_is_the_hash_of_the_index(wired: Pa
     assert "--guard" not in text, f"{vendor}: a per-policy guard entry is left"
 
 
+def test_every_member_carries_the_timeout_its_policy_runs_under_today(wired: Path) -> None:
+    """Today every policy's entry carries TIMEOUT_SECONDS (the 30 s engine budget + the start-up margin), so every member is 30 s."""
+    from chock.compile.emitters.in_agent_hooks import STARTUP_MARGIN_SECONDS, TIMEOUT_SECONDS
+    from chock.gate.budget import ENGINE_BUDGET_SECONDS
+
+    for policy in GUARDS:
+        compiled = json.loads((wired / ".chock/compiled" / policy / "pre-tool-use/pretooluse.json").read_text("utf-8"))
+        assert {h["timeout"] for h in compiled["hooks"]} == {TIMEOUT_SECONDS}
+    seen = [m["timeout"] for v in FOLDED for i in _indexes(wired, v) for m in _members(wired, i.relative_to(wired).as_posix())]
+    assert seen
+    assert set(seen) == {ENGINE_BUDGET_SECONDS} == {TIMEOUT_SECONDS - STARTUP_MARGIN_SECONDS}
+
+
 def test_a_vendor_whose_timeout_is_unknown_keeps_one_entry_per_policy(wired: Path) -> None:
     text = _config_text(wired, "windsurf")
     assert text.count("--guard") >= len(GUARDS)
