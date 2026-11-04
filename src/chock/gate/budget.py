@@ -13,8 +13,11 @@ module's definitions (chock.gate.runtime_shared), and so does the vendored runne
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import json
+import os
 import queue
+import signal
 import subprocess
 import sys
 import threading
@@ -56,9 +59,87 @@ PATTERN_JUDGE_SOURCE = (
 )
 
 
+#: A member's own deadline (absolute monotonic instant) in a multi-policy hook; each member's thread sets it,
+#: so it never reaches another thread. Unset, `engine_deadline` is today's single-policy budget.
+MEMBER_DEADLINE = contextvars.ContextVar("chock_member_deadline", default=None)
+
+
 def engine_deadline():
-    """The monotonic instant this invocation's budget runs out."""
-    return time.monotonic() + ENGINE_BUDGET_SECONDS
+    """The monotonic instant this invocation's budget runs out: the member's own deadline when one is set."""
+    member = MEMBER_DEADLINE.get()
+    return member if member is not None else time.monotonic() + ENGINE_BUDGET_SECONDS
+
+
+def last_state(var):
+    """This thread's mutable record in the ContextVar `var`: a thread starts with none, so none is shared."""
+    state = var.get(None)
+    if state is None:
+        state = {}
+        var.set(state)
+    return state
+
+
+#: Every child process tree still running, by pid: `run_tree` and the pattern judge enter theirs, so a multi-policy
+#: hook can end what a member that never returned left behind before it exits.
+LIVE_TREES = {}
+
+
+def track_tree(proc):
+    """Record `proc` (started with `tree_spawn_options`) as a tree to end if the hook leaves while it runs."""
+    LIVE_TREES[proc.pid] = proc
+
+
+def untrack_tree(proc):
+    """Forget `proc`: it ended, or its tree was killed."""
+    LIVE_TREES.pop(proc.pid, None)
+
+
+def kill_live_trees():
+    """Kill every tree still recorded, whichever thread started it."""
+    for proc in tuple(LIVE_TREES.copy().values()):
+        kill_tree(proc)
+        untrack_tree(proc)
+
+
+def tree_spawn_options():
+    """Popen options that put a child in its own process group (POSIX session; Windows new process group)."""
+    if os.name == "nt":
+        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"start_new_session": True}
+
+
+def kill_tree(proc):
+    """Kill `proc` and everything it started: killpg on POSIX, `taskkill /T /F` on Windows."""
+    with contextlib.suppress(OSError):
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)], capture_output=True, check=False)  # noqa: S603, S607 -- the OS tool that ends a process tree
+        else:
+            os.killpg(proc.pid, signal.SIGKILL)
+    with contextlib.suppress(OSError):
+        proc.kill()
+
+
+def run_tree(argv, *, timeout=None, **options):
+    """`subprocess.run` that, on a timeout, kills the child's whole process tree before raising."""
+    options.pop("check", None)
+    stdin_text = options.pop("input", None)
+    if options.pop("capture_output", False):
+        options.update(stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if stdin_text is not None:
+        options["stdin"] = subprocess.PIPE
+    if "text" in options or "encoding" in options:
+        options["text"] = True
+    with subprocess.Popen(argv, **options, **tree_spawn_options()) as proc:  # noqa: S603 -- callers pass their own fixed argv
+        track_tree(proc)
+        try:
+            out, err = proc.communicate(stdin_text, timeout=timeout)
+        except BaseException:
+            kill_tree(proc)
+            proc.communicate()
+            raise
+        finally:
+            untrack_tree(proc)
+    return subprocess.CompletedProcess(argv, proc.returncode, out, err)
 
 
 def engine_remaining(deadline):
@@ -98,10 +179,12 @@ def _start_judge(judge):
         stderr=subprocess.PIPE,
         text=True,
         encoding="utf-8",
+        **tree_spawn_options(),
     )
     lines = queue.Queue()
     threading.Thread(target=_pump_lines, args=(proc, lines), daemon=True).start()
     judge["proc"], judge["lines"] = proc, lines
+    track_tree(proc)
     try:
         ready = lines.get(timeout=PATTERN_START_SECONDS)
     except queue.Empty:
@@ -119,8 +202,9 @@ def close_judge(judge):
     if proc is None:
         return ""
     if proc.poll() is None:
-        proc.kill()  # before closing stdout: the reader thread holds it until the child's EOF
+        kill_tree(proc)  # before closing stdout: the reader thread holds it until the child's EOF
     proc.wait()
+    untrack_tree(proc)
     try:
         spoken = proc.stderr.read()
     except (OSError, ValueError):

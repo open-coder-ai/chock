@@ -11,6 +11,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from _members import unfold
 from bundle_fixtures import hook_commands
 from conftest import baseline_policy, init_repo
 from runtime_payloads import DENY_ON_THE_WIRE, PAYLOADS
@@ -43,7 +44,7 @@ def _synced(tmp_path: Path, agent: str = AGENT) -> Path:
 
 
 def _commands(repo: Path, vendor: str = AGENT) -> list[str]:
-    return hook_commands(json.loads((repo / vendors.config_path(vendor)).read_text(encoding="utf-8")))
+    return hook_commands(unfold(repo, json.loads((repo / vendors.config_path(vendor)).read_text(encoding="utf-8"))))
 
 
 def _tree(repo: Path) -> dict[str, bytes]:

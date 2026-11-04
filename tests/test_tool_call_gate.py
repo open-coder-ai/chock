@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+from _members import unfold
 from tool_call_support import POLICY_ID, SCRIPT, fire, make_repo, pre_payload, tool_call_gate
 
 from chock import vendors
@@ -86,7 +87,7 @@ def test_every_emitted_fragment_is_one_an_installer_reads(tmp_path: Path) -> Non
     assert {"PreToolUse", "PostToolUse", "PostToolUseFailure"} <= set(settings)
     cursor = json.loads((repo / ".cursor" / "hooks.json").read_text())["hooks"]
     assert {"preToolUse", "postToolUse", "postToolUseFailure"} <= set(cursor)
-    copilot = json.loads((repo / ".github" / "hooks" / "chock.json").read_text())["hooks"]
+    copilot = unfold(repo, json.loads((repo / ".github" / "hooks" / "chock.json").read_text()))["hooks"]
     assert "--tool-call" in json.dumps(copilot["PreToolUse"])
     assert "PostToolUse" not in copilot, "Copilot's own hooks file has no witnessed PostToolUse"
 

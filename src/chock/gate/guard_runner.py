@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextvars
 import os
 import re
 import shlex
@@ -10,7 +11,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .budget import BYTECODE_OFF, ENGINE_BUDGET_SECONDS, engine_deadline, engine_remaining, time_left
+from .budget import (
+    BYTECODE_OFF,
+    ENGINE_BUDGET_SECONDS,
+    engine_deadline,
+    engine_remaining,
+    last_state,
+    run_tree,
+    time_left,
+)
 from .runner.journal import log_write
 
 GUARD_VIOLATION = 1
@@ -48,7 +57,7 @@ _WINDOWS = "nt"
 _FOUND_BASH = {}
 
 #: The last guard run in this process: its `outcome` and exit `code`, for the decision log.
-GUARD_LAST = {}
+GUARD_LAST = contextvars.ContextVar("chock_guard_last")
 GUARD_MISSING = "missing"
 
 _BASH_PROBE_SECONDS = 10
@@ -189,7 +198,7 @@ def run_guard_detailed(guard: Path, command: str, tool: str = "", *, can_ask: bo
         if fallback:
             env[ARGV_FALLBACK_ENV] = "1"
         env.update({} if can_ask is None else {CAN_ASK_ENV: "1" if can_ask else "0"})
-        proc = subprocess.run(  # noqa: S603 -- running the guard script against the command is the feature
+        proc = run_tree(
             [interpreter, str(guard), *args],
             capture_output=True,
             text=True,
@@ -209,7 +218,7 @@ def run_guard_detailed(guard: Path, command: str, tool: str = "", *, can_ask: bo
         print(f"chock: guard could not run, not checked: {exc}", file=sys.stderr)
         return GUARD_ERRORED, ""
 
-    GUARD_LAST["code"] = proc.returncode
+    last_state(GUARD_LAST)["code"] = proc.returncode
     output = ((proc.stderr or "") + (proc.stdout or "")).strip()
     first_line = output.splitlines()[0].strip() if output else ""
     if proc.returncode == GUARD_VIOLATION:
@@ -243,7 +252,7 @@ def evaluate(argv: list[str], command: str, tool: str = "", *, can_ask: bool | N
     if guard is None:
         return None
     if not guard.exists():
-        GUARD_LAST["outcome"] = GUARD_MISSING
+        last_state(GUARD_LAST)["outcome"] = GUARD_MISSING
         # The hook config names this guard, so its absence is a broken install, not "nothing to check".
         return (
             VERDICT_DENY,
@@ -251,7 +260,7 @@ def evaluate(argv: list[str], command: str, tool: str = "", *, can_ask: bool | N
             "Run `chock sync --repo .` to reinstall the policy's guards.",
         )
     verdict, message = run_guard_detailed(guard, command, tool, can_ask=can_ask)
-    GUARD_LAST["outcome"] = verdict
+    last_state(GUARD_LAST)["outcome"] = verdict
     if verdict == GUARD_BLOCKED:
         return (VERDICT_DENY, f"Blocked by chock policy: {guard.stem}: {message}")
     if verdict == GUARD_ASKED:

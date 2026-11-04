@@ -10,6 +10,7 @@ from conftest import baseline_policy, init_repo
 from chock.gate import runtime_bundle
 from chock.hooks.in_agent_install import WIRED_VENDORS
 from chock.hooks.launch import LAUNCHER_REL
+from chock.hooks.multi_wiring import INDEX_DIR
 from chock.scaffold.recompile import recompile, wired_vendors
 from chock.vendors import CHOCK_AGENT
 
@@ -44,9 +45,11 @@ def test_a_claude_only_repo_gets_no_other_vendors_config(tmp_path: Path) -> None
     runtimes = sorted(
         p.name
         for p in (repo / ".chock" / "bin").iterdir()
-        if p.name not in {"gate.py", "launch.sh", runtime_bundle.SHARED_FILE}
+        if p.name not in {"gate.py", "launch.sh", "index", runtime_bundle.SHARED_FILE}
     )
     assert runtimes == ["claude_code.py"], "no other vendor's runtime is vendored either"
+    indexes = [p.name for p in (repo / INDEX_DIR).iterdir()]
+    assert indexes and all(name.startswith("claude_code-") for name in indexes), "no other vendor's policy index either"
     assert (repo / LAUNCHER_REL).is_file(), "the launcher every hook command runs"
 
 

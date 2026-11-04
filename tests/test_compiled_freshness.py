@@ -8,6 +8,9 @@ from pathlib import Path
 import pytest
 import yaml
 
+from chock.compile.emitters.in_agent_hooks import adapter_rel
+from chock.hooks.launch import hook_command
+from chock.hooks.multi_wiring import INDEX_DIR
 from chock.hooks.wiring_drift import wiring_differences
 from chock.scaffold.recompile import compiled_differences, recompile, wired_vendors
 
@@ -223,12 +226,31 @@ def test_a_freshly_synced_repo_has_no_wiring_drift(wired_repo: Path) -> None:
 
 def test_wiring_naming_a_missing_guard_is_drift(wired_repo: Path) -> None:
     """The defect as found: the config kept pointing at a guard script a later sync replaced."""
-    config = wired_repo / CLAUDE_WIRING
-    text = config.read_text(encoding="utf-8")
+    index = next((wired_repo / INDEX_DIR).glob("claude_code-PreToolUse-*.json"))
+    text = index.read_text(encoding="utf-8")
     assert "block-destructive-commands.py" in text
-    config.write_text(text.replace("block-destructive-commands.py", "block-destructive.sh"), encoding="utf-8")
+    index.write_text(text.replace("block-destructive-commands.py", "block-destructive.sh"), encoding="utf-8")
 
-    assert f"differs: {CLAUDE_WIRING.as_posix()}" in compiled_differences(wired_repo, AGENTS)
+    assert f"differs: {INDEX_DIR.as_posix()}/{index.name}" in compiled_differences(wired_repo, AGENTS)
+
+
+def test_a_config_from_before_the_index_is_drift_and_still_runs_its_policies(wired_repo: Path) -> None:
+    """An old per-policy entry is not refused: sync is told to rewrite it as an index entry."""
+    from chock.hooks.in_agent_install import install_hooks
+
+    config = wired_repo / CLAUDE_WIRING
+    folded = json.loads(config.read_text(encoding="utf-8"))
+    guard = ".agents/policies/block-destructive-commands/implementations/block-destructive-commands.py"
+    old = hook_command(adapter_rel("claude_code"), "--guard", guard)
+    for entry in folded["hooks"]["PreToolUse"]:
+        for hook in entry["hooks"]:
+            if "--multi" in hook["command"]:
+                hook["command"] = old
+    config.write_text(json.dumps(folded), encoding="utf-8")
+
+    assert f"differs: {CLAUDE_WIRING.as_posix()}" in wiring_differences(wired_repo, wired_vendors(AGENTS))
+    install_hooks(wired_repo, "claude_code")
+    assert not wiring_differences(wired_repo, wired_vendors(AGENTS))
 
 
 def test_foreign_hook_entries_are_not_drift(wired_repo: Path) -> None:

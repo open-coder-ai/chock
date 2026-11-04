@@ -9,6 +9,8 @@ from pathlib import Path
 
 from chock import vendors
 from chock.hooks.in_agent_install import agent_hooks_rel, install_hooks
+from chock.hooks.multi_wiring import INDEX_DIR
+from chock.policies import discover_policy_dirs
 
 
 def _wired_config_rel(vendor: str) -> Path:
@@ -34,6 +36,32 @@ def _canonical(path: Path) -> object:
         return path.read_bytes()
 
 
+def _index_files(root: Path, wired: tuple[str, ...]) -> dict[str, bytes]:
+    """{posix path: bytes} of the pinned policy indexes of the `wired` vendors under `root`."""
+    folder = root / INDEX_DIR
+    found = folder.glob("*.json") if folder.is_dir() else []
+    return {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in sorted(found)
+        if any(path.name.startswith(f"{vendor}-") for vendor in wired)
+    }
+
+
+def _copy_pinned_files(repo_root: Path, shadow: Path) -> None:
+    """The compiled tree and the policy folders, which the indexes sync writes pin file by file."""
+    if (repo_root / ".chock" / "compiled").exists():
+        shutil.copytree(repo_root / ".chock" / "compiled", shadow / ".chock" / "compiled")
+    for pack in discover_policy_dirs(repo_root):
+        shutil.copytree(pack, shadow / pack.relative_to(repo_root), dirs_exist_ok=True)
+
+
+def _index_differences(expected: dict[str, bytes], actual: dict[str, bytes]) -> list[str]:
+    """Indexes sync would no longer write, and those it would write differently."""
+    return [f"stale: {rel}" for rel in sorted(actual.keys() - expected.keys())] + [
+        f"differs: {rel}" for rel, body in sorted(expected.items()) if actual.get(rel) != body
+    ]
+
+
 def wiring_differences(repo_root: Path | str, wired: tuple[str, ...]) -> list[str]:
     """Where a committed config of a `wired` vendor differs from what sync would install over it.
 
@@ -46,8 +74,7 @@ def wiring_differences(repo_root: Path | str, wired: tuple[str, ...]) -> list[st
     diffs: list[str] = []
     with tempfile.TemporaryDirectory(prefix="chock-wiringcheck-") as tmp:
         shadow = Path(tmp)
-        if (repo_root / ".chock" / "compiled").exists():
-            shutil.copytree(repo_root / ".chock" / "compiled", shadow / ".chock" / "compiled")
+        _copy_pinned_files(repo_root, shadow)
         for rel in rels.values():
             if (repo_root / rel).is_file():
                 (shadow / rel).parent.mkdir(parents=True, exist_ok=True)
@@ -66,4 +93,6 @@ def wiring_differences(repo_root: Path | str, wired: tuple[str, ...]) -> list[st
                 diffs.append(f"stale: {rel.as_posix()}")
             elif _canonical(expected) != _canonical(actual):
                 diffs.append(f"differs: {rel.as_posix()}")
+        written = tuple(vendor for vendor in wired if (repo_root / rels[vendor]).is_file())
+        diffs += _index_differences(_index_files(shadow, written), _index_files(repo_root, written))
     return diffs

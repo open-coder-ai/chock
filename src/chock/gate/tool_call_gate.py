@@ -25,6 +25,7 @@ from .budget import (
     engine_remaining,
     judge_patterns,
     pattern_judge,
+    run_tree,
     time_left,
 )
 from .session_log import (
@@ -99,7 +100,7 @@ def _tool_call_script(spec, root, payload, deadline=None):
     deadline = engine_deadline() if deadline is None else deadline
     argv = [sys.executable, str(script)]
     try:
-        proc = subprocess.run(  # noqa: S603 -- the script is the policy's own, named in its manifest
+        proc = run_tree(
             argv,
             input=json.dumps(payload),
             capture_output=True,

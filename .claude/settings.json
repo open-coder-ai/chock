@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/claude_code.py --guard \".agents/policies/block-destructive-commands/implementations/block-destructive-commands.py\"",
+            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/claude_code.py --multi \".chock/bin/index/claude_code-PreToolUse-3a2134a7.json\" --index-sha256 ebfc8620b51af8d70e3d11b25aeab3c58c3f13fedc2dc2c8d07541f2e0bf911a",
             "timeout": 45
           }
         ]
@@ -16,77 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/claude_code.py --gate \".chock/compiled/block-invisible-unicode/pre-tool-use/gate.json\"",
-            "timeout": 45
-          }
-        ]
-      },
-      {
-        "matcher": "Bash|PowerShell",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/claude_code.py --guard \".agents/policies/block-no-verify/implementations/block-no-verify.py\"",
-            "timeout": 45
-          }
-        ]
-      },
-      {
-        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/claude_code.py --gate \".chock/compiled/block-wildcard-agent-permissions/pre-tool-use/gate.json\"",
-            "timeout": 45
-          }
-        ]
-      },
-      {
-        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/claude_code.py --gate \".chock/compiled/pin-github-actions/pre-tool-use/gate.json\"",
-            "timeout": 45
-          }
-        ]
-      },
-      {
-        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/claude_code.py --gate \".chock/compiled/protect-agent-config/pre-tool-use/gate.json\"",
-            "timeout": 45
-          }
-        ]
-      },
-      {
-        "matcher": "Bash|PowerShell",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/claude_code.py --guard \".agents/policies/protect-agent-config/implementations/protect-agent-config.py\"",
-            "timeout": 45
-          }
-        ]
-      },
-      {
-        "matcher": "Bash|PowerShell",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/claude_code.py --guard \".agents/policies/protect-commit-privacy/implementations/protect-commit-privacy.py\"",
-            "timeout": 45
-          }
-        ]
-      },
-      {
-        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/claude_code.py --gate \".chock/compiled/scan-secrets/pre-tool-use/gate.json\"",
+            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/claude_code.py --multi \".chock/bin/index/claude_code-PreToolUse-4acdeb9e.json\" --index-sha256 2ff022397098e742808806927b5c3194e3f0aa0c162d50d22cd98eef4756f022",
             "timeout": 45
           }
         ]
@@ -95,7 +25,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/claude_code.py --tool-call \".chock/compiled/token-efficiency/pre-tool-use/tool-call-gate.json\"",
+            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/claude_code.py --multi \".chock/bin/index/claude_code-PreToolUse-185f9750.json\" --index-sha256 8acaa1f45d082758ffa5270a722263da96ccfd24038713be8e13a11220bd4d2d",
             "timeout": 45
           }
         ]

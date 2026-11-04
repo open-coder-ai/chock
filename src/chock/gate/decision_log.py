@@ -8,6 +8,7 @@ contents: a tool call's `target` is a fingerprint (decision_target.py).
 
 from __future__ import annotations
 
+import contextvars
 import json
 import os
 import re
@@ -15,6 +16,7 @@ import sys
 import time
 from pathlib import Path
 
+from .budget import last_state
 from .decision_target import _dlog_client, dlog_fields, dlog_session
 from .guard_runner import GUARD_LAST
 from .runner.halt import HALT_HOOK_FLAG, HALT_POLICY, HALT_REASON
@@ -48,7 +50,7 @@ _DLOG_DIST_INFO = re.compile(r"^chock-([^-]+)\.dist-info$")
 #: The pre-tool exit codes of a gate.py run that wrote its own line (allow, block, ask, warn); 2 wrote none.
 _DLOG_GATE_LOGGED_CODES = (0, 1, 3, 4)
 #: Set by write_gate when this call ran gate.py: `code` is its exit code.
-GATE_LAST = {}
+GATE_LAST = contextvars.ContextVar("chock_gate_last")
 
 
 def _dlog_flag_value(argv, flag):
@@ -120,8 +122,8 @@ def _dlog_trace(event, wire, rule, stages):
         trace["command"] = log_trace_text(event.command)
     if event.path:
         trace["path"] = log_trace_text(event.path)
-    if "code" in GUARD_LAST:
-        trace["exit_code"] = GUARD_LAST["code"]
+    if "code" in last_state(GUARD_LAST):
+        trace["exit_code"] = last_state(GUARD_LAST)["code"]
     return trace
 
 
@@ -131,8 +133,8 @@ def _dlog_reason(source, outcome):
         return "no-rule"
     if source == HALT_REASON:
         return HALT_REASON
-    if source == "guard" and "outcome" in GUARD_LAST:
-        guarded = GUARD_LAST["outcome"]
+    if source == "guard" and "outcome" in last_state(GUARD_LAST):
+        guarded = last_state(GUARD_LAST)["outcome"]
         return f"guard-{guarded}"
     if source == "fault":
         return source
@@ -158,7 +160,7 @@ def log_decision(argv, event, decision, judged, context):
         runtime = globals().get("__file__") or sys.argv[0]
         route = runtime_route(runtime)
         source, rule, started, stages = judged
-        gate_wrote = event.event != "pre_tool" or GATE_LAST.get("code") in _DLOG_GATE_LOGGED_CODES
+        gate_wrote = event.event != "pre_tool" or last_state(GATE_LAST).get("code") in _DLOG_GATE_LOGGED_CODES
         if route == DLOG_ROUTE_SYNC and _DLOG_GATE_FLAG in argv and source in (None, "gate") and gate_wrote:
             return  # gate.py and the stop re-entry ledger write this call's line on the sync route
         agent = str(getattr(event, "agent", None) or "unknown")

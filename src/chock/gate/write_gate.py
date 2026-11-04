@@ -16,7 +16,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .budget import allowed_seconds, engine_deadline, time_left
+from .budget import allowed_seconds, engine_deadline, last_state, run_tree, time_left
 from .decision_log import GATE_LAST
 from .decision_target import dlog_fields
 from .edit_image import added_from_event, created_text, edited_text
@@ -169,7 +169,7 @@ def run_gate(gate, writes, event, run_in, deadline):
         return GATE_ERRORED, "the vendored gate runner is not installed beside this gate"
     argv = [sys.executable, str(runner), "run", "--gate", str(gate), "--event", event]
     try:
-        proc = subprocess.run(  # noqa: S603 -- invoking the vendored runner is this function's job
+        proc = run_tree(
             argv,
             input=json.dumps({"writes": writes, **(extra or {})}),
             capture_output=True,
@@ -184,7 +184,7 @@ def run_gate(gate, writes, event, run_in, deadline):
         return GATE_ERRORED, f"the gate runner gave no verdict within {allowed_seconds(exc)}"
     except (OSError, subprocess.SubprocessError) as exc:
         return GATE_ERRORED, str(exc)
-    GATE_LAST["code"] = proc.returncode
+    last_state(GATE_LAST)["code"] = proc.returncode
     return runner_outcome(proc.returncode, proc.stderr)
 
 
@@ -262,7 +262,7 @@ def _gate_says(gate, event, deadline, root, case_blind):
 
 def evaluate_gate(argv, event, *, case_blind=None):
     """The decision this event earns from a compiled gate, or None when it has nothing to say."""
-    GATE_LAST.clear()
+    last_state(GATE_LAST).clear()
     gate = gate_path_from_argv(argv)
     if gate is None or getattr(event, "event", "") not in _EVENT_ARG:
         return None
