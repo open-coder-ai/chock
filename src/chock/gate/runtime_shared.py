@@ -17,6 +17,7 @@ from . import (
     edit_image,
     gate_outcome,
     guard_runner,
+    multi,
     outside_repo,
     patch_apply,
     patch_image,
@@ -158,6 +159,7 @@ _HANDLER_MODULES = (
     stop_roots,
     write_gate,
     tool_call_gate,
+    multi,
 )
 
 

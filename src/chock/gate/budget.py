@@ -70,6 +70,15 @@ def engine_deadline():
     return member if member is not None else time.monotonic() + ENGINE_BUDGET_SECONDS
 
 
+def last_state(var):
+    """This thread's mutable record in the ContextVar `var`: a thread starts with none, so none is shared."""
+    state = var.get(None)
+    if state is None:
+        state = {}
+        var.set(state)
+    return state
+
+
 def tree_spawn_options():
     """Popen options that put a child in its own process group (POSIX session; Windows new process group)."""
     if os.name == "nt":

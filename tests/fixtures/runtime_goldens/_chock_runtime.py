@@ -48,6 +48,14 @@ def engine_deadline():
     member = MEMBER_DEADLINE.get()
     return member if member is not None else _chock_time.monotonic() + ENGINE_BUDGET_SECONDS
 
+def last_state(var):
+    """This thread's mutable record in the ContextVar `var`: a thread starts with none, so none is shared."""
+    state = var.get(None)
+    if state is None:
+        state = {}
+        var.set(state)
+    return state
+
 def tree_spawn_options():
     """Popen options that put a child in its own process group (POSIX session; Windows new process group)."""
     if _chock_os.name == 'nt':
@@ -108,7 +116,7 @@ def _pump_lines(proc, lines):
     lines.put(None)
 
 def _start_judge(judge):
-    proc = _chock_subprocess.Popen(judge['argv'], stdin=_chock_subprocess.PIPE, stdout=_chock_subprocess.PIPE, stderr=_chock_subprocess.PIPE, text=True, encoding='utf-8')
+    proc = _chock_subprocess.Popen(judge['argv'], stdin=_chock_subprocess.PIPE, stdout=_chock_subprocess.PIPE, stderr=_chock_subprocess.PIPE, text=True, encoding='utf-8', **tree_spawn_options())
     lines = _chock_queue.Queue()
     _chock_threading.Thread(target=_pump_lines, args=(proc, lines), daemon=True).start()
     judge['proc'], judge['lines'] = (proc, lines)
@@ -128,7 +136,7 @@ def close_judge(judge):
     if proc is None:
         return ''
     if proc.poll() is None:
-        proc.kill()
+        kill_tree(proc)
     proc.wait()
     try:
         spoken = proc.stderr.read()
@@ -727,7 +735,7 @@ _WINDOWS = 'nt'
 
 _FOUND_BASH = {}
 
-GUARD_LAST = {}
+GUARD_LAST = _chock_contextvars.ContextVar('chock_guard_last')
 
 GUARD_MISSING = 'missing'
 
@@ -865,7 +873,7 @@ def run_guard_detailed(guard: _chock_Path, command: str, tool: str='', *, can_as
     except (OSError, UnicodeError) as exc:
         print(f'chock: guard could not run, not checked: {exc}', file=sys.stderr)
         return (GUARD_ERRORED, '')
-    GUARD_LAST['code'] = proc.returncode
+    last_state(GUARD_LAST)['code'] = proc.returncode
     output = ((proc.stderr or '') + (proc.stdout or '')).strip()
     first_line = output.splitlines()[0].strip() if output else ''
     if proc.returncode == GUARD_VIOLATION:
@@ -894,10 +902,10 @@ def evaluate(argv: list[str], command: str, tool: str='', *, can_ask: bool | Non
     if guard is None:
         return None
     if not guard.exists():
-        GUARD_LAST['outcome'] = GUARD_MISSING
+        last_state(GUARD_LAST)['outcome'] = GUARD_MISSING
         return (VERDICT_DENY, f"chock guard {guard} is missing, so this command cannot be checked. Run `chock sync --repo .` to reinstall the policy's guards.")
     verdict, message = run_guard_detailed(guard, command, tool, can_ask=can_ask)
-    GUARD_LAST['outcome'] = verdict
+    last_state(GUARD_LAST)['outcome'] = verdict
     if verdict == GUARD_BLOCKED:
         return (VERDICT_DENY, f'Blocked by chock policy: {guard.stem}: {message}')
     if verdict == GUARD_ASKED:
@@ -1041,7 +1049,7 @@ _DLOG_DIST_INFO = _chock_re.compile('^chock-([^-]+)\\.dist-info$')
 
 _DLOG_GATE_LOGGED_CODES = (0, 1, 3, 4)
 
-GATE_LAST = {}
+GATE_LAST = _chock_contextvars.ContextVar('chock_gate_last')
 
 def _dlog_flag_value(argv, flag):
     if flag in argv:
@@ -1106,8 +1114,8 @@ def _dlog_trace(event, wire, rule, stages):
         trace['command'] = log_trace_text(event.command)
     if event.path:
         trace['path'] = log_trace_text(event.path)
-    if 'code' in GUARD_LAST:
-        trace['exit_code'] = GUARD_LAST['code']
+    if 'code' in last_state(GUARD_LAST):
+        trace['exit_code'] = last_state(GUARD_LAST)['code']
     return trace
 
 def _dlog_reason(source, outcome):
@@ -1116,8 +1124,8 @@ def _dlog_reason(source, outcome):
         return 'no-rule'
     if source == HALT_REASON:
         return HALT_REASON
-    if source == 'guard' and 'outcome' in GUARD_LAST:
-        guarded = GUARD_LAST['outcome']
+    if source == 'guard' and 'outcome' in last_state(GUARD_LAST):
+        guarded = last_state(GUARD_LAST)['outcome']
         return f'guard-{guarded}'
     if source == 'fault':
         return source
@@ -1141,7 +1149,7 @@ def log_decision(argv, event, decision, judged, context):
         runtime = globals().get('__file__') or sys.argv[0]
         route = runtime_route(runtime)
         source, rule, started, stages = judged
-        gate_wrote = event.event != 'pre_tool' or GATE_LAST.get('code') in _DLOG_GATE_LOGGED_CODES
+        gate_wrote = event.event != 'pre_tool' or last_state(GATE_LAST).get('code') in _DLOG_GATE_LOGGED_CODES
         if route == DLOG_ROUTE_SYNC and _DLOG_GATE_FLAG in argv and (source in (None, 'gate')) and gate_wrote:
             return
         agent = str(getattr(event, 'agent', None) or 'unknown')
@@ -2601,7 +2609,7 @@ def run_gate(gate, writes, event, run_in, deadline):
         return (GATE_ERRORED, f'the gate runner gave no verdict within {allowed_seconds(exc)}')
     except (OSError, _chock_subprocess.SubprocessError) as exc:
         return (GATE_ERRORED, str(exc))
-    GATE_LAST['code'] = proc.returncode
+    last_state(GATE_LAST)['code'] = proc.returncode
     return runner_outcome(proc.returncode, proc.stderr)
 
 _EVENT_ARG = {'pre_tool': 'pre-tool-use', 'stop': 'stop'}
@@ -2660,7 +2668,7 @@ def _gate_says(gate, event, deadline, root, case_blind):
 
 def evaluate_gate(argv, event, *, case_blind=None):
     """The decision this event earns from a compiled gate, or None when it has nothing to say."""
-    GATE_LAST.clear()
+    last_state(GATE_LAST).clear()
     gate = gate_path_from_argv(argv)
     if gate is None or getattr(event, 'event', '') not in _EVENT_ARG:
         return None
@@ -2806,3 +2814,87 @@ def evaluate_tool_call(argv, event):
     if spec.get('kind') in _TOOL_CALL_NEEDS_SESSION:
         session_record(root, event, 'pre', _TOOL_CALL_BLOCKED if verdict and verdict[0] == 'deny' else None)
     return verdict
+
+MULTI_FLAG = '--multi'
+
+INDEX_SHA_FLAG = '--index-sha256'
+
+MEMBER_DEFAULT_SECONDS = 30
+
+_MEMBER_SEPARATOR = '\n'
+
+def multi_from_argv(argv):
+    """(index path, pinned sha256) when the hook command names an index, else None."""
+    if MULTI_FLAG not in argv:
+        return None
+    path = argv[argv.index(MULTI_FLAG) + 1] if argv.index(MULTI_FLAG) + 1 < len(argv) else ''
+    pin = argv[argv.index(INDEX_SHA_FLAG) + 1] if INDEX_SHA_FLAG in argv and argv.index(INDEX_SHA_FLAG) + 1 < len(argv) else ''
+    return (path, pin)
+
+def _sha256_of(path):
+    return _chock_hashlib.sha256(_chock_Path(path).read_bytes()).hexdigest()
+
+def load_index(path, pin, root):
+    """(members, None) when the index matches its pin and every member's files match theirs; else (None, why)."""
+    try:
+        if not pin or _sha256_of(path) != pin:
+            return (None, f'the policy index {path} does not match the hash the hook pins')
+        members = json.loads(_chock_Path(path).read_text(encoding='utf-8'))['members']
+        for member in members:
+            for relative, expected in member['files'].items():
+                if _sha256_of(_chock_Path(root) / relative) != expected:
+                    return (None, f'{relative} does not match the hash the policy index pins')
+            if not isinstance(member['argv'], list) or not float(member.get('timeout', MEMBER_DEFAULT_SECONDS)) > 0:
+                return (None, 'the policy index holds a member chock cannot read')
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+        return (None, f'the policy index {path} cannot be read ({type(exc).__name__})')
+    return (members, None)
+
+def _fault(member, exc):
+    return (VERDICT_DENY, f'chock could not check this call with {member_name(member)} ({type(exc).__name__}: {exc}). Refusing rather than reporting an allow it never established.')
+
+def member_name(member):
+    """A member's policy, as its argv names it (the file after its first flag)."""
+    return next((arg for arg in member['argv'][1:2]), 'a policy')
+
+def _member_thread(member, judge_one, slot):
+    MEMBER_DEADLINE.set(_chock_time.monotonic() + float(member.get('timeout', MEMBER_DEFAULT_SECONDS)))
+    try:
+        slot['verdict'] = judge_one(member['argv'])
+    except Exception as exc:
+        slot['verdict'] = _fault(member, exc)
+    slot['done'] = True
+
+def run_members(members, judge_one):
+    """Each member's verdict (or None), in index order. A member past its own deadline refuses its own call."""
+    started = _chock_time.monotonic()
+    running = []
+    for member in members:
+        slot = {'done': False, 'verdict': None}
+        thread = _chock_threading.Thread(target=_member_thread, args=(member, judge_one, slot), daemon=True)
+        thread.start()
+        running.append((member, thread, slot))
+    verdicts = []
+    for member, thread, slot in running:
+        allowed = float(member.get('timeout', MEMBER_DEFAULT_SECONDS))
+        thread.join(max(started + allowed - _chock_time.monotonic(), 0.0))
+        if slot['done']:
+            verdicts.append(slot['verdict'])
+        else:
+            verdicts.append((VERDICT_DENY, f'{member_name(member)} gave no verdict within {allowed:g}s, so it refuses this call.'))
+    return verdicts
+
+def combine(verdicts):
+    """One verdict from many, in index order: any deny wins, then any ask, then the warns; None when all allow."""
+    for outcome in (VERDICT_DENY, VERDICT_ESCALATE, VERDICT_WARN):
+        reasons = [reason for verdict in verdicts if verdict is not None for kind, reason in [verdict] if kind == outcome]
+        if reasons:
+            return (outcome, _MEMBER_SEPARATOR.join(reasons))
+    return None
+
+def flush_and_exit(code):
+    """Write what was said, then leave without waiting for a member thread that is still running."""
+    for stream in (sys.stdout, sys.stderr):
+        with contextlib.suppress(OSError, ValueError):
+            stream.flush()
+    _chock_os._exit(code)
