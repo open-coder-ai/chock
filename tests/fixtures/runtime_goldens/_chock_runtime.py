@@ -14,6 +14,7 @@ import contextvars as _chock_contextvars
 import signal as _chock_signal
 import hashlib as _chock_hashlib
 import fnmatch as _chock_fnmatch
+import io as _chock_io
 import re as _chock_re
 import os as _chock_os
 import queue as _chock_queue
@@ -2906,7 +2907,7 @@ def run_members(members, judge_one, *, can_ask=True, warn_speaks=True):
     """
     started = _chock_time.monotonic()
     saved = (sys.stdin, sys.stdout, sys.stderr)
-    sys.stdin, sys.stdout, sys.stderr = (io.StringIO(''), io.StringIO(), io.StringIO())
+    sys.stdin, sys.stdout, sys.stderr = (_chock_io.StringIO(''), _chock_io.StringIO(), _chock_io.StringIO())
     try:
         running = []
         for member in members:

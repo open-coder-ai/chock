@@ -1,0 +1,1 @@
+- A hook command that names a pinned policy index (`--multi <index> --index-sha256 <hex>`) judges every member policy in one process and refuses if any member denies, if the index or a member file does not match its pin, or if a member fails (not wired by `sync` yet).

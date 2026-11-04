@@ -42,6 +42,7 @@ _RENAME = {
     "signal": "_chock_signal",
     "fnmatch": "_chock_fnmatch",
     "hashlib": "_chock_hashlib",
+    "io": "_chock_io",
     "re": "_chock_re",
     "os": "_chock_os",
     "queue": "_chock_queue",

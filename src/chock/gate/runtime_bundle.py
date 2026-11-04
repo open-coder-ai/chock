@@ -169,6 +169,10 @@ def _entry_handler(agent: str) -> str:
     return "".join(parts)
 
 
+#: The end of agentseam's `main`: a multi-policy hook leaves through `_chock_leave`, which ends what a hung member left behind.
+_MAIN_EXIT = "        _emit(out, text)\n    if exit:\n        sys.exit(code)\n    return code\n"
+_MAIN_LEAVE = "        _emit(out, text)\n    if exit:\n        _chock_leave(code)\n    return code\n"
+
 _FUTURE = "from __future__ import annotations\n\n"
 
 #: chock's imports go right after this line of agentseam's hoisted block. Anchored on the one
@@ -223,4 +227,7 @@ def render(agent: str) -> str:
     if _UNREADABLE_BRANCH not in tail:
         raise ValueError("%s: bundle() output has no unreadable-payload branch to refuse on" % agent)
     tail = tail.replace(_UNREADABLE_BRANCH, _UNREADABLE_REFUSAL)
+    if tail.count(_MAIN_EXIT) != 1:
+        raise ValueError("%s: bundle() output has no single exit of main to route through _chock_leave" % agent)
+    tail = tail.replace(_MAIN_EXIT, _MAIN_LEAVE)
     return "%s%s\n%s%s%s" % (head, BEGIN, handler, END, tail)
