@@ -33,7 +33,7 @@ def run(argv: list[str], cwd: Path) -> None:
     subprocess.run(argv, cwd=cwd, check=True)  # noqa: S603 - argv built here from the harness's own venv
 
 
-def prepare(work: Path, engine: str, policies: list[str]) -> tuple[Path, str]:
+def prepare(work: Path, engine: str, cfg: dict) -> tuple[Path, str]:
     """Make a venv, install the engine, and build a scratch adopter repo; return (repo, engine id)."""
     marked = [m for m in AGENT_MARKERS if os.environ.get(m)]
     if marked:
@@ -51,9 +51,10 @@ def prepare(work: Path, engine: str, policies: list[str]) -> tuple[Path, str]:
     repo.mkdir()
     run([GIT, "init", "-q"], repo)
     chock = [py, "-m", "chock"]
-    run([*chock, "init", "--repo", "."], repo)
-    for pid in policies:
-        run([*chock, "add", pid, "--repo", "."], repo)
+    run([*chock, "init", "."], repo)
+    for policy in cfg["policies"]:
+        pin = ["--ref", cfg["catalog_ref"], "--verify-sha", policy["verify_sha"], "--skip-compile"]
+        run([*chock, "add", policy["id"], "--repo", ".", *pin], repo)
     run([*chock, "sync", "--repo", "."], repo)
     if is_path:
         done = subprocess.run([GIT, "-C", engine, "rev-parse", "HEAD"], capture_output=True, text=True, check=False)  # noqa: S603
@@ -73,11 +74,21 @@ def hooks_for(repo: Path, event: str, tool: str) -> list[dict]:
     return out
 
 
+class HookFailedError(RuntimeError):
+    """A hook exited non-zero on a clean payload, so its timing says nothing."""
+
+    def __init__(self, command: str, code: int, stderr: str) -> None:
+        tail = stderr.strip()[-400:] or "(empty)"
+        super().__init__(f"hook exited {code}; the run is invalid: {command}\nstderr tail: {tail}")
+
+
 def fire(hook: dict, payload: bytes, repo: Path) -> int:
-    """Run one hook command as the agent does (shell, repo root, payload on stdin); return its exit code."""
+    """Run one hook command as the agent does (shell, repo root, payload on stdin); return 0 or raise."""
     done = subprocess.run(  # noqa: S602 - the real hook command runs through a shell, as the agent runs it
         hook["command"], shell=True, cwd=repo, input=payload, capture_output=True, check=False
     )
+    if done.returncode:
+        raise HookFailedError(hook["command"], done.returncode, done.stderr.decode("utf-8", "replace"))
     return done.returncode
 
 
@@ -183,6 +194,14 @@ def main() -> None:
     ap.add_argument("--self-test", action="store_true")
     args = ap.parse_args()
     cfg = load_config(args.config)
+    try:
+        run_all(args, cfg)
+    except HookFailedError as exc:
+        sys.exit(f"bench-hooks: {exc}")
+
+
+def run_all(args: argparse.Namespace, cfg: dict) -> None:
+    """Self-test, or measure each engine and write the report."""
     if args.self_test:
         self_test(cfg)
         return
@@ -193,7 +212,7 @@ def main() -> None:
         if args.repo:
             repo, engine = args.repo.resolve(), f"prepared repo, engine {spec}"
         else:
-            repo, engine = prepare(base / f"engine{idx}", spec, cfg["policies"])
+            repo, engine = prepare(base / f"engine{idx}", spec, cfg)
         report.append(
             {
                 "os": platform.platform(),
