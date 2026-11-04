@@ -1,0 +1,35 @@
+{
+  "policies": [
+    "block-destructive-commands",
+    "block-invisible-unicode",
+    "block-no-verify",
+    "block-wildcard-agent-permissions",
+    "pin-github-actions",
+    "protect-agent-config",
+    "protect-commit-privacy",
+    "scan-secrets",
+    "token-efficiency"
+  ],
+  "events": {
+    "Bash": {
+      "event": "PreToolUse",
+      "payload": {
+        "hook_event_name": "PreToolUse",
+        "session_id": "bench",
+        "cwd": "__REPO__",
+        "tool_name": "Bash",
+        "tool_input": {"command": "ls -la"}
+      }
+    },
+    "Write": {
+      "event": "PreToolUse",
+      "payload": {
+        "hook_event_name": "PreToolUse",
+        "session_id": "bench",
+        "cwd": "__REPO__",
+        "tool_name": "Write",
+        "tool_input": {"file_path": "__REPO__/notes/bench.txt", "content": "hello\n"}
+      }
+    }
+  }
+}
