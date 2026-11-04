@@ -42,8 +42,12 @@ def _slow(clock: _Clock, takes, spawned: list[Any]):
 @pytest.fixture(autouse=True)
 def _spawns_through_subprocess_run(monkeypatch: pytest.MonkeyPatch) -> None:
     """The spawn sites run children through `run_tree`; these tests stub `subprocess.run`, so route it there."""
+
+    def run_tree(argv, **kwargs):
+        return subprocess.run(argv, **kwargs)
+
     for module in (guard_runner, write_gate):
-        monkeypatch.setattr(module, "run_tree", lambda argv, **kwargs: subprocess.run(argv, **kwargs))
+        monkeypatch.setattr(module, "run_tree", run_tree)
 
 
 @pytest.fixture
