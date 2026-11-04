@@ -50,6 +50,7 @@ jobs:
 
       - name: Print the medians to the job summary
         run: |
+          cat bench-summary.md
           {
             echo "## Hook latency (ms)"
             cat bench-summary.md
