@@ -105,7 +105,7 @@ def _chock_multi(event, pinned, context):
     record = {}
     verdicts = run_members(
         members,
-        lambda argv: _chock_member_verdict(event, record, argv),
+        lambda argv: _chock_member_verdict(_chock_copy.deepcopy(event), record, argv),
         can_ask=context["can_ask"],
     )
     kill_live_trees()
@@ -134,7 +134,13 @@ def handle(event):
     if pinned is not None:
         context.setdefault("can_ask", False)
         _CHOCK_LEAVE.append(True)
-        return _chock_multi(event, pinned, context)
+        try:
+            return _chock_multi(event, pinned, context)
+        except Exception as exc:  # noqa: BLE001 -- any failure here must refuse, never fall through
+            return Decision.deny(
+                "chock could not check this call (%s: %s). Refusing rather than reporting an "
+                "allow it never established." % (type(exc).__name__, exc)
+            )
     judged = [None, None, _chock_time.monotonic(), {}]
     try:
         decision = _judge(event, judged, sys.argv[1:])

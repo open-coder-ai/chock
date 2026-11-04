@@ -10,7 +10,7 @@ import os
 import sys
 import threading
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from .budget import MEMBER_DEADLINE, kill_live_trees
 from .gate_outcome import VERDICT_WARN
@@ -39,6 +39,14 @@ def _sha256_of(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def _escapes(path):
+    """True for a path that is absolute or climbs out of the root by a `..` part, on either path flavour."""
+    return any(
+        flavour(path).is_absolute() or ".." in flavour(path).parts or flavour(path).drive
+        for flavour in (PurePosixPath, PureWindowsPath)
+    )
+
+
 def load_index(path, pin, root):
     """(members, None) when the index matches its pin and every member's files match theirs; else (None, why)."""
     try:
@@ -48,6 +56,10 @@ def load_index(path, pin, root):
         if not isinstance(members, list) or not members:
             return None, f"the policy index {path} lists no policies, which is a build fault, never an allow"
         for member in members:
+            named = [*member["files"], *(a for a in member["argv"] if isinstance(a, str) and not a.startswith("-"))]
+            for relative in named:
+                if not isinstance(relative, str) or _escapes(relative):
+                    return None, f"the policy index names {relative!r}, which is outside the repository root"
             for relative, expected in member["files"].items():
                 if _sha256_of(Path(root) / relative) != expected:
                     return None, f"{relative} does not match the hash the policy index pins"

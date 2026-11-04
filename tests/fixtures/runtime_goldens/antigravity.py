@@ -16,6 +16,7 @@ _json = json
 import os
 import sys
 
+import copy as _chock_copy
 import os as _chock_os
 import time as _chock_time
 from pathlib import Path as _chock_Path
@@ -730,7 +731,7 @@ def degrade(decision, event):
 # Not self-contained: chock's guard logic lives in the sibling _chock_runtime.py, loaded from this
 # file's own folder and pinned to the sha256 of that file's bytes (CRLF read as LF), hashed before they are executed.
 # Missing, unreadable, another version, or failing to import: every call refuses (_CHOCK_RUNTIME_FAULT), never allows.
-_CHOCK_RUNTIME_PIN = '4dd8853fd2f07e092be877e52bc0a3e333f50a5b79aae4619fce3cbbbda4de5f'
+_CHOCK_RUNTIME_PIN = '1a65cedb5f304f9b196c70b67a92ac6c1d47c81c39dd271361b7671537d6c5e6'
 
 
 def _chock_load_runtime():
@@ -973,7 +974,7 @@ def _chock_multi(event, pinned, context):
     record = {}
     verdicts = run_members(
         members,
-        lambda argv: _chock_member_verdict(event, record, argv),
+        lambda argv: _chock_member_verdict(_chock_copy.deepcopy(event), record, argv),
         can_ask=context["can_ask"],
     )
     kill_live_trees()
@@ -1002,7 +1003,13 @@ def handle(event):
     if pinned is not None:
         context.setdefault("can_ask", False)
         _CHOCK_LEAVE.append(True)
-        return _chock_multi(event, pinned, context)
+        try:
+            return _chock_multi(event, pinned, context)
+        except Exception as exc:  # noqa: BLE001 -- any failure here must refuse, never fall through
+            return Decision.deny(
+                "chock could not check this call (%s: %s). Refusing rather than reporting an "
+                "allow it never established." % (type(exc).__name__, exc)
+            )
     judged = [None, None, _chock_time.monotonic(), {}]
     try:
         decision = _judge(event, judged, sys.argv[1:])
