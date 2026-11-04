@@ -11,7 +11,7 @@ import time
 from collections import Counter
 from pathlib import Path
 
-from ..budget import ENGINE_BUDGET_SECONDS
+from ..budget import ENGINE_BUDGET_SECONDS, run_tree
 from .context import GateContext, GateResult
 
 # >>> gate.py 07
@@ -36,7 +36,7 @@ _FINDINGS_KEY = "findings"
 
 
 def _spawn(script: Path, ctx: GateContext, payload: dict, timeout: float) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(  # noqa: S603 -- the script is the policy's own, named in its manifest
+    return run_tree(
         [sys.executable, str(script)],
         input=json.dumps(payload),
         capture_output=True,

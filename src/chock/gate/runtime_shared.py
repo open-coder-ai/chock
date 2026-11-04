@@ -37,6 +37,8 @@ _DATA_DIR = package_data_dir("chock.gate", "data")
 _IMPORTS = _DATA_DIR.joinpath("imports.py.tmpl").read_text(encoding="utf-8")
 
 _RENAME = {
+    "contextvars": "_chock_contextvars",
+    "signal": "_chock_signal",
     "fnmatch": "_chock_fnmatch",
     "hashlib": "_chock_hashlib",
     "re": "_chock_re",

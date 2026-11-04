@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .budget import BYTECODE_OFF, ENGINE_BUDGET_SECONDS, engine_deadline, engine_remaining, time_left
+from .budget import BYTECODE_OFF, ENGINE_BUDGET_SECONDS, engine_deadline, engine_remaining, run_tree, time_left
 from .runner.journal import log_write
 
 GUARD_VIOLATION = 1
@@ -189,7 +189,7 @@ def run_guard_detailed(guard: Path, command: str, tool: str = "", *, can_ask: bo
         if fallback:
             env[ARGV_FALLBACK_ENV] = "1"
         env.update({} if can_ask is None else {CAN_ASK_ENV: "1" if can_ask else "0"})
-        proc = subprocess.run(  # noqa: S603 -- running the guard script against the command is the feature
+        proc = run_tree(
             [interpreter, str(guard), *args],
             capture_output=True,
             text=True,

@@ -10,6 +10,8 @@ import contextlib
 import json
 import sys
 
+import contextvars as _chock_contextvars
+import signal as _chock_signal
 import hashlib as _chock_hashlib
 import fnmatch as _chock_fnmatch
 import re as _chock_re
@@ -39,9 +41,47 @@ PATTERN_JUDGE_READY = 'ready'
 
 PATTERN_JUDGE_SOURCE = "import json, re, sys\nprint('ready', flush=True)\nfor line in sys.stdin:\n    out = []\n    for pattern, texts in json.loads(line):\n        search = re.compile(pattern).search\n        out.append([index for index, text in enumerate(texts) if search(text)])\n    print(json.dumps(out), flush=True)\n"
 
+MEMBER_DEADLINE = _chock_contextvars.ContextVar('chock_member_deadline', default=None)
+
 def engine_deadline():
-    """The monotonic instant this invocation's budget runs out."""
-    return _chock_time.monotonic() + ENGINE_BUDGET_SECONDS
+    """The monotonic instant this invocation's budget runs out: the member's own deadline when one is set."""
+    member = MEMBER_DEADLINE.get()
+    return member if member is not None else _chock_time.monotonic() + ENGINE_BUDGET_SECONDS
+
+def tree_spawn_options():
+    """Popen options that put a child in its own process group (POSIX session; Windows new process group)."""
+    if _chock_os.name == 'nt':
+        return {'creationflags': _chock_subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {'start_new_session': True}
+
+def kill_tree(proc):
+    """Kill `proc` and everything it started: killpg on POSIX, `taskkill /T /F` on Windows."""
+    with contextlib.suppress(OSError):
+        if _chock_os.name == 'nt':
+            _chock_subprocess.run(['taskkill', '/T', '/F', '/PID', str(proc.pid)], capture_output=True, check=False)
+        else:
+            _chock_os.killpg(proc.pid, _chock_signal.SIGKILL)
+    with contextlib.suppress(OSError):
+        proc.kill()
+
+def run_tree(argv, *, timeout=None, **options):
+    """`subprocess.run` that, on a timeout, kills the child's whole process tree before raising."""
+    options.pop('check', None)
+    stdin_text = options.pop('input', None)
+    if options.pop('capture_output', False):
+        options.update(stdout=_chock_subprocess.PIPE, stderr=_chock_subprocess.PIPE)
+    if stdin_text is not None:
+        options['stdin'] = _chock_subprocess.PIPE
+    if 'text' in options or 'encoding' in options:
+        options['text'] = True
+    with _chock_subprocess.Popen(argv, **options, **tree_spawn_options()) as proc:
+        try:
+            out, err = proc.communicate(stdin_text, timeout=timeout)
+        except BaseException:
+            kill_tree(proc)
+            proc.communicate()
+            raise
+    return _chock_subprocess.CompletedProcess(argv, proc.returncode, out, err)
 
 def engine_remaining(deadline):
     """Seconds left before `deadline`, never negative."""
@@ -818,7 +858,7 @@ def run_guard_detailed(guard: _chock_Path, command: str, tool: str='', *, can_as
         if fallback:
             env[ARGV_FALLBACK_ENV] = '1'
         env.update({} if can_ask is None else {CAN_ASK_ENV: '1' if can_ask else '0'})
-        proc = _chock_subprocess.run([interpreter, str(guard), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=time_left(deadline, [interpreter, str(guard)]), check=False)
+        proc = run_tree([interpreter, str(guard), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=time_left(deadline, [interpreter, str(guard)]), check=False)
     except _chock_subprocess.TimeoutExpired:
         print(f'chock: guard timed out after {ENGINE_BUDGET_SECONDS}s, not checked', file=sys.stderr)
         return (GUARD_ERRORED, '')
@@ -2556,7 +2596,7 @@ def run_gate(gate, writes, event, run_in, deadline):
         return (GATE_ERRORED, 'the vendored gate runner is not installed beside this gate')
     argv = [sys.executable, str(runner), 'run', '--gate', str(gate), '--event', event]
     try:
-        proc = _chock_subprocess.run(argv, input=json.dumps({'writes': writes, **(extra or {})}), capture_output=True, text=True, encoding=_UTF8, errors='replace', timeout=time_left(deadline, argv), check=False, cwd=str(root) if root is not None else None)
+        proc = run_tree(argv, input=json.dumps({'writes': writes, **(extra or {})}), capture_output=True, text=True, encoding=_UTF8, errors='replace', timeout=time_left(deadline, argv), check=False, cwd=str(root) if root is not None else None)
     except _chock_subprocess.TimeoutExpired as exc:
         return (GATE_ERRORED, f'the gate runner gave no verdict within {allowed_seconds(exc)}')
     except (OSError, _chock_subprocess.SubprocessError) as exc:
@@ -2699,7 +2739,7 @@ def _tool_call_script(spec, root, payload, deadline=None):
     deadline = engine_deadline() if deadline is None else deadline
     argv = [sys.executable, str(script)]
     try:
-        proc = _chock_subprocess.run(argv, input=json.dumps(payload), capture_output=True, text=True, encoding='utf-8', errors='replace', cwd=str(root), env={**_chock_os.environ, **BYTECODE_OFF}, timeout=time_left(deadline, argv), check=False)
+        proc = run_tree(argv, input=json.dumps(payload), capture_output=True, text=True, encoding='utf-8', errors='replace', cwd=str(root), env={**_chock_os.environ, **BYTECODE_OFF}, timeout=time_left(deadline, argv), check=False)
     except _chock_subprocess.TimeoutExpired as exc:
         budget = f'gave no verdict within {allowed_seconds(exc)}'
         return ('deny', f'script gate: {script.name} {budget}{_TOOL_CALL_UNDECIDED}')

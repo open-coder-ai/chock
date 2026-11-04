@@ -1,0 +1,1 @@
+- A timed-out policy child is killed with its whole process tree, and a member's own deadline can be set per thread (groundwork for one hook process per event).

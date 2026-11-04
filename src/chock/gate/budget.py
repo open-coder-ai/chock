@@ -13,8 +13,11 @@ module's definitions (chock.gate.runtime_shared), and so does the vendored runne
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import json
+import os
 import queue
+import signal
 import subprocess
 import sys
 import threading
@@ -56,9 +59,53 @@ PATTERN_JUDGE_SOURCE = (
 )
 
 
+#: A member's own deadline (absolute monotonic instant) in a multi-policy hook; each member's thread sets it,
+#: so it never reaches another thread. Unset, `engine_deadline` is today's single-policy budget.
+MEMBER_DEADLINE = contextvars.ContextVar("chock_member_deadline", default=None)
+
+
 def engine_deadline():
-    """The monotonic instant this invocation's budget runs out."""
-    return time.monotonic() + ENGINE_BUDGET_SECONDS
+    """The monotonic instant this invocation's budget runs out: the member's own deadline when one is set."""
+    member = MEMBER_DEADLINE.get()
+    return member if member is not None else time.monotonic() + ENGINE_BUDGET_SECONDS
+
+
+def tree_spawn_options():
+    """Popen options that put a child in its own process group (POSIX session; Windows new process group)."""
+    if os.name == "nt":
+        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"start_new_session": True}
+
+
+def kill_tree(proc):
+    """Kill `proc` and everything it started: killpg on POSIX, `taskkill /T /F` on Windows."""
+    with contextlib.suppress(OSError):
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)], capture_output=True, check=False)  # noqa: S603, S607 -- the OS tool that ends a process tree
+        else:
+            os.killpg(proc.pid, signal.SIGKILL)
+    with contextlib.suppress(OSError):
+        proc.kill()
+
+
+def run_tree(argv, *, timeout=None, **options):
+    """`subprocess.run` that, on a timeout, kills the child's whole process tree before raising."""
+    options.pop("check", None)
+    stdin_text = options.pop("input", None)
+    if options.pop("capture_output", False):
+        options.update(stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if stdin_text is not None:
+        options["stdin"] = subprocess.PIPE
+    if "text" in options or "encoding" in options:
+        options["text"] = True
+    with subprocess.Popen(argv, **options, **tree_spawn_options()) as proc:  # noqa: S603 -- callers pass their own fixed argv
+        try:
+            out, err = proc.communicate(stdin_text, timeout=timeout)
+        except BaseException:
+            kill_tree(proc)
+            proc.communicate()
+            raise
+    return subprocess.CompletedProcess(argv, proc.returncode, out, err)
 
 
 def engine_remaining(deadline):
