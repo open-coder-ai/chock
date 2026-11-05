@@ -19,9 +19,8 @@ def _chock_spec_action(path):
     return action if action in ("ask", "warn") else "block"
 
 
-def _chock_declared():
-    """(strictest action, event, gate) of the judging flags; (None, None, None) where this run judges nothing."""
-    argv = sys.argv[1:]
+def _chock_declared_by(argv):
+    """(strictest action, event, gate) of the judging flags in `argv`; (None, None, None) where it judges nothing."""
     actions = ["block"] if guard_path_from_argv(argv) is not None else []
     event = PRE_TOOL
     gate = _flag_path(argv, GATE_FLAG)
@@ -36,6 +35,26 @@ def _chock_declared():
     for action in ("block", "ask", "warn"):
         if action in actions:
             return action, event, gate
+    return None, None, None
+
+
+def _chock_declared():
+    """(strictest action, event, gate) of the judging flags, or of every member of a pinned index; an index that fails its pin blocks."""
+    argv = sys.argv[1:]
+    pinned = multi_from_argv(argv)
+    if pinned is None:
+        return _chock_declared_by(argv)
+    named = root_from_argv(argv)
+    members, _why = load_index(
+        pinned[0], pinned[1], _chock_Path.cwd() if named is None else named, rooted=named is not None
+    )
+    if members is None:
+        return "block", PRE_TOOL, None
+    found = [_chock_declared_by(member["argv"]) for member in members]
+    for action in ("block", "ask", "warn"):
+        stopping = [f for f in found if f[0] == action and f[1] == STOP]
+        if stopping or action in (f[0] for f in found):
+            return stopping[0] if stopping else next(f for f in found if f[0] == action)
     return None, None, None
 
 

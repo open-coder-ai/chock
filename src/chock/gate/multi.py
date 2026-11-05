@@ -18,6 +18,8 @@ from .guard_runner import VERDICT_DENY, VERDICT_ESCALATE
 
 MULTI_FLAG = "--multi"
 INDEX_SHA_FLAG = "--index-sha256"
+ROOT_FLAG = "--root"
+OFF_FLAG = "--off"
 MEMBER_DEFAULT_SECONDS = 30
 _MEMBER_SEPARATOR = "\n"
 
@@ -35,14 +37,28 @@ def multi_from_argv(argv):
     return path, pin
 
 
+def root_from_argv(argv):
+    """The plugin root a hook command names with `--root`, "" when the flag has no value, None when it is absent."""
+    if ROOT_FLAG not in argv:
+        return None
+    at = argv.index(ROOT_FLAG) + 1
+    return argv[at] if at < len(argv) else ""
+
+
+def off_from_argv(argv):
+    """The bundle members a toggle wrapper switched off for this call (`--off a,b`), as a set of ids."""
+    at = argv.index(OFF_FLAG) + 1 if OFF_FLAG in argv else len(argv)
+    return {name for name in (argv[at] if at < len(argv) else "").split(",") if name}
+
+
 def _sha256_of(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
 def _escapes(path):
-    """True for a path that is absolute or climbs out of the root by a `..` part, on either path flavour."""
+    """True for a path that is absolute, drive- or root-qualified, or climbs out of the root by a `..` part, on either flavour."""
     return any(
-        flavour(path).is_absolute() or ".." in flavour(path).parts or flavour(path).drive
+        flavour(path).is_absolute() or ".." in flavour(path).parts or flavour(path).drive or flavour(path).root
         for flavour in (PurePosixPath, PureWindowsPath)
     )
 
@@ -61,9 +77,20 @@ def _member_fault(member, root):
     return None
 
 
-def load_index(path, pin, root):
-    """(members, None) when the index matches its pin and every member's files match theirs; else (None, why)."""
+def _rooted(member, root):
+    """`member` with each path its argv names joined to `root`: a plugin's members are paths relative to its root."""
+    argv = [a if not isinstance(a, str) or a.startswith("-") else str(Path(root) / a) for a in member["argv"]]
+    return {**member, "argv": argv}
+
+
+def load_index(path, pin, root, *, rooted=False):
+    """(members, None) when the index matches its pin and every member's files match theirs; else (None, why).
+
+    `root` is where the member paths resolve; `rooted` (a plugin's `--root`) also joins it to each argv path.
+    """
     try:
+        if not root:
+            return None, "the hook command names an empty plugin root, so its policy index cannot be checked"
         if not pin or _sha256_of(path) != pin:
             return None, f"the policy index {path} does not match the hash the hook pins"
         members = json.loads(Path(path).read_text(encoding="utf-8"))["members"]
@@ -73,6 +100,8 @@ def load_index(path, pin, root):
             why = _member_fault(member, root)
             if why:
                 return None, why
+        if rooted:
+            members = [_rooted(member, root) for member in members]
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
         return None, f"the policy index {path} cannot be read ({type(exc).__name__})"
     return members, None
@@ -112,10 +141,11 @@ def settle(verdict, *, can_ask=True, warn_speaks=True):
     return verdict
 
 
-def run_members(members, judge_one, *, can_ask=True, warn_speaks=True):
+def run_members(members, judge_one, *, can_ask=True, warn_speaks=True, said=None):
     """Each member's settled verdict (or None), in index order. A member past its own deadline refuses its own call.
 
-    The members share this process's streams, so they get none: stdin is empty and what they print is dropped.
+    The members share this process's streams, so they get none: stdin is empty and what they print on stdout is
+    dropped. What they write to stderr (a stop's warning, a note that a worktree went unchecked) is appended to `said`.
     """
     started = time.monotonic()
     saved = sys.stdin, sys.stdout, sys.stderr
@@ -141,7 +171,10 @@ def run_members(members, judge_one, *, can_ask=True, warn_speaks=True):
                     )
                 )
     finally:
+        written = sys.stderr.getvalue() if isinstance(sys.stderr, io.StringIO) else ""
         sys.stdin, sys.stdout, sys.stderr = saved
+        if said is not None and written:
+            said.append(written)
     return verdicts
 
 

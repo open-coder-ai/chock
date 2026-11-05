@@ -25,7 +25,7 @@ def test_a_merged_bundle_carries_and_states_both_halves(tmp_path: Path, client: 
     members = [Member(pack, data)]
     files = merged_files(client, _bundle(), members, tmp_path)
     hooks = next(json.loads(text) for rel, text in files.items() if rel.name == "hooks.json")
-    commands = bundle_grade._hook_commands(hooks)
+    commands = bundle_grade._hook_commands(hooks, lambda rel: files.get(Path(rel)))
     assert any("--guard" in c for c in commands) and any("--gate" in c for c in commands)
     description = json.loads(files[Path(manifest_rel)])["description"]
     assert "Shell guard:" in description and "Write gate:" in description

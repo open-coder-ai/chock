@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 import yaml
 from conftest import guarded_launch
+from multi_support import argvs, folded_members
 
 from chock.gate import runtime_bundle
 from chock.plugin import posture
@@ -63,7 +64,7 @@ def policy(tmp_path: Path):
 
 def test_devin_guard_policy_layout_and_hook(policy, tmp_path: Path) -> None:
     files = devin_plugin_files(policy(GUARD_MANIFEST, guard=True), GUARD_MANIFEST, tmp_path)
-    assert set(files) == {
+    assert {rel for rel in files if rel.parts[:2] != ("scripts", "chock_index")} == {
         Path(".devin-plugin/plugin.json"),
         Path("skills/block-destructive-commands/SKILL.md"),
         Path("hooks.json"),
@@ -79,10 +80,9 @@ def test_devin_guard_policy_layout_and_hook(policy, tmp_path: Path) -> None:
     assert "matcher" not in entry, "devin's shell-tool vocabulary is unrecorded, never invented"
     inner = entry["hooks"][0]
     assert inner["type"] == "command"
-    assert inner["command"] == (
-        guarded_launch("$DEVIN_PLUGIN_ROOT/scripts/launch.sh")
-        + '"$DEVIN_PLUGIN_ROOT/scripts/devin.py" --guard "$DEVIN_PLUGIN_ROOT/scripts/block-destructive-commands.sh"'
-    )
+    head = guarded_launch("$DEVIN_PLUGIN_ROOT/scripts/launch.sh") + '"$DEVIN_PLUGIN_ROOT/scripts/devin.py"'
+    members = folded_members(inner["command"], head, lambda rel: files[Path(rel)])
+    assert argvs(members) == [["--guard", "scripts/block-destructive-commands.sh"]]
 
 
 def test_devin_hooks_shape_matches_agentseams_own_hook_config(policy, tmp_path: Path) -> None:

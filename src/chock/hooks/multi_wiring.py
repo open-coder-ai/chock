@@ -22,7 +22,8 @@ from chock.scaffold.mcp_write import remove_file, write_file
 INDEX_DIR = Path(".chock") / "bin" / "index"
 #: The flags that make a hook command judge one policy: a member's argv starts at the first of them.
 POLICY_FLAGS = ("--guard", "--gate", "--tool-call")
-MULTI_FLAG, INDEX_SHA_FLAG = "--multi", "--index-sha256"
+MULTI_FLAG, INDEX_SHA_FLAG, ROOT_FLAG = "--multi", "--index-sha256", "--root"
+PLUGIN_INDEX_DIR = "scripts/chock_index"  # where a plugin's pinned indexes sit in the package, beside its scripts
 #: Seconds one member may take: the engine's own budget, as a single-policy hook has today.
 MEMBER_SECONDS = ENGINE_BUDGET_SECONDS
 #: Seconds the process needs beside its slowest member: reading the index, hashing, killing leftovers, logging.
@@ -49,12 +50,12 @@ def split_command(command: str, marker: str) -> tuple[str, list[str], bool] | No
     return None
 
 
-def _commands(node: Any) -> set[str]:
+def commands(node: Any) -> set[str]:
     """Every string a hook entry holds under a `command` key."""
     if isinstance(node, dict):
         own = {node["command"]} if isinstance(node.get("command"), str) else set()
-        return own.union(*(_commands(v) for k, v in node.items() if k != "command"))
-    return set().union(*(_commands(v) for v in node)) if isinstance(node, list) else set()
+        return own.union(*(commands(v) for k, v in node.items() if k != "command"))
+    return set().union(*(commands(v) for v in node)) if isinstance(node, list) else set()
 
 
 def _replace(node: Any, old: str, new: str) -> Any:
@@ -142,7 +143,7 @@ def _signature(entry: Any, old: str) -> str:
     return json.dumps(_shape(_replace(entry, old, _NO_COMMAND)), sort_keys=True)
 
 
-class _Carrier(NamedTuple):
+class Carrier(NamedTuple):
     """An entry that runs one policy: its command, the member it makes, and how its command is written."""
 
     entry: dict[str, Any]
@@ -151,20 +152,22 @@ class _Carrier(NamedTuple):
     head: str
     quoted: bool
     files: dict[str, str]
+    root: str | None = None  # a plugin's root text, as its commands carry it; None in a repo
+    member: str | None = None
 
 
 class _Group:
     """The carriers sharing one signature, in the order they were found."""
 
     def __init__(self) -> None:
-        self.carriers: list[_Carrier] = []
+        self.carriers: list[Carrier] = []
 
 
 def _index_bytes(members: list[dict[str, Any]]) -> bytes:
     return (json.dumps({"members": members}, indent=2, sort_keys=True) + "\n").encode("utf-8")
 
 
-def _check_fits(vendor: str, entry: Any, argv: list[str]) -> bool:
+def check_fits(vendor: str, entry: Any, argv: list[str]) -> bool:
     """Whether a member and the grace fit the entry's timeout; refuses one that cannot, False where no timeout is known."""
     allowed = _timeout_seconds(vendor, entry)
     if allowed is None:
@@ -178,17 +181,17 @@ def _check_fits(vendor: str, entry: Any, argv: list[str]) -> bool:
     return True
 
 
-def _carrier(repo_root: Path, vendor: str, entry: Any) -> _Carrier | None:
+def _carrier(repo_root: Path, vendor: str, entry: Any) -> Carrier | None:
     """The member an entry that runs exactly one policy makes, else None (the entry stays as it is)."""
     if not isinstance(entry, dict):
         return None
-    commands = _commands(entry)
-    command = next(iter(commands)) if len(commands) == 1 else ""
+    found_commands = commands(entry)
+    command = next(iter(found_commands)) if len(found_commands) == 1 else ""
     split = split_command(command, runtime_rel(vendor).as_posix())
-    if split is None or not _check_fits(vendor, entry, split[1]):
+    if split is None or not check_fits(vendor, entry, split[1]):
         return None
     files = member_files(repo_root, split[1])
-    return None if files is None else _Carrier(entry, command, split[1], split[0], split[2], files)
+    return None if files is None else Carrier(entry, command, split[1], split[0], split[2], files)
 
 
 def collapse_list(  # noqa: PLR0913 -- the five places an entry list is folded each pass their own rename, eligibility and dry-run choice
@@ -201,41 +204,53 @@ def collapse_list(  # noqa: PLR0913 -- the five places an entry list is folded e
     rename: Callable[[Any, str], Any] | None = None,
     write: bool = True,
     eligible: Callable[[Any], bool] = lambda _entry: True,
+    carry: Callable[[Any], Carrier | None] | None = None,
+    sink: Callable[[str, bytes], None] | None = None,
 ) -> list[Any]:
     """`entries` with every policy entry folded into one entry per identical shape; the pinned indexes are written.
 
-    `rename(entry, command)` lets a vendor re-derive a field of the folded entry from its new command.
+    `rename(entry, command)` lets a vendor re-derive a field of the folded entry from its new command; a plugin's
+    `carry` makes the member of an entry from its package, and `sink` takes the index files it would write.
     """
     repo_root = Path(repo_root)
     groups: dict[str, _Group] = {}
     placed: list[Any] = []
     for entry in entries:
-        found = _carrier(repo_root, vendor, entry) if eligible(entry) else None
+        found = (carry(entry) if carry else _carrier(repo_root, vendor, entry)) if eligible(entry) else None
         if found is None:
             placed.append(entry)
             continue
-        group = groups.setdefault(_signature(entry, found.command), _Group())
+        group = groups.setdefault(_signature(entry, found.command) + (found.head if found.root else ""), _Group())
         if not group.carriers:
             placed.append(group)
         group.carriers.append(found)
     return [
-        _fold(repo_root, vendor, event, item, (kept, rename, write)) if isinstance(item, _Group) else item
+        _fold(repo_root, vendor, event, item, (kept, rename, write, sink)) if isinstance(item, _Group) else item
         for item in placed
     ]
 
 
-def _fold(repo_root: Path, vendor: str, event: str, group: _Group, how: tuple[set[str], Callable | None, bool]) -> Any:
+def _fold(repo_root: Path, vendor: str, event: str, group: _Group, how: tuple[Any, ...]) -> Any:
     first = group.carriers[0]
     members = [{"argv": c.argv, "files": c.files, "timeout": MEMBER_SECONDS} for c in group.carriers]
+    members = [m | ({"member": c.member} if c.member else {}) for m, c in zip(members, group.carriers, strict=True)]
     body = _index_bytes(members)
     pin = hashlib.sha256(body).hexdigest()
     slug = hashlib.sha256(_signature(first.entry, first.command).encode("utf-8")).hexdigest()[:8]
-    rel = (INDEX_DIR / f"{vendor}-{event}-{slug}.json").as_posix()
-    kept, rename, write = how
-    if write:
-        write_file(repo_root, rel, body, CONFIG_MODE)
-    kept.add(rel)
-    new = f"{first.head} {MULTI_FLAG} {_quote(rel, quoted=first.quoted)} {INDEX_SHA_FLAG} {pin}"
+    kept, rename, write, sink = how
+    if first.root is None:
+        rel = (INDEX_DIR / f"{vendor}-{event}-{slug}.json").as_posix()
+        if write:
+            write_file(repo_root, rel, body, CONFIG_MODE)
+        kept.add(rel)
+        tail = f"{MULTI_FLAG} {_quote(rel, quoted=first.quoted)} {INDEX_SHA_FLAG} {pin}"
+    else:
+        rel = f"{PLUGIN_INDEX_DIR}/{event}-{slug}.json"
+        if sink:
+            sink(rel, body)
+        index, root = (_quote(text, quoted=first.quoted) for text in (f"{first.root}/{rel}", first.root))
+        tail = f"{MULTI_FLAG} {index} {INDEX_SHA_FLAG} {pin} {ROOT_FLAG} {root}"
+    new = f"{first.head} {tail}"
     folded = copy.deepcopy(_replace(first.entry, first.command, new))
     return rename(folded, new) if rename is not None else folded
 
@@ -265,7 +280,7 @@ def collapse_events(repo_root: Path, vendor: str, hooks: Any, events: tuple[str,
 def installed_members(repo_root: Path, vendor: str, config: Any) -> set[tuple[str, ...]]:
     """The argv of every member of a pinned index an entry of `config` runs, whose file is there and matches its pin."""
     root, marker, found = Path(repo_root), runtime_rel(vendor).as_posix(), set()
-    for command in _commands(config):
+    for command in commands(config):
         tokens = command.split(" ")
         if marker not in command or MULTI_FLAG not in tokens or INDEX_SHA_FLAG not in tokens:
             continue

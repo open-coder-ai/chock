@@ -18,6 +18,9 @@
     "scripts/chock_bundle_log.py",
     "scripts/chock_bundle_state.py",
     "scripts/chock_chain.py",
+    "scripts/chock_index/PreToolUse-81fe7457.json",
+    "scripts/chock_index/PreToolUse-b310004d.json",
+    "scripts/chock_index/Stop-185f9750.json",
     "scripts/chock_journal.py",
     "scripts/demo-shell-guard/demo-shell-guard.py",
     "scripts/demo-shell-guard/tinyparse/__init__.py",
@@ -42,7 +45,7 @@
           "hooks": [
             {
               "type": "command",
-              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"__CHOCK_PLUGIN_ROOT__/scripts/launch.sh\" \"__CHOCK_PLUGIN_ROOT__/scripts/chock_bundle.py\" --bundle demo-bundle --member demo-write-gate \"__CHOCK_PLUGIN_ROOT__/scripts/openhands.py\" --gate \"__CHOCK_PLUGIN_ROOT__/scripts/demo-write-gate/gate.json\"",
+              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"__CHOCK_PLUGIN_ROOT__/scripts/launch.sh\" \"__CHOCK_PLUGIN_ROOT__/scripts/chock_bundle.py\" --bundle demo-bundle --members \"__CHOCK_PLUGIN_ROOT__/scripts/openhands.py\" --multi \"__CHOCK_PLUGIN_ROOT__/scripts/chock_index/PreToolUse-b310004d.json\" --index-sha256 67f69ca0b9cdb05c346b9aec024835c554c21ecdf90e1828db23fefc6afc3035 --root \"__CHOCK_PLUGIN_ROOT__\"",
               "timeout": 45
             }
           ],
@@ -52,31 +55,11 @@
           "hooks": [
             {
               "type": "command",
-              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"__CHOCK_PLUGIN_ROOT__/scripts/launch.sh\" \"__CHOCK_PLUGIN_ROOT__/scripts/chock_bundle.py\" --bundle demo-bundle --member demo-shell-guard \"__CHOCK_PLUGIN_ROOT__/scripts/openhands.py\" --guard \"__CHOCK_PLUGIN_ROOT__/scripts/demo-shell-guard/demo-shell-guard.py\"",
+              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"__CHOCK_PLUGIN_ROOT__/scripts/launch.sh\" \"__CHOCK_PLUGIN_ROOT__/scripts/chock_bundle.py\" --bundle demo-bundle --members \"__CHOCK_PLUGIN_ROOT__/scripts/openhands.py\" --multi \"__CHOCK_PLUGIN_ROOT__/scripts/chock_index/PreToolUse-81fe7457.json\" --index-sha256 96ac6dbd89c3c3463ea3f61a714abb605fca38fad9c035a863dba6c19ce8f516 --root \"__CHOCK_PLUGIN_ROOT__\"",
               "timeout": 45
             }
           ],
           "matcher": "terminal"
-        },
-        {
-          "hooks": [
-            {
-              "type": "command",
-              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"__CHOCK_PLUGIN_ROOT__/scripts/launch.sh\" \"__CHOCK_PLUGIN_ROOT__/scripts/openhands.py\" --guard \"__CHOCK_PLUGIN_ROOT__/scripts/chock-guardrails-protect/chock-guardrails-protect.py\"",
-              "timeout": 45
-            }
-          ],
-          "matcher": "terminal"
-        },
-        {
-          "hooks": [
-            {
-              "type": "command",
-              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"__CHOCK_PLUGIN_ROOT__/scripts/launch.sh\" \"__CHOCK_PLUGIN_ROOT__/scripts/openhands.py\" --gate \"__CHOCK_PLUGIN_ROOT__/scripts/chock-guardrails-protect/gate.json\"",
-              "timeout": 45
-            }
-          ],
-          "matcher": "file_editor"
         },
         {
           "hooks": [
@@ -93,7 +76,7 @@
           "hooks": [
             {
               "type": "command",
-              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"__CHOCK_PLUGIN_ROOT__/scripts/launch.sh\" \"__CHOCK_PLUGIN_ROOT__/scripts/chock_bundle.py\" --bundle demo-bundle --member demo-write-gate \"__CHOCK_PLUGIN_ROOT__/scripts/openhands.py\" --gate \"__CHOCK_PLUGIN_ROOT__/scripts/demo-write-gate/gate.json\" --stop",
+              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"__CHOCK_PLUGIN_ROOT__/scripts/launch.sh\" \"__CHOCK_PLUGIN_ROOT__/scripts/chock_bundle.py\" --bundle demo-bundle --members \"__CHOCK_PLUGIN_ROOT__/scripts/openhands.py\" --multi \"__CHOCK_PLUGIN_ROOT__/scripts/chock_index/Stop-185f9750.json\" --index-sha256 c950e67d2f9a28e0fb11a597941e8ff4bc10a473ffe974c3169df4d177bf893f --root \"__CHOCK_PLUGIN_ROOT__\"",
               "timeout": 45
             }
           ]

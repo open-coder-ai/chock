@@ -17,6 +17,8 @@
     "scripts/chock_bundle_log.py",
     "scripts/chock_bundle_state.py",
     "scripts/chock_chain.py",
+    "scripts/chock_index/hooks-55aaba09.json",
+    "scripts/chock_index/hooks-c573a7ea.json",
     "scripts/chock_journal.py",
     "scripts/demo-shell-guard/demo-shell-guard.py",
     "scripts/demo-shell-guard/tinyparse/__init__.py",
@@ -37,17 +39,12 @@
     "hooks": [
       {
         "event": "Stop",
-        "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${KIMI_PLUGIN_ROOT}/scripts/launch.sh\" \"${KIMI_PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --member demo-write-gate \"${KIMI_PLUGIN_ROOT}/scripts/kimi_code.py\" --gate \"${KIMI_PLUGIN_ROOT}/scripts/demo-write-gate/gate.json\" --stop",
+        "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${KIMI_PLUGIN_ROOT}/scripts/launch.sh\" \"${KIMI_PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --members \"${KIMI_PLUGIN_ROOT}/scripts/kimi_code.py\" --multi \"${KIMI_PLUGIN_ROOT}/scripts/chock_index/hooks-55aaba09.json\" --index-sha256 c950e67d2f9a28e0fb11a597941e8ff4bc10a473ffe974c3169df4d177bf893f --root \"${KIMI_PLUGIN_ROOT}\"",
         "timeout": 45
       },
       {
         "event": "PreToolUse",
-        "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${KIMI_PLUGIN_ROOT}/scripts/launch.sh\" \"${KIMI_PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --member demo-shell-guard \"${KIMI_PLUGIN_ROOT}/scripts/kimi_code.py\" --guard \"${KIMI_PLUGIN_ROOT}/scripts/demo-shell-guard/demo-shell-guard.py\"",
-        "timeout": 45
-      },
-      {
-        "event": "PreToolUse",
-        "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${KIMI_PLUGIN_ROOT}/scripts/launch.sh\" \"${KIMI_PLUGIN_ROOT}/scripts/kimi_code.py\" --guard \"${KIMI_PLUGIN_ROOT}/scripts/chock-guardrails-protect/chock-guardrails-protect.py\"",
+        "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${KIMI_PLUGIN_ROOT}/scripts/launch.sh\" \"${KIMI_PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --members \"${KIMI_PLUGIN_ROOT}/scripts/kimi_code.py\" --multi \"${KIMI_PLUGIN_ROOT}/scripts/chock_index/hooks-c573a7ea.json\" --index-sha256 96ac6dbd89c3c3463ea3f61a714abb605fca38fad9c035a863dba6c19ce8f516 --root \"${KIMI_PLUGIN_ROOT}\"",
         "timeout": 45
       },
       {
@@ -70,17 +67,12 @@
   "hooks": [
     {
       "event": "Stop",
-      "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${KIMI_PLUGIN_ROOT}/scripts/launch.sh\" \"${KIMI_PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --member demo-write-gate \"${KIMI_PLUGIN_ROOT}/scripts/kimi_code.py\" --gate \"${KIMI_PLUGIN_ROOT}/scripts/demo-write-gate/gate.json\" --stop",
+      "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${KIMI_PLUGIN_ROOT}/scripts/launch.sh\" \"${KIMI_PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --members \"${KIMI_PLUGIN_ROOT}/scripts/kimi_code.py\" --multi \"${KIMI_PLUGIN_ROOT}/scripts/chock_index/hooks-55aaba09.json\" --index-sha256 c950e67d2f9a28e0fb11a597941e8ff4bc10a473ffe974c3169df4d177bf893f --root \"${KIMI_PLUGIN_ROOT}\"",
       "timeout": 45
     },
     {
       "event": "PreToolUse",
-      "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${KIMI_PLUGIN_ROOT}/scripts/launch.sh\" \"${KIMI_PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --member demo-shell-guard \"${KIMI_PLUGIN_ROOT}/scripts/kimi_code.py\" --guard \"${KIMI_PLUGIN_ROOT}/scripts/demo-shell-guard/demo-shell-guard.py\"",
-      "timeout": 45
-    },
-    {
-      "event": "PreToolUse",
-      "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${KIMI_PLUGIN_ROOT}/scripts/launch.sh\" \"${KIMI_PLUGIN_ROOT}/scripts/kimi_code.py\" --guard \"${KIMI_PLUGIN_ROOT}/scripts/chock-guardrails-protect/chock-guardrails-protect.py\"",
+      "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${KIMI_PLUGIN_ROOT}/scripts/launch.sh\" \"${KIMI_PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --members \"${KIMI_PLUGIN_ROOT}/scripts/kimi_code.py\" --multi \"${KIMI_PLUGIN_ROOT}/scripts/chock_index/hooks-c573a7ea.json\" --index-sha256 96ac6dbd89c3c3463ea3f61a714abb605fca38fad9c035a863dba6c19ce8f516 --root \"${KIMI_PLUGIN_ROOT}\"",
       "timeout": 45
     },
     {

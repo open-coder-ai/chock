@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from conftest import bash_executable
+from multi_support import seen_through
 
 #: Every client's plugin-root variable, all pointing at the package, so one hook command fits any format.
 ROOT_VARS = ("CLAUDE_PLUGIN_ROOT", "CURSOR_PLUGIN_ROOT", "PLUGIN_ROOT", "DEVIN_PLUGIN_ROOT")
@@ -55,7 +56,8 @@ def _payload(client: str, kind: str, repo: Path, command: str, matcher: str) -> 
     return json.dumps({**fields, "cwd": str(repo)})
 
 
-def _kind(command: str) -> str:
+def _kind(command: str, package: Path) -> str:
+    command = seen_through(command, package)
     if "--stop" in command:
         return "stop"
     return "write" if "--gate" in command else "shell"
@@ -95,7 +97,7 @@ def run_hooks(
         env.pop(name, None)
     results = []
     for _event, matcher, hook in hook_entries(doc):
-        kind = _kind(hook)
+        kind = _kind(hook, package)
         proc = subprocess.run(
             [bash_executable(), "-c", hook],
             cwd=repo,

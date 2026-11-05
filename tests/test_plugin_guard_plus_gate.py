@@ -23,8 +23,9 @@ from chock.plugin.cli import main as plugin_main
 GOLDEN = Path(__file__).parent / "fixtures" / "plugin_single_half_golden.json"
 
 
-def _commands(doc: dict, flag: str) -> list[str]:
-    return [c for c in bundle_grade._hook_commands(doc) if flag in c]
+def _commands(doc: dict, flag: str, files: dict[Path, str]) -> list[str]:
+    """Each command naming `flag`, a folded one through the members its pinned index runs."""
+    return [c for c in bundle_grade._hook_commands(doc, lambda rel: files.get(Path(rel))) if flag in c]
 
 
 @pytest.mark.parametrize("store", sorted(STORES))
@@ -34,14 +35,14 @@ def test_both_halves_ship_in_every_store(tmp_path: Path, store: str) -> None:
     files = files_fn(pack, data, tmp_path)
 
     doc = json.loads(files[Path(hooks_rel)])
-    assert _commands(doc, "--guard"), "the guard still ships"
-    assert _commands(doc, "--gate"), "and the gate beside it"
+    assert _commands(doc, "--guard", files), "the guard still ships"
+    assert _commands(doc, "--gate", files), "and the gate beside it"
     assert files[Path(f"scripts/{POLICY_ID}.py")].startswith("import sys")
     assert json.loads(files[Path("scripts/gate.json")])["params"]["forbidden_path_regex"] == r"\.mcp\.json"
     assert Path("scripts/gate.py") in files
 
     matcher, stop = gate_package.gate_reach(agent)
-    gate_events = bundle_grade.events_for(doc, "--gate")
+    gate_events = bundle_grade.events_for(doc, "--gate", lambda rel: files.get(Path(rel)))
     assert (len(gate_events) == 2) == (matcher is not None and stop)
     grade, says = bundle_grade.grade_of_files(files, hooks_rel, agent)
     assert says.startswith("refuses a matched shell command before it runs. Blocks ")
@@ -71,7 +72,7 @@ def test_a_gate_the_client_cannot_run_is_neither_shipped_nor_claimed(tmp_path: P
     monkeypatch.setattr(gate_package, "gate_reaches", lambda _vendor: False)
     files = STORES["codex"][1](pack, data, tmp_path)
     doc = json.loads(files[Path(STORES["codex"][2])])
-    assert _commands(doc, "--guard") and not _commands(doc, "--gate")
+    assert _commands(doc, "--guard", files) and not _commands(doc, "--gate", files)
     assert Path("scripts/gate.json") not in files
     description = json.loads(files[Path(".codex-plugin/plugin.json")])["description"]
     assert "Write gate:" not in description and "Stop" not in description
@@ -85,7 +86,7 @@ def test_one_half_packages_byte_for_byte_as_before(tmp_path: Path, store: str, h
     """Golden taken from the engine before this change; runtime copies excluded (they follow the engine)."""
     pack, data = make_policy(tmp_path, guard=half == "guard", gate=half == "gate")
     golden = json.loads(GOLDEN.read_text(encoding="utf-8"))[f"{half}/{store}"]
-    assert golden_of(STORES[store][1](pack, data, tmp_path)) == golden
+    assert golden_of(STORES[store][1](pack, data, tmp_path, folded=False)) == golden
 
 
 @pytest.mark.parametrize("store", sorted(STORES))

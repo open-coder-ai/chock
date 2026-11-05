@@ -55,9 +55,11 @@ def build_antigravity_manifest(
 SPEC = hook_dir.Spec("antigravity", "antigravity", GUARD_NOTE, build_antigravity_manifest)
 
 
-def antigravity_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Path) -> dict[Path, str]:
+def antigravity_plugin_files(
+    policy_dir: Path, manifest: dict[str, Any], repo_root: Path, *, folded: bool = True
+) -> dict[Path, str]:
     """The Antigravity plugin's files as {relative path: content}, writing nothing; the root left unresolved."""
-    return hook_dir.plugin_files(SPEC, policy_dir, manifest, repo_root)
+    return hook_dir.plugin_files(SPEC, policy_dir, manifest, repo_root, folded=folded)
 
 
 def build_antigravity_plugin(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, out_dir: Path) -> list[Path]:

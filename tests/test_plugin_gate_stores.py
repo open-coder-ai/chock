@@ -18,6 +18,7 @@ from types import SimpleNamespace
 
 import pytest
 from conftest import init_repo
+from multi_support import seen_through
 from runtime_support import load_runtime
 from test_plugin_gate import POLICY_ID, SCRIPT, _manifest
 from test_plugin_gate import policy as shared_policy
@@ -62,7 +63,8 @@ def test_the_gate_reaches_what_the_vendor_records(gate_policy, tmp_path: Path, s
     assert ("Stop" in events or "stop" in events) == stop
     for entries in hooks.values():
         entry = entries[0]
-        assert "--gate" in (entry["command"] if "command" in entry else entry["hooks"][0]["command"])
+        command = entry["command"] if "command" in entry else entry["hooks"][0]["command"]
+        assert "--gate" in seen_through(command, out)
     assert stop_check.STOP_CHECK_FLAG in (out / hooks_rel).read_text(encoding="utf-8")
     gate = json.loads((out / "scripts" / "gate.json").read_text(encoding="utf-8"))
     assert gate["script_base"] == "gate" and gate["params"]["script"] == f"implementations/{SCRIPT}"

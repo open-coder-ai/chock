@@ -24,7 +24,7 @@ from chock.compile.emitters import in_agent_hooks
 from chock.compile.emitters.in_agent_hooks import generic_pre_tool_config, generic_stop_config
 from chock.gate.write_gate import STOP_FLAG
 from chock.hooks import launch, stop_check
-from chock.plugin import gate_package, guard_gate, store
+from chock.plugin import gate_package, guard_gate, multi_plugin, store
 from chock.plugin.build import (
     LICENSE_REL,
     advisory_note,
@@ -128,7 +128,9 @@ def store_timeout(store_name: str, doc: Any) -> Any:
     return doc
 
 
-def plugin_files(spec: Spec, policy_dir: Path, manifest: dict[str, Any], repo_root: Path) -> dict[Path, str]:
+def plugin_files(
+    spec: Spec, policy_dir: Path, manifest: dict[str, Any], repo_root: Path, *, folded: bool = True
+) -> dict[Path, str]:
     """The plugin's files as {relative path: content}, writing nothing; `ROOT_TOKEN` left unresolved."""
     policy_dir = Path(policy_dir)
     policy_id = str(manifest.get("id") or policy_dir.name)
@@ -167,7 +169,7 @@ def plugin_files(spec: Spec, policy_dir: Path, manifest: dict[str, Any], repo_ro
         guard_gate.place(files, store.guard_files(policy_dir, script))
     if gate:
         guard_gate.place(files, gate_package.packaged_gate_files(policy_dir, gate, SCRIPTS_TEMPLATE))
-    return files
+    return multi_plugin.fold_files(files, shape["hooks"], spec.agent) if folded else files
 
 
 def root_path(folder: PurePath) -> str:

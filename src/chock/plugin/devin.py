@@ -10,7 +10,7 @@ from agentseam import packaging
 
 from chock.compile.emitters.in_agent_hooks import hooks_map_file
 from chock.hooks import launch, stop_check
-from chock.plugin import gate_package, guard_gate, posture, store
+from chock.plugin import gate_package, guard_gate, multi_plugin, posture, store
 from chock.plugin.build import (
     LICENSE_REL,
     _one_line,
@@ -113,7 +113,9 @@ def build_devin_manifest(
     return {key: data[key] for key in MANIFEST_KEYS if key in data}
 
 
-def devin_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Path) -> dict[Path, str]:
+def devin_plugin_files(
+    policy_dir: Path, manifest: dict[str, Any], repo_root: Path, *, folded: bool = True
+) -> dict[Path, str]:
     """The Devin plugin's files as {relative path: content}, writing nothing."""
     policy_dir = Path(policy_dir)
     policy_id = str(manifest.get("id") or policy_dir.name)
@@ -157,7 +159,7 @@ def devin_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Pa
         guard_gate.place(files, store.guard_files(policy_dir, script))
     if gate:
         guard_gate.place(files, gate_package.packaged_gate_files(policy_dir, gate, _SCRIPTS_TEMPLATE))
-    return files
+    return multi_plugin.fold_files(files, Path(HOOKS_REL), "devin") if folded else files
 
 
 def stale_devin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, out_dir: Path) -> list[Path]:

@@ -216,5 +216,15 @@ def listed_off(
     return lines, held
 
 
+def off_in_index(toggles: dict[str, dict[str, str]], bundle: str, rest: list[str]) -> list[str]:
+    """The members of `bundle` switched off that the index in `rest` (`--multi <path>`) names; the adapter holds it to its pin."""
+    try:
+        found = json.loads(Path(rest[rest.index("--multi") + 1]).read_text(encoding="utf-8"))["members"]
+        named = {m.get("member") for m in found}
+    except (OSError, ValueError, KeyError, TypeError, IndexError, AttributeError):
+        return []
+    return [m for m, s in toggles.get(bundle, {}).items() if s == OFF and m in named]
+
+
 def _offs(toggles: dict[str, dict[str, str]]) -> list[str]:
     return sorted(f"{b}/{i}" for b, ms in toggles.items() for i, s in ms.items() if s == OFF and i != PROTECT_ID)

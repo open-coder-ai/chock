@@ -57,9 +57,11 @@ def build_openhands_manifest(
 SPEC = hook_dir.Spec("openhands", "openhands", GUARD_NOTE, build_openhands_manifest)
 
 
-def openhands_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Path) -> dict[Path, str]:
+def openhands_plugin_files(
+    policy_dir: Path, manifest: dict[str, Any], repo_root: Path, *, folded: bool = True
+) -> dict[Path, str]:
     """The OpenHands plugin's files as {relative path: content}, writing nothing; the root left unresolved."""
-    return hook_dir.plugin_files(SPEC, policy_dir, manifest, repo_root)
+    return hook_dir.plugin_files(SPEC, policy_dir, manifest, repo_root, folded=folded)
 
 
 def build_openhands_plugin(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, out_dir: Path) -> list[Path]:
