@@ -21,6 +21,8 @@ configured="$(git config --get chock.python 2>/dev/null)"
 legacy=
 case "${OS:-}|${MSYSTEM:-}" in *Windows_NT*|*"|"?*) legacy=1 ;; esac
 [ "$runtime" = "-m" ] && legacy=1
+# Only the marker path sets it (to 9); everywhere else an inherited value is cleared, so it never names an fd.
+[ -n "$legacy" ] && { CHOCK_START_FD=; export CHOCK_START_FD; }
 for candidate in "$configured" python3 python py; do
     [ -n "$candidate" ] || continue
     if [ -n "$legacy" ]; then

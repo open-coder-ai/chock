@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -126,3 +127,48 @@ def test_the_windows_probe_path_is_kept_where_the_environment_says_windows(tmp_p
         check=False,
     )
     assert proc.stdout == "legacy\n"
+
+
+_JSON_ONLY = 'import sys\nprint(\'{"decision": "allow"}\')\n'
+
+
+@posix_only
+@pytest.mark.parametrize("fd", ["1", "2"])
+@pytest.mark.parametrize("env_extra", [{}, {"MSYSTEM": "MINGW64"}], ids=["posix", "legacy-msystem"])
+def test_an_inherited_start_fd_never_reaches_the_hook_output(tmp_path: Path, fd: str, env_extra: dict) -> None:
+    repo = _repo(tmp_path)
+    _marker_runtime(repo, _JSON_ONLY)
+    bin_dir = _bin_dir(tmp_path, "bin", python3=sys.executable)
+    env = {**os.environ, "PATH": str(bin_dir), "CHOCK_START_FD": fd, **env_extra}
+    proc = subprocess.run(
+        [bash_executable(), "-c", hook_command(_PROBE_REL)],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout == '{"decision": "allow"}\n'
+    assert "chock-python" not in proc.stderr
+
+
+@posix_only
+def test_a_child_of_the_runtime_sees_no_start_fd(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _marker_runtime(
+        repo,
+        "import os, subprocess, sys\nsys.stdout.write(subprocess.run(['env'], capture_output=True, text=True).stdout)\n",
+    )
+    bin_dir = _bin_dir(tmp_path, "bin", python3=sys.executable)
+    (bin_dir / "env").symlink_to(shutil.which("env"))
+    proc = subprocess.run(
+        [bash_executable(), "-c", hook_command(_PROBE_REL)],
+        cwd=repo,
+        env={**os.environ, "PATH": str(bin_dir)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "CHOCK_START_FD" not in proc.stdout

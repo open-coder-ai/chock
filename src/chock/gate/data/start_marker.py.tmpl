@@ -4,10 +4,9 @@ if _chock_sys.version_info < __MIN_PYTHON__:
 try:
     import os as _chock_start_os
 
-    _chock_start_fd = int(_chock_start_os.environ.get("CHOCK_START_FD", "-1"))
-    if _chock_start_fd >= 0:
-        _chock_start_os.write(_chock_start_fd, b"chock-python")
-        _chock_start_os.close(_chock_start_fd)
-except (ValueError, OSError):
+    if _chock_start_os.environ.pop("CHOCK_START_FD", "") == "9":  # only the launcher's own fd; no child inherits the name
+        _chock_start_os.write(9, b"chock-python")
+        _chock_start_os.close(9)
+except OSError:
     pass
 
