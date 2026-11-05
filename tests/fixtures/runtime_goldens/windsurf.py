@@ -675,7 +675,7 @@ def degrade(decision, event):
 # Not self-contained: chock's guard logic lives in the sibling _chock_runtime.py, loaded from this
 # file's own folder and pinned to the sha256 of that file's bytes (CRLF read as LF), hashed before they are executed.
 # Missing, unreadable, another version, or failing to import: every call refuses (_CHOCK_RUNTIME_FAULT), never allows.
-_CHOCK_RUNTIME_PIN = 'f040dcb506391bac6f6f44de4e41289029fb2d0719646a79bf2bb6f058bfcea2'
+_CHOCK_RUNTIME_PIN = '8e3b4b73f866de5887946c8afe0dee895548a5d67146470d63350fa84b08b5f2'
 
 
 def _chock_load_runtime():
@@ -728,9 +728,8 @@ def _chock_spec_action(path):
     return action if action in ("ask", "warn") else "block"
 
 
-def _chock_declared():
-    """(strictest action, event, gate) of the judging flags; (None, None, None) where this run judges nothing."""
-    argv = sys.argv[1:]
+def _chock_declared_by(argv):
+    """(strictest action, event, gate) of the judging flags in `argv`; (None, None, None) where it judges nothing."""
     actions = ["block"] if guard_path_from_argv(argv) is not None else []
     event = PRE_TOOL
     gate = _flag_path(argv, GATE_FLAG)
@@ -745,6 +744,26 @@ def _chock_declared():
     for action in ("block", "ask", "warn"):
         if action in actions:
             return action, event, gate
+    return None, None, None
+
+
+def _chock_declared():
+    """(strictest action, event, gate) of the judging flags, or of every member of a pinned index; an index that fails its pin blocks."""
+    argv = sys.argv[1:]
+    pinned = multi_from_argv(argv)
+    if pinned is None:
+        return _chock_declared_by(argv)
+    named = root_from_argv(argv)
+    members, _why = load_index(
+        pinned[0], pinned[1], _chock_Path.cwd() if named is None else named, rooted=named is not None
+    )
+    if members is None:
+        return "block", PRE_TOOL, None
+    found = [_chock_declared_by(member["argv"]) for member in members]
+    for action in ("block", "ask", "warn"):
+        stopping = [f for f in found if f[0] == action and f[1] == STOP]
+        if stopping or action in (f[0] for f in found):
+            return stopping[0] if stopping else next(f for f in found if f[0] == action)
     return None, None, None
 
 
@@ -896,17 +915,25 @@ def _chock_multi_log(event, members, verdicts, record, context):
 
 def _chock_multi(event, pinned, context):
     """The one decision of every policy the pinned index lists, each judged on this event, never on stdin."""
-    members, why = load_index(pinned[0], pinned[1], _chock_Path.cwd())
+    named = root_from_argv(sys.argv[1:])
+    members, why = load_index(
+        pinned[0], pinned[1], _chock_Path.cwd() if named is None else named, rooted=named is not None
+    )
     if members is None:
         _report(why + "\n")
         return Decision.deny(why)
-    record = {}
+    off = off_from_argv(sys.argv[1:])
+    members = [member for member in members if member.get("member") not in off]
+    record, said = {}, []
     verdicts = run_members(
         members,
         lambda argv: _chock_member_verdict(_chock_copy.deepcopy(event), record, argv),
         can_ask=context["can_ask"],
+        said=said,
     )
     kill_live_trees()
+    for text in said:
+        _report(text)
     if event.event != "session_start":
         _chock_multi_log(event, members, verdicts, record, context)
     combined = combine(verdicts)

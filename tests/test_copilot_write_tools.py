@@ -19,6 +19,7 @@ from typing import Any
 import pytest
 from bundle_fixtures import MARKER
 from guardrails_support import TOGGLE, build, outcomes, refused
+from multi_support import seen_through
 
 from chock.gate import write_gate
 from chock.install.package import client
@@ -85,7 +86,9 @@ TOOLS = sorted(CLAUDE_NAME)
 def test_every_copilot_file_tool_fires_a_write_entry(copilot: tuple, tool: str) -> None:
     plugin, *_ = copilot
     entries = json.loads(next(plugin.rglob("hooks.json")).read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
-    assert sum(_fires(e.get("matcher", ""), tool) for e in entries) >= 2  # the member's gate and the protection
+    fired = [h["command"] for e in entries if _fires(e.get("matcher", ""), tool) for h in e["hooks"]]
+    # the member's gate and the protection: two members of the one pinned index the entry runs
+    assert sum(seen_through(c, plugin).count(" --gate ") for c in fired) >= 2
 
 
 @pytest.mark.parametrize("tool", TOOLS)

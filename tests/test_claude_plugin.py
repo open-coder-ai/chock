@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 from conftest import guarded_launch
+from multi_support import argvs, folded_members
 
 from chock.gate import runtime_bundle
 from chock.plugin.build import build_skill
@@ -73,11 +74,9 @@ def test_guard_policy_ships_hooks_adapter_and_guard(policy, tmp_path: Path) -> N
     assert entry["matcher"] == "Bash|PowerShell"
     command = entry["hooks"][0]["command"]
     assert "${CLAUDE_PLUGIN_ROOT}/scripts/claude_code.py" in command
-    assert "${CLAUDE_PLUGIN_ROOT}/scripts/block-destructive-commands.sh" in command
-    assert command == (
-        guarded_launch("${CLAUDE_PLUGIN_ROOT}/scripts/launch.sh") + '"${CLAUDE_PLUGIN_ROOT}/scripts/claude_code.py" '
-        '--guard "${CLAUDE_PLUGIN_ROOT}/scripts/block-destructive-commands.sh"'
-    )
+    head = guarded_launch("${CLAUDE_PLUGIN_ROOT}/scripts/launch.sh") + '"${CLAUDE_PLUGIN_ROOT}/scripts/claude_code.py"'
+    members = folded_members(command, head, lambda rel: (out / rel).read_text(encoding="utf-8"))
+    assert argvs(members) == [["--guard", "scripts/block-destructive-commands.sh"]]
 
 
 def test_adapter_and_guard_are_verbatim_copies(policy, tmp_path: Path) -> None:

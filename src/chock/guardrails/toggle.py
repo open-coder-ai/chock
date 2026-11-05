@@ -38,6 +38,7 @@ FILENAME = ".chock/guardrails.json"
 REPO, USER = "repo", "user"
 _ARGC = 5
 VERIFY = "--verify"
+MEMBERS_FLAG = "--members"
 SESSION_START = "--session-start"
 SOURCE_COMPACT = "compact"
 MOVED = (
@@ -245,10 +246,11 @@ def start(argv: list[str], payload: bytes) -> None:
 
 def wrapped(argv: list[str], payload: bytes) -> list[str]:
     """The adapter argv this member runs with: its own when on, none when off. Any doubt is on."""
-    if len(argv) < _ARGC or argv[0] != "--bundle" or argv[2] != "--member":
-        msg = "usage: chock_bundle.py --bundle <name> --member <id> <adapter> [args...]"
+    many = argv[2:3] == [MEMBERS_FLAG]
+    if len(argv) < _ARGC - many or argv[0] != "--bundle" or argv[2] not in ("--member", MEMBERS_FLAG):
+        msg = "usage: chock_bundle.py --bundle <name> (--member <id> | --members) <adapter> [args...]"
         raise SystemExit(msg)
-    bundle, member, adapter, rest = argv[1], argv[3], argv[4], argv[5:]
+    bundle, member, adapter, rest = argv[1], None if many else argv[3], argv[4 - many], argv[5 - many :]
     try:
         starts = _wheres(payload)
         governing, _scope, toggles, warning = load(starts[0])
@@ -259,6 +261,11 @@ def wrapped(argv: list[str], payload: bytes) -> list[str]:
         governing, toggles, warning = None, {}, f"the guardrails toggle lookup failed, every guardrail stays on: {exc}"
     if warning:
         sys.stderr.write(f"chock: {warning}\n")
+    if many:
+        off = ts.off_in_index(toggles, bundle, rest) if governing is not None else []
+        for name in off:
+            log_off(governing, bundle, name)
+        return [adapter, *rest, "--off", ",".join(off)] if off else [adapter, *rest]
     if governing is not None and state(toggles, bundle, member) == OFF:
         log_off(governing, bundle, member)
         return [adapter]

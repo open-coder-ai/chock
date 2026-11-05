@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 from bundle_fixtures import ADVISORY_ID, GATE_ID, GUARD_ID, MARKER, denies, hook_commands, project, run_command
 from install_fixtures import make_catalog, selection, side_commit, write_selection
+from multi_support import seen_through
 
 import chock
 from chock.install import cli, package, place
@@ -72,9 +73,9 @@ def test_each_member_hook_is_wired_exactly_once_per_event(catalog, tmp_path: Pat
     for event, entries in events.items():
         commands = hook_commands(entries)
         assert len(commands) == len(set(commands)), f"{event} runs one hook twice"
-    commands = hook_commands(events)
-    assert sum(f"/scripts/{GUARD_ID}/" in c and "--guard" in c for c in commands) == 1
-    assert any(f"/scripts/{GATE_ID}/" in c and "--gate" in c for c in commands)
+    commands = [seen_through(c, _plugin(dest)) for c in hook_commands(events)]
+    assert sum(f"scripts/{GUARD_ID}/" in c and "--guard" in c for c in commands) == 1
+    assert any(f"scripts/{GATE_ID}/" in c and "--gate" in c for c in commands)
     assert not any(ADVISORY_ID in c for c in commands)
 
 

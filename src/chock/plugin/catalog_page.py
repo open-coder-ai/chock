@@ -60,10 +60,18 @@ _DEFAULT_CATALOG_WORDS = {
 _KINDS = {"gate": _GATE_FLAG, "guard": _GUARD_FLAG}
 
 
+def _read(hooks_path: Path, rel: str) -> str | None:
+    """A file inside the package whose hooks file is `hooks_path`, found beside its scripts; None where it is not there."""
+    for folder in hooks_path.parents:
+        if (folder / rel).is_file():
+            return (folder / rel).read_text(encoding="utf-8")
+    return None
+
+
 def _package_kinds(hooks_path: Path) -> dict[str, list[str]]:
     """{'guard' | 'gate': the events that half is wired at} for one published package's hooks file."""
     doc = json.loads(hooks_path.read_text(encoding="utf-8"))
-    found = {kind: events_for(doc, flag) for kind, flag in _KINDS.items()}
+    found = {kind: events_for(doc, flag, lambda rel: _read(hooks_path, rel)) for kind, flag in _KINDS.items()}
     return {kind: events for kind, events in found.items() if events}
 
 

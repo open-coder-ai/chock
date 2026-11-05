@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from multi_support import argvs, folded_members
 
 from chock import vendors
 from chock.gate import runtime_bundle
@@ -107,11 +108,12 @@ def test_copilot_and_claude_packages_run_the_same_hook(policy, tmp_path: Path) -
     assert copilot_entry["hooks"][0]["timeout"] == claude_entry["hooks"][0]["timeout"]
     copilot_command = copilot_entry["hooks"][0]["command"]
     claude_command = claude_entry["hooks"][0]["command"]
-    for script in ("vscode_copilot.py", "block-destructive-commands.sh"):
-        claude_script = script.replace("vscode_copilot.py", "claude_code.py")
-        assert f"/scripts/{script}" in copilot_command
-        assert f"/scripts/{claude_script}" in claude_command
-    assert copilot_command.endswith(f'--guard "$r/scripts/{"block-destructive-commands.sh"}"')
+    copilot_head, claude_head = (c[: c.index(" --multi ")] for c in (copilot_command, claude_command))
+    copilot_members = folded_members(copilot_command, copilot_head, lambda rel: copilot[Path(rel)])
+    claude_members = folded_members(claude_command, claude_head, lambda rel: claude[Path(rel)])
+    assert argvs(copilot_members) == argvs(claude_members) == [["--guard", "scripts/block-destructive-commands.sh"]]
+    assert "/scripts/vscode_copilot.py" in copilot_command and "/scripts/claude_code.py" in claude_command
+    assert copilot_command.endswith(' --root "$r"')
     assert '[ -n "$r" ] || exit 0;' in copilot_command, "this format's hook must allow when its root is unset"
     assert "exit 2" in copilot_command, "a root without the bundled hook must refuse"
 

@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 from bundle_fixtures import GUARD_ID, bundle, hook_commands, make_members, project, write
+from multi_support import seen_through
 from runtime_payloads import DENY_ON_THE_WIRE, PAYLOADS
 
 from chock.hooks import launch
@@ -52,8 +53,8 @@ def _run(command: str, cwd: Path, payload: dict) -> subprocess.CompletedProcess:
 def test_the_windows_command_has_no_quote_or_space_in_any_argument_and_escapes_every_cmd_operator(
     tmp_path: Path, on_windows: None
 ) -> None:
-    _out, commands = _package(tmp_path, tmp_path / "pkg")
-    assert any(" --guard " in c for c in commands) and any("--stop-check" in c for c in commands)
+    out, commands = _package(tmp_path, tmp_path / "pkg")
+    assert any(" --guard " in seen_through(c, out) for c in commands) and any("--stop-check" in c for c in commands)
     assert any(" --bundle " in c for c in commands) and any(" --verify " in c for c in commands)
     for command in commands:
         assert not QUOTED_TOOLS.search(command), command
@@ -72,7 +73,7 @@ def test_git_sh_runs_the_alias_after_cmd_strips_the_carets_and_the_guard_denies(
 
     def answers(shell: str) -> list[subprocess.CompletedProcess]:
         payload = json.loads(json.dumps(PAYLOADS[AGENT](shell)).replace('"/x"', json.dumps(repo.as_posix())))
-        return [_run(c, repo, payload) for c in commands if " --guard " in c]
+        return [_run(c, repo, payload) for c in commands if " --guard " in seen_through(c, out)]
 
     denied = answers("rm -rf /")
     assert any(p.returncode == 0 and f'"{DENY_ON_THE_WIRE[AGENT]}"' in p.stdout for p in denied), denied

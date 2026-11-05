@@ -18,6 +18,7 @@ from types import SimpleNamespace
 import pytest
 import yaml
 from conftest import guarded_launch, init_repo
+from multi_support import argvs, folded_members, reader
 from runtime_support import load_runtime
 
 from chock.gate import runner
@@ -103,14 +104,15 @@ def test_a_tool_use_gate_ships_hooks_runner_gate_and_its_program(policy, tmp_pat
     out = _build(policy(manifest), manifest, tmp_path)
 
     hooks = json.loads((out / "hooks" / "hooks.json").read_text(encoding="utf-8"))["hooks"]
-    command = (
-        guarded_launch("${CLAUDE_PLUGIN_ROOT}/scripts/launch.sh")
-        + '"${CLAUDE_PLUGIN_ROOT}/scripts/claude_code.py" --gate "${CLAUDE_PLUGIN_ROOT}/scripts/gate.json"'
-    )
+    head = guarded_launch("${CLAUDE_PLUGIN_ROOT}/scripts/launch.sh") + '"${CLAUDE_PLUGIN_ROOT}/scripts/claude_code.py"'
+
+    read = reader(out)
     assert hooks["PreToolUse"][0]["matcher"] == "Write|Edit|MultiEdit|NotebookEdit"
-    assert hooks["PreToolUse"][0]["hooks"][0]["command"] == command
+    written = folded_members(hooks["PreToolUse"][0]["hooks"][0]["command"], head, read)
+    assert argvs(written) == [["--gate", "scripts/gate.json"]]
     assert "matcher" not in hooks["Stop"][0]
-    assert hooks["Stop"][0]["hooks"][0]["command"] == command + " --stop"
+    stopped = folded_members(hooks["Stop"][0]["hooks"][0]["command"], head, read)
+    assert argvs(stopped) == [["--gate", "scripts/gate.json", "--stop"]]
 
     gate = json.loads((out / "scripts" / "gate.json").read_text(encoding="utf-8"))
     assert gate["kind"] == "script"

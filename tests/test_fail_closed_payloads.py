@@ -17,6 +17,7 @@ import client_payloads
 import pytest
 from bundle_fixtures import ALL_ROOTS, BUNDLE_ID, bundle, judging_commands, make_members, project, write
 from conftest import run_hook_command
+from multi_support import seen_through
 from runtime_support import write_runtime
 from test_unreadable_stop import STOP_REFUSALS
 
@@ -99,12 +100,11 @@ def test_a_malformed_payload_is_refused(installed) -> None:
     client, package, repo = installed
     for payload in MALFORMED:
         for command in _commands(package):
-            done = _run(command, repo, payload, package)
-            refused = STOP_REFUSALS[client] if " --stop" in command else DENIES[CLIENTS[client].agent]
+            done, stopping = _run(command, repo, payload, package), " --stop" in seen_through(command, package)
+            refused = STOP_REFUSALS[client] if stopping else DENIES[CLIENTS[client].agent]
             assert refused(done), (client, payload, done.returncode, done.stdout, done.stderr)
             assert "could not read" in done.stderr, (client, payload, done.stderr)
-            if client == "copilot" and " --stop" not in command:
-                assert _nested(done) == "deny", ("VS Code reads the nested answer", done.stdout)
+            assert stopping or client != "copilot" or _nested(done) == "deny", ("VS Code reads nested", done.stdout)
 
 
 def test_an_ordinary_payload_is_still_allowed_and_a_dangerous_one_still_refused(installed) -> None:
