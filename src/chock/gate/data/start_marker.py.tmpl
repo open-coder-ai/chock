@@ -1,0 +1,13 @@
+import sys as _chock_sys
+if _chock_sys.version_info < __MIN_PYTHON__:
+    _chock_sys.exit(1)  # an older Python writes no marker, so the launcher tries its next candidate
+try:
+    import os as _chock_start_os
+
+    _chock_start_fd = int(_chock_start_os.environ.get("CHOCK_START_FD", "-1"))
+    if _chock_start_fd >= 0:
+        _chock_start_os.write(_chock_start_fd, b"chock-python")
+        _chock_start_os.close(_chock_start_fd)
+except (ValueError, OSError):
+    pass
+

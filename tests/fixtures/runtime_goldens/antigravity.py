@@ -9,6 +9,19 @@
 
 from __future__ import annotations
 
+import sys as _chock_sys
+if _chock_sys.version_info < (3, 11):
+    _chock_sys.exit(1)  # an older Python writes no marker, so the launcher tries its next candidate
+try:
+    import os as _chock_start_os
+
+    _chock_start_fd = int(_chock_start_os.environ.get("CHOCK_START_FD", "-1"))
+    if _chock_start_fd >= 0:
+        _chock_start_os.write(_chock_start_fd, b"chock-python")
+        _chock_start_os.close(_chock_start_fd)
+except (ValueError, OSError):
+    pass
+
 import contextlib
 import io
 import json
@@ -742,30 +755,15 @@ def _chock_load_runtime():
     path = _chock_os.path.join(here, '_chock_runtime.py')
     try:
         from hashlib import sha256
-        from importlib.abc import InspectLoader
-        from importlib.util import module_from_spec, spec_from_loader
-
-        class PinnedBytes(InspectLoader):
-            """Hands the import machinery the bytes already read and hashed; it never opens the file again."""
-
-            def __init__(self, source):
-                self.source = source
-
-            def get_source(self, fullname):
-                return self.source.decode("utf-8")
-
-            def get_code(self, fullname):
-                return compile(self.source, path, "exec")
+        from types import ModuleType
 
         with open(path, "rb") as handle:
             source = handle.read()
         if sha256(source.replace(b"\r\n", b"\n")).hexdigest() != _CHOCK_RUNTIME_PIN:
             return "%s is not the version this entry was built with" % path
-        loader = PinnedBytes(source)
-        shared = module_from_spec(spec_from_loader('_chock_runtime', loader))
+        shared = ModuleType('_chock_runtime')
         shared.__file__ = path
-        shared.__loader__ = loader
-        loader.exec_module(shared)
+        exec(compile(source, path, "exec"), shared.__dict__)  # noqa: S102 -- the bytes just pinned, never reopened
     except BaseException as exc:  # noqa: BLE001 -- a SystemExit from its top level must refuse too
         return "chock could not load %s (%s)" % (path, type(exc).__name__)
     globals().update((name, value) for name, value in vars(shared).items() if not name.startswith("__"))
