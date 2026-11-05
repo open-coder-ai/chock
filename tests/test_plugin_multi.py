@@ -243,3 +243,39 @@ def test_the_flags_are_read_from_the_command_line() -> None:
     assert off_from_argv(["--off", "a,b"]) == {"a", "b"}
     assert off_from_argv(["--multi", "i"]) == set()
     assert ADVISORY_ID
+
+
+def test_an_absent_or_failed_toggle_lookup_leaves_every_member_on(tmp_path: Path, monkeypatch) -> None:
+    from chock.guardrails import toggle
+
+    index = tmp_path / "index.json"
+    index.write_text(json.dumps({"members": [{"argv": [], "files": {}, "member": "mem-one"}]}), encoding="utf-8")
+    payload = json.dumps({"cwd": str(tmp_path), "session_id": "s"}).encode("utf-8")
+    argv = ["--bundle", "bun-dle", "--members", "adapter.py", "--multi", str(index)]
+    off = {"bun-dle": {"mem-one": "off"}}
+    monkeypatch.setattr(toggle, "load", lambda _start: (tmp_path / "g.json", "repo", off, None))
+    assert toggle.wrapped(argv, payload)[-2:] == ["--off", "mem-one"]
+    monkeypatch.setattr(toggle, "load", lambda _start: (None, None, off, None))
+    assert "--off" not in toggle.wrapped(argv, payload)
+    monkeypatch.setattr(toggle, "load", lambda _start: (_ for _ in ()).throw(OSError("unreadable")))
+    assert "--off" not in toggle.wrapped(argv, payload)
+
+
+@pytest.mark.parametrize("member", ["scripts/g.py", "scripts/a b/g.py", "scripts/chock_index/x.json"])
+def test_no_relative_posix_member_path_reads_as_an_escape_on_either_flavour(member: str) -> None:
+    from chock.gate.multi import _escapes
+
+    assert not _escapes(member)
+
+
+def test_an_unreadable_payload_on_a_repo_multi_hook_refuses(tmp_path: Path) -> None:
+    import subprocess
+
+    from decision_log_support import hook_env
+    from test_multi_dispatch import _repo
+
+    repo, command = _repo(tmp_path, ("alpha",))
+    done = subprocess.run(
+        command.split(), cwd=repo, env=hook_env(repo.parent), input="not json", capture_output=True, text=True
+    )
+    assert "could not read" in done.stderr and "deny" in done.stdout, (done.returncode, done.stdout, done.stderr)

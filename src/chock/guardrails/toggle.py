@@ -262,7 +262,7 @@ def wrapped(argv: list[str], payload: bytes) -> list[str]:
     if warning:
         sys.stderr.write(f"chock: {warning}\n")
     if many:
-        off = ts.off_in_index(toggles, bundle, rest)
+        off = ts.off_in_index(toggles, bundle, rest) if governing is not None else []
         for name in off:
             log_off(governing, bundle, name)
         return [adapter, *rest, "--off", ",".join(off)] if off else [adapter, *rest]
