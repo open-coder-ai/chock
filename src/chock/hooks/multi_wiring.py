@@ -12,6 +12,7 @@ from typing import Any, NamedTuple
 from chock.compile.emitters.in_agent_hooks import VENDOR_TIMEOUTS
 from chock.gate.budget import ENGINE_BUDGET_SECONDS
 from chock.gate.guard_runner import PYTHON_SUFFIX
+from chock.gate.multi import sha256_of
 from chock.hooks.config_write import CONFIG_MODE
 from chock.hooks.runtime_vendor import runtime_rel
 from chock.manifest import CANONICAL_MANIFEST
@@ -94,7 +95,7 @@ def _tree_files(root: Path, base: Path) -> dict[str, str]:
     found = {}
     for path in sorted(root.rglob("*")):
         if path.is_file() and not (set(path.parts) & set(_BYTECODE) or path.suffix in _BYTECODE_SUFFIXES):
-            found[path.relative_to(base).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+            found[path.relative_to(base).as_posix()] = sha256_of(path)
     return found
 
 
@@ -286,9 +287,8 @@ def installed_members(repo_root: Path, vendor: str, config: Any) -> set[tuple[st
             continue
         rel, pin = (tokens[tokens.index(flag) + 1].strip('"') for flag in (MULTI_FLAG, INDEX_SHA_FLAG))
         try:
-            body = (root / rel).read_bytes()
-            if hashlib.sha256(body).hexdigest() == pin:
-                found.update(tuple(m["argv"]) for m in json.loads(body)["members"])
+            if sha256_of(root / rel) == pin:
+                found.update(tuple(m["argv"]) for m in json.loads((root / rel).read_bytes())["members"])
         except (OSError, ValueError, KeyError, TypeError):
             continue
     return found

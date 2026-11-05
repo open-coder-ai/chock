@@ -51,8 +51,9 @@ def off_from_argv(argv):
     return {name for name in (argv[at] if at < len(argv) else "").split(",") if name}
 
 
-def _sha256_of(path):
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+def sha256_of(path):
+    """The sha256 of a file's bytes with CRLF read as LF, so a checkout that converted line endings still matches."""
+    return hashlib.sha256(Path(path).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 def _escapes(path):
@@ -70,7 +71,7 @@ def _member_fault(member, root):
         if not isinstance(relative, str) or _escapes(relative):
             return f"the policy index names {relative!r}, which is outside the repository root"
     for relative, expected in member["files"].items():
-        if _sha256_of(Path(root) / relative) != expected:
+        if sha256_of(Path(root) / relative) != expected:
             return f"{relative} does not match the hash the policy index pins"
     if not isinstance(member["argv"], list) or not float(member.get("timeout", MEMBER_DEFAULT_SECONDS)) > 0:
         return "the policy index holds a member chock cannot read"
@@ -91,7 +92,7 @@ def load_index(path, pin, root, *, rooted=False):
     try:
         if not root:
             return None, "the hook command names an empty plugin root, so its policy index cannot be checked"
-        if not pin or _sha256_of(path) != pin:
+        if not pin or sha256_of(path) != pin:
             return None, f"the policy index {path} does not match the hash the hook pins"
         members = json.loads(Path(path).read_text(encoding="utf-8"))["members"]
         if not isinstance(members, list) or not members:

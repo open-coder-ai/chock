@@ -148,6 +148,13 @@ def test_the_built_command_runs_and_denies_with_its_root(tmp_path: Path) -> None
     assert not run_command(command, out, repo, PAYLOADS["claude_code"]("ls")).stdout.count("deny")
 
 
+def test_a_checkout_that_converted_line_endings_still_matches_its_pins(tmp_path: Path) -> None:
+    out, repo, command = _built(tmp_path)
+    for path in [*(out / "scripts").rglob("*.py"), *(out / "scripts" / "chock_index").glob("*.json")]:
+        path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+    assert "no rm -rf" in _refused(out, repo, command)
+
+
 def test_a_bad_pin_refuses(tmp_path: Path) -> None:
     out, repo, command = _built(tmp_path)
     assert "does not match the hash the hook pins" in _refused(
