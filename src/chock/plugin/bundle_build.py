@@ -17,14 +17,14 @@ from typing import Any, Callable
 
 from chock.guardrails import plugin as guardrails
 from chock.hooks import heartbeat, stop_check
-from chock.plugin import bundle_grade, bundles, claude, hook_dir
+from chock.plugin import bundle_grade, bundles, claude, hook_dir, multi_plugin
 from chock.plugin.clients import CLIENTS, Client
 from chock.plugin.listing import LICENSE_REL, license_text
 from chock.plugin.store import SCRIPTS_TEMPLATE
 
 SCRIPTS_DIR = "scripts/"
 
-FilesFn = Callable[[Path, dict[str, Any], Path], dict[Path, str]]
+FilesFn = Callable[..., dict[Path, str]]
 
 
 class MergeCollisionError(bundles.BundleError):
@@ -71,7 +71,7 @@ def _member_packages(
 ) -> list[tuple[Member, dict[Path, str], int, str]]:
     out = []
     for member in members:
-        files = client.files(member.policy_dir, member.manifest, repo_root)
+        files = client.files(member.policy_dir, member.manifest, repo_root, folded=False)
         grade, what = bundle_grade.grade_of_files(files, hooks_rel, client.agent)
         out.append((member, files, grade, what))
     return out
@@ -85,7 +85,7 @@ def member_grades(
     hooks_rel = client.layout()[1]
     out = []
     for member in members:
-        files = client.files(member.policy_dir, member.manifest, repo_root)
+        files = client.files(member.policy_dir, member.manifest, repo_root, folded=False)
         grade, what = bundle_grade.grade_of_files(files, hooks_rel, client.agent, write_judged=write_judged)
         out.append((member, grade, what))
     return out
@@ -231,10 +231,19 @@ def _rows(client: Client, bundle: dict[str, Any], packages: list) -> list[tuple[
     ]
 
 
-def merged_files(
-    client_name: str, bundle: dict[str, Any], members: list[Member], repo_root: Path, *, aggregate: bool = True
+def merged_files(  # noqa: PLR0913 -- a bundle's build keeps its claim and its fold as two keyword choices
+    client_name: str,
+    bundle: dict[str, Any],
+    members: list[Member],
+    repo_root: Path,
+    *,
+    aggregate: bool = True,
+    folded: bool = True,
 ) -> dict[Path, str]:
-    """One plugin carrying every member's skills, hooks, scripts and packages; `aggregate=False` drops the bundle claim."""
+    """One plugin carrying every member's skills, hooks, scripts and packages; `aggregate=False` drops the bundle claim.
+
+    `folded=False` keeps one hook entry per policy instead of one pinned index per (event, matcher).
+    """
     client = CLIENTS[client_name]
     manifest_name, hooks_name, skill_rel = client.layout()
     hooks_rel = Path(hooks_name)
@@ -248,7 +257,7 @@ def merged_files(
         if doc is not None:
             hooks = _merge_into(hooks, guardrails.wrap_doc(doc, client.agent, bundle["id"], member.id))
     protect = Member(guardrails.protect_dir(), guardrails.protect_manifest())
-    protect_files = client.files(protect.policy_dir, protect.manifest, repo_root)
+    protect_files = client.files(protect.policy_dir, protect.manifest, repo_root, folded=False)
     protect_doc = _merge_member(client, protect.id, _scripts_only(protect_files, hooks_rel), files, (hooks_rel,))
     hooks = _merge_into(hooks, guardrails.verify_at_stop(protect_doc, client.agent))
     beat = heartbeat.plugin_doc(client.agent, hooks)
@@ -266,4 +275,6 @@ def merged_files(
         files[manifest_rel] = json.dumps(manifest, indent=2) + "\n"
     if hooks:
         files[hooks_rel] = json.dumps(hooks, indent=2) + "\n"
+        if folded:
+            files = multi_plugin.fold_files(files, hooks_rel, client.agent, bundle=bundle["id"])
     return dict(sorted(_with_licence(files, bundle, members).items()))

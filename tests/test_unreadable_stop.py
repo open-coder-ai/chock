@@ -18,6 +18,7 @@ import client_payloads
 import pytest
 from bundle_fixtures import ALL_ROOTS, bundle, hook_commands, judging_commands, make_members, project, write
 from conftest import run_hook_command
+from multi_support import seen_through
 from runtime_support import write_runtime
 
 from chock.gate import runtime_bundle
@@ -69,7 +70,7 @@ def _stop_command(package: Path) -> str:
     (command,) = [
         c
         for c in hook_commands(json.loads(next(package.rglob("hooks.json")).read_text("utf-8")))
-        if re.search(r" --stop(?![\w-])", c) and PROTECT_ID not in c
+        if re.search(r" --stop(?![\w-])", seen_through(c, package)) and PROTECT_ID not in seen_through(c, package)
     ]
     return command
 
@@ -171,7 +172,7 @@ def test_a_ledger_that_cannot_be_written_keeps_refusing(installed) -> None:
 def test_an_unreadable_pre_tool_call_is_never_capped(installed) -> None:
     client, package, repo, _ = installed
     hooks = judging_commands(json.loads(next(package.rglob("hooks.json")).read_text("utf-8")))
-    pre = [c for c in hooks if " --stop" not in c]
+    pre = [c for c in hooks if " --stop" not in seen_through(c, package)]
     assert pre or gate_reach(CLIENTS[client].agent)[0] is None, "only a stop-only client lacks a pre-tool hook"
     for command in pre:
         for _ in range(REENTRY_CAP + 2):

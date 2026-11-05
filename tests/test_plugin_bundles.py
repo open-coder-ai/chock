@@ -24,6 +24,7 @@ from bundle_fixtures import (
     run_command,
     write,
 )
+from multi_support import seen_through
 from packaging_helpers import tree_bytes
 
 from chock.guardrails.plugin import PROTECT_ID
@@ -146,7 +147,11 @@ def test_no_path_or_hook_command_collides_and_every_command_reaches_a_shipped_fi
     doc = json.loads(_hooks_file(out).read_text(encoding="utf-8"))
     commands = hook_commands(doc)
     judging = judging_commands(doc)
-    targets = {re.search(r"--(?:guard|gate) \"?[^\s\"]*?(scripts/[^\s\"]+)", c).group(1) for c in judging}
+    targets = {
+        found
+        for c in judging
+        for found in re.findall(r"--(?:guard|gate) \"?[^\s\"]*?(scripts/[^\s\"]+)", seen_through(c, out))
+    }
     protect = f"scripts/{PROTECT_ID}"
     expected = {f"scripts/{GUARD_ID}/{GUARD_ID}.py", f"{protect}/{PROTECT_ID}.py"}
     if gate_package.gate_reaches(CLIENTS[client].agent):

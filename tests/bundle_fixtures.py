@@ -127,8 +127,8 @@ def hook_commands(doc: Any) -> list[str]:
 
 
 def judging_commands(doc: Any) -> list[str]:
-    """`hook_commands` minus the session-start heartbeat: the commands handed a guard or gate to judge with."""
-    return [c for c in hook_commands(doc) if re.search(r" --(?:guard|gate) ", c)]
+    """`hook_commands` minus the session-start heartbeat: the commands handed a guard, a gate or a pinned index to judge with."""
+    return [c for c in hook_commands(doc) if re.search(r" --(?:guard|gate|multi) ", c)]
 
 
 def run_command(command: str, plugin_root: Path, cwd: Path, payload: dict) -> Any:

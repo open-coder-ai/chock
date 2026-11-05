@@ -57,9 +57,11 @@ def build_droid_manifest(
 SPEC = hook_dir.Spec("droid", "factory_droid", GUARD_NOTE, build_droid_manifest)
 
 
-def droid_plugin_files(policy_dir: Path, manifest: dict[str, Any], repo_root: Path) -> dict[Path, str]:
+def droid_plugin_files(
+    policy_dir: Path, manifest: dict[str, Any], repo_root: Path, *, folded: bool = True
+) -> dict[Path, str]:
     """The Droid plugin's files as {relative path: content}, writing nothing."""
-    return hook_dir.plugin_files(SPEC, policy_dir, manifest, repo_root)
+    return hook_dir.plugin_files(SPEC, policy_dir, manifest, repo_root, folded=folded)
 
 
 def build_droid_plugin(policy_dir: Path, manifest: dict[str, Any], repo_root: Path, out_dir: Path) -> list[Path]:

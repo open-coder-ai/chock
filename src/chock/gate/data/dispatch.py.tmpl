@@ -98,17 +98,25 @@ def _chock_multi_log(event, members, verdicts, record, context):
 
 def _chock_multi(event, pinned, context):
     """The one decision of every policy the pinned index lists, each judged on this event, never on stdin."""
-    members, why = load_index(pinned[0], pinned[1], _chock_Path.cwd())
+    named = root_from_argv(sys.argv[1:])
+    members, why = load_index(
+        pinned[0], pinned[1], _chock_Path.cwd() if named is None else named, rooted=named is not None
+    )
     if members is None:
         _report(why + "\n")
         return Decision.deny(why)
-    record = {}
+    off = off_from_argv(sys.argv[1:])
+    members = [member for member in members if member.get("member") not in off]
+    record, said = {}, []
     verdicts = run_members(
         members,
         lambda argv: _chock_member_verdict(_chock_copy.deepcopy(event), record, argv),
         can_ask=context["can_ask"],
+        said=said,
     )
     kill_live_trees()
+    for text in said:
+        _report(text)
     if event.event != "session_start":
         _chock_multi_log(event, members, verdicts, record, context)
     combined = combine(verdicts)

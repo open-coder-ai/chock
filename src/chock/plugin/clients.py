@@ -23,7 +23,7 @@ from chock.plugin import (
     store,
 )
 
-FilesFn = Callable[[Path, dict[str, Any], Path], dict[Path, str]]
+FilesFn = Callable[..., dict[Path, str]]
 
 
 @dataclass(frozen=True)
