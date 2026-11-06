@@ -23,9 +23,10 @@ Set Theme "Catppuccin Mocha"
 Set TypingSpeed 25ms
 Set Padding 24
 
-# --- hidden setup: pipx's bin first on PATH; version and share code from install_clip.py ---
+# --- hidden setup: pipx's bin first on PATH; version and share code from install_clip.py.
+# Plain assignments keep each exit status, so a failure skips `clear` and stays on screen. ---
 Hide
-Type `export PATH="$HOME/.local/bin:$PATH" V="$(python3 docs/assets/install_clip.py version)" CODE="$(python3 docs/assets/install_clip.py code)" && clear`
+Type `export PATH="$HOME/.local/bin:$PATH" && V="$(python3 docs/assets/install_clip.py version)" && CODE="$(python3 docs/assets/install_clip.py code)" && clear`
 Enter
 Sleep 3s
 Show

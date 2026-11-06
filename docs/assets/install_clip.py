@@ -12,6 +12,8 @@ from pathlib import Path
 PYPROJECT = Path(__file__).resolve().parents[2] / "pyproject.toml"
 SITE_JSON = "https://chock.sh/data/site.json"
 TIMEOUT = 30
+#: A named client: the site's CDN may refuse urllib's default User-Agent.
+HEADERS = {"User-Agent": "chock-install-clip", "Accept": "application/json"}
 
 
 def version() -> str:
@@ -21,7 +23,8 @@ def version() -> str:
 
 def site() -> dict:
     """The data the chock.sh builder reads (static/js/builder.js fetches the same file)."""
-    with urllib.request.urlopen(SITE_JSON, timeout=TIMEOUT) as response:
+    request = urllib.request.Request(SITE_JSON, headers=HEADERS)
+    with urllib.request.urlopen(request, timeout=TIMEOUT) as response:  # noqa: S310 -- SITE_JSON, a fixed https URL
         return json.load(response)
 
 
