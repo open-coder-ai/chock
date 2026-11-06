@@ -56,6 +56,9 @@ Type "# 3. the plugin's hook refuses git commit --no-verify (its PreToolUse hook
 Enter
 Type `cd "$(mktemp -d)" && git init -q && PLUGIN=~/.chock/marketplace/claude-code/claude/chock-guardrails`
 Enter
+Type `ls -la "$PLUGIN/hooks"; jq -r '.hooks | keys[]' "$PLUGIN/hooks/hooks.json"; jq -r '.hooks.PreToolUse[] | .matcher + "  " + (.hooks[].command | .[-90:])' "$PLUGIN/hooks/hooks.json"`
+Enter
+Sleep 2s
 Type `HOOK=$(jq -r '.hooks.PreToolUse[].hooks[].command | select(contains("/block-no-verify.py"))' "$PLUGIN/hooks/hooks.json") && printf '%s\n' "$HOOK"`
 Enter
 Type `echo '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git commit --no-verify -m wip"},"cwd":"'"$PWD"'"}' | CLAUDE_PLUGIN_ROOT="$PLUGIN" sh -c "$HOOK"`
