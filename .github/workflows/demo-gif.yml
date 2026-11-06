@@ -112,3 +112,5 @@ jobs:
         with:
           commit_message: "docs: regenerate demo.gif and install.gif"
           file_pattern: docs/assets/demo.gif docs/assets/install.gif
+          # The repo's DCO check requires a Signed-off-by trailer on every commit.
+          commit_options: "--signoff"
