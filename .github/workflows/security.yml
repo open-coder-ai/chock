@@ -79,3 +79,13 @@ jobs:
         run: |
           pip install --require-hashes -r requirements/semgrep.txt
           semgrep scan --config .semgrep/ --error --strict
+      - name: Semgrep the runtime rendered from the templates
+        # semgrep reads the committed .chock/bin, not the *.tmpl it is rendered from, so a
+        # template break surfaced only after the owner re-rendered (chock#361). Render every
+        # entry plus the shared runtime with the repo's own code, in its own venv (its pins
+        # differ from semgrep's), then run the same rules on the output.
+        run: |
+          python -m venv "$RUNNER_TEMP/render-env"
+          "$RUNNER_TEMP/render-env/bin/pip" install --require-hashes -r requirements/runtime.txt
+          PYTHONPATH=src "$RUNNER_TEMP/render-env/bin/python" tools/render_runtime.py "$RUNNER_TEMP/rendered-runtime"
+          semgrep scan --config .semgrep/ --error --strict "$RUNNER_TEMP/rendered-runtime"
