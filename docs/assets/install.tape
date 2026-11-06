@@ -23,10 +23,11 @@ Set Theme "Catppuccin Mocha"
 Set TypingSpeed 25ms
 Set Padding 24
 
-# --- hidden setup: pipx's bin first on PATH; version and share code from install_clip.py.
+# --- hidden setup: pipx's bin dir first on PATH (GitHub runners set PIPX_BIN_DIR, and the
+# workflow's own editable chock is on PATH too); version and share code from install_clip.py.
 # Plain assignments keep each exit status, so a failure skips `clear` and stays on screen. ---
 Hide
-Type `export PATH="$HOME/.local/bin:$PATH" && V="$(python3 docs/assets/install_clip.py version)" && CODE="$(python3 docs/assets/install_clip.py code)" && clear`
+Type `export PATH="$(pipx environment --value PIPX_BIN_DIR):$PATH" && V="$(python3 docs/assets/install_clip.py version)" && CODE="$(python3 docs/assets/install_clip.py code)" && clear`
 Enter
 Sleep 3s
 Show
@@ -42,26 +43,27 @@ Sleep 1s
 # --- 2. Build the Git hygiene preset for Claude Code (no --apply: Claude Code is not here) ---
 Type "# 2. build chock.sh's Git hygiene preset as a Claude Code plugin"
 Enter
+Type "command -v chock"
+Enter
+Sleep 500ms
 Type `chock install --selection "$CODE" --client claude-code 2>&1 | cut -c1-120 | sed -n '1,16p'`
 Enter
 Wait@240s
 Sleep 4s
 
-# --- 3. The plugin's own hook, run as its hooks.json declares it, in a scratch repo ---
+# --- 3. The plugin's own hooks, run as its hooks.json declares them, in a scratch repo:
+# every PreToolUse command whose matcher matches Bash, as Claude Code picks them. ---
 Hide
 Type "clear"
 Enter
 Show
-Type "# 3. the plugin's hook refuses git commit --no-verify (its PreToolUse hook, no live Claude Code)"
+Type "# 3. the plugin's hook refuses git commit --no-verify (its PreToolUse hooks for Bash, no live Claude Code)"
 Enter
 Type `cd "$(mktemp -d)" && git init -q && PLUGIN=~/.chock/marketplace/claude-code/claude/chock-guardrails`
 Enter
-Type `ls -la "$PLUGIN/hooks"; jq -r '.hooks | keys[]' "$PLUGIN/hooks/hooks.json"; jq -r '.hooks.PreToolUse[] | .matcher + "  " + (.hooks[].command | .[-90:])' "$PLUGIN/hooks/hooks.json"`
+Type `P='{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git commit --no-verify -m wip"},"cwd":"'"$PWD"'"}'`
 Enter
-Sleep 2s
-Type `HOOK=$(jq -r '.hooks.PreToolUse[].hooks[].command | select(contains("/block-no-verify.py"))' "$PLUGIN/hooks/hooks.json") && printf '%s\n' "$HOOK"`
+Type `jq -r '.hooks.PreToolUse[] | select((.matcher // "") as $m | "Bash" | test($m)) | .hooks[].command' "$PLUGIN/hooks/hooks.json" | while IFS= read -r HOOK; do echo "$P" | CLAUDE_PLUGIN_ROOT="$PLUGIN" sh -c "$HOOK"; done`
 Enter
-Type `echo '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git commit --no-verify -m wip"},"cwd":"'"$PWD"'"}' | CLAUDE_PLUGIN_ROOT="$PLUGIN" sh -c "$HOOK"`
-Enter
-Wait@60s
+Wait@90s
 Sleep 8s
