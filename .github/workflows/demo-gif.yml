@@ -1,15 +1,19 @@
-# Renders docs/assets/demo.tape -> demo.gif with VHS.
+# Renders docs/assets/demo.tape -> demo.gif and docs/assets/install.tape -> install.gif with VHS.
+#
+# install.tape installs chock from PyPI with pipx at pyproject's version and builds a
+# chock.sh preset from the live site's data (see docs/assets/install_clip.py), so it
+# needs network to PyPI, chock.sh and GitHub; pipx and jq ship on ubuntu-latest.
 #
 # Two triggers, two jobs, deliberately not sharing write access:
 #
 # - workflow_dispatch (job `render`): manual, authoring-only. Run it from the Actions
 #   tab, download the `demo-gif` artifact, review it, and commit the GIF yourself.
 #   `contents: read` -- it never writes back on its own.
-# - push on docs/assets/demo.tape, any branch but main (job `render-and-commit`):
+# - push on a tape or install_clip.py, any branch but main (job `render-and-commit`):
 #   `main` is protected with no bypass, so this can only ever land on a feature
 #   branch -- which is the point, since it carries the regenerated GIF into that
 #   branch's own pull request instead of leaving the tape and the GIF to drift apart.
-#   `contents: write`, scoped to this job only. The commit only touches demo.gif, so
+#   `contents: write`, scoped to this job only. The commit only touches the GIFs, so
 #   it never re-triggers itself.
 #
 # Linux rendering is canonical in both jobs -- the tape is authored against a Unix
@@ -20,7 +24,7 @@ on:
   workflow_dispatch:
   push:
     branches-ignore: [main]
-    paths: ["docs/assets/demo.tape"]
+    paths: ["docs/assets/demo.tape", "docs/assets/install.tape", "docs/assets/install_clip.py"]
 
 permissions:
   contents: read
@@ -49,11 +53,18 @@ jobs:
         with:
           path: docs/assets/demo.tape
 
+      - name: Render install tape
+        uses: charmbracelet/vhs-action@f6d7db07a432fcd3b06772628d36a57f96d95dcf  # v2
+        with:
+          path: docs/assets/install.tape
+
       - name: Upload GIF
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: demo-gif
-          path: docs/assets/demo.gif
+          path: |
+            docs/assets/demo.gif
+            docs/assets/install.gif
           if-no-files-found: error
 
   render-and-commit:
@@ -78,8 +89,13 @@ jobs:
         with:
           path: docs/assets/demo.tape
 
-      - name: Commit regenerated GIF
+      - name: Render install tape
+        uses: charmbracelet/vhs-action@f6d7db07a432fcd3b06772628d36a57f96d95dcf  # v2
+        with:
+          path: docs/assets/install.tape
+
+      - name: Commit regenerated GIFs
         uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d  # v7.2.0
         with:
-          commit_message: "docs: regenerate demo.gif"
-          file_pattern: docs/assets/demo.gif
+          commit_message: "docs: regenerate demo.gif and install.gif"
+          file_pattern: docs/assets/demo.gif docs/assets/install.gif
