@@ -119,7 +119,7 @@ ${term([cmd('chock init .'), cmd('chock add &lt;id&gt; --ref &lt;sha&gt; \\'), '
 ${term([cmd('chock install --selection &lt;code&gt; --apply'), '<div class="d">from the chock.sh builder</div>'])}
 <div style="font-size:17px;line-height:1.55;color:#D5DBE8">Your own sessions in that client, any client chock install supports. Best-effort hooks that fail open. Pair with route 1 for commit and CI.</div></div>
 </div>
-<div class="panel" style="padding:20px 28px;font-size:18px;color:#D5DBE8"><span class="gold" style="font-weight:600">Or build a selection:</span> the chock.sh builder (launching soon) gives one plugin for your agent from the policies you pick, your own included.</div></div>`);
+<div class="panel" style="padding:20px 28px;font-size:18px;color:#D5DBE8"><span class="gold" style="font-weight:600">Or build a selection:</span> the chock.sh builder gives one plugin for your agent from the policies you pick, your own included.</div></div>`);
 
 // bare: no eyebrow or title, for panels that sit under the README's own ## heading (README v2).
 const SECTION = (eyebrow, title, body, { bare = false } = {}) => page(`<div class="frame" style="display:flex;flex-direction:column;gap:30px">
