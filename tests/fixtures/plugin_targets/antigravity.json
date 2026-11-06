@@ -41,7 +41,7 @@
       "Stop": [
         {
           "type": "command",
-          "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"__CHOCK_PLUGIN_ROOT__/scripts/launch.sh\" \"__CHOCK_PLUGIN_ROOT__/scripts/chock_bundle.py\" --bundle demo-bundle --members \"__CHOCK_PLUGIN_ROOT__/scripts/antigravity.py\" --multi \"__CHOCK_PLUGIN_ROOT__/scripts/chock_index/Stop-501fc3f8.json\" --index-sha256 c950e67d2f9a28e0fb11a597941e8ff4bc10a473ffe974c3169df4d177bf893f --root \"__CHOCK_PLUGIN_ROOT__\"",
+          "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"__CHOCK_PLUGIN_ROOT__/scripts/launch.sh\" \"__CHOCK_PLUGIN_ROOT__/scripts/chock_bundle.py\" --bundle demo-bundle --members \"__CHOCK_PLUGIN_ROOT__/scripts/antigravity.py\" --multi \"__CHOCK_PLUGIN_ROOT__/scripts/chock_index/Stop-501fc3f8.json\" --index-sha256 ab951b9e6f1984a7860e362ee3529e4d5e259cf9ec952ce69134bbc675cb4d34 --root \"__CHOCK_PLUGIN_ROOT__\"",
           "timeout": 45
         },
         {
@@ -55,7 +55,7 @@
           "hooks": [
             {
               "type": "command",
-              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"__CHOCK_PLUGIN_ROOT__/scripts/launch.sh\" \"__CHOCK_PLUGIN_ROOT__/scripts/chock_bundle.py\" --bundle demo-bundle --members \"__CHOCK_PLUGIN_ROOT__/scripts/antigravity.py\" --multi \"__CHOCK_PLUGIN_ROOT__/scripts/chock_index/PreToolUse-b4ab2f9e.json\" --index-sha256 96ac6dbd89c3c3463ea3f61a714abb605fca38fad9c035a863dba6c19ce8f516 --root \"__CHOCK_PLUGIN_ROOT__\"",
+              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"__CHOCK_PLUGIN_ROOT__/scripts/launch.sh\" \"__CHOCK_PLUGIN_ROOT__/scripts/chock_bundle.py\" --bundle demo-bundle --members \"__CHOCK_PLUGIN_ROOT__/scripts/antigravity.py\" --multi \"__CHOCK_PLUGIN_ROOT__/scripts/chock_index/PreToolUse-b4ab2f9e.json\" --index-sha256 34625747312677b1808146eba0c55bfaf174f155de97d7e145718f63785e5416 --root \"__CHOCK_PLUGIN_ROOT__\"",
               "timeout": 45
             }
           ],

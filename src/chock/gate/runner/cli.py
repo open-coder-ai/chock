@@ -12,7 +12,7 @@ from .constants import _GIT_EVENTS, AGENT_EVENTS, EXIT_ASK, EXIT_WARN
 from .context import _GIT
 from .verdict import halt_git, run, script_verdict
 
-# >>> gate.py 24
+# >>> gate.py 25
 #: The git hook a merge's own commit runs: judged as a commit.
 _MERGE_COMMIT = "pre-merge-commit"
 

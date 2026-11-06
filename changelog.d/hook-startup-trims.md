@@ -1,0 +1,1 @@
+- Hook start-up is cheaper: the runtime loader executes the already-hashed bytes without importing `inspect`, the POSIX launcher runs the runtime directly instead of a separate Python probe (a candidate that writes no start marker passes to the next; Windows keeps the probe), and the write gate reads each committed file once per process.
