@@ -235,3 +235,10 @@ def test_duplicate_policy_ids_are_refused(policy, tmp_path: Path, capsys) -> Non
     dist = tmp_path / "dist"
     assert plugin_main(["build", "--repo", str(tmp_path), "--format", "all", "--out-dir", str(dist)]) == 2
     assert "duplicate policy id" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("manifest", [GUARD_MANIFEST, RULE_MANIFEST])
+def test_manifest_carries_the_documented_homepage(policy, tmp_path: Path, manifest: dict) -> None:
+    """Claude's plugins reference documents `homepage` (String, documentation URL)."""
+    files = claude_plugin_files(policy(manifest, guard=manifest is GUARD_MANIFEST), manifest, tmp_path)
+    assert json.loads(files[Path(".claude-plugin/plugin.json")])["homepage"] == "https://chock.sh"

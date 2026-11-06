@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,11 @@ _DATA = Path(__file__).resolve().parent / "data"
 def icon_svg() -> str:
     """Chock's logo, as the bytes a package ships."""
     return (_DATA / "icon.svg").read_text(encoding="utf-8")
+
+
+def homepage() -> str:
+    """Chock's site, the `homepage` a vendor manifest that documents the field carries."""
+    return str(json.loads((_DATA / "listing.json").read_text(encoding="utf-8"))["homepage"])
 
 
 _LICENSE_TEXT = {"Apache-2.0": _DATA / "Apache-2.0.txt"}
