@@ -184,3 +184,9 @@ def test_devin_losing_a_guard_removes_the_root_hook(policy, tmp_path: Path) -> N
     build_devin_plugin(pack, GUARD_MANIFEST, tmp_path, out)
     assert not (out / "hooks.json").exists()
     assert not (out / "scripts").exists()
+
+
+def test_devin_manifest_has_no_homepage(policy, tmp_path: Path) -> None:
+    """No Devin field reference documents `homepage`, so the manifest never carries one."""
+    files = devin_plugin_files(policy(GUARD_MANIFEST, guard=True), GUARD_MANIFEST, tmp_path)
+    assert "homepage" not in json.loads(files[Path(".devin-plugin/plugin.json")])

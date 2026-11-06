@@ -13,6 +13,7 @@ from chock.hooks import launch, stop_check
 from chock.plugin import gate_package, guard_gate, multi_plugin, store
 from chock.plugin.build import (
     LICENSE_REL,
+    MANIFEST_KEYS,
     NAMESPACE,
     advisory_note,
     build_manifest,
@@ -22,6 +23,7 @@ from chock.plugin.build import (
     skill_assets,
 )
 from chock.plugin.claude import POSTURE_ADVISORY, _runtime_files
+from chock.plugin.listing import homepage
 from chock.plugin.store import SCRIPTS_TEMPLATE as _SCRIPTS_TEMPLATE
 
 _LAYOUT = packaging.layout("copilot")
@@ -103,7 +105,8 @@ def build_copilot_manifest(
     manifest: dict[str, Any], policy_dir: Path, *, enforced: bool, gate: bool = False, guard: bool = False
 ) -> dict[str, Any]:
     """Derive the root `plugin.json` from a policy manifest."""
-    data = build_manifest(manifest, policy_dir)
+    built = {**build_manifest(manifest, policy_dir), "homepage": homepage()}
+    data = {key: built[key] for key in MANIFEST_KEYS if key in built}
     posture = manifest_posture(enforced=enforced, gate=gate, guard=guard)
     data["description"] = f"{data['description']} [{posture}]".strip()
     extension = data["extensions"][NAMESPACE]
