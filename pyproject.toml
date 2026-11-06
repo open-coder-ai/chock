@@ -83,7 +83,7 @@ build = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/open-coder-ai/chock"
+Homepage = "https://chock.sh"
 Repository = "https://github.com/open-coder-ai/chock"
 Issues = "https://github.com/open-coder-ai/chock/issues"
 Documentation = "https://github.com/open-coder-ai/chock/blob/main/docs/README.md"
