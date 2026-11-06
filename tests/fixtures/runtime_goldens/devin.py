@@ -836,14 +836,23 @@ def _chock_load_runtime():
     path = _chock_os.path.join(here, '_chock_runtime.py')
     try:
         from hashlib import sha256
-        from importlib.abc import InspectLoader
+        from importlib.machinery import SourceFileLoader
         from importlib.util import module_from_spec, spec_from_loader
 
-        class PinnedBytes(InspectLoader):
-            """Hands the import machinery the bytes already read and hashed; it never opens the file again."""
+        class PinnedBytes(SourceFileLoader):
+            """Hands the import machinery the bytes already read and hashed; it never opens the file again.
+
+            SourceFileLoader, not importlib.abc.InspectLoader: importing importlib.abc loads inspect on every call.
+            """
 
             def __init__(self, source):
+                super().__init__('_chock_runtime', path)
                 self.source = source
+
+            def get_data(self, data_path):
+                if data_path != path:
+                    raise OSError("only the pinned bytes are served")
+                return self.source
 
             def get_source(self, fullname):
                 return self.source.decode("utf-8")
