@@ -1,12 +1,12 @@
 {
   "gate/claude": {
-    ".claude-plugin/plugin.json": "3affd0358b1d338ba6e7e3804c4e2ff063c9dcfee065846755dad754e5109bed",
+    ".claude-plugin/plugin.json": "6d8bf37700d64c9c90cae5d161f49bee83c791cc66bd8bd516a17b52cfb666d3",
     "hooks/hooks.json": "e4dd27ab5541ffcab6fad10a34d5fc0bb96017f627a421eed8664141ee3be5ca",
     "scripts/gate.json": "850040cbcc0f7dfe457a0c4bd47d3221a5e5503d70b94615eeac1ff5fa6fbbbd",
     "skills/protect-config/SKILL.md": "f05d88380a69a52cbd0a780557153993ab9d61bbbea58cf469a877b36b2f98c8"
   },
   "gate/codex": {
-    ".codex-plugin/plugin.json": "8aad660e87fde92f0c1490aa81fa2d20e2221d7499f7fd8c931d1cb1696f55bc",
+    ".codex-plugin/plugin.json": "88ee38960267e25a6d0f74357db073d16579734fba8f023b4f7a7529025890ba",
     "assets/icon.svg": "644e02a804786acd2be4a8cb8ff779a39ebab356cdafe897f5c76f2d225524e1",
     "hooks/hooks.json": "151b248a2f71f4c5e6e8a0fa06d12da5c7fb620f516c10a949f55841eca3a7d7",
     "scripts/gate.json": "850040cbcc0f7dfe457a0c4bd47d3221a5e5503d70b94615eeac1ff5fa6fbbbd",
@@ -14,12 +14,12 @@
   },
   "gate/copilot": {
     "com.github.copilot/hooks/hooks.json": "e278e094484136cb0a3b93d5f3729d43b53334c2a8b826e2d9ff852060d8055f",
-    "plugin.json": "08cea90a52b3f3726834f4b094ecef54fab320c0e61bdd7dd280c3f32ec51103",
+    "plugin.json": "da2052e896c8a5182e689304274ef4c8d21817f83319171a43e76963268ac435",
     "scripts/gate.json": "850040cbcc0f7dfe457a0c4bd47d3221a5e5503d70b94615eeac1ff5fa6fbbbd",
     "skills/protect-config/SKILL.md": "b90a44c889a4cb18db0bb1e0fc6a5c1def940211864706848c706de43e7749a0"
   },
   "gate/cursor": {
-    ".cursor-plugin/plugin.json": "ff4a1ba0150c0f94fd0716125f4697c1311859ff0988112ac8f31a4bd6445173",
+    ".cursor-plugin/plugin.json": "14539276fc264481167482aa7a0003964d7c89e4df2a56a424ccd68c8f4d8e1b",
     "hooks/hooks.json": "02a2bd144438e90b238a8e07e12db5ea3f63067afc1ba7515f54b6a41010df2c",
     "scripts/gate.json": "850040cbcc0f7dfe457a0c4bd47d3221a5e5503d70b94615eeac1ff5fa6fbbbd",
     "skills/protect-config/SKILL.md": "f05d88380a69a52cbd0a780557153993ab9d61bbbea58cf469a877b36b2f98c8"
@@ -31,13 +31,13 @@
     "skills/protect-config/SKILL.md": "2a79dd8a98db0b28afd3bfbe9de83019963af5503c11ce2e0dce929735774b7d"
   },
   "guard/claude": {
-    ".claude-plugin/plugin.json": "5cb3e175b99e4b0f230de21241e24840487eccc775d7ada3a44491509ff325d4",
+    ".claude-plugin/plugin.json": "a3820810c810965275fc57cde053448c8c4c28b2aba3bf0dd7c2748fdb64c8b7",
     "hooks/hooks.json": "cf318f28527641f3bd1d7ecd8520d2bae2cea74640ac5f2ccec835e347d6c372",
     "scripts/protect-config.py": "1a8f6f596cef71e3f3657c903b9a8fff3e48df700f49aa4ec42a0361c8d21914",
     "skills/protect-config/SKILL.md": "f0df56fc6215c10a260de1c750dd333131cdf958322c8822fb1c6ccbd1da2186"
   },
   "guard/codex": {
-    ".codex-plugin/plugin.json": "9992a2f413622b518e970896f7cc3e085d26c1b2889f6cd23e27a3ee949c54e8",
+    ".codex-plugin/plugin.json": "e3f3957d56e73aefd10ceb7fd45ac05076693e7063c818cc60f0e0daf7332662",
     "assets/icon.svg": "644e02a804786acd2be4a8cb8ff779a39ebab356cdafe897f5c76f2d225524e1",
     "hooks/hooks.json": "eb3bb0c02419120c83938e447e1b6a19a7a0a18bc058d91e68d7584e20953c5a",
     "scripts/protect-config.py": "1a8f6f596cef71e3f3657c903b9a8fff3e48df700f49aa4ec42a0361c8d21914",
@@ -45,12 +45,12 @@
   },
   "guard/copilot": {
     "com.github.copilot/hooks/hooks.json": "796d47e5d0cea0dae8afd7f7e6d9029382ebfd0680683152d0dbeccb2a8c3999",
-    "plugin.json": "4ea161c9655f879b9b5534f9aa6ddaa6b95514d7435a66bc0e0d0dd249a2c581",
+    "plugin.json": "8d8b91223ede86ecc4b1f57971a6a7ae71c5c338269bd8383df9175e9738be80",
     "scripts/protect-config.py": "1a8f6f596cef71e3f3657c903b9a8fff3e48df700f49aa4ec42a0361c8d21914",
     "skills/protect-config/SKILL.md": "d96c32f5cc1bc44096832d48a98281fa58934d0226dc8703260d21895a0d3e12"
   },
   "guard/cursor": {
-    ".cursor-plugin/plugin.json": "7b81e8ff1706809457a0d3c98b0c9b21bf31fc74f6d6a32f4b275284e1f1b67d",
+    ".cursor-plugin/plugin.json": "277cca2b4667d43105feef3e942b16493247554a69135f35b3674fe035f31ad8",
     "hooks/hooks.json": "6be8d4251dd97e3d56bc90a22284cc4e7eba430cd7da2a6d4beef43741fffe64",
     "scripts/protect-config.py": "1a8f6f596cef71e3f3657c903b9a8fff3e48df700f49aa4ec42a0361c8d21914",
     "skills/protect-config/SKILL.md": "02fe6c6e3410f7f8e80b2730b2f478a550eec14ef8ece84cad4557889fd39b78"

@@ -21,7 +21,7 @@ from chock.plugin.build import (
     skill_assets,
 )
 from chock.plugin.claude import POSTURE_ADVISORY, _interpreter, _runtime_files
-from chock.plugin.listing import ICON_REL, LICENSE_REL, icon_svg, interface_block, license_text
+from chock.plugin.listing import ICON_REL, LICENSE_REL, homepage, icon_svg, interface_block, license_text
 from chock.plugin.store import SCRIPTS_TEMPLATE as _SCRIPTS_TEMPLATE
 
 _LAYOUT = packaging.layout("codex_cli")
@@ -34,6 +34,7 @@ MANIFEST_KEYS = (
     "version",
     "description",
     "author",
+    "homepage",
     "repository",
     "license",
     "keywords",
@@ -105,6 +106,7 @@ def build_codex_manifest(
     author = _author(provenance)
     if author:
         data["author"] = author
+    data["homepage"] = homepage()
     if provenance.get("license"):
         data["license"] = str(provenance["license"])
     if provenance.get("source_repo"):
