@@ -4,7 +4,7 @@
 # and diffs this file against the README on every push and pull request.
 set -euo pipefail
 
-pip install "chock @ git+https://github.com/open-coder-ai/chock@992711af4cf8d4fd9c4c861f10ef6e53374d75d7"
+pip install chock==1.0.0
 
 git init -q demo && cd demo
 chock init .                       # wiring only, no policies
