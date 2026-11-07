@@ -29,6 +29,7 @@ from .constants import (
     ROLLOUT_RANK,
     WAIVABLE_EVENTS,
 )
+from .headread import _head_show, _text_mode
 
 
 # >>> gate.py 03
@@ -130,9 +131,16 @@ def _config_rollout(repo_root: Path) -> str:
 
 def _committed_config(repo_root: Path, ref: str) -> str | None:
     """`.chock/config.yaml` as committed at `ref`; None when git cannot show it."""
+    spec = "/".join(_CONFIG_PATH)
+    if ref == "HEAD":
+        shown = _head_show(repo_root, spec)
+        try:
+            return None if shown is None else _text_mode(shown)
+        except UnicodeDecodeError:
+            return None
     try:
         shown = subprocess.run(  # noqa: S603 -- reading one committed file
-            ["git", "-C", str(repo_root), "show", f"{ref}:{'/'.join(_CONFIG_PATH)}"],  # noqa: S607
+            ["git", "-C", str(repo_root), "show", f"{ref}:{spec}"],  # noqa: S607
             capture_output=True,
             text=True,
             encoding="utf-8",

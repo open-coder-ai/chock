@@ -14,6 +14,7 @@ from decision_log_support import records
 from chock import cli
 from chock.config import policy_status
 from chock.gate.runner.actor import agent_signal
+from chock.gate.runner.headread import _head_forget
 from chock.stop_common import PERSON_ONLY_POLICY
 
 FRAMEWORK_ROOT = Path(__file__).resolve().parents[1]
@@ -164,10 +165,10 @@ def test_the_committed_config_is_what_head_holds(repo: Path) -> None:
 
 
 def _commit_all(root: Path) -> None:
-    """Commit the scaffold as the person left it, so HEAD holds the config, lock and policies."""
     git = ["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@example.invalid"]
-    subprocess.run([*git, "add", "-A", "-f"], check=True, capture_output=True)
-    subprocess.run([*git, "commit", "-qm", "scaffold", "--no-verify"], check=True, capture_output=True)
+    for step in (["add", "-A", "-f"], ["commit", "-qm", "scaffold", "--no-verify"]):
+        subprocess.run([*git, *step], check=True, capture_output=True)
+    _head_forget()  # commits the scaffold as the person left it; the runner reads HEAD once per process, and this moved it
 
 
 @pytest.fixture

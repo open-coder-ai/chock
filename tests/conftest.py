@@ -27,6 +27,14 @@ def no_gate_log(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
+def fresh_head_reads() -> None:
+    """The runner reads HEAD once per process; one test process holds many repos and commits."""
+    from chock.gate.runner.headread import _head_forget
+
+    _head_forget()
+
+
+@pytest.fixture(autouse=True)
 def human_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Run as a person's shell: the suite may itself be run by an agent that sets these markers."""
     for name in ("CHOCK_AGENT_COMMIT", "CLAUDECODE", "AI_AGENT", "CHOCK_ALLOW", "CHOCK_ROLLOUT", *PROJECT_ENV):

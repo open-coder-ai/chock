@@ -1,0 +1,16 @@
+import sys as _chock_sys
+if _chock_sys.version_info < __MIN_PYTHON__:
+    # An older Python writes no marker, so the launcher tries its next candidate. Run as the
+    # launcher runs it, leave quietly; imported, raise instead -- importing never exits.
+    if __name__ == "__main__":
+        _chock_sys.exit(1)
+    raise ImportError("chock's hook runtime needs Python %d.%d or newer" % __MIN_PYTHON__)
+try:
+    import os as _chock_start_os
+
+    if _chock_start_os.environ.pop("CHOCK_START_FD", "") == "9":  # only the launcher's own fd; no child inherits the name
+        _chock_start_os.write(9, b"chock-python")
+        _chock_start_os.close(9)
+except OSError:
+    pass
+

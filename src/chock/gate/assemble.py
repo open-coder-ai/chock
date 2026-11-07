@@ -19,6 +19,7 @@ MODULES = (
     "context",
     "gitparse",
     "halt",
+    "headread",
     "journal",
     "kinds",
     "log",
