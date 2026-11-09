@@ -24,8 +24,9 @@ jobs:
   figures:
     # Pinned image, never *-latest: social-card.png is rasterized by the system cairo/freetype/
     # fonts, so an image roll-over moves glyph anti-aliasing and fails the drift check with no
-    # repo change (ubuntu-latest 24.04 -> 26.04, 2026-11-09). Bump deliberately, with the PNG.
-    runs-on: ubuntu-26.04
+    # repo change (ubuntu-latest 24.04 -> 26.04, 2026-11-09). Bump deliberately, with the PNG
+    # (and only to a label the pinned actionlint knows).
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:

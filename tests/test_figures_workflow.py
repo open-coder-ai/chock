@@ -14,5 +14,5 @@ def test_figures_job_pins_its_runner_image() -> None:
     assert isinstance(runs_on, str), f"figures runs-on must be one image label, got {runs_on!r}"
     assert not runs_on.endswith("-latest"), (
         f"figures runs on {runs_on!r}; *-latest rolls to a new image whose cairo/fonts re-rasterize "
-        f"docs/figures/social-card.png. Pin a versioned image (e.g. ubuntu-26.04) and commit its PNG."
+        f"docs/figures/social-card.png. Pin a versioned image (e.g. ubuntu-24.04) and commit its PNG."
     )
