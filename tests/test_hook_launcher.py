@@ -12,6 +12,7 @@ from pathlib import Path, PurePath
 
 import pytest
 from conftest import FRAMEWORK_ROOT, baseline_policy, bash_executable, init_repo
+from runtime_support import START_MARKER_STUB
 
 from chock.compile.compiler import compile_policy
 from chock.compile.emitters.in_agent_hooks import POWERSHELL_KEEP_EXIT
@@ -22,7 +23,7 @@ from chock.hooks.launch import LAUNCHER_REL, PYTHON_CONFIG_KEY, hook_command, re
 posix_only = pytest.mark.skipif(sys.platform == "win32", reason="symlinked PATH shims are a POSIX construct")
 
 #: A stand-in runtime: reports which interpreter ran it, from where, and with what.
-_PROBE = (
+_PROBE = START_MARKER_STUB + (
     "import json, os, sys\n"
     "print(json.dumps({'exe': sys.executable, 'cwd': os.getcwd(), 'args': sys.argv[1:], 'utf8': sys.flags.utf8_mode}))\n"
 )

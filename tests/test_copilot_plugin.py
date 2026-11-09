@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 import yaml
 from conftest import guarded_launch
+from jsonschema import Draft202012Validator
 from multi_support import argvs, folded_members
 
 from chock import vendors
@@ -226,3 +227,17 @@ def test_cli_all_builds_the_copilot_tree_too(policy, tmp_path: Path) -> None:
     assert plugin_main(["build", "--repo", str(tmp_path), "--format", "all", "--out-dir", str(dist), "--check"]) == 0
     (root / "plugin.json").write_text("{}", encoding="utf-8")
     assert plugin_main(["build", "--repo", str(tmp_path), "--format", "all", "--out-dir", str(dist), "--check"]) == 1
+
+
+SCHEMA_PATH = (
+    Path(__file__).resolve().parents[1] / "src/chock/validation/schemas/agent-plugins-1.0.0.plugin.schema.json"
+)
+
+
+@pytest.mark.parametrize("manifest", [GUARD_MANIFEST, RULE_MANIFEST])
+def test_manifest_carries_the_documented_homepage_and_conforms(policy, tmp_path: Path, manifest: dict) -> None:
+    """Copilot's plugin reference documents `homepage`; the manifest still validates as Agent Plugins 1.0."""
+    files = copilot_plugin_files(policy(manifest, guard=manifest is GUARD_MANIFEST), manifest, tmp_path)
+    data = json.loads(files[Path("plugin.json")])
+    assert data["homepage"] == "https://chock.sh"
+    Draft202012Validator(json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))).validate(data)

@@ -238,3 +238,14 @@ def test_each_vendor_claims_only_what_was_witnessed(policy, tmp_path: Path) -> N
     assert "update voids that trust" in POSTURE_ENFORCED_CODEX, "the upgrade fail-open must be named"
     assert "OPEN" in POSTURE_ENFORCED_CODEX, "hook failures fail open and the posture says so"
     assert "`chock sync`" in POSTURE_ENFORCED_CODEX, "repo-level enforcement still pointed at"
+
+
+@pytest.mark.parametrize(
+    ("files_of", "manifest_rel"),
+    [(cursor_plugin_files, ".cursor-plugin/plugin.json"), (codex_plugin_files, ".codex-plugin/plugin.json")],
+)
+@pytest.mark.parametrize("manifest", [GUARD_MANIFEST, RULE_MANIFEST])
+def test_manifest_carries_the_documented_homepage(policy, tmp_path: Path, files_of, manifest_rel, manifest) -> None:
+    """Cursor's plugin reference and Codex's example manifest both document `homepage`."""
+    files = files_of(policy(manifest, guard=manifest is GUARD_MANIFEST), manifest, tmp_path)
+    assert json.loads(files[Path(manifest_rel)])["homepage"] == "https://chock.sh"

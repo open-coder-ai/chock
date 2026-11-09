@@ -24,6 +24,7 @@ from chock.plugin.build import (
     plugin_name,
     skill_assets,
 )
+from chock.plugin.listing import homepage
 from chock.plugin.store import SCRIPTS_TEMPLATE as _SCRIPTS_TEMPLATE
 
 _MANIFEST_REL = packaging.layout("claude_code")["manifest"]
@@ -106,6 +107,7 @@ def build_claude_manifest(
     author = _author(provenance)
     if author:
         data["author"] = author
+    data["homepage"] = homepage()
     if provenance.get("license"):
         data["license"] = str(provenance["license"])
     if provenance.get("source_repo"):
