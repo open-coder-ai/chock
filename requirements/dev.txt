@@ -380,9 +380,9 @@ pytest==9.1.1 \
     # via
     #   -r requirements/dev.in
     #   pytest-bdd
-pytest-bdd==9.0.0 \
-    --hash=sha256:e407a361d8a07bff7d37df2ae0bf93e6b3542ed57e2c6bb89ba46b786ac7984e \
-    --hash=sha256:f22450a98345590c2b3aac5ed3412662788e0a7afac34aa8d650c14445b87046
+pytest-bdd==9.0.1 \
+    --hash=sha256:0a0c8e54e1646d384c79c47f5756fea1b4bebf97251ff2cb52105aac951276bc \
+    --hash=sha256:54e84b8d497ac87af76cfbc1a285584d34eeb762072f81793c9ed7ef0993883d
     # via -r requirements/dev.in
 python-discovery==1.6.3 \
     --hash=sha256:a62b301d96cf5489cb96ab023b32e068421867fdd5df2e42eece877869047fa2 \
