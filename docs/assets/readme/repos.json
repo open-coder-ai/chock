@@ -11,5 +11,7 @@
   {"name": "chock-devin-plugins", "kind": "Plugins", "line": "per-policy marketplace, for machines without chock."},
   {"name": "chock-quickstart", "kind": "Template", "line": "What chock init leaves behind."},
   {"name": "chock-example", "kind": "Template", "line": "A working adoption, one policy per layer."},
+  {"name": "chock-site", "kind": "Site", "line": "The source of chock.sh: browse the policies, build one plugin."},
+  {"name": "chock-release", "kind": "Release", "line": "The release train: one manifest pins each repo's commit for a version."},
   {"name": ".github", "kind": "Community", "line": "Org profile and community health files."}
 ]
