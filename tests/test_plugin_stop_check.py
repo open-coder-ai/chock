@@ -22,6 +22,7 @@ from chock import vendors
 from chock.gate.runner import halt
 from chock.guardrails import plugin as guardrails
 from chock.hooks import stop_check
+from chock.hooks.multi_wiring import MULTI_FLAG
 from chock.hooks.stop_check import STOP_CHECK_FLAG
 from chock.plugin.bundle_build import CLIENTS, Member, merged_files
 from chock.plugin.store import SCRIPTS_TEMPLATE
@@ -57,7 +58,9 @@ def test_every_bundle_carries_one_matcherless_stop_check(tmp_path: Path, client:
     # No matcher, or the vendor's documented match-all default (antigravity's "*").
     assert group.get("matcher") == vendors.entry(CLIENTS[client].agent).get("hook_entry", {}).get("default_match")
     runtime = SCRIPTS_TEMPLATE.format(name=f"{CLIENTS[client].agent}.py")
-    assert stops[0].endswith(f'{runtime}" {STOP_CHECK_FLAG}'), stops[0]
+    standalone = stops[0].endswith(f'{runtime}" {STOP_CHECK_FLAG}')
+    folded = f'{runtime}" {MULTI_FLAG} ' in stops[0] and stops[0].endswith(f" {STOP_CHECK_FLAG}")
+    assert standalone or folded, stops[0]
 
 
 def test_a_plugin_with_no_runtime_hook_refuses_to_build() -> None:

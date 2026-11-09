@@ -23,7 +23,7 @@ from runtime_support import write_runtime
 
 from chock.gate.build import vendor_runner
 from chock.hooks.in_agent_install import install_hooks
-from chock.hooks.multi_wiring import INDEX_DIR, MULTI_FLAG, member_files
+from chock.hooks.multi_wiring import INDEX_DIR, INDEX_SHA_FLAG, MULTI_FLAG, member_files
 
 ROOT = Path(os.environ.get("CHOCK_EQUIVALENCE_REPO") or Path(__file__).resolve().parents[1])
 RUNTIME = Path(".chock") / "bin" / "claude_code.py"
@@ -90,7 +90,7 @@ def world(tmp_path_factory: pytest.TempPathFactory) -> dict:
         if MULTI_FLAG not in command:
             continue
         words = command.split(" ")
-        rel, pin = words[words.index(MULTI_FLAG) + 1].strip('"'), words[-1]
+        rel, pin = words[words.index(MULTI_FLAG) + 1].strip('"'), words[words.index(INDEX_SHA_FLAG) + 1]
         members = json.loads((root / rel).read_text(encoding="utf-8"))["members"]
         groups.append((entry.get("matcher"), rel, pin, members))
     return {"root": root, "groups": groups}

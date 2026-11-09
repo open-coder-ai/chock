@@ -15,6 +15,7 @@ from chock.compile.emitters.in_agent_hooks import (
     generic_pre_tool_config,
     hook_entry,
 )
+from chock.gate.multi import MULTI_FLAG
 from chock.gate.runner.halt import HALT_HOOK_FLAG
 from chock.hooks import heartbeat
 from chock.hooks.launch import hook_command
@@ -72,7 +73,9 @@ def plugin_doc(agent: str, hooks: Any, *, generic: bool) -> Any:
 
 
 def _runs_it(node: Any) -> bool:
-    return isinstance(node, dict) and isinstance(node.get("command"), str) and STOP_CHECK_FLAG in node["command"]
+    """A standalone stop-check handler: a multi entry the stop check is folded into carries policies, never stripped."""
+    command = node.get("command") if isinstance(node, dict) else None
+    return isinstance(command, str) and STOP_CHECK_FLAG in command and MULTI_FLAG not in command.split(" ")
 
 
 def without(node: Any) -> Any:

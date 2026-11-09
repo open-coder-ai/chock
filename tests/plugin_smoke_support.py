@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from conftest import bash_executable
-from multi_support import seen_through
+from multi_support import seen_through, stops
 
 #: Every client's plugin-root variable, all pointing at the package, so one hook command fits any format.
 ROOT_VARS = ("CLAUDE_PLUGIN_ROOT", "CURSOR_PLUGIN_ROOT", "PLUGIN_ROOT", "DEVIN_PLUGIN_ROOT")
@@ -57,10 +57,10 @@ def _payload(client: str, kind: str, repo: Path, command: str, matcher: str) -> 
 
 
 def _kind(command: str, package: Path) -> str:
-    command = seen_through(command, package)
-    if "--stop" in command:
+    standalone_stop_check = "--stop-check" in command and "--multi" not in command
+    if stops(command, package) or standalone_stop_check:
         return "stop"
-    return "write" if "--gate" in command else "shell"
+    return "write" if "--gate" in seen_through(command, package) else "shell"
 
 
 def _decisions(value: Any) -> list[str]:

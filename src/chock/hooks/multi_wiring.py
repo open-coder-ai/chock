@@ -13,6 +13,7 @@ from chock.compile.emitters.in_agent_hooks import VENDOR_TIMEOUTS
 from chock.gate.budget import ENGINE_BUDGET_SECONDS
 from chock.gate.guard_runner import PYTHON_SUFFIX
 from chock.gate.multi import sha256_of
+from chock.gate.runner.halt import HALT_HOOK_FLAG
 from chock.hooks.config_write import CONFIG_MODE
 from chock.hooks.runtime_vendor import runtime_rel
 from chock.manifest import CANONICAL_MANIFEST
@@ -158,10 +159,41 @@ class Carrier(NamedTuple):
 
 
 class _Group:
-    """The carriers sharing one signature, in the order they were found."""
+    """The carriers sharing one signature, in the order they were found; `stop` once the stop check is folded in."""
 
     def __init__(self) -> None:
         self.carriers: list[Carrier] = []
+        self.stop = False
+
+
+def stop_runtime(entry: Any) -> str | None:
+    """The launcher-and-runtime text of a standalone stop-check entry (`<runtime> --stop-check`), else None."""
+    found = commands(entry) if isinstance(entry, dict) else set()
+    command = next(iter(found)) if len(found) == 1 else ""
+    body, sep, rest = command.rpartition(f" {HALT_HOOK_FLAG}")
+    return body if sep and body and not rest and MULTI_FLAG not in command.split(" ") else None
+
+
+def _takes_stop(group: _Group, entry: Any, body: str) -> bool:
+    """Whether `group` matches every tool the stop entry does (same shape) and runs the same runtime after its launcher."""
+    first = group.carriers[0]
+    prefix, _, runtime = body.rpartition(" ")
+    wrapped = bool(prefix) and first.head.startswith(f"{prefix} ") and first.head.endswith(f" {runtime}")
+    same_runtime = first.head == body or wrapped
+    return same_runtime and _signature(entry, f"{body} {HALT_HOOK_FLAG}") == _signature(first.entry, first.command)
+
+
+def _fold_stop(placed: list[Any], eligible: Callable[[Any], bool]) -> list[Any]:
+    """`placed` with the standalone stop check folded into the catch-all group, if one exists; else as it was."""
+    for at, item in enumerate(placed):
+        body = None if isinstance(item, _Group) or not eligible(item) else stop_runtime(item)
+        if body is None:
+            continue
+        group = next((g for g in placed if isinstance(g, _Group) and _takes_stop(g, item, body)), None)
+        if group is not None:
+            group.stop = True
+            return placed[:at] + placed[at + 1 :]
+    return placed
 
 
 def _index_bytes(members: list[dict[str, Any]]) -> bytes:
@@ -210,6 +242,9 @@ def collapse_list(  # noqa: PLR0913 -- the five places an entry list is folded e
 ) -> list[Any]:
     """`entries` with every policy entry folded into one entry per identical shape; the pinned indexes are written.
 
+    A standalone stop-check entry is folded into the group with its own shape and runtime (`--stop-check` on the
+    multi command), so the multi process checks the stop first; with no such group it stays as it is.
+
     `rename(entry, command)` lets a vendor re-derive a field of the folded entry from its new command; a plugin's
     `carry` makes the member of an entry from its package, and `sink` takes the index files it would write.
     """
@@ -225,6 +260,7 @@ def collapse_list(  # noqa: PLR0913 -- the five places an entry list is folded e
         if not group.carriers:
             placed.append(group)
         group.carriers.append(found)
+    placed = _fold_stop(placed, eligible)
     return [
         _fold(repo_root, vendor, event, item, (kept, rename, write, sink)) if isinstance(item, _Group) else item
         for item in placed
@@ -251,7 +287,7 @@ def _fold(repo_root: Path, vendor: str, event: str, group: _Group, how: tuple[An
             sink(rel, body)
         index, root = (_quote(text, quoted=first.quoted) for text in (f"{first.root}/{rel}", first.root))
         tail = f"{MULTI_FLAG} {index} {INDEX_SHA_FLAG} {pin} {ROOT_FLAG} {root}"
-    new = f"{first.head} {tail}"
+    new = f"{first.head} {tail}" + (f" {HALT_HOOK_FLAG}" if group.stop else "")
     folded = copy.deepcopy(_replace(first.entry, first.command, new))
     return rename(folded, new) if rename is not None else folded
 
