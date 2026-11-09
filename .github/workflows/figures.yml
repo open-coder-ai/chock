@@ -22,7 +22,11 @@ permissions:
 
 jobs:
   figures:
-    runs-on: ubuntu-latest
+    # Pinned image, never *-latest: social-card.png is rasterized by the system cairo/freetype/
+    # fonts, so an image roll-over moves glyph anti-aliasing and fails the drift check with no
+    # repo change (ubuntu-latest 24.04 -> 26.04, 2026-11-09). Bump deliberately, with the PNG
+    # (and only to a label the pinned actionlint knows).
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
@@ -39,7 +43,7 @@ jobs:
         run: |
           cd docs/figures && for g in make_*.py; do python "$g"; done
           cd ../.. && git diff --exit-code -- docs/figures
-      # A PNG rasterizes differently off this runner (fonts), so it cannot be regenerated locally
+      # A PNG rasterizes differently off this runner image (fonts), so it cannot be regenerated locally
       # byte for byte. On drift, print each differing PNG so the exact runner bytes can be committed.
       - name: Print drifted PNGs as base64
         if: failure()
