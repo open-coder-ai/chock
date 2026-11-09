@@ -21,3 +21,12 @@ def load_runtime(folder: Path, agent: str) -> dict:
     namespace: dict = {"__name__": "chock_runtime_under_test", "__file__": str(path)}
     exec(compile(path.read_text(encoding="utf-8"), str(path), "exec"), namespace)  # noqa: S102 -- the rendered runtime is the unit under test
     return namespace
+
+
+#: What a stand-in runtime runs first so the launcher reads its start marker (the real entries carry `start_marker.py.tmpl`).
+START_MARKER_STUB = (
+    "import os, sys\n"
+    "if 'CHOCK_START_FD' in os.environ:\n"
+    "    os.write(int(os.environ['CHOCK_START_FD']), b'chock-python')\n"
+    "    os.close(int(os.environ['CHOCK_START_FD']))\n"
+)

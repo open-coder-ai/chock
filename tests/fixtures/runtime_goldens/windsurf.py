@@ -9,6 +9,22 @@
 
 from __future__ import annotations
 
+import sys as _chock_sys
+if _chock_sys.version_info < (3, 11):
+    # An older Python writes no marker, so the launcher tries its next candidate. Run as the
+    # launcher runs it, leave quietly; imported, raise instead -- importing never exits.
+    if __name__ == "__main__":
+        _chock_sys.exit(1)
+    raise ImportError("chock's hook runtime needs Python %d.%d or newer" % (3, 11))
+try:
+    import os as _chock_start_os
+
+    if _chock_start_os.environ.pop("CHOCK_START_FD", "") == "9":  # only the launcher's own fd; no child inherits the name
+        _chock_start_os.write(9, b"chock-python")
+        _chock_start_os.close(9)
+except OSError:
+    pass
+
 import contextlib
 import io
 import json
@@ -674,14 +690,23 @@ def _chock_load_runtime():
     path = _chock_os.path.join(here, '_chock_runtime.py')
     try:
         from hashlib import sha256
-        from importlib.abc import InspectLoader
+        from importlib.machinery import SourceFileLoader
         from importlib.util import module_from_spec, spec_from_loader
 
-        class PinnedBytes(InspectLoader):
-            """Hands the import machinery the bytes already read and hashed; it never opens the file again."""
+        class PinnedBytes(SourceFileLoader):
+            """Hands the import machinery the bytes already read and hashed; it never opens the file again.
+
+            SourceFileLoader, not importlib.abc.InspectLoader: importing importlib.abc loads inspect on every call.
+            """
 
             def __init__(self, source):
+                super().__init__('_chock_runtime', path)
                 self.source = source
+
+            def get_data(self, data_path):
+                if data_path != path:
+                    raise OSError("only the pinned bytes are served")
+                return self.source
 
             def get_source(self, fullname):
                 return self.source.decode("utf-8")

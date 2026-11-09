@@ -490,7 +490,8 @@ class WriteContext(GateContext):
 
     def committed_blob(self, path: str) -> str:
         """HEAD's file, named from `repo_root` (`./`), which may sit below the git top-level."""
-        return self._git("show", f"HEAD:./{path}")
+        shown = _head_show(self.repo_root, f"./{path}")
+        return "" if shown is None else _text_mode(shown, "replace")
 
     def head_blob(self, path: str) -> str:
         """The baseline: HEAD at the turn's end, else what is on disk now, which this write would replace."""
@@ -670,9 +671,16 @@ def _config_rollout(repo_root: Path) -> str:
 
 def _committed_config(repo_root: Path, ref: str) -> str | None:
     """`.chock/config.yaml` as committed at `ref`; None when git cannot show it."""
+    spec = "/".join(_CONFIG_PATH)
+    if ref == "HEAD":
+        shown = _head_show(repo_root, spec)
+        try:
+            return None if shown is None else _text_mode(shown)
+        except UnicodeDecodeError:
+            return None
     try:
         shown = subprocess.run(  # noqa: S603 -- reading one committed file
-            ["git", "-C", str(repo_root), "show", f"{ref}:{'/'.join(_CONFIG_PATH)}"],  # noqa: S607
+            ["git", "-C", str(repo_root), "show", f"{ref}:{spec}"],  # noqa: S607
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -2530,6 +2538,61 @@ def log_require_safe(path):
     """Raise OSError unless `log_path_safe(path)`."""
     if not log_path_safe(path):
         raise OSError(LOG_UNSAFE)
+
+
+_HEAD_GIT = shutil.which("git") or "git"
+
+#: Per process: HEAD resolved once per repo root, and each `git show HEAD:<spec>` run once per (root, HEAD, spec).
+#: A failure is stored as None and read back as the same failure.
+_HEAD_SHA: dict[str, str | None] = {}
+_HEAD_SHOWN: dict[tuple[str, str | None, str], bytes | None] = {}
+
+
+def _head_sha(root: str) -> str | None:
+    if root not in _HEAD_SHA:
+        try:
+            proc = subprocess.run(  # noqa: S603 -- resolving HEAD once is this cache's key
+                [_HEAD_GIT, "-C", root, "rev-parse", "--verify", "--quiet", "HEAD^{commit}"],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=10,
+            )
+            sha = proc.stdout.strip() if proc.returncode == 0 else ""
+        except (OSError, subprocess.SubprocessError, UnicodeError):
+            sha = ""
+        _HEAD_SHA[root] = sha or None
+    return _HEAD_SHA[root]
+
+
+def _head_show(repo_root: Path, spec: str) -> bytes | None:
+    """The bytes of `git show HEAD:<spec>` run from `repo_root`, read once per process; None when git cannot show it."""
+    root = str(repo_root)
+    key = (root, _head_sha(root), spec)
+    if key not in _HEAD_SHOWN:
+        try:
+            proc = subprocess.run(  # noqa: S603 -- reading one committed file
+                [_HEAD_GIT, "-C", root, "show", f"HEAD:{spec}"],
+                capture_output=True,
+                check=False,
+                timeout=10,
+            )
+            shown = proc.stdout if proc.returncode == 0 else None
+        except (OSError, subprocess.SubprocessError):
+            shown = None
+        _HEAD_SHOWN[key] = shown
+    return _HEAD_SHOWN[key]
+
+
+def _head_forget() -> None:
+    """Drop what was read, for a process that sees HEAD move."""
+    _HEAD_SHA.clear()
+    _HEAD_SHOWN.clear()
+
+
+def _text_mode(raw: bytes, errors: str = "strict") -> str:
+    """`raw` as a text-mode pipe reads it: utf-8, universal newlines."""
+    return raw.decode("utf-8", errors).replace("\r\n", "\n").replace("\r", "\n")
 
 
 #: The git hook a merge's own commit runs: judged as a commit.

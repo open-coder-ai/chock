@@ -10,7 +10,7 @@ Blocks your coding agent's wrong moves before they land.
 
 Chock blocks that action, nothing else: no suggestions, no rewrites.
 
-[chock](https://github.com/open-coder-ai/chock) · [chock-catalog](https://github.com/open-coder-ai/chock-catalog) · chock.sh (launching soon)
+[chock](https://github.com/open-coder-ai/chock) · [chock-catalog](https://github.com/open-coder-ai/chock-catalog) · [chock.sh](https://chock.sh/)
 
 [![CI](https://github.com/open-coder-ai/chock/actions/workflows/ci.yml/badge.svg)](https://github.com/open-coder-ai/chock/actions/workflows/ci.yml) [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org) [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/open-coder-ai/chock/badge)](https://scorecard.dev/viewer/?uri=github.com/open-coder-ai/chock) [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14155/badge)](https://www.bestpractices.dev/projects/14155) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
@@ -31,7 +31,7 @@ pipx install chock==1.0.0
 ### Two ways to adopt it
 
 1. **In your repository, for teams.** Run `chock init .`, then `chock add <id> --ref <catalog commit> --verify-sha <sha256> --skip-compile` for each policy, then `chock sync --repo . --ci`. Commit the result. A fresh clone arms itself from what is committed; a person runs `chock sync` to change it. The commit gates are enforced at commit and in CI.
-2. **In your coding agent, as one plugin.** Pick policies in the chock.sh builder (launching soon) and run `chock install --selection <code> --apply`. It builds one plugin for Claude Code, Cursor, Codex, Copilot or Devin, and, untested by chock, for goose, Grok, Antigravity, OpenHands, Kimi Code or Factory Droid. Best-effort, and it fails open. A selection can add [your own policies](docs/custom-policies.md): install shows their code and asks first. No chock? Add a per-policy marketplace (`chock-*-plugins`; needs Python 3.11+, git, a bash: Git for Windows has one), never both.
+2. **In your coding agent, as one plugin.** Pick policies in the [chock.sh builder](https://chock.sh/coding/builder/) and run `chock install --selection <code> --apply`. It builds one plugin for Claude Code, Cursor, Codex, Copilot or Devin, and, untested by chock, for goose, Grok, Antigravity, OpenHands, Kimi Code or Factory Droid. Best-effort, and it fails open. A selection can add [your own policies](docs/custom-policies.md): install shows their code and asks first. No chock? Add a per-policy marketplace (`chock-*-plugins`; needs Python 3.11+, git, a bash: Git for Windows has one), never both.
 
 ## Application security for the code your agents write
 
@@ -81,7 +81,7 @@ Each refusal names the safe alternative, so the agent can fix it in the same tur
 ## Quick start
 
 ```bash
-pip install "chock @ git+https://github.com/open-coder-ai/chock@992711af4cf8d4fd9c4c861f10ef6e53374d75d7"
+pip install chock==1.0.0
 
 git init -q demo && cd demo
 chock init .                       # wiring only, no policies
@@ -248,7 +248,7 @@ Machine-readable sources:
 - policy manifests, with `compliance` mappings, under `base/` and `agentic-security/` in chock-catalog
 - [`docs/coverage.md`](https://github.com/open-coder-ai/chock-catalog/blob/main/docs/coverage.md): OWASP coverage in full
 - `marketplace.json` in each plugin repo
-- [`llms.txt`](llms.txt) in this repo; chock.sh `/llms.txt` and `/api/index.json` once it launches
+- [`llms.txt`](llms.txt) in this repo; chock.sh [`/llms.txt`](https://chock.sh/llms.txt) and [`/api/index.json`](https://chock.sh/api/index.json)
 
 ## Part of open-coder-ai
 

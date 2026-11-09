@@ -9,6 +9,7 @@ from agentseam import bundler, contract
 from chock.gate.plugin_manifests import plugin_manifests
 from chock.gate.wire_shapes import EVENT_KEYS as _EVENT_KEYS
 from chock.gate.wire_shapes import wire_raw as _wire_raw
+from chock.hooks.launch import MIN_PYTHON
 from chock.resources import package_data_dir
 from chock.vendors import entry, in_agent_vendors
 
@@ -175,6 +176,11 @@ _MAIN_LEAVE = "        _emit(out, text)\n    if exit:\n        _chock_leave(code
 
 _FUTURE = "from __future__ import annotations\n\n"
 
+#: Run first in every entry: a Python below the minimum exits silently, and the launcher's marker fd is written to.
+_START_MARKER = (
+    _DATA_DIR.joinpath("start_marker.py.tmpl").read_text(encoding="utf-8").replace("__MIN_PYTHON__", repr(MIN_PYTHON))
+)
+
 #: chock's imports go right after this line of agentseam's hoisted block. Anchored on the one
 #: line, not the whole block: agentseam 0.3.4 hoists contextlib/io/os around json and sys, and
 #: an exact-block anchor then matched nothing -- every runtime failed to render and sync wired
@@ -208,6 +214,8 @@ def render(agent: str) -> str:
         raise ValueError("%s: bundle() output has no top-imports anchor to hoist onto" % agent)
     handler = _entry_handler(agent)
     source = source[:at] + "\n" + _needed_imports(handler) + source[at:]
+    future = source.find(_FUTURE) + len(_FUTURE)
+    source = source[:future] + _START_MARKER + source[future:]
     head, sep, rest = source.partition(BEGIN)
     if not sep:
         raise ValueError("%s: bundle() output has no %r marker" % (agent, BEGIN))
