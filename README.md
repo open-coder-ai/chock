@@ -168,9 +168,7 @@ Full nine-surface matrix and per-agent caveats:
 ## What it stops
 
 Most breaches start with a flaw someone shipped. These are the classes of flaw behind well-known incidents, and the policy that refuses each.
-
 <!-- derive:incidents -->
-
 From `registry.yaml` in [chock-catalog](https://github.com/open-coder-ai/chock-catalog) at `1e60d21`:
 
 | Class of flaw behind | Policy | Tier | Eval cases |
@@ -184,7 +182,6 @@ From `registry.yaml` in [chock-catalog](https://github.com/open-coder-ai/chock-c
 | MCP server at @latest | `block-unpinned-agent-components` | commit | 54 |
 | Leaked keys | `scan-secrets` | commit | 59 |
 | Trojan Source (CVE-2021-42574) | `block-invisible-unicode` | commit | 72 |
-
 <!-- /derive:incidents -->
 
 Chock does not stop every attack. It closes common, known entry points before they ship.
@@ -196,7 +193,6 @@ Chock does not stop every attack. It closes common, known entry points before th
 ### The catalog, in numbers
 
 <!-- derive:numbers -->
-
 From `registry.yaml` in [chock-catalog](https://github.com/open-coder-ai/chock-catalog) at `1e60d21`:
 
 | Measure | Value |
@@ -208,7 +204,6 @@ From `registry.yaml` in [chock-catalog](https://github.com/open-coder-ai/chock-c
 | Claude Code labels: block / ask / warn / advisory | 39 / 4 / 5 / 24 |
 | Eval cases | 4,683 |
 | Replayed automatically | 4,501 |
-
 <!-- /derive:numbers -->
 
 The policies fall into three families: base guardrails, agentic security, and agent discipline and compliance.
@@ -267,7 +262,6 @@ Machine-readable sources:
 ## Part of open-coder-ai
 
 <!-- derive:repos -->
-
 The 15 public repositories:
 
 | Repository | What it is |
@@ -287,7 +281,6 @@ The 15 public repositories:
 | [chock-site](https://github.com/open-coder-ai/chock-site) | Site: The source of chock.sh: browse the policies, build one plugin. |
 | [chock-release](https://github.com/open-coder-ai/chock-release) | Release: The release train: one manifest pins each repo's commit for a version. |
 | [.github](https://github.com/open-coder-ai/.github) | Community: Org profile and community health files. |
-
 <!-- /derive:repos -->
 
 ## Contributing

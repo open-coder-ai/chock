@@ -183,16 +183,16 @@ def readme_blocks(data: dict) -> dict[str, str]:
     tested, untested = plugin_clients()
     agents, native, seen = repo_agents()
     return {
-        "numbers": f"\n\n{stamp}\n\n{_table(('Measure', 'Value'), (':---', '---:'), numbers)}\n\n",
-        "incidents": f"\n\n{stamp}\n\n"
+        "numbers": f"\n{stamp}\n\n{_table(('Measure', 'Value'), (':---', '---:'), numbers)}\n",
+        "incidents": f"\n{stamp}\n\n"
         + _table(("Class of flaw behind", "Policy", "Tier", "Eval cases"), (":---", ":---", ":---", "---:"), incidents)
-        + "\n\n",
+        + "\n",
         "plugins": _fill(t["plugins"], TESTED=_either(tested), UNTESTED=_either(untested)),
         "repo_agents": _fill(t["repo_agents"], WITNESSED="; ".join(seen)),
         "faq_agents": _fill(t["faq_agents"], ALL=agents, NATIVE=native, TESTED_N=len(tested), UNTESTED_N=len(untested)),
-        "repos": f"\n\n{_fill(t['repos'], COUNT=len(repos))}\n\n"
+        "repos": f"\n{_fill(t['repos'], COUNT=len(repos))}\n\n"
         + _table(("Repository", "What it is"), (":---", ":---"), repos)
-        + "\n\n",
+        + "\n",
     }
 
 
