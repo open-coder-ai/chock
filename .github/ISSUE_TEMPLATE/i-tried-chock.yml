@@ -1,0 +1,51 @@
+name: I tried Chock and…
+description: You ran Chock and want to tell us what happened, good or bad. No bug needed.
+title: "[tried]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying Chock. Paste what you ran and what you saw; short is fine.
+        For a vulnerability, do not open a public issue: use the private security advisory link in the issue chooser.
+  - type: textarea
+    id: ran
+    attributes:
+      label: What you ran
+      description: The commands, verbatim (e.g. `pipx install chock==<version>`, the builder one-liner, `chock sync`).
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: agent
+    attributes:
+      label: Agent
+      description: The coding agent and its version, or "none" (e.g. Claude Code 2.1, Cursor, Codex CLI).
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      description: e.g. macOS 15.1, Ubuntu 24.04, Windows 11.
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened
+      description: Paste output verbatim. Check it shows nothing you would not post publicly.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: chock-version
+    attributes:
+      label: chock version
+      description: Output of `chock --version`, if chock is installed.
+    validations:
+      required: false

@@ -1,22 +1,22 @@
 {
   "source": {
     "file": "chock-catalog registry.yaml and */*/manifest.yaml",
-    "commit": "9a64623e30769c49d7011ec3f559592d84e3f657"
+    "commit": "1e60d211c1bb767152c6ab0167932da06ab3a10f"
   },
-  "policies": 71,
+  "policies": 72,
   "tiers": {
     "commit": 35,
-    "in-agent": 11,
+    "in-agent": 12,
     "advisory": 25
   },
   "claude_code_labels": {
     "advise": 24,
     "block": 39,
     "warn": 5,
-    "ask": 3
+    "ask": 4
   },
-  "eval_cases": 4280,
-  "eval_executed": 4098,
+  "eval_cases": 4683,
+  "eval_executed": 4501,
   "asi": {
     "with_policy": 10,
     "refused_at_commit": [
@@ -74,7 +74,7 @@
       "incident": "Codecov bash uploader (2021), curl piped to a shell",
       "policy": "block-curl-pipe-sh",
       "tier": "in-agent",
-      "eval_cases": 72
+      "eval_cases": 91
     },
     {
       "incident": "MCP server at @latest",
@@ -86,7 +86,7 @@
       "incident": "Leaked keys",
       "policy": "scan-secrets",
       "tier": "commit",
-      "eval_cases": 55
+      "eval_cases": 59
     },
     {
       "incident": "Trojan Source (CVE-2021-42574)",
@@ -172,6 +172,16 @@
       "name": "chock-example",
       "kind": "Template",
       "line": "A working adoption, one policy per layer."
+    },
+    {
+      "name": "chock-site",
+      "kind": "Site",
+      "line": "The source of chock.sh: browse the policies, build one plugin."
+    },
+    {
+      "name": "chock-release",
+      "kind": "Release",
+      "line": "The release train: one manifest pins each repo's commit for a version."
     },
     {
       "name": ".github",
