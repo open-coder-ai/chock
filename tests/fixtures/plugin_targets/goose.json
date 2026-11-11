@@ -40,7 +40,7 @@
           "hooks": [
             {
               "type": "command",
-              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${PLUGIN_ROOT}/scripts/launch.sh\" \"${PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --members \"${PLUGIN_ROOT}/scripts/goose.py\" --multi \"${PLUGIN_ROOT}/scripts/chock_index/PreToolUse-b6718bef.json\" --index-sha256 a699226364d428e914995ac5880a4ea62ba89609886ea31e0444fa86394e0103 --root \"${PLUGIN_ROOT}\"",
+              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${PLUGIN_ROOT}/scripts/launch.sh\" \"${PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --members \"${PLUGIN_ROOT}/scripts/goose.py\" --multi \"${PLUGIN_ROOT}/scripts/chock_index/PreToolUse-b6718bef.json\" --index-sha256 6f2580b24e2eee6f9d199dbc68ac4f4b3788a0fb7045f0d4ae30becc7847c490 --root \"${PLUGIN_ROOT}\"",
               "on_failure": "block",
               "timeout": 45
             }
@@ -51,7 +51,7 @@
           "hooks": [
             {
               "type": "command",
-              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${PLUGIN_ROOT}/scripts/launch.sh\" \"${PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --members \"${PLUGIN_ROOT}/scripts/goose.py\" --multi \"${PLUGIN_ROOT}/scripts/chock_index/PreToolUse-031b12f7.json\" --index-sha256 34625747312677b1808146eba0c55bfaf174f155de97d7e145718f63785e5416 --root \"${PLUGIN_ROOT}\"",
+              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${PLUGIN_ROOT}/scripts/launch.sh\" \"${PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --members \"${PLUGIN_ROOT}/scripts/goose.py\" --multi \"${PLUGIN_ROOT}/scripts/chock_index/PreToolUse-031b12f7.json\" --index-sha256 2127f2a6d2069e3bb8bba44a64397b586e10c68d4c91b979090d5b48818e2735 --root \"${PLUGIN_ROOT}\"",
               "on_failure": "block",
               "timeout": 45
             }
@@ -74,7 +74,7 @@
           "hooks": [
             {
               "type": "command",
-              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${PLUGIN_ROOT}/scripts/launch.sh\" \"${PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --members \"${PLUGIN_ROOT}/scripts/goose.py\" --multi \"${PLUGIN_ROOT}/scripts/chock_index/Stop-4cd5d275.json\" --index-sha256 ab951b9e6f1984a7860e362ee3529e4d5e259cf9ec952ce69134bbc675cb4d34 --root \"${PLUGIN_ROOT}\"",
+              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${PLUGIN_ROOT}/scripts/launch.sh\" \"${PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --members \"${PLUGIN_ROOT}/scripts/goose.py\" --multi \"${PLUGIN_ROOT}/scripts/chock_index/Stop-4cd5d275.json\" --index-sha256 55e42829ee166c7e51534a224ec327ffcdfecb02acd1f26c66f13f9b5702ec5a --root \"${PLUGIN_ROOT}\"",
               "on_failure": "block",
               "timeout": 45
             }
