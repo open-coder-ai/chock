@@ -1,5 +1,37 @@
 # Chock changelog
 
+## 1.1.0 - 2026-11-11
+
+- `.agents/policies/INDEX.md` says "Also checked in the agent" only when the policy's effective surfaces
+  keep an in-agent one (`pre-tool-use`, `stop` or `agent-hooks`). A `policies.overrides.<id>.surfaces`
+  that removed them left the note in place while `chock status` reported the narrowed state (#231).
+- A refused agent commit prints the "a waiver it adds was not honoured" note only when the policy defines
+  an `allowlist_pragma`. A policy with no waiver got the note too, pointing a person at a waiver that does
+  not exist. The refusal, its message and its exit code are unchanged (#238).
+- **`docs/compatibility.md` states the 1.x promise.** It said chock was pre-1.0. It now says what
+  a patch, minor and major release may change, which part is machine-checked (patch byte-identity,
+  `tests/test_emitter_stability.py`) and which is kept by review. `SECURITY.md` no longer says
+  "Until 1.0".
+- A hook command that names a pinned policy index (`--multi <index> --index-sha256 <hex>`) judges every member policy in one process and refuses if any member denies, if the index or a member file does not match its pin, or if a member fails (not wired by `sync` yet).
+- A multi-policy hook refuses on any fault in its member run, combine or log write instead of exiting with a traceback; each member judges its own copy of the event; the policy index refuses a member file or path argument that is absolute or contains `..`.
+- `chock sync` writes one hook entry per event and matcher for the policies that judge a call before it runs. Its command names a pinned policy index (`.chock/index/<vendor>-<event>-<hash>.json`) listing each policy's argv, timeout and the sha256 of every file its single-policy entry was verified by. A policy whose timeout plus a 5 s grace cannot fit the client's entry timeout is refused. A vendor whose hook schema documents no timeout keeps one entry per policy. `chock check` reports an old per-policy config, or an index that no longer matches its sources, as drift for `chock sync` to rewrite.
+- Hook start-up is cheaper: the runtime loader executes the already-hashed bytes without importing `inspect`, the POSIX launcher runs the runtime directly instead of a separate Python probe (a candidate that writes no start marker passes to the next; Windows keeps the probe), and the write gate reads each committed file once per process.
+- The repo stop's pre-tool check (`--stop-check`) rides the catch-all multi entry when one exists (the entry with no matcher, today token-efficiency's): that process checks the stop once, before any member, and refuses at once with the standalone check's own answer, so a tool call runs one hook process fewer. A fault in the stop check refuses, and a stopped call whose payload cannot be read is refused. Where no entry matches every tool, or the vendor folds nothing (Windsurf), the standalone stop-check entry stays exactly as it was. Applies to sync's repo hooks and to built plugins and bundles alike.
+- A timed-out policy child is killed with its whole process tree, and a member's own deadline can be set per thread (groundwork for one hook process per event).
+- `chock plugin build` writes `"homepage": "https://chock.sh"` into the Claude Code, Codex, Copilot and Cursor plugin manifests, each of which documents the field. Devin's manifest carries none, since no Devin field reference documents it.
+- A built plugin runs one hook per (event, matcher) instead of one per policy: its commands name a pinned policy index shipped in the package (`--multi <root>/scripts/chock_index/<name>.json --index-sha256 <hex> --root <root>`), whose members are paths relative to the plugin root. A bundle folds into one index per (event, matcher) and its per-member toggle still switches a member off. An index that fails its pin, a member file that drifted, a path that is absolute or climbs out of the root, an empty index and an empty root each refuse. A multi-policy hook now refuses an unreadable payload, and keeps what a member wrote to stderr.
+- PyPI's Homepage is now https://chock.sh. The README links chock.sh, its builder, `/llms.txt` and
+  `/api/index.json` instead of "launching soon", and its Quick start installs the pinned release from PyPI
+  (`chock==<version>`) instead of a git commit. A test refuses any README install line that is not the current version.
+- The README opens with chock.sh's promise. Its catalog numbers, incident table, agent lists and repository
+  table are written by `docs/assets/readme/derive.py readme` from `data.json` (catalog `1e60d21`) and chock's
+  own install and witness data; a test fails when they differ. The FAQ links `docs/compare.md`. The PyPI
+  classifier is `Development Status :: 4 - Beta`. New issue form: "I tried Chock and…".
+- **README numbers leave out deprecated policies.** `docs/assets/readme/derive.py` skips a registry
+  entry whose `status` is `deprecated`, so the README counts what chock.sh lists. At catalog
+  `1e60d21`: 71 policies (was 72), 11 in the agent (was 12), 38 Claude Code `block` labels (was 39),
+  4,390 of 4,572 eval cases replayed (was 4,501 of 4,683).
+
 ## 1.0.0 - 2026-11-02
 
 - Entries for unreleased changes now live in `changelog.d/` (one file per change); see

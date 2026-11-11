@@ -10,6 +10,7 @@ import unicodedata
 from pathlib import Path
 from typing import Any
 
+from .actor import _waiver_pattern
 from .constants import (
     _AGENT_COMMIT_NOTE,
     ACTION_BLOCK,
@@ -58,7 +59,7 @@ def _reason(result: GateResult, spec: dict, event: str = "commit", policy_id: st
 def _report_refusal(result: GateResult, spec: dict, judged: str, signal: str | None, policy_id: str | None) -> None:
     reason = _reason(result, spec, judged, policy_id)
     print(_encodable(ci_inert(reason) if judged == "ci" else reason, sys.stderr), file=sys.stderr)
-    if judged == AGENT_COMMIT_EVENT and signal:
+    if judged == AGENT_COMMIT_EVENT and signal and _waiver_pattern(spec.get("params") or {}, judged):
         print(_AGENT_COMMIT_NOTE.format(signal=signal), file=sys.stderr)
 
 

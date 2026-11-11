@@ -20,10 +20,10 @@ Agent folders at this repo's root (`.claude/`, `.cursor/`, …) are chock's comp
 
 ## Install
 
-chock 1.0.0 is on PyPI (Python 3.11 or newer):
+chock 1.1.0 is on PyPI (Python 3.11 or newer):
 
 ```bash
-pipx install chock==1.0.0
+pipx install chock==1.1.0
 ```
 
 ### Two ways to adopt it
@@ -79,7 +79,7 @@ Each refusal names the safe alternative, so the agent can fix it in the same tur
 ## Quick start
 
 ```bash
-pip install chock==1.0.0
+pip install chock==1.1.0
 
 git init -q demo && cd demo
 chock init .                       # wiring only, no policies

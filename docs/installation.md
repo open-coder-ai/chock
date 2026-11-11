@@ -94,15 +94,14 @@ chock init .
 Use the action in a workflow:
 
 ```yaml
-- uses: open-coder-ai/chock@v1.0.0
+- uses: open-coder-ai/chock@v1.1.0
   with:
     command: check
-    version: 1.0.0
+    version: 1.1.0
 ```
 
 The action installs the pinned version via `pipx` and runs the command. The `v1` major
-tag tracks the latest 1.x-compatible release and is created with the first public
-release — before that release exists, pin a full commit SHA instead.
+tag tracks the latest 1.x-compatible release.
 
 ## Clean-install test
 
