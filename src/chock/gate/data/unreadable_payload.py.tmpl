@@ -44,6 +44,9 @@ def _chock_declared():
     pinned = multi_from_argv(argv)
     if pinned is None:
         return _chock_declared_by(argv)
+    stopped = _chock_declared_by([HALT_HOOK_FLAG]) if HALT_HOOK_FLAG in argv else (None, None, None)
+    if stopped[0] is not None:  # the folded stop check: stopped, an unreadable call is refused whatever the members
+        return stopped
     named = root_from_argv(argv)
     members, _why = load_index(
         pinned[0], pinned[1], _chock_Path.cwd() if named is None else named, rooted=named is not None

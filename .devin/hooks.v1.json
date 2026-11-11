@@ -4,16 +4,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --multi \".chock/bin/index/devin-PreToolUse-185f9750.json\" --index-sha256 ebfc8620b51af8d70e3d11b25aeab3c58c3f13fedc2dc2c8d07541f2e0bf911a",
-          "timeout": 45
-        }
-      ]
-    },
-    {
-      "hooks": [
-        {
-          "type": "command",
-          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --stop-check",
+          "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/devin.py --multi \".chock/bin/index/devin-PreToolUse-185f9750.json\" --index-sha256 ebfc8620b51af8d70e3d11b25aeab3c58c3f13fedc2dc2c8d07541f2e0bf911a --stop-check",
           "timeout": 45
         }
       ]

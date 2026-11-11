@@ -17,7 +17,7 @@ import client_payloads
 import pytest
 from bundle_fixtures import ALL_ROOTS, BUNDLE_ID, bundle, judging_commands, make_members, project, write
 from conftest import run_hook_command
-from multi_support import seen_through
+from multi_support import stops
 from runtime_support import write_runtime
 from test_unreadable_stop import STOP_REFUSALS
 
@@ -100,7 +100,7 @@ def test_a_malformed_payload_is_refused(installed) -> None:
     client, package, repo = installed
     for payload in MALFORMED:
         for command in _commands(package):
-            done, stopping = _run(command, repo, payload, package), " --stop" in seen_through(command, package)
+            done, stopping = _run(command, repo, payload, package), stops(command, package)
             refused = STOP_REFUSALS[client] if stopping else DENIES[CLIENTS[client].agent]
             assert refused(done), (client, payload, done.returncode, done.stdout, done.stderr)
             assert "could not read" in done.stderr, (client, payload, done.stderr)

@@ -13,10 +13,10 @@ from chock.compile.emitters.in_agent_hooks import VENDOR_TIMEOUTS
 from chock.gate.budget import ENGINE_BUDGET_SECONDS
 from chock.gate.guard_runner import PYTHON_SUFFIX
 from chock.gate.multi import sha256_of
+from chock.gate.runner.halt import HALT_HOOK_FLAG
 from chock.hooks.config_write import CONFIG_MODE
+from chock.hooks.multi_members import member_files
 from chock.hooks.runtime_vendor import runtime_rel
-from chock.manifest import CANONICAL_MANIFEST
-from chock.policies import discover_policy_dirs
 from chock.scaffold.mcp_write import remove_file, write_file
 
 #: Where the pinned indexes live, one per (vendor, event, matcher): a path protect-agent-config guards, beside the runtimes.
@@ -31,10 +31,7 @@ MEMBER_SECONDS = ENGINE_BUDGET_SECONDS
 GRACE_SECONDS = 5
 _NO_COMMAND = "\0command\0"
 _DERIVED_NAME = "agentseam"
-_BYTECODE = ("__pycache__",)
-_BYTECODE_SUFFIXES = (".pyc", ".pyo")
 _MS_PER_SECOND = 1000
-_COMPILED = (".chock", "compiled")
 
 
 class IndexRefusalError(RuntimeError):
@@ -90,45 +87,6 @@ def _timeout_seconds(vendor: str, entry: Any) -> float | None:
     return float(facts["default_seconds"]) if facts and facts["default_seconds"] else None
 
 
-def _tree_files(root: Path, base: Path) -> dict[str, str]:
-    """{posix path under `base`: sha256} of every file under `root` except bytecode."""
-    found = {}
-    for path in sorted(root.rglob("*")):
-        if path.is_file() and not (set(path.parts) & set(_BYTECODE) or path.suffix in _BYTECODE_SUFFIXES):
-            found[path.relative_to(base).as_posix()] = sha256_of(path)
-    return found
-
-
-def _pack_dir(repo_root: Path, target: Path) -> Path | None:
-    """The policy folder a guard script sits in, or the one a compiled artifact was compiled from."""
-    for parent in target.parents:
-        if (repo_root / parent / CANONICAL_MANIFEST).is_file():
-            return repo_root / parent
-    parts = target.parts
-    if parts[:2] == _COMPILED and len(parts) > len(_COMPILED):
-        return next((d for d in discover_policy_dirs(repo_root) if d.name == parts[2]), None)
-    return None
-
-
-def member_files(repo_root: Path, argv: list[str]) -> dict[str, str] | None:
-    """The sha256 of every file a single-policy entry for `argv` is verified by: its pack and its compiled tree.
-
-    None when `argv` names no file chock can place, or the file is not among those: such an entry stays as it is.
-    """
-    root = Path(repo_root)
-    target = Path(argv[1]) if len(argv) > 1 else None
-    if target is None or target.is_absolute() or ".." in target.parts or not (root / target).is_file():
-        return None
-    pack = _pack_dir(root, target)
-    if pack is None:
-        return None
-    files = _tree_files(pack, root)
-    compiled = root.joinpath(*_COMPILED, pack.name)
-    if compiled.is_dir():
-        files.update(_tree_files(compiled, root))
-    return files if target.as_posix() in files else None
-
-
 def _quote(rel: str, *, quoted: bool) -> str:
     return f'"{rel}"' if quoted else rel
 
@@ -158,10 +116,41 @@ class Carrier(NamedTuple):
 
 
 class _Group:
-    """The carriers sharing one signature, in the order they were found."""
+    """The carriers sharing one signature, in the order they were found; `stop` once the stop check is folded in."""
 
     def __init__(self) -> None:
         self.carriers: list[Carrier] = []
+        self.stop = False
+
+
+def stop_runtime(entry: Any) -> str | None:
+    """The launcher-and-runtime text of a standalone stop-check entry (`<runtime> --stop-check`), else None."""
+    found = commands(entry) if isinstance(entry, dict) else set()
+    command = next(iter(found)) if len(found) == 1 else ""
+    body, sep, rest = command.rpartition(f" {HALT_HOOK_FLAG}")
+    return body if sep and body and not rest and MULTI_FLAG not in command.split(" ") else None
+
+
+def _takes_stop(group: _Group, entry: Any, body: str) -> bool:
+    """Whether `group` matches every tool the stop entry does (same shape) and runs the same runtime after its launcher."""
+    first = group.carriers[0]
+    prefix, _, runtime = body.rpartition(" ")
+    wrapped = bool(prefix) and first.head.startswith(f"{prefix} ") and first.head.endswith(f" {runtime}")
+    same_runtime = first.head == body or wrapped
+    return same_runtime and _signature(entry, f"{body} {HALT_HOOK_FLAG}") == _signature(first.entry, first.command)
+
+
+def _fold_stop(placed: list[Any], eligible: Callable[[Any], bool]) -> list[Any]:
+    """`placed` with the standalone stop check folded into the catch-all group, if one exists; else as it was."""
+    for at, item in enumerate(placed):
+        body = None if isinstance(item, _Group) or not eligible(item) else stop_runtime(item)
+        if body is None:
+            continue
+        group = next((g for g in placed if isinstance(g, _Group) and _takes_stop(g, item, body)), None)
+        if group is not None:
+            group.stop = True
+            return placed[:at] + placed[at + 1 :]
+    return placed
 
 
 def _index_bytes(members: list[dict[str, Any]]) -> bytes:
@@ -210,6 +199,9 @@ def collapse_list(  # noqa: PLR0913 -- the five places an entry list is folded e
 ) -> list[Any]:
     """`entries` with every policy entry folded into one entry per identical shape; the pinned indexes are written.
 
+    A standalone stop-check entry is folded into the group with its own shape and runtime (`--stop-check` on the
+    multi command), so the multi process checks the stop first; with no such group it stays as it is.
+
     `rename(entry, command)` lets a vendor re-derive a field of the folded entry from its new command; a plugin's
     `carry` makes the member of an entry from its package, and `sink` takes the index files it would write.
     """
@@ -225,6 +217,7 @@ def collapse_list(  # noqa: PLR0913 -- the five places an entry list is folded e
         if not group.carriers:
             placed.append(group)
         group.carriers.append(found)
+    placed = _fold_stop(placed, eligible)
     return [
         _fold(repo_root, vendor, event, item, (kept, rename, write, sink)) if isinstance(item, _Group) else item
         for item in placed
@@ -251,7 +244,7 @@ def _fold(repo_root: Path, vendor: str, event: str, group: _Group, how: tuple[An
             sink(rel, body)
         index, root = (_quote(text, quoted=first.quoted) for text in (f"{first.root}/{rel}", first.root))
         tail = f"{MULTI_FLAG} {index} {INDEX_SHA_FLAG} {pin} {ROOT_FLAG} {root}"
-    new = f"{first.head} {tail}"
+    new = f"{first.head} {tail}" + (f" {HALT_HOOK_FLAG}" if group.stop else "")
     folded = copy.deepcopy(_replace(first.entry, first.command, new))
     return rename(folded, new) if rename is not None else folded
 

@@ -30,16 +30,7 @@
           "hooks": [
             {
               "type": "command",
-              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${GROK_PLUGIN_ROOT}/scripts/launch.sh\" \"${GROK_PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --members \"${GROK_PLUGIN_ROOT}/scripts/grok.py\" --multi \"${GROK_PLUGIN_ROOT}/scripts/chock_index/PreToolUse-185f9750.json\" --index-sha256 e57abcfbb7a1449e57ef5a90655bc95d811c72807fa86084b5b37065c08cab5c --root \"${GROK_PLUGIN_ROOT}\"",
-              "timeout": 45
-            }
-          ]
-        },
-        {
-          "hooks": [
-            {
-              "type": "command",
-              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${GROK_PLUGIN_ROOT}/scripts/launch.sh\" \"${GROK_PLUGIN_ROOT}/scripts/grok.py\" --stop-check",
+              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${GROK_PLUGIN_ROOT}/scripts/launch.sh\" \"${GROK_PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --members \"${GROK_PLUGIN_ROOT}/scripts/grok.py\" --multi \"${GROK_PLUGIN_ROOT}/scripts/chock_index/PreToolUse-185f9750.json\" --index-sha256 e57abcfbb7a1449e57ef5a90655bc95d811c72807fa86084b5b37065c08cab5c --root \"${GROK_PLUGIN_ROOT}\" --stop-check",
               "timeout": 45
             }
           ]

@@ -11,7 +11,7 @@ from typing import Any
 
 FOLDED = re.compile(
     r'--multi "?(?P<root>[^"\s]*)/(?P<rel>scripts/chock_index/[^"\s]+\.json)"? '
-    r'--index-sha256 (?P<pin>[0-9a-f]{64}) --root "?(?P<named>[^"\s]*)"?$'
+    r'--index-sha256 (?P<pin>[0-9a-f]{64}) --root "?(?P<named>[^"\s]*)"?(?P<stop> --stop-check)?$'
 )
 
 
@@ -37,6 +37,11 @@ def seen_through(command: str, package: Path) -> str:
         return command
     members = json.loads((package / found["rel"]).read_text(encoding="utf-8"))["members"]
     return " ".join([command, *(" ".join(member["argv"]) for member in members)])
+
+
+def stops(command: str, package: Path) -> bool:
+    """Whether `command` (or a member of its index) runs a Stop gate: `--stop` as a flag, never `--stop-check`."""
+    return re.search(r" --stop(?![\w-])", seen_through(command, package)) is not None
 
 
 def reader(package: Path) -> Callable[[str], str]:

@@ -818,6 +818,9 @@ def _chock_declared():
     pinned = multi_from_argv(argv)
     if pinned is None:
         return _chock_declared_by(argv)
+    stopped = _chock_declared_by([HALT_HOOK_FLAG]) if HALT_HOOK_FLAG in argv else (None, None, None)
+    if stopped[0] is not None:  # the folded stop check: stopped, an unreadable call is refused whatever the members
+        return stopped
     named = root_from_argv(argv)
     members, _why = load_index(
         pinned[0], pinned[1], _chock_Path.cwd() if named is None else named, rooted=named is not None
@@ -1025,23 +1028,30 @@ def handle(event):
         context.setdefault("can_ask", False)
         _CHOCK_LEAVE.append(True)
         try:
-            return _chock_multi(event, pinned, context)
+            # The stop check folded into this entry: once, before any member; a stop or a fault refuses at once.
+            stopped = _chock_one(event, [HALT_HOOK_FLAG], context) if HALT_HOOK_FLAG in sys.argv[1:] else None
+            return stopped if stopped is not None else _chock_multi(event, pinned, context)
         except Exception as exc:  # noqa: BLE001 -- any failure here must refuse, never fall through
             return Decision.deny(
                 "chock could not check this call (%s: %s). Refusing rather than reporting an "
                 "allow it never established." % (type(exc).__name__, exc)
             )
+    return _chock_one(event, sys.argv[1:], context, logged=not starting)  # a session start's one line is its heartbeat
+
+
+def _chock_one(event, argv, context, logged=True):
+    """The decision of the one policy (or the stop check) `argv` names, and its log line."""
     judged = [None, None, _chock_time.monotonic(), {}]
     try:
-        decision = _judge(event, judged, sys.argv[1:])
+        decision = _judge(event, judged, argv)
     except Exception as exc:  # noqa: BLE001 -- any failure here must refuse, never fall through
         judged[0:2] = ["fault", type(exc).__name__]
         decision = Decision.deny(
             "chock could not check this call (%s: %s). Refusing rather than reporting an "
             "allow it never established." % (type(exc).__name__, exc)
         )
-    if not starting:  # a session start's one line is its heartbeat
-        log_decision(sys.argv[1:], event, decision, judged, context)
+    if logged:
+        log_decision(argv, event, decision, judged, context)
     return decision
 
 
