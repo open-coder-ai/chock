@@ -16,19 +16,10 @@
         "type": "command",
         "timeout": 45,
         "timeoutSec": 45,
-        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --multi \".chock/bin/index/vscode_copilot-PreToolUse-2b90d191.json\" --index-sha256 0d7dc4f8d23079d317442722244ae470a1494e9ea81a01267d57d18ac053fe38",
-        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --multi \".chock/bin/index/vscode_copilot-PreToolUse-2b90d191.json\" --index-sha256 0d7dc4f8d23079d317442722244ae470a1494e9ea81a01267d57d18ac053fe38",
-        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --multi \".chock/bin/index/vscode_copilot-PreToolUse-2b90d191.json\" --index-sha256 0d7dc4f8d23079d317442722244ae470a1494e9ea81a01267d57d18ac053fe38; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
-        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --multi \".chock/bin/index/vscode_copilot-PreToolUse-2b90d191.json\" --index-sha256 0d7dc4f8d23079d317442722244ae470a1494e9ea81a01267d57d18ac053fe38; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
-      },
-      {
-        "type": "command",
-        "timeout": 45,
-        "timeoutSec": 45,
-        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --stop-check",
-        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --stop-check",
-        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --stop-check; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
-        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --stop-check; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
+        "bash": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --multi \".chock/bin/index/vscode_copilot-PreToolUse-2b90d191.json\" --index-sha256 0d7dc4f8d23079d317442722244ae470a1494e9ea81a01267d57d18ac053fe38 --stop-check",
+        "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --multi \".chock/bin/index/vscode_copilot-PreToolUse-2b90d191.json\" --index-sha256 0d7dc4f8d23079d317442722244ae470a1494e9ea81a01267d57d18ac053fe38 --stop-check",
+        "powershell": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --multi \".chock/bin/index/vscode_copilot-PreToolUse-2b90d191.json\" --index-sha256 0d7dc4f8d23079d317442722244ae470a1494e9ea81a01267d57d18ac053fe38 --stop-check; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
+        "windows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/vscode_copilot.py --multi \".chock/bin/index/vscode_copilot-PreToolUse-2b90d191.json\" --index-sha256 0d7dc4f8d23079d317442722244ae470a1494e9ea81a01267d57d18ac053fe38 --stop-check; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE"
       }
     ],
     "SessionStart": [

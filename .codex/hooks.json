@@ -27,18 +27,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --multi \".chock/bin/index/codex_cli-PreToolUse-186bd88e.json\" --index-sha256 8acaa1f45d082758ffa5270a722263da96ccfd24038713be8e13a11220bd4d2d",
-            "commandWindows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --multi \".chock/bin/index/codex_cli-PreToolUse-186bd88e.json\" --index-sha256 8acaa1f45d082758ffa5270a722263da96ccfd24038713be8e13a11220bd4d2d; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
-            "timeout": 45
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --stop-check",
-            "commandWindows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --stop-check; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
+            "command": "git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --multi \".chock/bin/index/codex_cli-PreToolUse-186bd88e.json\" --index-sha256 8acaa1f45d082758ffa5270a722263da96ccfd24038713be8e13a11220bd4d2d --stop-check",
+            "commandWindows": "& git -c \"alias.chock-hook=!test -f .chock/bin/launch.sh || { echo chock: no .chock/bin/launch.sh here, run chock sync --repo . >&2; exit 2; }; sh .chock/bin/launch.sh\" chock-hook .chock/bin/codex_cli.py --multi \".chock/bin/index/codex_cli-PreToolUse-186bd88e.json\" --index-sha256 8acaa1f45d082758ffa5270a722263da96ccfd24038713be8e13a11220bd4d2d --stop-check; if ($null -eq $LASTEXITCODE) { exit 2 }; exit $LASTEXITCODE",
             "timeout": 45
           }
         ]
