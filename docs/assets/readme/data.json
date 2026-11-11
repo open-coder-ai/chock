@@ -3,20 +3,20 @@
     "file": "chock-catalog registry.yaml and */*/manifest.yaml",
     "commit": "1e60d211c1bb767152c6ab0167932da06ab3a10f"
   },
-  "policies": 72,
+  "policies": 71,
   "tiers": {
     "commit": 35,
-    "in-agent": 12,
+    "in-agent": 11,
     "advisory": 25
   },
   "claude_code_labels": {
     "advise": 24,
-    "block": 39,
+    "block": 38,
     "warn": 5,
     "ask": 4
   },
-  "eval_cases": 4683,
-  "eval_executed": 4501,
+  "eval_cases": 4572,
+  "eval_executed": 4390,
   "asi": {
     "with_policy": 10,
     "refused_at_commit": [

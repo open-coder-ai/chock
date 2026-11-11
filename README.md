@@ -197,13 +197,13 @@ From `registry.yaml` in [chock-catalog](https://github.com/open-coder-ai/chock-c
 
 | Measure | Value |
 | :--- | ---: |
-| Policies | 72 |
+| Policies | 71 |
 | Enforced at commit | 35 |
-| In the agent (best-effort) | 12 |
+| In the agent (best-effort) | 11 |
 | Advisory | 25 |
-| Claude Code labels: block / ask / warn / advisory | 39 / 4 / 5 / 24 |
-| Eval cases | 4,683 |
-| Replayed automatically | 4,501 |
+| Claude Code labels: block / ask / warn / advisory | 38 / 4 / 5 / 24 |
+| Eval cases | 4,572 |
+| Replayed automatically | 4,390 |
 <!-- /derive:numbers -->
 
 The policies fall into three families: base guardrails, agentic security, and agent discipline and compliance.

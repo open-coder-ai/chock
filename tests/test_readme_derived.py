@@ -50,3 +50,29 @@ def test_every_plugin_client_is_tested_or_untested_exactly_once() -> None:
     tested, untested = _derive().plugin_clients()
     assert tested and untested
     assert not set(tested) & set(untested)
+
+
+def test_a_deprecated_policy_is_not_counted(tmp_path: Path) -> None:
+    def entry(pid: str, status: str) -> dict:
+        label = {"claude-code": {"keyword": "block"}}
+        return {
+            "id": pid,
+            "status": status,
+            "enforces": "enforced-at-commit",
+            "label": label,
+            "eval_cases": 3,
+            "eval_executed": 2,
+        }
+
+    derive = _derive()
+    ids = sorted({pid for _, pid in derive.INCIDENTS})
+    policies = [entry(pid, "production") for pid in ids] + [entry("retired", derive.DEPRECATED)]
+    (tmp_path / "registry.yaml").write_text(json.dumps({"policies": policies}), encoding="utf-8")
+
+    data = derive.derive_catalog(tmp_path, "0" * 40)
+
+    live = len(ids)
+    assert data["policies"] == live
+    assert data["eval_cases"] == 3 * live
+    assert data["eval_executed"] == 2 * live
+    assert sum(data["tiers"].values()) == live
