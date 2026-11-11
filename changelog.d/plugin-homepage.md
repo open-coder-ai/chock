@@ -1,1 +1,0 @@
-- `chock plugin build` writes `"homepage": "https://chock.sh"` into the Claude Code, Codex, Copilot and Cursor plugin manifests, each of which documents the field. Devin's manifest carries none, since no Devin field reference documents it.

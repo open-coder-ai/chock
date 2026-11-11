@@ -1,1 +1,0 @@
-- A multi-policy hook refuses on any fault in its member run, combine or log write instead of exiting with a traceback; each member judges its own copy of the event; the policy index refuses a member file or path argument that is absolute or contains `..`.
