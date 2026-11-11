@@ -146,9 +146,9 @@ pytest==9.1.1 \
     # via
     #   -r requirements/ci-tools.in
     #   pytest-bdd
-pytest-bdd==8.1.0 \
-    --hash=sha256:2124051e71a05ad7db15296e39013593f72ebf96796e1b023a40e5453c47e5fb \
-    --hash=sha256:ef0896c5cd58816dc49810e8ff1d632f4a12019fb3e49959b2d349ffc1c9bfb5
+pytest-bdd==9.0.1 \
+    --hash=sha256:0a0c8e54e1646d384c79c47f5756fea1b4bebf97251ff2cb52105aac951276bc \
+    --hash=sha256:54e84b8d497ac87af76cfbc1a285584d34eeb762072f81793c9ed7ef0993883d
     # via -r requirements/ci-tools.in
 six==1.17.0 \
     --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274 \

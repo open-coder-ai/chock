@@ -1,0 +1,38 @@
+{
+  "_": "Templates for derive.py readme: README.md text between <!-- derive:NAME --> and <!-- /derive:NAME --> is rewritten from data.json and chock's own data. __TOKEN__ placeholders only.",
+  "stamp": "From `registry.yaml` in [chock-catalog](https://github.com/open-coder-ai/chock-catalog) at `__SHA__`:",
+  "plugins": "It builds one plugin for __TESTED__, tested live, and, untested by chock, for __UNTESTED__.",
+  "repo_agents": "Chock tested its repo hooks live in __WITNESSED__ only; other native hooks follow agentseam's record, untested.",
+  "faq_agents": "All __ALL__ above get a git hook, a CI gate and an `AGENTS.md` rule; __NATIVE__ also get a native hook. As one plugin: __TESTED_N__ tested, __UNTESTED_N__ untested.",
+  "repos": "The __COUNT__ public repositories:",
+  "numbers": [
+    [
+      "Policies",
+      "__POLICIES__"
+    ],
+    [
+      "Enforced at commit",
+      "__COMMIT__"
+    ],
+    [
+      "In the agent (best-effort)",
+      "__IN_AGENT__"
+    ],
+    [
+      "Advisory",
+      "__ADVISORY__"
+    ],
+    [
+      "Claude Code labels: block / ask / warn / advisory",
+      "__BLOCK__ / __ASK__ / __WARN__ / __ADVISE__"
+    ],
+    [
+      "Eval cases",
+      "__EVAL_CASES__"
+    ],
+    [
+      "Replayed automatically",
+      "__EVAL_EXECUTED__"
+    ]
+  ]
+}

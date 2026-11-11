@@ -1,18 +1,24 @@
-# Renders docs/assets/demo.tape -> demo.gif with VHS.
+# Renders docs/assets/demo.tape -> demo.gif and docs/assets/install.tape -> install.gif with VHS.
 #
-# Two triggers, two jobs, deliberately not sharing write access:
+# install.tape installs chock from PyPI with pipx at pyproject's version and builds a
+# chock.sh preset from the live site's data (see docs/assets/install_clip.py), so it
+# needs network to PyPI, chock.sh and GitHub; pipx and jq ship on ubuntu-latest.
+#
+# Two triggers, deliberately not sharing write access:
 #
 # - workflow_dispatch (job `render`): manual, authoring-only. Run it from the Actions
 #   tab, download the `demo-gif` artifact, review it, and commit the GIF yourself.
 #   `contents: read` -- it never writes back on its own.
-# - push on docs/assets/demo.tape, any branch but main (job `render-and-commit`):
-#   `main` is protected with no bypass, so this can only ever land on a feature
-#   branch -- which is the point, since it carries the regenerated GIF into that
+# - push on a tape or install_clip.py, any branch but main (jobs `render-push` then
+#   `commit`): `main` is protected with no bypass, so this can only ever land on a
+#   feature branch -- which is the point, since it carries the regenerated GIF into that
 #   branch's own pull request instead of leaving the tape and the GIF to drift apart.
-#   `contents: write`, scoped to this job only. The commit only touches demo.gif, so
-#   it never re-triggers itself.
+#   `render-push` runs the tapes (PyPI chock, chock.sh, catalog hook code) with
+#   `contents: read` and no persisted credentials, and uploads the GIFs. `commit` holds
+#   `contents: write` and runs no repository code: checkout, download that artifact,
+#   commit it signed off. The commit only touches the GIFs, so it never re-triggers itself.
 #
-# Linux rendering is canonical in both jobs -- the tape is authored against a Unix
+# Linux rendering is canonical in every job -- the tapes are authored against a Unix
 # shell, and VHS is at its flakiest on Windows.
 name: Demo GIF
 
@@ -20,7 +26,7 @@ on:
   workflow_dispatch:
   push:
     branches-ignore: [main]
-    paths: ["docs/assets/demo.tape"]
+    paths: ["docs/assets/demo.tape", "docs/assets/install.tape", "docs/assets/install_clip.py"]
 
 permissions:
   contents: read
@@ -49,22 +55,31 @@ jobs:
         with:
           path: docs/assets/demo.tape
 
+      - name: Render install tape
+        uses: charmbracelet/vhs-action@f6d7db07a432fcd3b06772628d36a57f96d95dcf  # v2
+        with:
+          path: docs/assets/install.tape
+
       - name: Upload GIF
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: demo-gif
-          path: docs/assets/demo.gif
+          path: |
+            docs/assets/demo.gif
+            docs/assets/install.gif
           if-no-files-found: error
 
-  render-and-commit:
+  render-push:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
-          persist-credentials: true
+          persist-credentials: false
+          # The full history, so the next step can diff this branch against main.
+          fetch-depth: 0
 
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
@@ -73,13 +88,58 @@ jobs:
       - name: Install chock
         run: python -m pip install --require-hashes -r requirements/runtime.txt && pip install -e . --no-deps --no-build-isolation
 
+      # Render only the tapes this branch changed, so one tape's push never re-renders and
+      # recommits the other's GIF.
+      - name: Tapes this branch changed
+        id: changed
+        run: |
+          changed() { git diff --quiet origin/main...HEAD -- "$@" || echo true; }
+          echo "demo=$(changed docs/assets/demo.tape)" >> "$GITHUB_OUTPUT"
+          echo "install=$(changed docs/assets/install.tape docs/assets/install_clip.py)" >> "$GITHUB_OUTPUT"
+
       - name: Render tape
+        if: steps.changed.outputs.demo == 'true'
         uses: charmbracelet/vhs-action@f6d7db07a432fcd3b06772628d36a57f96d95dcf  # v2
         with:
           path: docs/assets/demo.tape
 
-      - name: Commit regenerated GIF
-        uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d  # v7.2.0
+      - name: Render install tape
+        if: steps.changed.outputs.install == 'true'
+        uses: charmbracelet/vhs-action@f6d7db07a432fcd3b06772628d36a57f96d95dcf  # v2
         with:
-          commit_message: "docs: regenerate demo.gif"
-          file_pattern: docs/assets/demo.gif
+          path: docs/assets/install.tape
+
+      # A GIF no tape regenerated uploads as the committed copy, so it commits as no change.
+      - name: Upload GIFs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: rendered-gifs
+          path: |
+            docs/assets/demo.gif
+            docs/assets/install.gif
+          if-no-files-found: ignore
+          retention-days: 1
+
+  commit:
+    needs: render-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: true
+
+      - name: Download rendered GIFs
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: rendered-gifs
+          path: docs/assets
+
+      - name: Commit regenerated GIFs
+        uses: stefanzweifel/git-auto-commit-action@d0b01107b5db882071f96de5dd4b54961ea93f4c  # v7.2.1
+        with:
+          commit_message: "docs: regenerate demo.gif and install.gif"
+          file_pattern: docs/assets/demo.gif docs/assets/install.gif
+          # The repo's DCO check requires a Signed-off-by trailer on every commit.
+          commit_options: "--signoff"
