@@ -4,9 +4,7 @@
 
 </div>
 
-# Teach your AI agent what not to do.
-
-Blocks your coding agent's wrong moves before they land.
+# Blocks your coding agent's wrong moves before they land.
 
 Chock blocks that action, nothing else: no suggestions, no rewrites.
 
@@ -31,7 +29,7 @@ pipx install chock==1.0.0
 ### Two ways to adopt it
 
 1. **In your repository, for teams.** Run `chock init .`, then `chock add <id> --ref <catalog commit> --verify-sha <sha256> --skip-compile` for each policy, then `chock sync --repo . --ci`. Commit the result. A fresh clone arms itself from what is committed; a person runs `chock sync` to change it. The commit gates are enforced at commit and in CI.
-2. **In your coding agent, as one plugin.** Pick policies in the [chock.sh builder](https://chock.sh/coding/builder/) and run `chock install --selection <code> --apply`. It builds one plugin for Claude Code, Cursor, Codex, Copilot or Devin, and, untested by chock, for goose, Grok, Antigravity, OpenHands, Kimi Code or Factory Droid. Best-effort, and it fails open. A selection can add [your own policies](docs/custom-policies.md): install shows their code and asks first. No chock? Add a per-policy marketplace (`chock-*-plugins`; needs Python 3.11+, git, a bash: Git for Windows has one), never both.
+2. **In your coding agent, as one plugin.** Pick policies in the [chock.sh builder](https://chock.sh/coding/builder/) and run `chock install --selection <code> --apply`. <!-- derive:plugins -->It builds one plugin for Claude Code, GitHub Copilot, Codex, Cursor, Devin, goose, Grok or Antigravity, tested live, and, untested by chock, for OpenHands, Kimi Code or Factory Droid.<!-- /derive:plugins --> Best-effort, and it fails open. A selection can add [your own policies](docs/custom-policies.md): install shows their code and asks first. No chock? Add a per-policy marketplace (`chock-*-plugins`; needs Python 3.11+, git, a bash: Git for Windows has one), never both.
 
 ## Application security for the code your agents write
 
@@ -85,7 +83,7 @@ pip install chock==1.0.0
 
 git init -q demo && cd demo
 chock init .                       # wiring only, no policies
-chock add scan-secrets --ref 9a64623e30769c49d7011ec3f559592d84e3f657 --verify-sha 47ff46faf00e86089e79b868077ac2443e75bb879af7224190477d0c65e3360f --skip-compile
+chock add scan-secrets --ref 1e60d211c1bb767152c6ab0167932da06ab3a10f --verify-sha c7cf363c6eb8a8ed47287beef9c06fe76dfd2d9c0ccc203fe74e32fba0e92a94 --skip-compile
 chock sync --repo . --ci           # compile, install hooks, add the CI gate
 ```
 
@@ -165,9 +163,13 @@ Full nine-surface matrix and per-agent caveats:
 | **Kimi Code** | git hook + CI gate only — home-anchored config, outside chock's repo-scoped install | `~/.kimi-code/config.toml` |
 | **Replit** | git hook + CI gate only — no native hook API yet | — |
 
+<!-- derive:repo_agents -->Chock tested its repo hooks live in Copilot CLI and VS Code agent mode only; other native hooks follow agentseam's record, untested.<!-- /derive:repo_agents -->
+
 ## What it stops
 
-Most breaches start with a flaw someone shipped. These are the classes of flaw behind well-known incidents, and the policy that refuses each (tier and eval cases from [chock-catalog](https://github.com/open-coder-ai/chock-catalog) `registry.yaml` at `9a64623`):
+Most breaches start with a flaw someone shipped. These are the classes of flaw behind well-known incidents, and the policy that refuses each.
+<!-- derive:incidents -->
+From `registry.yaml` in [chock-catalog](https://github.com/open-coder-ai/chock-catalog) at `1e60d21`:
 
 | Class of flaw behind | Policy | Tier | Eval cases |
 | :--- | :--- | :--- | ---: |
@@ -176,10 +178,11 @@ Most breaches start with a flaw someone shipped. These are the classes of flaw b
 | Struts OGNL (CVE-2017-5638) | `java-security` | commit | 177 |
 | SSRF, then an over-broad cloud role | `block-wildcard-iam` | commit | 38 |
 | tj-actions moved tag (2025) | `pin-github-actions` | commit | 63 |
-| Codecov bash uploader (2021), curl piped to a shell | `block-curl-pipe-sh` | in-agent | 72 |
+| Codecov bash uploader (2021), curl piped to a shell | `block-curl-pipe-sh` | in-agent | 91 |
 | MCP server at @latest | `block-unpinned-agent-components` | commit | 54 |
-| Leaked keys | `scan-secrets` | commit | 55 |
+| Leaked keys | `scan-secrets` | commit | 59 |
 | Trojan Source (CVE-2021-42574) | `block-invisible-unicode` | commit | 72 |
+<!-- /derive:incidents -->
 
 Chock does not stop every attack. It closes common, known entry points before they ship.
 
@@ -189,17 +192,19 @@ Chock does not stop every attack. It closes common, known entry points before th
 
 ### The catalog, in numbers
 
-From `registry.yaml` in [chock-catalog](https://github.com/open-coder-ai/chock-catalog) at `9a64623`:
+<!-- derive:numbers -->
+From `registry.yaml` in [chock-catalog](https://github.com/open-coder-ai/chock-catalog) at `1e60d21`:
 
 | Measure | Value |
 | :--- | ---: |
-| Policies | 71 |
+| Policies | 72 |
 | Enforced at commit | 35 |
-| In the agent (best-effort) | 11 |
+| In the agent (best-effort) | 12 |
 | Advisory | 25 |
-| Claude Code labels: block / ask / warn / advisory | 39 / 3 / 5 / 24 |
-| Eval cases | 4,280 |
-| Replayed automatically | 4,098 |
+| Claude Code labels: block / ask / warn / advisory | 39 / 4 / 5 / 24 |
+| Eval cases | 4,683 |
+| Replayed automatically | 4,501 |
+<!-- /derive:numbers -->
 
 The policies fall into three families: base guardrails, agentic security, and agent discipline and compliance.
 
@@ -223,7 +228,7 @@ Chock adds no new place your code goes. Your agent still sends context to its ow
 
 ### Which agents does it work with?
 
-The 15 in the table above get a git hook, a CI gate and an `AGENTS.md` rule; most also get a native pre-tool hook.
+<!-- derive:faq_agents -->All 20 above get a git hook, a CI gate and an `AGENTS.md` rule; 15 also get a native hook. As one plugin: 8 tested, 3 untested.<!-- /derive:faq_agents -->
 
 ### How do I install it?
 
@@ -232,6 +237,10 @@ See [Install](#install): in your repo, or as one plugin from the builder.
 ### What does it cost?
 
 Nothing: Apache-2.0, and a check costs no tokens.
+
+### How does it compare with other tools?
+
+See [docs/compare.md](docs/compare.md).
 
 ### Does it replace SAST or code review?
 
@@ -252,7 +261,8 @@ Machine-readable sources:
 
 ## Part of open-coder-ai
 
-The 13 public repositories:
+<!-- derive:repos -->
+The 15 public repositories:
 
 | Repository | What it is |
 | :--- | :--- |
@@ -268,7 +278,10 @@ The 13 public repositories:
 | [chock-devin-plugins](https://github.com/open-coder-ai/chock-devin-plugins) | Plugins: per-policy marketplace, for machines without chock. |
 | [chock-quickstart](https://github.com/open-coder-ai/chock-quickstart) | Template: What chock init leaves behind. |
 | [chock-example](https://github.com/open-coder-ai/chock-example) | Template: A working adoption, one policy per layer. |
+| [chock-site](https://github.com/open-coder-ai/chock-site) | Site: The source of chock.sh: browse the policies, build one plugin. |
+| [chock-release](https://github.com/open-coder-ai/chock-release) | Release: The release train: one manifest pins each repo's commit for a version. |
 | [.github](https://github.com/open-coder-ai/.github) | Community: Org profile and community health files. |
+<!-- /derive:repos -->
 
 ## Contributing
 

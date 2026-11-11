@@ -33,10 +33,9 @@ keywords = [
 ]
 # No License classifier: deprecated alongside a PEP 639 license expression.
 classifiers = [
-    # Stays Alpha until the 1.0 line docs/compatibility.md promises: "chock is pre-1.0 --
-    # the compatibility promise starts at 1.0". A stability claim here that the docs
-    # contradict is the kind of thing this project does not ship.
-    "Development Status :: 3 - Alpha",
+    # Beta, not Production/Stable: hooks in the agent are best-effort and fail open (README
+    # "Guardrails, not guarantees"). A stability claim the docs contradict is not shipped.
+    "Development Status :: 4 - Beta",
     # `chock` is a console script (see [project.scripts]); there is no GUI or web surface.
     "Environment :: Console",
     "Intended Audience :: Developers",
@@ -73,7 +72,7 @@ dev = [
     "hypothesis>=6.170.9",
     # Pin the minor: ruff's formatter changes behavior across minors (0.16 began
     # formatting Python inside Markdown), which silently breaks CI on unrelated PRs.
-    "ruff>=0.16,<0.17",
+    "ruff>=0.16,<0.18",
     # Runs the DCO sign-off hook in .pre-commit-config.yaml.
     "pre-commit>=3.0",
 ]
