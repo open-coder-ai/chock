@@ -2,6 +2,12 @@
 
 ## 1.1.0 - 2026-11-11
 
+- `.agents/policies/INDEX.md` says "Also checked in the agent" only when the policy's effective surfaces
+  keep an in-agent one (`pre-tool-use`, `stop` or `agent-hooks`). A `policies.overrides.<id>.surfaces`
+  that removed them left the note in place while `chock status` reported the narrowed state (#231).
+- A refused agent commit prints the "a waiver it adds was not honoured" note only when the policy defines
+  an `allowlist_pragma`. A policy with no waiver got the note too, pointing a person at a waiver that does
+  not exist. The refusal, its message and its exit code are unchanged (#238).
 - **`docs/compatibility.md` states the 1.x promise.** It said chock was pre-1.0. It now says what
   a patch, minor and major release may change, which part is machine-checked (patch byte-identity,
   `tests/test_emitter_stability.py`) and which is kept by review. `SECURITY.md` no longer says

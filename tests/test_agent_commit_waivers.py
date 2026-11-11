@@ -120,3 +120,25 @@ def test_script_gate_is_told_the_agent_event(tmp_path: Path, monkeypatch: pytest
     assert run(gate, "pre-commit", None, repo) == 0
     monkeypatch.setenv(AGENT_COMMIT_ENV, "1")
     assert run(gate, "pre-commit", None, repo) == 1
+
+
+def _gate_without_waiver(tmp_path: Path) -> Path:
+    params = {"content_pattern": r'"select "\s*\+'}
+    spec = {"kind": "content_regex", "on": ["commit"], "action": "block", "message": "sql", "params": params}
+    return write_gate(tmp_path, spec)
+
+
+def test_an_agent_refusal_names_no_waiver_when_the_policy_defines_none(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    repo = _repo(tmp_path)
+    _stage(repo, WAIVED)
+    gate = _gate_without_waiver(tmp_path)
+    assert run(gate, "pre-commit", None, repo) == 1
+    person = capsys.readouterr().err
+    monkeypatch.setenv(AGENT_COMMIT_ENV, "1")
+    assert run(gate, "pre-commit", None, repo) == 1
+    agent = capsys.readouterr().err
+    assert "sql" in agent and "app.py" in agent
+    assert agent == person
+    assert "waiver" not in agent and "not honoured" not in agent

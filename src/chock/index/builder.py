@@ -9,12 +9,15 @@ from typing import Any
 import yaml
 
 from chock.compile.emitters.advisory import substitute_policy_vars, template_message
-from chock.config import _disabled_list, load_config
+from chock.compile.surface_kinds import Surface
+from chock.config import _disabled_list, load_config, policy_status
 from chock.gate.build import build_gate_json
 from chock.manifest import ManifestSourceError, load_manifest
 from chock.output import warn
 
 _ENFORCEMENT_ORDER = {"block": 0, "verify": 1, "advise": 2}
+#: The surfaces that put a gate in the agent's own hooks.
+_IN_AGENT_SURFACES = frozenset({Surface.PRE_TOOL_USE.value, Surface.STOP.value, Surface.AGENT_HOOKS.value})
 
 
 @dataclass
@@ -28,7 +31,8 @@ class IndexEntry:
     description: str
     rule_text: str = ""
     manifest_path: str = ""
-    #: The gate is also compiled for the agent's own hooks (`on: tool_use` or `tool_call`), not only for git.
+    #: The gate is also compiled for the agent's own hooks (`on: tool_use` or `tool_call`, on a surface
+    #: this repo's config keeps), not only for git.
     in_agent: bool = False
 
     def priority(self) -> int:
@@ -75,7 +79,17 @@ def _one_liner(description: str) -> str:
     return str(description).splitlines()[0].strip()
 
 
-def _entry_from_manifest(artifact_dir: Path, manifest: dict[str, Any], rel_path: str, root: Path) -> IndexEntry:
+def _in_agent(manifest: dict[str, Any], pid: str, config: dict[str, Any]) -> bool:
+    """The gate names an in-agent event and the policy's effective surfaces keep an in-agent one."""
+    gate = (manifest.get("hook") or {}).get("gate") or {}
+    if not {"tool_use", "tool_call"} & set(gate.get("on") or []):
+        return False
+    return bool(_IN_AGENT_SURFACES & set(policy_status(config, pid, manifest)["targets"] or []))
+
+
+def _entry_from_manifest(
+    artifact_dir: Path, manifest: dict[str, Any], rel_path: str, root: Path, config: dict[str, Any]
+) -> IndexEntry:
     artifact = manifest.get("artifact") or "skill"
     pid = _default_id(artifact_dir, manifest)
     name = manifest.get("name") or pid
@@ -86,8 +100,7 @@ def _entry_from_manifest(artifact_dir: Path, manifest: dict[str, Any], rel_path:
     in_agent = False
     if artifact == "hook":
         description = _summarize_hook(manifest, artifact_dir, root)
-        gate = (manifest.get("hook") or {}).get("gate") or {}
-        in_agent = bool({"tool_use", "tool_call"} & set(gate.get("on") or []))
+        in_agent = _in_agent(manifest, pid, config)
 
     return IndexEntry(
         id=pid,
@@ -125,7 +138,7 @@ def build_entries(root: Path) -> tuple[list[IndexEntry], list[str]]:
         if pid in disabled:
             continue
 
-        entries.append(_entry_from_manifest(artifact_dir, manifest, rel_path, root))
+        entries.append(_entry_from_manifest(artifact_dir, manifest, rel_path, root, config))
 
     return entries, warnings
 
