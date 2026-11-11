@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Until 1.0, only the latest release of the current minor line gets security fixes.
+Only the latest release of the current minor line gets security fixes.
 
 | Version | Supported |
 |---|---|
