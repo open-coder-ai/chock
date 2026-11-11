@@ -8,19 +8,34 @@ expected.
 That makes this page necessary rather than nice to have. Once adopters hold hashes, they are
 owed a statement about what may change underneath them.
 
-## Where the project is: 0.x
+## Where the project is: 1.x
 
-**Chock is pre-1.0, and pre-1.0 means the surfaces below can change in any release.**
-The published version is on the [PyPI badge](https://pypi.org/project/chock/).
-Treat every guarantee here as a description
-of intent and process, not a promise of stability — the promise starts at 1.0.
+**Chock is at 1.x, and the promise on this page is in force.** The published version is on the
+[PyPI badge](https://pypi.org/project/chock/). Within 1.x, a breaking change to a covered
+surface below waits for 2.0.
 
-Said plainly because the alternative is worse: a compatibility page that implies stability the
-project has not earned is exactly the kind of overclaim the coverage taxonomy exists to prevent.
+What a version number tells you:
+
+| Release | Compiled output | What you do |
+| :--- | :--- | :--- |
+| **Patch** (1.0.x) | Byte-identical | Nothing. A patch never requires `chock sync`. |
+| **Minor** (1.x.0) | May change; `CHANGELOG.md` says so | Bump, run `chock sync`, read and commit the diff. |
+| **Major** | May change | Whatever the changelog lists beyond `chock sync`: a config or layout migration, a removed command. |
+
+What the promise rests on, said plainly because a compatibility page that implies more than
+the project can show is exactly the kind of overclaim the coverage taxonomy exists to prevent:
+
+- Patch byte-identity is machine-checked: `tests/test_emitter_stability.py` compares the
+  emitters' output with a committed golden tree on every pull request.
+- The covered surfaces below are kept by review and the changelog, not by one test. A break
+  inside 1.x is a bug; see "Reporting a break".
+- The package is classified `Development Status :: 4 - Beta` on PyPI, because hooks in the
+  agent are best-effort and fail open. This page promises stable surfaces. It does not
+  promise more enforcement in the agent than the coverage level states.
 
 ## What counts as a breaking change
 
-Once at 1.0, a change to any of these is breaking and requires a major version:
+A change to any of these is breaking and requires a major version:
 
 | Surface | What is covered |
 | :--- | :--- |
@@ -70,14 +85,13 @@ let a future version recognise a lockfile it should not silently reinterpret.
 
 ## Deprecation process
 
-From 1.0 onward:
+In 1.x:
 
 1. The replacement ships first, so both work at once.
 2. The old surface warns on use, naming the replacement, for at least one minor release.
 3. Removal happens only in a major release, listed in `CHANGELOG.md`.
 
-Before 1.0 this is best-effort. Where a change is unavoidable, the CHANGELOG entry says what
-broke and what to do about it.
+Releases before 1.0 did not carry this promise; their breaks are listed in `CHANGELOG.md`.
 
 ## Reporting a break
 
