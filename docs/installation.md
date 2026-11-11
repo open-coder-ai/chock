@@ -101,8 +101,7 @@ Use the action in a workflow:
 ```
 
 The action installs the pinned version via `pipx` and runs the command. The `v1` major
-tag tracks the latest 1.x-compatible release and is created with the first public
-release — before that release exists, pin a full commit SHA instead.
+tag tracks the latest 1.x-compatible release.
 
 ## Clean-install test
 

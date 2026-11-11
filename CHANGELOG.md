@@ -15,8 +15,8 @@
 - `chock plugin build` writes `"homepage": "https://chock.sh"` into the Claude Code, Codex, Copilot and Cursor plugin manifests, each of which documents the field. Devin's manifest carries none, since no Devin field reference documents it.
 - A built plugin runs one hook per (event, matcher) instead of one per policy: its commands name a pinned policy index shipped in the package (`--multi <root>/scripts/chock_index/<name>.json --index-sha256 <hex> --root <root>`), whose members are paths relative to the plugin root. A bundle folds into one index per (event, matcher) and its per-member toggle still switches a member off. An index that fails its pin, a member file that drifted, a path that is absolute or climbs out of the root, an empty index and an empty root each refuse. A multi-policy hook now refuses an unreadable payload, and keeps what a member wrote to stderr.
 - PyPI's Homepage is now https://chock.sh. The README links chock.sh, its builder, `/llms.txt` and
-  `/api/index.json` instead of "launching soon", and its Quick start installs `chock==1.0.0` from PyPI
-  instead of a 0.15.2 git commit. A test refuses any README install line that is not the current version.
+  `/api/index.json` instead of "launching soon", and its Quick start installs the pinned release from PyPI
+  (`chock==<version>`) instead of a git commit. A test refuses any README install line that is not the current version.
 - The README opens with chock.sh's promise. Its catalog numbers, incident table, agent lists and repository
   table are written by `docs/assets/readme/derive.py readme` from `data.json` (catalog `1e60d21`) and chock's
   own install and witness data; a test fails when they differ. The FAQ links `docs/compare.md`. The PyPI

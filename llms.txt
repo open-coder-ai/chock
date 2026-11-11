@@ -12,8 +12,8 @@ No agent reaches `enforced`; the commit and CI gates are what enforce.
 
 Install: `pipx install chock==1.1.0` (Python 3.11 or newer).
 
-Chock is pre-1.0: the CLI surface, manifest schema, and compiled output can change between
-MINOR releases. See Compatibility below for what is actually guaranteed today.
+Chock is at 1.x: a PATCH release leaves compiled output byte-identical, a MINOR release may
+change it (run `chock sync`), and a breaking change waits for 2.0. See Compatibility below.
 
 ## Start here
 
@@ -25,7 +25,7 @@ MINOR releases. See Compatibility below for what is actually guaranteed today.
 
 - [Agentic-Risk Coverage](https://github.com/open-coder-ai/chock/blob/main/docs/agentic-risk-coverage.md): problem-first index of what Chock stops, at which honest tier, and what it does not
 - [Enforcement Surfaces](https://github.com/open-coder-ai/chock/blob/main/docs/enforcement-surfaces.md): the nine surfaces and the per-agent coverage matrix
-- [Compatibility](https://github.com/open-coder-ai/chock/blob/main/docs/compatibility.md): pre-1.0 stability guarantees — what may change between versions, and what pinning guarantees
+- [Compatibility](https://github.com/open-coder-ai/chock/blob/main/docs/compatibility.md): the 1.x promise — what a patch, minor and major release may change, and what pinning guarantees
 
 ## Policies and catalog
 
