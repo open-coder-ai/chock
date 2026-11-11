@@ -27,6 +27,7 @@ BLOCKS = Path(__file__).with_name("readme-blocks.json")
 README = Path(__file__).resolve().parents[3] / "README.md"
 BLOCK = re.compile(r"(<!-- derive:(?P<name>[a-z_]+) -->)(?P<body>.*?)(<!-- /derive:(?P=name) -->)", re.DOTALL)
 UNTESTED_PREFIX = "Untested:"
+DEPRECATED = "deprecated"
 ASI = [f"ASI{n:02d}" for n in range(1, 11)]
 INCIDENTS = [
     ("Log4Shell (CVE-2021-44228)", "java-security"),
@@ -56,7 +57,8 @@ def tier_of(entry: dict) -> str:
 
 
 def derive_catalog(catalog: Path, sha: str) -> dict:
-    registry = yaml.safe_load((catalog / "registry.yaml").read_text(encoding="utf-8"))["policies"]
+    listed = yaml.safe_load((catalog / "registry.yaml").read_text(encoding="utf-8"))["policies"]
+    registry = [p for p in listed if p["status"] != DEPRECATED]
     by_id = {p["id"]: p for p in registry}
     tiers = Counter(tier_of(p) for p in registry)
     claude = Counter(p["label"]["claude-code"]["keyword"] for p in registry)
