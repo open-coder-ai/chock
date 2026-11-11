@@ -1302,6 +1302,7 @@ _AGENT_WAIVER_HINT = "If this must stay, ask a person to review it; an agent can
 _CUSTOMISE_POINTER = (
     "A person customises this policy's rules in .agents/policies/{policy}/manifest.yaml; an agent cannot loosen them."
 )
+_SCRIPT_KIND = "script"
 
 
 def _for_agent(text: str) -> str:
@@ -1331,10 +1332,15 @@ def _reason(result: GateResult, spec: dict, event: str = "commit", policy_id: st
     return "\n".join([*matches, _summary(result, policy_id), policy])
 
 
+def _may_waive(spec: dict, event: str) -> bool:
+    """Whether the policy can honour a waiver: an `allowlist_pragma`, or a script that reads its own."""
+    return spec.get("kind") == _SCRIPT_KIND or bool(_waiver_pattern(spec.get("params") or {}, event))
+
+
 def _report_refusal(result: GateResult, spec: dict, judged: str, signal: str | None, policy_id: str | None) -> None:
     reason = _reason(result, spec, judged, policy_id)
     print(_encodable(ci_inert(reason) if judged == "ci" else reason, sys.stderr), file=sys.stderr)
-    if judged == AGENT_COMMIT_EVENT and signal and _waiver_pattern(spec.get("params") or {}, judged):
+    if judged == AGENT_COMMIT_EVENT and signal and _may_waive(spec, judged):
         print(_AGENT_COMMIT_NOTE.format(signal=signal), file=sys.stderr)
 
 
