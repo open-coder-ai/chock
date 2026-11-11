@@ -10,7 +10,7 @@ honest taxonomy (`src/chock/compile/levels.py`): `none`, `best-effort`, `fail-to
 is only claimed when there is an install witness for it — never because a rule merely compiled.
 No agent reaches `enforced`; the commit and CI gates are what enforce.
 
-Install: `pipx install chock==1.0.0` (Python 3.11 or newer).
+Install: `pipx install chock==1.1.0` (Python 3.11 or newer).
 
 Chock is pre-1.0: the CLI surface, manifest schema, and compiled output can change between
 MINOR releases. See Compatibility below for what is actually guaranteed today.

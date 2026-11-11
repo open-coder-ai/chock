@@ -4,7 +4,7 @@
 # and diffs this file against the README on every push and pull request.
 set -euo pipefail
 
-pip install chock==1.0.0
+pip install chock==1.1.0
 
 git init -q demo && cd demo
 chock init .                       # wiring only, no policies
