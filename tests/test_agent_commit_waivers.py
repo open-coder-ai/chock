@@ -142,3 +142,31 @@ def test_an_agent_refusal_names_no_waiver_when_the_policy_defines_none(
     assert "sql" in agent and "app.py" in agent
     assert agent == person
     assert "waiver" not in agent and "not honoured" not in agent
+
+
+def test_a_script_gate_refusing_an_agents_waiver_says_only_head_waivers_count(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    """A script gate honours its own waiver comment with no `allowlist_pragma`; the agent is still told why."""
+    repo = _repo(tmp_path)
+    _stage(repo, WAIVED)
+    script = tmp_path / "gate_script.py"
+    script.write_text(
+        "import json, sys\n"
+        "if json.load(sys.stdin)['event'] in {'commit', 'push', 'ci'}:\n"
+        "    sys.exit(0)\n"
+        "print('app.py: string-built sql')\n"
+        "sys.exit(1)\n",
+        encoding="utf-8",
+    )
+    gate = write_gate(
+        tmp_path,
+        {"kind": "script", "on": ["commit"], "action": "block", "message": "s", "params": {"script": str(script)}},
+    )
+    assert run(gate, "pre-commit", None, repo) == 0
+    assert "not honoured" not in capsys.readouterr().err
+    monkeypatch.setenv(AGENT_COMMIT_ENV, "1")
+    assert run(gate, "pre-commit", None, repo) == 1
+    agent = capsys.readouterr().err
+    assert "string-built sql" in agent
+    assert "not honoured" in agent and "already in HEAD" in agent
