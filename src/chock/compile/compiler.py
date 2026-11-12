@@ -31,8 +31,8 @@ from chock.compile.surfaces import (
 )
 from chock.config import agents_from_config
 from chock.hooks.in_agent_install import WIRED_VENDORS, installed_policy_ids
-from chock.manifest import ManifestSourceError, load_manifest
-from chock.output import error, warn
+from chock.manifest import ManifestSourceError, load_manifest, warn_defaults
+from chock.output import error
 from chock.policy_id import InvalidPolicyIdError, validate_policy_id
 from chock.scaffold.install_ci import ci_workflow_installed
 from chock.vendors import CHOCK_AGENT
@@ -73,9 +73,8 @@ def _load_manifest(policy_dir: Path) -> dict[str, Any]:
         return {}
     if result is None:
         return {}
-    data, _ = result
-    for warning in warnings:
-        warn(f"{policy_dir}: manifest_default: {warning}")
+    data, manifest_path = result
+    warn_defaults(manifest_path, warnings)
     return data
 
 

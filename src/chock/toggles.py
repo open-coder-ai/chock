@@ -17,8 +17,8 @@ from chock.config import load_config, policy_status, set_disabled
 from chock.display import inert
 from chock.gate.build import CatastrophicPatternError
 from chock.index.cli import cmd_refresh
-from chock.manifest import ManifestSourceError, load_manifest
-from chock.output import error, warn
+from chock.manifest import ManifestSourceError, load_manifest, warn_defaults
+from chock.output import error
 from chock.policies import discover_policy_dirs
 from chock.scaffold.adapters import parse_agent_selection
 from chock.scaffold.recompile import BookkeepingError, compiled_differences, recompile
@@ -44,9 +44,8 @@ def _load_manifest(pack_dir: Path) -> dict[str, Any]:
         return {}
     if result is None:
         return {}
-    data, _ = result
-    for warning in warnings:
-        warn(f"{pack_dir}: manifest_default: {warning}")
+    data, manifest_path = result
+    warn_defaults(manifest_path, warnings)
     return data
 
 
