@@ -112,12 +112,12 @@ def is_shallow(repo: Path) -> bool:
     return _git(repo, ["rev-parse", "--is-shallow-repository"]).decode().strip() == "true"
 
 
-def _range(since: str | None) -> list[str]:
-    return [f"{since}..HEAD"] if since else ["HEAD"]
+def _range(since: str | None, head: str = "HEAD") -> list[str]:
+    return [f"{since}..{head}"] if since else [head]
 
 
-def count_commits(repo: Path, since: str | None) -> int:
-    return int(_git(repo, ["rev-list", "--count", *_range(since), "--"]).decode().strip() or 0)
+def count_commits(repo: Path, since: str | None, head: str = "HEAD") -> int:
+    return int(_git(repo, ["rev-list", "--count", *_range(since, head), "--"]).decode().strip() or 0)
 
 
 def _stream_tokens(proc: subprocess.Popen[bytes]) -> Iterator[bytes]:
@@ -152,12 +152,12 @@ def _records(tokens: Iterator[bytes], log: Log) -> Iterator[tuple[str, str, str]
             yield commit, fields[3], path
 
 
-def touches(repo: Path, since: str | None, max_commits: int) -> Log:
+def touches(repo: Path, since: str | None, max_commits: int, head: str = "HEAD") -> Log:
     """Blobs added or changed per commit, oldest commit first (the newest `max_commits` of the range)."""
     args = [
         "log", "-z", "--raw", "-m", "-M", "--topo-order", "--reverse", "--no-abbrev",
         "--no-ext-diff", "--no-textconv", "--no-show-signature", "--diff-filter=ACMRT",
-        "-n", str(max_commits), "--format=%x01%H", *_range(since), "--",
+        "-n", str(max_commits), "--format=%x01%H", *_range(since, head), "--",
     ]  # fmt: skip
     result = Log()
     seen: set[Touch] = set()

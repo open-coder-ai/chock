@@ -168,7 +168,7 @@ def _collect(touched: list[gitlog.Touch], rules: list[Rule], judged: Judged) -> 
     return found
 
 
-def scan(repo: Path, rules: list[Rule], since: str | None, limits: Limits) -> Report:
+def scan(repo: Path, rules: list[Rule], since: str | None, limits: Limits, head: str = "HEAD") -> Report:
     report = Report(shallow=gitlog.is_shallow(repo))
     if report.shallow:
         if not limits.allow_shallow:
@@ -177,11 +177,11 @@ def scan(repo: Path, rules: list[Rule], since: str | None, limits: Limits) -> Re
                 "would claim too much. Fetch full history (git fetch --unshallow) or pass --allow-shallow."
             )
         _say("history: WARNING shallow clone; commits beyond the shallow boundary were not scanned")
-    in_range = gitlog.count_commits(repo, since)
+    in_range = gitlog.count_commits(repo, since, head)
     report.truncated = in_range > limits.max_commits
     report.commits = min(in_range, limits.max_commits)
     _say(f"history: listing up to {report.commits} of {in_range} commits")
-    log = gitlog.touches(repo, since, limits.max_commits)
+    log = gitlog.touches(repo, since, limits.max_commits, head)
     report.skipped_submodules = log.submodules
     oids = sorted({t.oid for t in log.touches})
     _say(f"history: {len(log.touches)} changed paths, {len(oids)} distinct blobs")

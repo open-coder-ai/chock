@@ -1,0 +1,27 @@
+{
+  "$comment": "Facts `chock check --floor` compares base against head: each rule refuses only a removal or weakening. Ships inside the engine, so a pull request cannot edit what judges it.",
+  "hook_files": [
+    {"glob": ".claude/settings.json", "pointer": "/hooks"},
+    {"glob": ".cursor/hooks.json", "pointer": "/hooks"},
+    {"glob": ".github/hooks/*.json", "pointer": "/hooks"},
+    {"glob": ".codex/hooks.json", "pointer": "/hooks"},
+    {"glob": ".gemini/settings.json", "pointer": "/hooks"},
+    {"glob": ".windsurf/hooks.json", "pointer": "/hooks"},
+    {"glob": ".devin/hooks.json", "pointer": "/hooks"},
+    {"glob": ".devin/hooks.v1.json", "pointer": ""},
+    {"glob": ".grok/hooks/*.json", "pointer": "/hooks"}
+  ],
+  "hook_nested_key": "hooks",
+  "hook_matcher_key": "matcher",
+  "hook_matcher_separator": "|",
+  "hook_command_keys": ["command", "commandWindows", "bash", "powershell"],
+  "volatile_pattern": "[0-9a-f]{7,}|\\d+(?:\\.\\d+)+",
+  "volatile_placeholder": "<v>",
+  "compiled_prefix": ".chock/compiled/",
+  "gate_surfaces": ["ci-gate", "git-hook"],
+  "gate_file": "gate.json",
+  "runtime_prefix": ".chock/bin/",
+  "lock_file": "chock.lock",
+  "workflow_default": ".github/workflows/chock.yml",
+  "workflow_config_key": "floor_workflow"
+}
