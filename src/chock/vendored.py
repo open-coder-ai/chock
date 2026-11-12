@@ -5,8 +5,10 @@ from __future__ import annotations
 from importlib import resources
 from pathlib import Path
 
+from chock.emit import write_generated
 from chock.gate import runtime_bundle
 from chock.gate.assemble import runner_source
+from chock.gate.build import vendor_runner
 from chock.vendors import in_agent_vendors
 
 VENDORED_RUNTIMES = {
@@ -50,3 +52,15 @@ def vendored_differences(repo_root: Path | str) -> list[str]:
         if vendored.read_bytes() != expected:
             diffs.append(f"differs: bin/{name}")
     return diffs
+
+
+def refresh_vendored(repo_root: Path | str) -> None:
+    """Rewrite every committed runtime `vendored_differences` reports, so `sync --check` passes after `sync`."""
+    repo_root = Path(repo_root)
+    for diff in vendored_differences(repo_root):
+        name = diff.removeprefix("differs: bin/")
+        kind, source = VENDORED_RUNTIMES[name]
+        if kind == "assembled":
+            vendor_runner(repo_root / ".chock")
+        elif (expected := expected_runtime(kind, source)) is not None:
+            write_generated(repo_root / ".chock" / "bin" / name, expected.decode("utf-8"))

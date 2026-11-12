@@ -32,15 +32,17 @@ def test_sync_refreshes_a_stale_runner_with_no_gate_policy(tmp_path: Path) -> No
     assert compiled_differences(repo, ["claude"]) == []
 
 
-def test_sync_refreshes_every_stale_vendored_runtime(tmp_path: Path) -> None:
+def test_recompile_refreshes_every_stale_vendored_runtime_without_hook_install(tmp_path: Path) -> None:
+    """`skip_hooks` (refresh after install) runs no vendor installer, so only the vendored refresh rewrites these."""
     repo = _policy_less_repo(tmp_path)
     recompile(repo, ["claude"])
     bin_dir = repo / ".chock" / "bin"
-    stale = sorted(p for p in bin_dir.glob("*.py"))
+    stale = sorted(bin_dir.glob("*.py"))
     for path in stale:
         path.write_text(OLD_RUNNER, encoding="utf-8")
+    assert len(stale) > 1
 
-    recompile(repo, ["claude"])
+    recompile(repo, ["claude"], skip_hooks=True)
 
     assert [p.name for p in stale if p.read_text(encoding="utf-8") == OLD_RUNNER] == []
     assert compiled_differences(repo, ["claude"]) == []
