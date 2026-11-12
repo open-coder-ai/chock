@@ -162,12 +162,7 @@ frontmatter *is* its manifest; `new subagent` writes `subagent.yaml`. `new polic
 chock compile <policy-id> [--repo .] [--targets SURFACE ...] [--agents AGENT ...] [--policy-dir DIR] [--output-root DIR]
 ```
 
-Compiles one policy into the surfaces each target agent supports (git hook, CI gate,
-pre-tool-use, agent-hooks, `AGENTS.md` rule; nothing for `managed-setting`, which only `emit` writes) and updates the per-agent
-coverage report. `--agents` takes the same comma- or space-separated names as `init`
-and `sync`, defaults to the repo's `supported_agents`, and rejects unknown names.
-`sync` runs this for every enabled policy; reach for `compile` directly only when
-iterating on a single policy's emitted output.
+Compiles one policy into the surfaces each target agent supports (git hook, CI gate, pre-tool-use, agent-hooks, `AGENTS.md` rule; nothing for `managed-setting`, which only `emit` writes) and updates the per-agent coverage report. `--agents` takes the same comma- or space-separated names as `init` and `sync`, defaults to the repo's `supported_agents`, and rejects unknown names. `sync` runs this for every enabled policy; reach for `compile` directly only when iterating on a single policy's emitted output.
 
 ### `install-skills` — refresh the bundled authoring skills
 
@@ -197,24 +192,9 @@ diffs the result to catch a stale registry. See [Registry & Lockfile](registry-a
 chock plugin build [--repo .] [--policies-dir base] [--format agent-plugins|claude|copilot|cursor|codex|devin|all] [--out-dir DIST] [--policy ID ...] [--out PATH] [--check]
 ```
 
-Renders each policy as a plugin. The default `agent-plugins` format writes an
-[Agent Plugins 1.0.0](https://agent-plugins.org) package into each policy folder — additive,
-`manifest.yaml` stays the source of truth, and a packaged policy is `advisory` wherever it is
-read: v1 defines no enforcement semantics, so packaging changes no value in `coverage.json`.
+Renders each policy as a plugin. The default `agent-plugins` format writes an [Agent Plugins 1.0.0](https://agent-plugins.org) package into each policy folder — additive, `manifest.yaml` stays the source of truth, and a packaged policy is `advisory` wherever it is read: v1 defines no enforcement semantics, so packaging changes no value in `coverage.json`.
 
-The five hook formats ship a byte-identical guard and adapter; since 0.11.0 the policy's own gate rides along too
-(`scripts/gate.json`, the stdlib runner, a script gate's `implementations/` tree), as does its `skill/` folder. Only
-the envelope differs. `claude` (`.claude-plugin/`, `PreToolUse` + `Stop`) is read natively by Claude Code, Copilot
-CLI, VS Code and Grok Build; `copilot` is the Agent Plugins 1.0 layout under `com.github.copilot/hooks/` (`Stop`);
-`cursor` (`.cursor-plugin/`) takes `beforeShellExecution` per guard and, per gate, `preToolUse` on the write plus
-`stop`; `codex` (`.codex-plugin/`, `PreToolUse` per guard, `Stop` per gate) reaches a hook engine no other package
-can, both failing **open** without `git`; `devin` (`.devin-plugin/plugin.json` + `hooks.json`, same two events)
-is best-effort by the vendor's own design, fail-open, not enforced. They require `--out-dir` (or `--out`); in-place output is
-refused so a policy folder is never mistaken for a published plugin. `--policies-dir` packages
-a published directory; `--check` judges without writing. `--policy ID` (repeatable; manifest
-`id` or directory name, else a named error) narrows the build and skips `--out-dir`
-stale-package cleanup. `--out PATH` (exactly one `--policy`) writes straight to `PATH` instead
-of `<out-dir>/<format>/<id>/`.
+The five hook formats ship a byte-identical guard and adapter; since 0.11.0 the policy's own gate rides along too (`scripts/gate.json`, the stdlib runner, a script gate's `implementations/` tree), as does its `skill/` folder. Only the envelope differs. `claude` (`.claude-plugin/`, `PreToolUse` + `Stop`) is read natively by Claude Code, Copilot CLI, VS Code and Grok Build; `copilot` is the Agent Plugins 1.0 layout under `com.github.copilot/hooks/` (`Stop`); `cursor` (`.cursor-plugin/`) takes `beforeShellExecution` per guard and, per gate, `preToolUse` on the write plus `stop`; `codex` (`.codex-plugin/`, `PreToolUse` per guard, `Stop` per gate) reaches a hook engine no other package can, both failing **open** without `git`; `devin` (`.devin-plugin/plugin.json` + `hooks.json`, same two events) is best-effort by the vendor's own design, fail-open, not enforced. They require `--out-dir` (or `--out`); in-place output is refused so a policy folder is never mistaken for a published plugin. `--policies-dir` packages a published directory; `--check` judges without writing. `--policy ID` (repeatable; manifest `id` or directory name, else a named error) narrows the build and skips `--out-dir` stale-package cleanup. `--out PATH` (exactly one `--policy`) writes straight to `PATH` instead of `<out-dir>/<format>/<id>/`.
 
 ### `marketplace build` — index a built plugin tree
 
@@ -237,19 +217,7 @@ each built plugin, and needs `--url` (the marketplace repo's own git URL — nev
 chock emit --managed claude_code --python <absolute path> --on-failure block|allow --out <dir> [--repo .] [--policies a,b] [--platform linux|macos|windows] [--deploy-root <absolute path>] [--lock]
 ```
 
-Writes, under `<dir>/claude_code/` only: `managed-settings.d/50-chock.json` (the selected policies' guards and
-gates as exec-form hooks), `bundle/` (each policy's runtime and guard or gate), `deploy.json` (where an
-administrator places each part, what each machine needs, what `--on-failure` does, the caveats, the undo step) and
-`labels.json`. It deploys nothing, elevates nothing, and refuses an `--out` that is a filesystem root or resolves
-into a system folder (the per-OS list in `src/chock/data/managed_channels.json`), names a file, or already holds
-`claude_code/`. `--python` is required: the absolute interpreter on the target machines, which every hook starts
-directly, so neither PATH nor git config picks it. `--on-failure` is required: `block` sets `onFailure: "block"` on
-the `PreToolUse` hooks and refuses a matched call when the interpreter or a bundle file is missing; `allow` sets
-neither and lets the call through with a note on stderr. `--lock` also emits `allowManagedHooksOnly`, which blocks
-every user, project and other-plugin hook on the machine (`deploy.json` lists every documented effect);
-`allowManagedPermissionRulesOnly` is never emitted. Every label is vendor-docs evidence, unwitnessed, at most
-best-effort; a local administrator can still edit or remove the file, and a machine that also receives
-server-managed or MDM policy skips it by default.
+Writes, under `<dir>/claude_code/` only: `managed-settings.d/50-chock.json` (the selected policies' guards and gates as exec-form hooks), `bundle/` (each policy's runtime and guard or gate), `deploy.json` (where an administrator places each part, what each machine needs, what `--on-failure` does, the caveats, the undo step) and `labels.json`. It deploys nothing, elevates nothing, and refuses an `--out` that is a filesystem root or resolves into a system folder (the per-OS list in `src/chock/data/managed_channels.json`), names a file, or already holds `claude_code/`. `--python` is required: the absolute interpreter on the target machines, which every hook starts directly, so neither PATH nor git config picks it. `--on-failure` is required: `block` sets `onFailure: "block"` on the `PreToolUse` hooks and refuses a matched call when the interpreter or a bundle file is missing; `allow` sets neither and lets the call through with a note on stderr. `--lock` also emits `allowManagedHooksOnly`, which blocks every user, project and other-plugin hook on the machine (`deploy.json` lists every documented effect); `allowManagedPermissionRulesOnly` is never emitted. Every label is vendor-docs evidence, unwitnessed, at most best-effort; a local administrator can still edit or remove the file, and a machine that also receives server-managed or MDM policy skips it by default.
 
 ### `gateway run` -- the MCP gateway proxy
 

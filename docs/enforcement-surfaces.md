@@ -132,12 +132,11 @@ per gateway process; wrap N servers with N entries.
 > clone is not bricked: the launcher finds one or refuses with a fix-it message. The guard
 > covers shell commands (`beforeShellExecution`); other tool classes are not intercepted.
 
-> **`managed-setting` is neither compiled nor installed.** The compiler writes nothing for it.
-> `chock emit --managed claude_code` writes a managed-settings drop-in and the hook bundle it runs
-> under a folder you name, for an administrator to deploy ([CLI reference](cli-reference.md#emit--write-a-managed-settings-bundle-for-an-admin));
-> chock deploys nothing. It is excluded from `INSTALLED_SURFACES` in `surfaces.py`, so no policy can
-> raise a coverage claim through it, and the emitted labels are vendor-docs evidence, unwitnessed,
-> best-effort. Read the row below as *what the agent could support*, not as something switched on.
+> **`managed-setting` is neither compiled nor installed.** The compiler writes nothing for it; `chock emit --managed claude_code`
+> writes a drop-in and its hook bundle under a folder you name, for an administrator to deploy ([CLI reference](cli-reference.md#emit--write-a-managed-settings-bundle-for-an-admin)).
+> chock deploys nothing. It is excluded from `INSTALLED_SURFACES` in `surfaces.py`, so no policy can raise a coverage claim
+> through it, and the emitted labels are vendor-docs evidence, unwitnessed, best-effort. Read the row below as *what the
+> agent could support*, not as something switched on.
 
 > **`ci-gate` needs `chock sync --ci` to actually run.** The compiler always writes
 > `.chock/compiled/<id>/ci-gate/gate.json` and `step.yaml`, but nothing invokes them until
