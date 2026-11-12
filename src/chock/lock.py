@@ -5,17 +5,22 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
 
+from chock import __version__
 from chock.policies import discover_policy_dirs
 from chock.scaffold.pin import is_remote_source
 from chock.vendored import vendored_differences
 
 LOCKFILE_NAME = "chock.lock"
 LOCKFILE_VERSION = "2"
-ENGINE_CONSTRAINT = ">=0.1,<0.2"
+#: What every lock said before the field was read; such a lock passes with a note to re-lock.
+LEGACY_ENGINE_CONSTRAINT = ">=0.1,<0.2"
+_VERSION_PREFIX = re.compile(r"(\d+)\.(\d+)(?:\.(\d+))?")
+_CONSTRAINT_RE = re.compile(r"\s*>=\s*(\d+(?:\.\d+){0,2})\s*,\s*<\s*(\d+(?:\.\d+){0,2})\s*")
 POLICIES_REL = Path(".agents") / "policies"
 LOCAL_SOURCE = "local"
 _PROVENANCE_KEYS = ("source", "source_commit", "source_ref")
@@ -23,6 +28,53 @@ _PROVENANCE_KEYS = ("source", "source_commit", "source_ref")
 
 class LockError(RuntimeError):
     """chock.lock exists but cannot be read as a lockfile."""
+
+
+def _version_tuple(version: str) -> tuple[int, int, int] | None:
+    """(major, minor, patch) from the leading digits of a version string; None when it has none."""
+    match = _VERSION_PREFIX.match(version.strip())
+    if not match:
+        return None
+    major, minor, patch = match.groups()
+    return int(major), int(minor), int(patch or 0)
+
+
+def _padded(dotted: str) -> tuple[int, int, int]:
+    """A constraint bound as (major, minor, patch), missing parts 0."""
+    major, minor, patch, *_ = [*(int(p) for p in dotted.split(".")), 0, 0]
+    return major, minor, patch
+
+
+def engine_constraint(version: str = __version__) -> str:
+    """The constraint a lock written by engine `version` carries: `>=<major>.<minor>,<<major+1>`."""
+    parsed = _version_tuple(version)
+    if parsed is None:
+        msg = f"engine version {version!r} has no <major>.<minor> prefix"
+        raise ValueError(msg)
+    major, minor, _patch = parsed
+    return f">={major}.{minor},<{major + 1}"
+
+
+def check_engine(constraint: object, version: str = __version__) -> tuple[str | None, str | None]:
+    """(failure, note) for the running engine against a lock's `engine` field; both None when it satisfies it."""
+    relock = "or run `chock sync --repo .` with the newer engine to re-lock"
+    if constraint == LEGACY_ENGINE_CONSTRAINT:
+        return None, (
+            f"note: {LOCKFILE_NAME} engine constraint {constraint!r} was written before constraints were read; "
+            "run `chock sync --repo .` to record this engine's"
+        )
+    match = _CONSTRAINT_RE.fullmatch(constraint) if isinstance(constraint, str) else None
+    running = _version_tuple(version)
+    if match is None or running is None:
+        what = f"engine {version}" if running is None else f"{LOCKFILE_NAME} engine constraint {constraint!r}"
+        return f"{what} cannot be read; expected `>=X.Y,<Z` -- `pip install` a matching chock {relock}", None
+    low, high = _padded(match.group(1)), _padded(match.group(2))
+    if low <= running < high:
+        return None, None
+    return (
+        f"engine {version} is outside {LOCKFILE_NAME}'s constraint {constraint!r} -- "
+        f'`pip install "chock{constraint}"`, {relock}'
+    ), None
 
 
 def _hash_file(path: Path) -> str:
@@ -121,7 +173,7 @@ def read_lock(repo_root: Path | None = None) -> dict[str, Any]:
     repo_root = repo_root or Path.cwd().resolve()
     path = repo_root / LOCKFILE_NAME
     if not path.exists():
-        return {"lockfile_version": LOCKFILE_VERSION, "engine": ENGINE_CONSTRAINT, "packs": []}
+        return {"lockfile_version": LOCKFILE_VERSION, "engine": engine_constraint(), "packs": []}
     try:
         loaded = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
@@ -189,7 +241,7 @@ def build_lock(repo_root: Path) -> dict[str, Any]:
     prior = _prior_provenance(repo_root)
     lock: dict[str, Any] = {
         "lockfile_version": LOCKFILE_VERSION,
-        "engine": ENGINE_CONSTRAINT,
+        "engine": engine_constraint(),
         "packs": [],
     }
     for pack_dir in discover_policy_dirs(repo_root):
@@ -213,14 +265,22 @@ def build_lock(repo_root: Path) -> dict[str, Any]:
     return lock
 
 
-def verify_lock(repo_root: Path | None = None) -> tuple[bool, list[str]]:
-    """Recompute pack and compiled-artifact hashes and report drift."""
+def _engine_failures(lock: dict[str, Any], notes: list[str] | None) -> list[str]:
+    """`check_engine` on a lock: its failure as a list, its note appended to `notes` when given."""
+    failure, note = check_engine(lock.get("engine"))
+    if note and notes is not None:
+        notes.append(note)
+    return [failure] if failure else []
+
+
+def verify_lock(repo_root: Path | None = None, notes: list[str] | None = None) -> tuple[bool, list[str]]:
+    """Check the running engine against the lock's constraint, recompute hashes, and report drift."""
     repo_root = repo_root or Path.cwd().resolve()
     try:
         lock = read_lock(repo_root)
     except LockError as exc:
         return False, [str(exc)]
-    failures: list[str] = []
+    failures = _engine_failures(lock, notes)
 
     failures += [
         f"vendored runtime modified ({d}) -- this is what executes gates" for d in vendored_differences(repo_root)
@@ -284,7 +344,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Wrote {LOCKFILE_NAME} with {len(lock['packs'])} pack(s)")
         return 0
     if args.command == "verify":
-        ok, failures = verify_lock(repo_root)
+        notes: list[str] = []
+        ok, failures = verify_lock(repo_root, notes)
+        for note in notes:
+            print(note)
         if ok:
             print("verify: all packs match lockfile")
             return 0
