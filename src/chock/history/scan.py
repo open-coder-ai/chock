@@ -46,6 +46,9 @@ class Report:
     skipped_submodules: int = 0
     truncated: bool = False
     shallow: bool = False
+    #: (commit, path, why) of every introduced blob this scan did not judge; filled when Limits.judge_binary is set.
+    unread: list[tuple[str, str, str]] = field(default_factory=list)
+    _unread_oids: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -54,6 +57,9 @@ class Limits:
     max_blob_bytes: int = DEFAULT_MAX_BLOB_BYTES
     allow_shallow: bool = False
     time_budget: int = DEFAULT_TIME_BUDGET
+    #: Judge binary blobs too, decoding bytes that are not utf-8 as latin-1 (lossless); a blob still not judged
+    #: (over max_blob_bytes) is named in Report.unread.
+    judge_binary: bool = False
 
 
 def _say(message: str) -> None:
@@ -85,9 +91,21 @@ def _judged(judge: dict, policy: str, jobs: list[tuple[str, list[str]]]) -> list
     return [set(found) for found in hits]
 
 
-def _judge_blob(rules: list[Rule], data: bytes, judge: dict) -> tuple[list[tuple[int, int, str]], set[int]]:
+def _decoded(data: bytes, *, lossless: bool) -> str:
+    """The blob as text: utf-8 with replacement, or, when `lossless` and it is not utf-8, latin-1 byte for byte."""
+    if lossless:
+        try:
+            return data.decode("utf-8")
+        except UnicodeDecodeError:
+            return data.decode("latin-1")
+    return data.decode("utf-8", "replace")
+
+
+def _judge_blob(
+    rules: list[Rule], data: bytes, judge: dict, *, lossless: bool = False
+) -> tuple[list[tuple[int, int, str]], set[int]]:
     """(rule index, line number, line digest) per hit, and the rules whose waiver pragma the blob carries."""
-    text = data.decode("utf-8", "replace")
+    text = _decoded(data, lossless=lossless)
     lines = text.splitlines()
     hits: list[tuple[int, int, str]] = []
     waived: set[int] = set()
@@ -109,6 +127,14 @@ def _read_judged(repo: Path, rules: list[Rule], oids: list[str], limits: Limits,
     if missing:
         raise gitlog.HistoryError(f"{len(missing)} blob(s) missing from the object database, e.g. {missing[0]}")
     report.skipped_oversize = sum(1 for o in oids if sizes[o] > limits.max_blob_bytes)
+    if limits.judge_binary:
+        report._unread_oids.update(
+            {
+                o: f"{sizes[o]} bytes, over the {limits.max_blob_bytes}-byte limit"
+                for o in oids
+                if sizes[o] > limits.max_blob_bytes
+            }
+        )
     wanted = [o for o in oids if 0 < sizes[o] <= limits.max_blob_bytes]
     deadline = time.monotonic() + limits.time_budget
     judged: Judged = {}
@@ -119,10 +145,10 @@ def _read_judged(repo: Path, rules: list[Rule], oids: list[str], limits: Limits,
                 raise gitlog.HistoryError(
                     f"time budget of {limits.time_budget}s exceeded; narrow with --since or --max-commits"
                 )
-            if gitlog.is_binary(data):
+            if gitlog.is_binary(data) and not limits.judge_binary:
                 report.skipped_binary += 1
             else:
-                judged[oid] = _judge_blob(rules, data, judge)
+                judged[oid] = _judge_blob(rules, data, judge, lossless=limits.judge_binary)
                 report.blobs_scanned += 1
             if done % _PROGRESS_EVERY == 0:
                 _say(f"history: read {done}/{len(wanted)} blobs")
@@ -187,6 +213,9 @@ def scan(repo: Path, rules: list[Rule], since: str | None, limits: Limits, head:
     _say(f"history: {len(log.touches)} changed paths, {len(oids)} distinct blobs")
     judged = _read_judged(repo, rules, oids, limits, report)
     report.findings = _collect(log.touches, rules, judged)
+    report.unread = [
+        (t.commit, t.path, report._unread_oids[t.oid]) for t in log.touches if t.oid in report._unread_oids
+    ]
     _say(
         f"history: skipped {report.skipped_binary} binary, {report.skipped_oversize} oversize blobs "
         f"and {report.skipped_submodules} submodule pointers (not scanned)"

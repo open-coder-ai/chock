@@ -72,18 +72,26 @@ class Revision:
     def has(self, path: str) -> bool:
         return path in self.entries()
 
+    def oid(self, path: str) -> str | None:
+        entry = self.entries().get(path)
+        return entry[1] if entry else None
+
+    def blob(self, path: str) -> bytes | None:
+        """The file's bytes as committed; None when the tree has no such file."""
+        entry = self.entries().get(path)
+        if entry is None:
+            return None
+        proc = git(self.repo, "cat-file", "blob", entry[1])
+        if proc.returncode:
+            msg = f"git cat-file {path} at {self.sha[:12]} failed"
+            raise FloorError(msg)
+        return proc.stdout
+
     def text(self, path: str) -> str | None:
         """The file as committed, decoded as utf-8 with replacement; None when the tree has no such file."""
         if path not in self._texts:
-            entry = self.entries().get(path)
-            if entry is None:
-                self._texts[path] = None
-            else:
-                proc = git(self.repo, "cat-file", "blob", entry[1])
-                if proc.returncode:
-                    msg = f"git cat-file {path} at {self.sha[:12]} failed"
-                    raise FloorError(msg)
-                self._texts[path] = proc.stdout.decode("utf-8", "replace")
+            data = self.blob(path)
+            self._texts[path] = None if data is None else data.decode("utf-8", "replace")
         return self._texts[path]
 
     def materialise(self, prefix: str, into: Path) -> None:
@@ -94,11 +102,7 @@ class Revision:
                 continue
             target = into / path
             target.parent.mkdir(parents=True, exist_ok=True)
-            proc = git(self.repo, "cat-file", "blob", self.entries()[path][1])
-            if proc.returncode:
-                msg = f"git cat-file {path} at {self.sha[:12]} failed"
-                raise FloorError(msg)
-            target.write_bytes(proc.stdout)
+            target.write_bytes(self.blob(path) or b"")
 
 
 def merge_base(repo: Path, base: str, head: str) -> str:

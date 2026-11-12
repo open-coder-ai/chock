@@ -28,15 +28,19 @@ from chock.gate.runner.constants import _ACTION_RANK, _DEPENDENCY_KIND, _ROLLOUT
 from chock.gate.runner.context import ListingError
 from chock.gate.runner.kinds import PatternDeadlineError
 from chock.gate.runner.report import _reason
+from chock.gate.runner.script import _UNDECIDED
 from chock.validation.floor_context import FloorContext
 from chock.validation.floor_git import FloorError, Revision, merge_base, resolve
 from chock.validation.floor_history import history_findings
-from chock.validation.tamper import tamper
+from chock.validation.tamper import Revs, pack_notes, packs_changed, tamper
+from chock.validation.tamper_hooks import not_covered
 
 EXIT_REFUSED, EXIT_UNDECIDED = 1, 2
 _CI_GATE = "ci-gate/gate.json"
 _SCRIPT, _DEPENDENCY, _REF = "script", _DEPENDENCY_KIND, "forbidden_ref"
 _REFUSING = (ACTION_BLOCK, ACTION_ASK)
+_NO_GATES = "floor: the base has no compiled gates; no gate judged this pull request (tamper rules still ran)"
+_NOT_COVERED = "floor/hook-switches not covered: {} -- the keys that switch their hooks off are not verified here"
 _NOT_REQUIRED = (
     "floor: a floor only where this check is a required status check; that is the repository's own "
     "setting, unverified by chock. It judges committed content only."
@@ -103,6 +107,14 @@ def policy_set(base: Revision, head: Revision) -> tuple[list[Gate], list[str]]:
     return run, notes
 
 
+def _relative(named: str) -> str:
+    """`named` when it is a path inside the repository; FloorError (undecided) for an absolute or escaping one."""
+    if not named or Path(named).is_absolute() or ".." in Path(named).parts or "\\" in named or ":" in named:
+        msg = f"gate names {named!r}, which is not a path inside the repository"
+        raise FloorError(msg)
+    return named
+
+
 def _params(gate: Gate, tree: Path) -> dict:
     """The gate's params, with every file it names taken from the gate's own revision, materialised under `tree`."""
     params = dict(gate.spec.get("params") or {})
@@ -111,23 +123,26 @@ def _params(gate: Gate, tree: Path) -> dict:
             folder = gate.path.rsplit("/", 1)[0]
             script = f"{folder}/{params.get('script', '')}"
         else:
-            script = str(params.get("script", ""))
+            script = _relative(str(params.get("script", "")))
             folder = script.rsplit("/", 1)[0] if "/" in script else ""
         gate.rev.materialise(f"{folder}/" if folder else script, tree)
         params["script"] = str(tree / script)
     if gate.spec.get("kind") == _DEPENDENCY and params.get("allowlist_file"):
-        named = str(params["allowlist_file"])
+        named = _relative(str(params["allowlist_file"]))
         gate.rev.materialise(named, tree)
         params["allowlist_file"] = str(tree / named)
     return params
 
 
-def _own(gate: Gate) -> tuple[str, ...]:
-    """Only the policy's source folder: its compiled gate is judged like any other file at the floor."""
-    return (f"{POLICIES_PREFIX}{gate.policy}/",)
+def _own(gate: Gate, packs: frozenset[str]) -> tuple[str, ...]:
+    """The policy's source folder, and only for a pack whose lock entry the pull request changed (listed in a
+    `floor/pack-changed` note); otherwise a gate judges its own folders like any other file."""
+    return (f"{POLICIES_PREFIX}{gate.policy}/",) if gate.policy in packs else ()
 
 
-def _judge(gate: Gate, repo: Path, revs: tuple[str, str, str], head_ref: str | None, tree: Path) -> GateResult | str:
+def _judge(  # noqa: PLR0913, PLR0917 -- the gate, where it runs, what changed
+    gate: Gate, repo: Path, revs: tuple[str, str, str], head_ref: str | None, tree: Path, packs: frozenset[str]
+) -> GateResult | str:
     """The gate's result, or why it could not judge."""
     spec, label = gate.spec, f"{gate.policy} [{gate.source}]"
     kind = KINDS.get(spec.get("kind"))
@@ -137,12 +152,15 @@ def _judge(gate: Gate, repo: Path, revs: tuple[str, str, str], head_ref: str | N
         return f"{label}: a branch gate needs --head-ref <branch under test>"
     base, head, fork = revs
     ctx = FloorContext(
-        repo, base=base, head=head, merge_base=fork, head_ref=head_ref, scope=spec.get("paths"), own=_own(gate)
+        repo, base=base, head=head, merge_base=fork, head_ref=head_ref, scope=spec.get("paths"), own=_own(gate, packs)
     )
     try:
-        return kind(ctx, _params(gate, tree / gate.source), FLOOR_EVENT)
+        result = kind(ctx, _params(gate, tree / gate.source), FLOOR_EVENT)
     except (ListingError, PatternDeadlineError, FloorError) as exc:
         return f"{label}: {inert(str(exc))}"
+    if not result.allowed and (result.message or "").endswith(_UNDECIDED):
+        return f"{label}: {inert(result.message or '')}"  # could not judge: undecided whatever the rollout
+    return result
 
 
 def _verdict(result: GateResult, declared: str, level: str) -> str:
@@ -151,8 +169,13 @@ def _verdict(result: GateResult, declared: str, level: str) -> str:
     return min(result.verdict or declared, declared, _ROLLOUT_CEILING[level], key=_ACTION_RANK.__getitem__)
 
 
-def judge_gates(repo: Path, base: Revision, head: Revision, fork: str, head_ref: str | None) -> Outcome:
-    """Run the policy set over base...head; `ask` refuses, since nobody can be asked in CI."""
+def judge_gates(  # noqa: PLR0913, PLR0917 -- the range, the branch and the changed packs
+    repo: Path, base: Revision, head: Revision, fork: str, head_ref: str | None, packs: frozenset[str] = frozenset()
+) -> Outcome:
+    """Run the policy set over base...head; `ask` refuses, since nobody can be asked in CI.
+
+    A gate that cannot judge is undecided before the rollout applies: `observe` softens refusals, never that.
+    """
     gates, notes = policy_set(base, head)
     outcome = Outcome([], [], notes)
     level = committed_rollout(repo, base.sha)
@@ -160,7 +183,7 @@ def judge_gates(repo: Path, base: Revision, head: Revision, fork: str, head_ref:
         for gate in gates:
             if "commit" not in (gate.spec.get("on") or []) and gate.spec:
                 continue
-            result = _judge(gate, repo, (base.sha, head.sha, fork), head_ref, Path(scratch))
+            result = _judge(gate, repo, (base.sha, head.sha, fork), head_ref, Path(scratch), packs)
             if isinstance(result, str):
                 outcome.undecided.append(result)
                 continue
@@ -178,10 +201,20 @@ def floor(repo: Path, base_ref: str, head_ref_rev: str, branch: str | None) -> i
     base_sha, head_sha = resolve(repo, base_ref, "base"), resolve(repo, head_ref_rev, "head")
     fork = merge_base(repo, base_sha, head_sha)
     base, head = Revision(repo, base_sha), Revision(repo, head_sha)
+    revs = Revs(base, Revision(repo, fork), head)
     _out(f"== floor: base {base_sha[:12]}, head {head_sha[:12]}, merge-base {fork[:12]}")
-    outcome = judge_gates(repo, base, head, fork, branch)
-    tampered = [t.render() for t in tamper(base, head)]
-    history, history_notes = history_findings(repo, base, head, fork)
+    packs = packs_changed(revs)
+    outcome = judge_gates(repo, base, head, fork, branch, packs)
+    if not base.paths(COMPILED_PREFIX):
+        outcome.notes.append(_NO_GATES)
+    tampered = [t.render() for t in tamper(revs, packs)]
+    try:
+        history, history_notes = history_findings(repo, base, head, fork, packs)
+    except FloorError as exc:
+        history, history_notes = [], []
+        outcome.undecided.append(inert(str(exc)))
+    uncovered = not_covered(revs)
+    history_notes += pack_notes(revs, packs) + ([_NOT_COVERED.format(", ".join(uncovered))] if uncovered else [])
     for line in outcome.notes + history_notes:
         _out(f"note: {line}")
     refusals = outcome.refusals + tampered + history

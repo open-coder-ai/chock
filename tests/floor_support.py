@@ -11,6 +11,7 @@ from chock.validation.checks_floor import main as floor_main
 TOKEN_PATTERN = "FLOOR-TOKEN-[0-9]+"
 TEST_PRAGMA = "chock: test-removal-reviewed"
 CHECKOUT = "actions/checkout@" + "0" * 40
+INDEX_PIN = "ab" * 32
 
 TEST_INTEGRITY = {
     "kind": "test_integrity",
@@ -56,7 +57,12 @@ CLAUDE = {
         "PreToolUse": [
             {
                 "matcher": "Bash",
-                "hooks": [{"type": "command", "command": "sh .chock/bin/launch.sh claude.py --sha abc1234def"}],
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": f"sh .chock/bin/launch.sh claude.py --multi x.json --index-sha256 {INDEX_PIN}",
+                    }
+                ],
             },
             {
                 "matcher": "Write|Edit",
