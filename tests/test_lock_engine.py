@@ -7,8 +7,7 @@ from pathlib import Path
 
 import pytest
 
-import chock
-from chock import lock
+from chock import __version__, lock
 from chock.lifecycle import check_main
 from chock.lock import (
     LEGACY_ENGINE_CONSTRAINT,
@@ -36,8 +35,8 @@ def test_constraint_is_derived_from_the_engine_version(version: str, expected: s
 
 def test_written_lock_carries_the_running_engines_constraint(tmp_path: Path) -> None:
     (tmp_path / ".agents" / "policies").mkdir(parents=True)
-    assert build_lock(tmp_path)["engine"] == engine_constraint(chock.__version__)
-    assert engine_constraint(chock.__version__) != LEGACY_ENGINE_CONSTRAINT
+    assert build_lock(tmp_path)["engine"] == engine_constraint(__version__)
+    assert engine_constraint(__version__) != LEGACY_ENGINE_CONSTRAINT
 
 
 @pytest.mark.parametrize("version", ["1.2.0", "1.2.9", "1.9.0"])
@@ -84,11 +83,11 @@ def test_verify_fails_when_the_running_engine_is_outside_the_lock(
     assert check_main(["--only", "verify", "--repo", str(repo)]) == 1
     err = capsys.readouterr().err
     assert err.count("verify FAIL:") == 1
-    assert f"engine {chock.__version__} is outside" in err
+    assert f"engine {__version__} is outside" in err
 
 
 def test_verify_passes_inside_the_lock(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    repo = _locked(tmp_path, engine_constraint(chock.__version__))
+    repo = _locked(tmp_path, engine_constraint(__version__))
     assert verify_lock(repo) == (True, [])
     assert lock.main(["verify", "--repo", str(repo)]) == 0
     assert "note:" not in capsys.readouterr().out
