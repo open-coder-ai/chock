@@ -1,7 +1,7 @@
 {
   "source": {
     "file": "chock-catalog registry.yaml and */*/manifest.yaml",
-    "commit": "1e60d211c1bb767152c6ab0167932da06ab3a10f"
+    "commit": "38fb487f7768f3d5c06853a0d4a346587abec937"
   },
   "policies": 71,
   "tiers": {
@@ -15,8 +15,8 @@
     "warn": 5,
     "ask": 4
   },
-  "eval_cases": 4572,
-  "eval_executed": 4390,
+  "eval_cases": 4602,
+  "eval_executed": 4420,
   "asi": {
     "with_policy": 10,
     "refused_at_commit": [

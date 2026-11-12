@@ -169,7 +169,7 @@ Full nine-surface matrix and per-agent caveats:
 
 Most breaches start with a flaw someone shipped. These are the classes of flaw behind well-known incidents, and the policy that refuses each.
 <!-- derive:incidents -->
-From `registry.yaml` in [chock-catalog](https://github.com/open-coder-ai/chock-catalog) at `1e60d21`:
+From `registry.yaml` in [chock-catalog](https://github.com/open-coder-ai/chock-catalog) at `38fb487`:
 
 | Class of flaw behind | Policy | Tier | Eval cases |
 | :--- | :--- | :--- | ---: |
@@ -193,7 +193,7 @@ Chock does not stop every attack. It closes common, known entry points before th
 ### The catalog, in numbers
 
 <!-- derive:numbers -->
-From `registry.yaml` in [chock-catalog](https://github.com/open-coder-ai/chock-catalog) at `1e60d21`:
+From `registry.yaml` in [chock-catalog](https://github.com/open-coder-ai/chock-catalog) at `38fb487`:
 
 | Measure | Value |
 | :--- | ---: |
@@ -202,8 +202,8 @@ From `registry.yaml` in [chock-catalog](https://github.com/open-coder-ai/chock-c
 | In the agent (best-effort) | 11 |
 | Advisory | 25 |
 | Claude Code labels: block / ask / warn / advisory | 38 / 4 / 5 / 24 |
-| Eval cases | 4,572 |
-| Replayed automatically | 4,390 |
+| Eval cases | 4,602 |
+| Replayed automatically | 4,420 |
 <!-- /derive:numbers -->
 
 The policies fall into three families: base guardrails, agentic security, and agent discipline and compliance.
