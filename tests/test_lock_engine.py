@@ -9,14 +9,8 @@ import pytest
 
 from chock import __version__, lock
 from chock.lifecycle import check_main
-from chock.lock import (
-    LEGACY_ENGINE_CONSTRAINT,
-    build_lock,
-    check_engine,
-    engine_constraint,
-    verify_lock,
-    write_lock,
-)
+from chock.lock import build_lock, verify_lock, write_lock
+from chock.lock_engine import LEGACY_ENGINE_CONSTRAINT, check_engine, engine_constraint
 
 
 def _locked(repo: Path, constraint: object) -> Path:
