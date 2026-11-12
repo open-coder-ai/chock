@@ -48,7 +48,7 @@
     },
     "doctor": {
       "module": "chock.doctor.cli",
-      "help": "Check each client's hooks on each route: present, current, and seen running (--client X)"
+      "help": "Check each client's hooks on each route: present, current, and seen running (--client X); --live runs each hook on a canary"
     },
     "incident": {
       "module": "chock.incident",
