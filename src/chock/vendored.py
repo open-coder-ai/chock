@@ -17,7 +17,8 @@ VENDORED_RUNTIMES = {
 }
 
 
-def _expected_bytes(kind: str, source) -> bytes | None:
+def expected_runtime(kind: str, source) -> bytes | None:
+    """The bytes a vendored runtime of `kind` is rendered as now; None on a packaging failure."""
     if kind == "assembled":
         try:
             return runner_source().encode("utf-8")
@@ -43,7 +44,7 @@ def vendored_differences(repo_root: Path | str) -> list[str]:
         vendored = bin_dir / name
         if not vendored.exists():
             continue
-        expected = _expected_bytes(kind, source)
+        expected = expected_runtime(kind, source)
         if expected is None:
             continue
         if vendored.read_bytes() != expected:

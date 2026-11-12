@@ -12,7 +12,8 @@ from chock import vendors
 from chock.compile.compiler import _load_manifest, compile_policy
 from chock.compile.levels import DISABLED, Grade
 from chock.config import agents_from_config, guidance_mcp_enabled, load_config, policy_status
-from chock.emit import write_generated_json
+from chock.emit import write_generated, write_generated_json
+from chock.gate.build import vendor_runner
 from chock.hooks import sync_notes
 from chock.hooks.in_agent_install import (
     WIRED_VENDORS,
@@ -32,7 +33,7 @@ from chock.policies import discover_policy_dirs
 from chock.registry.core import save_registry, scan
 from chock.scaffold.gitrules import ensure_git_rules
 from chock.scaffold.mcp_register import McpConfigError, mcp_differences, register
-from chock.vendored import vendored_differences
+from chock.vendored import VENDORED_RUNTIMES, expected_runtime, vendored_differences
 from chock.vendors import CHOCK_AGENT
 
 
@@ -193,6 +194,18 @@ def compiled_differences(repo_root: Path | str, agents: list[str]) -> list[str]:
     return diffs
 
 
+def _refresh_vendored(repo_root: Path) -> None:
+    """Rewrite every committed runtime `vendored_differences` reports, so `sync --check` passes after `sync`."""
+    bin_dir = repo_root / ".chock" / "bin"
+    for diff in vendored_differences(repo_root):
+        name = diff.removeprefix("differs: bin/")
+        kind, source = VENDORED_RUNTIMES[name]
+        if kind == "assembled":
+            vendor_runner(repo_root / ".chock")
+        elif (expected := expected_runtime(kind, source)) is not None:
+            write_generated(bin_dir / name, expected.decode("utf-8"))
+
+
 def _refresh_bookkeeping(repo_root: Path) -> None:
     """Bring the index and the registry back in line with the policies on disk."""
     try:
@@ -280,6 +293,8 @@ def recompile(repo_root: Path | str, agents: list[str], *, skip_hooks: bool = Fa
                 coverage = _compile_all(repo_root, agents, Path(tmp2) / "compiled")
             write_generated_json(coverage_path, coverage)
 
+    # A committed gate.py with no gate policy staged none: refresh it here, or only `sync --check` sees it.
+    _refresh_vendored(repo_root)
     _refresh_bookkeeping(repo_root)
 
     if not skip_hooks and unwired:
