@@ -10,7 +10,6 @@ import pytest
 from add_pin_support import ID, commit, make_remote
 from add_pin_support import git as _git
 
-import chock
 from chock.lock import build_lock, write_lock
 from chock.scaffold import add as add_mod
 
@@ -36,7 +35,7 @@ def catalog(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, str,
     _git(tmp_path, "clone", "--quiet", "--bare", str(work), str(bare))
     _git(bare, "config", "uploadpack.allowAnySHA1InWant", "true")
     monkeypatch.setattr(add_mod, "DEFAULT_CATALOG", bare.as_uri())
-    monkeypatch.setattr(chock, "__version__", VERSION)
+    monkeypatch.setattr(add_mod, "engine_version", VERSION)
     return bare, tagged, newer
 
 
@@ -75,7 +74,7 @@ def test_no_ref_takes_the_release_tag_and_records_it(catalog, repo: Path, capsys
 
 
 def test_a_missing_tag_fails_and_never_falls_back_to_the_branch(catalog, repo: Path, capsys, monkeypatch) -> None:
-    monkeypatch.setattr(chock, "__version__", "0.0.1.dev0")
+    monkeypatch.setattr(add_mod, "engine_version", "0.0.1.dev0")
     assert add_mod.main([ID, "--repo", str(repo)]) == 2
     err = capsys.readouterr().err.strip()
     assert len(err.splitlines()) == 1
@@ -107,7 +106,7 @@ def test_another_catalog_without_ref_takes_its_default_branch(catalog, repo: Pat
 
 @pytest.mark.parametrize("suffix", ["", "/", ".git"])
 def test_the_default_catalog_is_recognised_however_it_ends(suffix: str) -> None:
-    assert add_mod.default_tag(add_mod.DEFAULT_CATALOG + suffix, None) == f"v{chock.__version__}"
+    assert add_mod.default_tag(add_mod.DEFAULT_CATALOG + suffix, None) == f"v{add_mod.engine_version}"
     assert add_mod.default_tag(add_mod.DEFAULT_CATALOG, "main") is None
     assert add_mod.default_tag("https://example.invalid/catalog", None) is None
 

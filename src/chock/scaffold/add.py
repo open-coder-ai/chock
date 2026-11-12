@@ -12,7 +12,7 @@ from pathlib import Path
 
 import yaml
 
-import chock
+from chock import __version__ as engine_version
 from chock import yamlio
 from chock.config import agents_from_config as _agents_from_config
 from chock.lock import (
@@ -190,7 +190,7 @@ def is_default_catalog(source: str) -> bool:
 
 def default_tag(source: str, ref: str | None) -> str | None:
     """The catalog release tag to fetch when none was asked for: the default catalog only."""
-    return f"v{chock.__version__}" if ref is None and is_default_catalog(source) else None
+    return f"v{engine_version}" if ref is None and is_default_catalog(source) else None
 
 
 def resolve_default_ref(source: str, tag: str) -> str:
