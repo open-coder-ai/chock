@@ -1,0 +1,33 @@
+{
+  "$comment": "The paths that define the guardrails (`chock check --floor`, floor/control-plane-changed). Matched with fnmatch after case folding, so `*` crosses `/`. A pull request that adds, changes, deletes or re-modes one is listed; the base's `.chock/config.yaml` decides refuse or listed. Vendor hook files are agentseam's config_path for every repo-relative vendor (tests/test_floor_control_plane.py checks it) plus each local or override variant chock knows.",
+  "paths": [
+    ".chock/**",
+    "chock.lock",
+    ".agents/policies/**",
+    ".agents/hooks.json",
+    ".agents/plugins/**",
+    ".claude/settings.json",
+    ".claude/settings.local.json",
+    ".clinerules/hooks/**",
+    ".codex/hooks.json",
+    ".codex/config.toml",
+    ".cursor/hooks.json",
+    ".devin/hooks.json",
+    ".devin/hooks.v1.json",
+    ".windsurf/hooks.json",
+    ".factory/hooks.json",
+    ".gemini/settings.json",
+    ".grok/hooks/**",
+    ".openhands/hooks.json",
+    ".tabnine/agent/settings.json",
+    ".vibe/hooks.toml",
+    ".github/hooks/**",
+    ".github/workflows/**",
+    ".github/actions/**",
+    ".github/CODEOWNERS",
+    "CODEOWNERS",
+    "docs/CODEOWNERS",
+    ".gitattributes",
+    "**/.gitattributes"
+  ]
+}

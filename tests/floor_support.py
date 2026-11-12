@@ -111,10 +111,14 @@ def commit(repo: Path, message: str) -> str:
     return git(repo, "rev-parse", "HEAD")
 
 
-def base_repo(tmp_path: Path) -> Path:
-    """`main` carries two gates, a probe script gate, hook files, a lock, a runtime, a workflow and a test; `pr` is checked out."""
+CONTROL_PLANE = "floor/control-plane-changed"
+
+
+def base_repo(tmp_path: Path, mode: str = "refuse") -> Path:
+    """`main` carries two gates, a probe script gate, hook files, a lock, a runtime, a workflow and a test; `pr` is
+    checked out. `mode` is the base's floor.control_plane (refuse is the default and writes no config)."""
     repo = tmp_path / "repo"
-    repo.mkdir()
+    repo.mkdir(parents=True)
     git(repo, "init", "-q", "-b", "main")
     gate(repo, "test-integrity", TEST_INTEGRITY)
     gate(repo, "floor-token", FLOOR_TOKEN)
@@ -128,6 +132,8 @@ def base_repo(tmp_path: Path) -> Path:
     write(repo, ".github/workflows/chock.yml", WORKFLOW)
     write(repo, "tests/test_core.py", TEST_FILE)
     write(repo, "src/app.py", "VALUE = 1\n")
+    if mode != "refuse":
+        write(repo, ".chock/config.yaml", f"floor:\n  control_plane: {mode}\n")
     commit(repo, "base")
     git(repo, "checkout", "-q", "-b", "pr")
     return repo
@@ -138,3 +144,16 @@ def run_floor(repo: Path, capsys, *extra: str) -> tuple[int, str]:
     code = floor_main(["--repo", str(repo), "--base", "main", *extra])
     out = capsys.readouterr()
     return code, out.out + out.err
+
+
+def control_plane_change(tmp_path: Path, capsys, change, *paths: str, extra: tuple[str, ...] = ()) -> None:
+    """`change(repo)` as the pull request: exit 1 under `refuse`, exit 0 under `listed`, each listing every path."""
+    for mode, owed in (("refuse", 1), ("listed", 0)):
+        repo = base_repo(tmp_path / mode, mode)
+        change(repo)
+        code, out = run_floor(repo, capsys, *extra)
+        assert code == owed, f"{mode}: {out}"
+        assert f"{CONTROL_PLANE} ({mode})" in out, out
+        assert out.index(CONTROL_PLANE) < out.index("floor (preview): a floor only"), out
+        for path in paths:
+            assert f"\n  {path}\n" in out, f"{mode}: {path} not listed\n{out}"

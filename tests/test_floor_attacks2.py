@@ -1,6 +1,7 @@
-"""Regression tests for the adversarial review of `chock check --floor` (workflow, waivers, scripts, arguments).
+"""Regression tests for the first adversarial review of `chock check --floor` (workflow, waivers, scripts, refs).
 
-Each test is one attack, or one correct pull request the floor once refused, asserting the owed exit code.
+Each test is one attack, or one correct pull request, asserting the exit code W2-A1v2 owes. Every workflow
+edit is a control-plane change: refused under `refuse`, listed with exit 0 under `listed`, never read.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from floor_support import (
     WORKFLOW,
     base_repo,
     commit,
+    control_plane_change,
     gate,
     git,
     run_floor,
@@ -47,43 +49,46 @@ WORKFLOW_EDITS = {
 }
 
 
-# ---------------- the floor's own workflow (ruling 4: equal or refuse) ----------------
+# ---------------- workflows are control plane (V2: no structural reading) ----------------
+
+FLOOR_WORKFLOW = ".github/workflows/chock.yml"
+
+
+def _workflow(text: str, rel: str = FLOOR_WORKFLOW):
+    def change(repo):
+        write(repo, rel, text)
+        commit(repo, "pr")
+
+    return change
 
 
 @pytest.mark.parametrize("name", sorted(WORKFLOW_EDITS))
-def test_any_edit_to_the_floor_workflow_is_refused(tmp_path, capsys, name):
+def test_any_edit_to_the_floor_workflow_is_a_control_plane_change(tmp_path, capsys, name):
     old, new = WORKFLOW_EDITS[name]
-    repo = base_repo(tmp_path)
-    write(repo, ".github/workflows/chock.yml", WORKFLOW.replace(old, new, 1))
-    commit(repo, "pr")
-    code, out = run_floor(repo, capsys)
-    assert code == 1, out
-    assert "tamper/floor-workflow-changed .github/workflows/chock.yml" in out
+    control_plane_change(tmp_path, capsys, _workflow(WORKFLOW.replace(old, new, 1)), FLOOR_WORKFLOW)
 
 
-def test_an_action_bump_in_the_floor_workflow_is_refused(tmp_path, capsys):
-    """Ruling 4 (owner decision F2 open): even a Dependabot bump goes through the privileged two-step path."""
-    repo = base_repo(tmp_path)
-    git(repo, "checkout", "-q", "main")
-    write(repo, ".github/workflows/chock.yml", WORKFLOW.replace(STEP, "      - uses: actions/setup-python@v5\n" + STEP))
-    commit(repo, "base uses setup-python v5")
-    git(repo, "checkout", "-q", "-B", "pr")
-    write(repo, ".github/workflows/chock.yml", WORKFLOW.replace(STEP, "      - uses: actions/setup-python@v6\n" + STEP))
-    commit(repo, "bump setup-python to v6")
-    code, out = run_floor(repo, capsys)
-    assert code == 1, out
-    assert "tamper/floor-workflow-changed" in out
+def test_an_action_bump_in_the_floor_workflow_is_a_control_plane_change(tmp_path, capsys):
+    """By design under `refuse`: a Dependabot bump needs a privileged merge, or the base sets `listed`."""
+
+    def change(repo):
+        git(repo, "checkout", "-q", "main")
+        write(repo, FLOOR_WORKFLOW, WORKFLOW.replace(STEP, "      - uses: actions/setup-python@v5\n" + STEP))
+        commit(repo, "base uses setup-python v5")
+        git(repo, "checkout", "-q", "-B", "pr")
+        write(repo, FLOOR_WORKFLOW, WORKFLOW.replace(STEP, "      - uses: actions/setup-python@v6\n" + STEP))
+        commit(repo, "bump setup-python to v6")
+
+    control_plane_change(tmp_path, capsys, change, FLOOR_WORKFLOW)
 
 
-def test_other_workflows_are_out_of_scope(tmp_path, capsys):
-    repo = base_repo(tmp_path)
-    write(repo, ".github/workflows/lint.yml", "on: push\njobs: {}\n")
-    commit(repo, "pr")
-    code, out = run_floor(repo, capsys)
-    assert code == 0, out
+def test_an_added_workflow_is_a_control_plane_change(tmp_path, capsys):
+    """A workflow the head adds can report a check under the floor's name (F3: in the default list)."""
+    rel = ".github/workflows/lint.yml"
+    control_plane_change(tmp_path, capsys, _workflow("on: push\njobs: {}\n", rel), rel)
 
 
-# ---------------- correct pull requests (never refused) ----------------
+# ---------------- first adoption, stale branches, correct pull requests ----------------
 
 
 def test_base_without_chock_says_nothing_was_judged(tmp_path, capsys):
@@ -94,15 +99,14 @@ def test_base_without_chock_says_nothing_was_judged(tmp_path, capsys):
     commit(repo, "base")
     git(repo, "checkout", "-q", "-b", "pr")
     write(repo, "src/config.txt", "key = FLOOR-TOKEN-4242\n")
+    write(repo, ".claude/settings.json", CLAUDE)
     commit(repo, "pr")
     code, out = run_floor(repo, capsys)
     assert code == 0, out
-    assert "the base has no compiled gates; no gate judged this pull request" in out
-    assert "history: the base has no content gates on either surface" in out
+    assert "floor: base has no chock gates; nothing was judged" in out
 
 
-def test_stale_branch_after_base_adds_a_hook_passes(tmp_path, capsys):
-    repo = base_repo(tmp_path)
+def _stale_branch(repo: Path) -> None:
     write(repo, "src/app.py", "VALUE = 2\n")
     commit(repo, "pr: unrelated edit")
     git(repo, "checkout", "-q", "main")
@@ -112,35 +116,64 @@ def test_stale_branch_after_base_adds_a_hook_passes(tmp_path, capsys):
     gate(repo, "late-policy", {**FLOOR_TOKEN, "params": {"content_pattern": "LATE-[0-9]+"}})
     commit(repo, "main adds a hook and a gate after the pr forked")
     git(repo, "checkout", "-q", "pr")
+
+
+def test_a_stale_branch_is_undecided_and_its_merge_result_passes(tmp_path, capsys):
+    """V1: the floor judges what will land; a branch behind its base is not that, its merge result is."""
+    repo = base_repo(tmp_path)
+    _stale_branch(repo)
+    code, out = run_floor(repo, capsys)
+    assert code == 2, out
+    assert "is not an ancestor of head" in out
+    assert "refs/pull/<n>/merge" in out
+    git(repo, "checkout", "-q", "--detach", "main")
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@e", "merge", "-q", "--no-ff", "--no-edit", "pr")
     code, out = run_floor(repo, capsys)
     assert code == 0, out
-    assert "tamper/" not in out
+    assert "control-plane" not in out
 
 
 def test_ok_add_policy_hook_lock_unrelated(tmp_path, capsys):
-    """The review's correct pull request, less its edit to the floor workflow (refused by ruling 4, above)."""
-    repo = base_repo(tmp_path)
-    gate(repo, "new-policy", {**FLOOR_TOKEN, "params": {"content_pattern": "NEVER-[0-9]+"}})
-    doc = json.loads(json.dumps(CLAUDE))
-    doc["hooks"]["PreToolUse"][1]["matcher"] = "Edit|Write|MultiEdit"
-    command = doc["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
-    doc["hooks"]["PreToolUse"][0]["hooks"][0]["command"] = command.replace(INDEX_PIN, "9" * 64)
-    write(repo, ".claude/settings.json", doc)
-    write(
-        repo,
+    """The review's correct pull request: a policy upgrade and a regeneration. By design: refused under
+    `refuse` (a privileged merge), listed under `listed`."""
+    lock = {
+        "lockfile_version": "2",
+        "engine": ">=1.3,<2",
+        "packs": [{"id": "test-integrity", "version": "1.4.0"}, {"id": "floor-token"}],
+    }
+
+    def change(repo):
+        gate(repo, "new-policy", {**FLOOR_TOKEN, "params": {"content_pattern": "NEVER-[0-9]+"}})
+        doc = json.loads(json.dumps(CLAUDE))
+        doc["hooks"]["PreToolUse"][1]["matcher"] = "Edit|Write|MultiEdit"
+        command = doc["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+        doc["hooks"]["PreToolUse"][0]["hooks"][0]["command"] = command.replace(INDEX_PIN, "9" * 64)
+        write(repo, ".claude/settings.json", doc)
+        write(repo, "chock.lock", lock)
+        write(repo, "src/app.py", "VALUE = 3\n")
+        write(repo, "tests/test_core.py", TEST_FILE + "\ndef test_b():\n    assert True\n")
+        commit(repo, "pr")
+
+    control_plane_change(
+        tmp_path,
+        capsys,
+        change,
+        ".chock/compiled/new-policy/ci-gate/gate.json",
+        ".chock/compiled/new-policy/git-hook/gate.json",
+        ".claude/settings.json",
         "chock.lock",
-        {
-            "lockfile_version": "2",
-            "engine": ">=1.3,<2",
-            "packs": [{"id": "test-integrity", "version": "1.4.0"}, {"id": "floor-token"}],
-        },
     )
+
+
+def test_ok_ordinary_pull_request_passes(tmp_path, capsys):
+    repo = base_repo(tmp_path)
     write(repo, "src/app.py", "VALUE = 3\n")
     write(repo, "tests/test_core.py", TEST_FILE + "\ndef test_b():\n    assert True\n")
+    write(repo, "docs/guide.md", "# Guide\n")
     commit(repo, "pr")
     code, out = run_floor(repo, capsys)
     assert code == 0, out
-    assert "floor/pack-changed: test-integrity: lock entry changed" in out
+    assert "control-plane" not in out
 
 
 # ---------------- waivers (ruling 5) ----------------
@@ -253,14 +286,15 @@ def test_a_gate_naming_a_file_outside_the_repository_is_undecided(tmp_path, caps
 # ---------------- refs ----------------
 
 
-def test_head_not_descendant_of_base(tmp_path, capsys):
+def test_head_not_descendant_of_base_is_undecided(tmp_path, capsys):
     repo = base_repo(tmp_path)
     git(repo, "checkout", "-q", "main")
     write(repo, "src/app.py", "VALUE = 9\n")
     commit(repo, "main moves on")
     git(repo, "checkout", "-q", "pr")
     code, out = run_floor(repo, capsys, "--head", "pr")
-    assert code == 0, out
+    assert code == 2, out
+    assert "is not an ancestor of head" in out
 
 
 def _cli(repo: Path, *args: str) -> int:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import shutil
 import sys
@@ -31,6 +32,8 @@ class Finding:
     line: int | None
     rule: str
     policy: str
+    #: The matched line's digest (the forbidden-path rule's name for a path finding), as the scan read it.
+    key: str = ""
 
     def as_dict(self) -> dict[str, object]:
         return {"commit": self.commit, "path": self.path, "line": self.line, "rule": self.rule, "policy": self.policy}
@@ -57,8 +60,8 @@ class Limits:
     max_blob_bytes: int = DEFAULT_MAX_BLOB_BYTES
     allow_shallow: bool = False
     time_budget: int = DEFAULT_TIME_BUDGET
-    #: Judge binary blobs too, decoding bytes that are not utf-8 as latin-1 (lossless); a blob still not judged
-    #: (over max_blob_bytes) is named in Report.unread.
+    #: The floor's reader: every blob is judged (binary too) in each of `floor_texts`, and a blob still not
+    #: judged (over max_blob_bytes) is named in Report.unread.
     judge_binary: bool = False
 
 
@@ -91,22 +94,35 @@ def _judged(judge: dict, policy: str, jobs: list[tuple[str, list[str]]]) -> list
     return [set(found) for found in hits]
 
 
-def _decoded(data: bytes, *, lossless: bool) -> str:
-    """The blob as text: utf-8 with replacement, or, when `lossless` and it is not utf-8, latin-1 byte for byte."""
-    if lossless:
-        try:
-            return data.decode("utf-8")
-        except UnicodeDecodeError:
-            return data.decode("latin-1")
-    return data.decode("utf-8", "replace")
+_UTF16 = ("utf-16-le", "utf-16-be")
+
+
+def floor_texts(data: bytes) -> list[str]:
+    """Every reading the floor judges: latin-1 (lossless), utf-8 when the bytes are utf-8, and, when the blob
+    holds a NUL byte, utf-16 in both byte orders at both alignments (a BOM decodes to U+FEFF, a stray byte shifts)."""
+    texts = [data.decode("latin-1")]
+    with contextlib.suppress(UnicodeDecodeError):
+        texts.append(data.decode("utf-8"))
+    if b"\0" in data:
+        texts += [data[skip:].decode(codec, "replace") for codec in _UTF16 for skip in (0, 1)]
+    return texts
+
+
+def floor_lines(data: bytes) -> list[str]:
+    """`floor_texts`, each split on `\\n` only: one line list, so a line number never needs a second count."""
+    return [line for text in floor_texts(data) for line in text.split("\n")]
 
 
 def _judge_blob(
     rules: list[Rule], data: bytes, judge: dict, *, lossless: bool = False
 ) -> tuple[list[tuple[int, int, str]], set[int]]:
     """(rule index, line number, line digest) per hit, and the rules whose waiver pragma the blob carries."""
-    text = _decoded(data, lossless=lossless)
-    lines = text.splitlines()
+    if lossless:
+        lines = floor_lines(data)
+        text = "\n".join(lines)
+    else:
+        text = data.decode("utf-8", "replace")
+        lines = text.splitlines()
     hits: list[tuple[int, int, str]] = []
     waived: set[int] = set()
     for index, rule in enumerate(rules):
@@ -181,7 +197,7 @@ def _collect(touched: list[gitlog.Touch], rules: list[Rule], judged: Judged) -> 
         marker = (item.path, rule.policy, key)
         if marker not in seen:
             seen.add(marker)
-            found.append(Finding(item.commit, item.path, line, kind, rule.policy))
+            found.append(Finding(item.commit, item.path, line, kind, rule.policy, key))
 
     for item in touched:
         hits, waived = judged.get(item.oid, ([], set()))

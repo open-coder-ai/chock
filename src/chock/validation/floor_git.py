@@ -72,10 +72,6 @@ class Revision:
     def has(self, path: str) -> bool:
         return path in self.entries()
 
-    def oid(self, path: str) -> str | None:
-        entry = self.entries().get(path)
-        return entry[1] if entry else None
-
     def blob(self, path: str) -> bytes | None:
         """The file's bytes as committed; None when the tree has no such file."""
         entry = self.entries().get(path)
@@ -105,10 +101,22 @@ class Revision:
             target.write_bytes(self.blob(path) or b"")
 
 
-def merge_base(repo: Path, base: str, head: str) -> str:
-    proc = git(repo, "merge-base", base, head)
-    sha = proc.stdout.decode("ascii", "replace").strip()
-    if proc.returncode or not sha:
-        msg = f"base {base[:12]} and head {head[:12]} share no history; refusing to judge an unrelated range"
+def require_ancestor(repo: Path, base: str, head: str) -> None:
+    """FloorError (undecided) unless `base` is an ancestor of `head`: the floor judges what will land, not a branch."""
+    proc = git(repo, "merge-base", "--is-ancestor", base, head)
+    if proc.returncode:
+        msg = (
+            f"base {base[:12]} is not an ancestor of head {head[:12]}; pass the pull request's merge result "
+            "as --head (refs/pull/<n>/merge, or the merge queue's head)"
+        )
         raise FloorError(msg)
-    return sha
+
+
+def changed_paths(repo: Path, base: str, head: str) -> list[str]:
+    """Every path the tree diff base..head adds, changes, deletes or re-modes; renames are a delete and an add."""
+    args = ("--no-renames", "--no-ext-diff", "--no-textconv", "--no-relative", "--ignore-submodules=none")
+    proc = git(repo, "diff", "--name-only", "-z", *args, base, head, "--")
+    if proc.returncode:
+        msg = f"git diff {base[:12]} {head[:12]} failed"
+        raise FloorError(msg)
+    return sorted(os.fsdecode(raw) for raw in proc.stdout.split(b"\0") if raw)

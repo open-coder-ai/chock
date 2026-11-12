@@ -1,6 +1,9 @@
-"""`chock check --floor`: judge a pull request with the base's gates, run by this engine; no head file executes.
+"""`chock check --floor` (preview): judge what a pull request will land with the base's gates, run by this engine.
 
-Exit 0 clean, 1 any refusal (each naming its policy or tamper rule and path), 2 undecided.
+base must be an ancestor of head (pass the merge result); everything comes from the tree diff base..head and
+the commits in it. A changed control-plane path is listed (`floor/control-plane-changed`), never read for
+meaning; the base's gates judge everything else and no head file executes.
+Exit 0 clean, 1 any refusal (each naming its rule or policy and path), 2 undecided.
 """
 
 from __future__ import annotations
@@ -9,7 +12,7 @@ import argparse
 import json
 import sys
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from chock.display import inert
@@ -19,7 +22,6 @@ from chock.gate.runner import (
     COMPILED_PREFIX,
     FLOOR_EVENT,
     KINDS,
-    POLICIES_PREFIX,
     SCRIPT_BASE_GATE,
     GateResult,
     committed_rollout,
@@ -29,21 +31,27 @@ from chock.gate.runner.context import ListingError
 from chock.gate.runner.kinds import PatternDeadlineError
 from chock.gate.runner.report import _reason
 from chock.gate.runner.script import _UNDECIDED
+from chock.validation import control_plane as cp
+from chock.validation import floor_sarif
 from chock.validation.floor_context import FloorContext
-from chock.validation.floor_git import FloorError, Revision, merge_base, resolve
+from chock.validation.floor_git import FloorError, Revision, changed_paths, require_ancestor, resolve
 from chock.validation.floor_history import history_findings
-from chock.validation.tamper import Revs, pack_notes, packs_changed, tamper
-from chock.validation.tamper_hooks import not_covered
 
 EXIT_REFUSED, EXIT_UNDECIDED = 1, 2
 _CI_GATE = "ci-gate/gate.json"
+_SURFACES = ("ci-gate", "git-hook")
 _SCRIPT, _DEPENDENCY, _REF = "script", _DEPENDENCY_KIND, "forbidden_ref"
 _REFUSING = (ACTION_BLOCK, ACTION_ASK)
-_NO_GATES = "floor: the base has no compiled gates; no gate judged this pull request (tamper rules still ran)"
-_NOT_COVERED = "floor/hook-switches not covered: {} -- the keys that switch their hooks off are not verified here"
+_FIRST_ADOPTION = "floor: base has no chock gates; nothing was judged"
+_NO_GATES = "floor: the base has no compiled ci gates; no gate judged the content (the control-plane rule still ran)"
+_CONTROL_PLANE = (
+    "{rule} ({mode}): {count} path(s) -- these files define the guardrails; the floor does not judge "
+    "whether a change to them is safe. A person decides."
+)
+_LISTED_GAP = "{rule}: under `listed` the content of these paths was not judged; code-owner review is the check"
 _NOT_REQUIRED = (
-    "floor: a floor only where this check is a required status check; that is the repository's own "
-    "setting, unverified by chock. It judges committed content only."
+    "floor (preview): a floor only where this check is a required status check the pull request cannot "
+    "redefine; that is the repository's own setting, unverified by chock. It judges committed content only."
 )
 
 
@@ -57,10 +65,9 @@ def _err(line: str) -> None:
 
 @dataclass(frozen=True)
 class Gate:
-    """One compiled ci gate as one revision commits it."""
+    """One compiled ci gate as the base commits it."""
 
     policy: str
-    source: str
     rev: Revision
     path: str
     spec: dict
@@ -68,43 +75,25 @@ class Gate:
 
 @dataclass
 class Outcome:
-    refusals: list[str]
-    undecided: list[str]
-    notes: list[str]
+    refusals: list[str] = field(default_factory=list)
+    undecided: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+    listed: list[str] = field(default_factory=list)
+    mode: str = cp.REFUSE
 
 
-def _gates(rev: Revision, source: str) -> dict[str, Gate]:
-    found: dict[str, Gate] = {}
-    for path in rev.paths(COMPILED_PREFIX):
-        rest = path.removeprefix(COMPILED_PREFIX)
-        policy, _, tail = rest.partition("/")
+def base_gates(base: Revision) -> list[Gate]:
+    found: list[Gate] = []
+    for path in base.paths(COMPILED_PREFIX):
+        policy, _, tail = path.removeprefix(COMPILED_PREFIX).partition("/")
         if tail != _CI_GATE:
             continue
         try:
-            spec = json.loads(rev.text(path) or "")
+            spec = json.loads(base.text(path) or "")
         except ValueError:
             spec = None
-        found[policy] = Gate(policy, source, rev, path, spec if isinstance(spec, dict) else {})
+        found.append(Gate(policy, base, path, spec if isinstance(spec, dict) else {}))
     return found
-
-
-def policy_set(base: Revision, head: Revision) -> tuple[list[Gate], list[str]]:
-    """Every base gate, plus each head gate that is new or differs (both run; the stricter binds).
-
-    A head script gate is new code and is never run here: the base set binds until it merges.
-    """
-    at_base, at_head = _gates(base, "base"), _gates(head, "head")
-    run = list(at_base.values())
-    notes: list[str] = []
-    for policy, gate in sorted(at_head.items()):
-        same = policy in at_base and base.text(at_base[policy].path) == head.text(gate.path)
-        if same:
-            continue
-        if gate.spec.get("kind") == _SCRIPT:
-            notes.append(f"{policy} [head]: not judged at floor (new script code, runs after merge)")
-        else:
-            run.append(gate)
-    return run, notes
 
 
 def _relative(named: str) -> str:
@@ -116,7 +105,7 @@ def _relative(named: str) -> str:
 
 
 def _params(gate: Gate, tree: Path) -> dict:
-    """The gate's params, with every file it names taken from the gate's own revision, materialised under `tree`."""
+    """The gate's params, with every file it names taken from the base, materialised under `tree`."""
     params = dict(gate.spec.get("params") or {})
     if gate.spec.get("kind") == _SCRIPT:
         if gate.spec.get("script_base") == SCRIPT_BASE_GATE:
@@ -134,28 +123,16 @@ def _params(gate: Gate, tree: Path) -> dict:
     return params
 
 
-def _own(gate: Gate, packs: frozenset[str]) -> tuple[str, ...]:
-    """The policy's source folder, and only for a pack whose lock entry the pull request changed (listed in a
-    `floor/pack-changed` note); otherwise a gate judges its own folders like any other file."""
-    return (f"{POLICIES_PREFIX}{gate.policy}/",) if gate.policy in packs else ()
-
-
-def _judge(  # noqa: PLR0913, PLR0917 -- the gate, where it runs, what changed
-    gate: Gate, repo: Path, revs: tuple[str, str, str], head_ref: str | None, tree: Path, packs: frozenset[str]
-) -> GateResult | str:
+def _judge(gate: Gate, ctx: FloorContext, tree: Path) -> GateResult | str:
     """The gate's result, or why it could not judge."""
-    spec, label = gate.spec, f"{gate.policy} [{gate.source}]"
+    spec, label = gate.spec, f"{gate.policy} [base]"
     kind = KINDS.get(spec.get("kind"))
     if not spec or kind is None or spec.get("action", ACTION_BLOCK) not in _ACTION_RANK:
         return f"{label}: unreadable gate, unknown kind or unknown action"
-    if spec.get("kind") == _REF and not head_ref:
+    if spec.get("kind") == _REF and not ctx.head_ref:
         return f"{label}: a branch gate needs --head-ref <branch under test>"
-    base, head, fork = revs
-    ctx = FloorContext(
-        repo, base=base, head=head, merge_base=fork, head_ref=head_ref, scope=spec.get("paths"), own=_own(gate, packs)
-    )
     try:
-        result = kind(ctx, _params(gate, tree / gate.source), FLOOR_EVENT)
+        result = kind(ctx, _params(gate, tree), FLOOR_EVENT)
     except (ListingError, PatternDeadlineError, FloorError) as exc:
         return f"{label}: {inert(str(exc))}"
     if not result.allowed and (result.message or "").endswith(_UNDECIDED):
@@ -169,76 +146,121 @@ def _verdict(result: GateResult, declared: str, level: str) -> str:
     return min(result.verdict or declared, declared, _ROLLOUT_CEILING[level], key=_ACTION_RANK.__getitem__)
 
 
-def judge_gates(  # noqa: PLR0913, PLR0917 -- the range, the branch and the changed packs
-    repo: Path, base: Revision, head: Revision, fork: str, head_ref: str | None, packs: frozenset[str] = frozenset()
+def judge_gates(  # noqa: PLR0913 -- the range, the branch, what it excludes and the level
+    repo: Path, base: Revision, head: Revision, head_ref: str | None, *, plane: cp.ControlPlane, level: str
 ) -> Outcome:
-    """Run the policy set over base...head; `ask` refuses, since nobody can be asked in CI.
+    """Run the base's ci gates over base..head; `ask` refuses, since nobody can be asked in CI.
 
     A gate that cannot judge is undecided before the rollout applies: `observe` softens refusals, never that.
     """
-    gates, notes = policy_set(base, head)
-    outcome = Outcome([], [], notes)
-    level = committed_rollout(repo, base.sha)
+    outcome = Outcome()
     with tempfile.TemporaryDirectory(prefix="chock-floor-") as scratch:
-        for gate in gates:
+        for gate in base_gates(base):
             if "commit" not in (gate.spec.get("on") or []) and gate.spec:
                 continue
-            result = _judge(gate, repo, (base.sha, head.sha, fork), head_ref, Path(scratch), packs)
+            ctx = FloorContext(
+                repo, base=base.sha, head=head.sha, head_ref=head_ref, scope=gate.spec.get("paths"),
+                control_plane=plane.covers,
+            )  # fmt: skip
+            result = _judge(gate, ctx, Path(scratch))
             if isinstance(result, str):
                 outcome.undecided.append(result)
                 continue
             verdict = _verdict(result, gate.spec.get("action", ACTION_BLOCK), level)
             if verdict == "allow":
                 continue
-            reason = _reason(result, gate.spec, FLOOR_EVENT, gate.policy)
-            line = f"{gate.policy} [{gate.source}] ({verdict}): {reason}"
+            line = f"{gate.policy} [base] ({verdict}): {_reason(result, gate.spec, FLOOR_EVENT, gate.policy)}"
             (outcome.refusals if verdict in _REFUSING else outcome.notes).append(line)
     return outcome
 
 
-def floor(repo: Path, base_ref: str, head_ref_rev: str, branch: str | None) -> int:
-    repo = repo.resolve()
-    base_sha, head_sha = resolve(repo, base_ref, "base"), resolve(repo, head_ref_rev, "head")
-    fork = merge_base(repo, base_sha, head_sha)
-    base, head = Revision(repo, base_sha), Revision(repo, head_sha)
-    revs = Revs(base, Revision(repo, fork), head)
-    _out(f"== floor: base {base_sha[:12]}, head {head_sha[:12]}, merge-base {fork[:12]}")
-    packs = packs_changed(revs)
-    outcome = judge_gates(repo, base, head, fork, branch, packs)
-    if not base.paths(COMPILED_PREFIX):
+def _declared(base: Revision, policy: str) -> str:
+    """The strictest action the base's compiled gates of `policy` declare, on either surface."""
+    actions = []
+    for surface in _SURFACES:
+        try:
+            spec = json.loads(base.text(f"{COMPILED_PREFIX}{policy}/{surface}/gate.json") or "null")
+        except ValueError:
+            spec = None
+        if isinstance(spec, dict) and spec.get("action", ACTION_BLOCK) in _ACTION_RANK:
+            actions.append(spec.get("action", ACTION_BLOCK))
+    return max(actions or [ACTION_BLOCK], key=_ACTION_RANK.__getitem__)
+
+
+def _judged(repo: Path, base: Revision, head: Revision, branch: str | None) -> Outcome:
+    plane = cp.from_base(base)
+    listed = [path for path in changed_paths(repo, base.sha, head.sha) if plane.covers(path)]
+    level = committed_rollout(repo, base.sha)
+    outcome = judge_gates(repo, base, head, branch, plane=plane, level=level)
+    outcome.listed, outcome.mode = listed, plane.mode
+    if not base_gates(base):
         outcome.notes.append(_NO_GATES)
-    tampered = [t.render() for t in tamper(revs, packs)]
     try:
-        history, history_notes = history_findings(repo, base, head, fork, packs)
+        history, notes = history_findings(repo, base, head, plane.covers)
     except FloorError as exc:
-        history, history_notes = [], []
+        history, notes = [], []
         outcome.undecided.append(inert(str(exc)))
-    uncovered = not_covered(revs)
-    history_notes += pack_notes(revs, packs) + ([_NOT_COVERED.format(", ".join(uncovered))] if uncovered else [])
-    for line in outcome.notes + history_notes:
+    for policy, finding in history:
+        verdict = min(_declared(base, policy), _ROLLOUT_CEILING[level], key=_ACTION_RANK.__getitem__)
+        (outcome.refusals if verdict in _REFUSING else outcome.notes).append(
+            f"{policy} [history] ({verdict}): {finding}"
+        )
+    outcome.notes += notes
+    return outcome
+
+
+def _print(outcome: Outcome) -> None:
+    if outcome.listed:
+        head = "FAIL" if outcome.mode == cp.REFUSE else "LISTED"
+        text = _CONTROL_PLANE.format(rule=cp.RULE, mode=outcome.mode, count=len(outcome.listed))
+        _out(f"{head} {text}")
+        for path in outcome.listed:
+            _out(f"  {inert(path)}")
+        if outcome.mode == cp.LISTED:
+            _out(f"note: {_LISTED_GAP.format(rule=cp.RULE)}")
+    for line in outcome.notes:
         _out(f"note: {line}")
-    refusals = outcome.refusals + tampered + history
-    for line in refusals:
+    for line in outcome.refusals:
         _out(f"FAIL {line}")
     for line in outcome.undecided:
         _err(f"UNDECIDED {line}")
     _out(_NOT_REQUIRED)
+
+
+def _code(outcome: Outcome) -> int:
     if outcome.undecided:
         return EXIT_UNDECIDED
-    return EXIT_REFUSED if refusals else 0
+    refused = outcome.refusals or (outcome.listed and outcome.mode == cp.REFUSE)
+    return EXIT_REFUSED if refused else 0
+
+
+def floor(repo: Path, base_ref: str, head_ref_rev: str, branch: str | None, sarif: str | None = None) -> int:
+    repo = repo.resolve()
+    base_sha, head_sha = resolve(repo, base_ref, "base"), resolve(repo, head_ref_rev, "head")
+    require_ancestor(repo, base_sha, head_sha)
+    _out(f"== floor (preview): base {base_sha[:12]}, head {head_sha[:12]}")
+    base, head = Revision(repo, base_sha), Revision(repo, head_sha)
+    if not base.paths(".chock/"):
+        _out(_FIRST_ADOPTION)
+        return 0
+    outcome = _judged(repo, base, head, branch)
+    _print(outcome)
+    code = _code(outcome)
+    return floor_sarif.write(repo, sarif, outcome, code) if sarif else code
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="chock check --floor")
     parser.add_argument("--repo", default=".")
     parser.add_argument("--base", required=True, help="The pull request's base: its gates, waivers and rules bind")
-    parser.add_argument("--head", default="HEAD", help="The commit under test, read as objects only")
+    parser.add_argument("--head", default="HEAD", help="The merge result under test, read as objects only")
     parser.add_argument("--head-ref", default=None, help="The branch under test, for branch gates")
+    parser.add_argument("--sarif", default=None, help="Also write the result as SARIF 2.1.0 to this file")
     args = parser.parse_args(argv)
     try:
-        return floor(Path(args.repo), args.base, args.head, args.head_ref)
+        return floor(Path(args.repo), args.base, args.head, args.head_ref, args.sarif)
     except FloorError as exc:
-        _err(f"floor: {inert(str(exc))}")
+        _err(f"UNDECIDED floor: {inert(str(exc))}")
     except Exception as exc:  # noqa: BLE001 -- 1 means refused; anything undecided is 2, naming only the type
-        _err(f"floor: no verdict was established ({type(exc).__name__})")
+        _err(f"UNDECIDED floor: no verdict was established ({type(exc).__name__})")
     return EXIT_UNDECIDED

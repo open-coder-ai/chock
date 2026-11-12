@@ -42,7 +42,8 @@ def test_a_waiver_the_pull_request_adds_is_not_honoured(tmp_path, capsys) -> Non
     assert "assertions removed across tests" in out
 
 
-def test_a_waiver_already_at_the_base_is_honoured(tmp_path, capsys) -> None:
+def test_a_base_waiver_on_a_line_the_pull_request_removes_is_not_honoured(tmp_path, capsys) -> None:
+    """V4: a waiver counts only on a line present and unchanged in both base and head."""
     repo = base_repo(tmp_path)
     git(repo, "checkout", "-q", "main")
     write(repo, "tests/test_core.py", TEST_FILE.replace("== 4\n", f"== 4  # {TEST_PRAGMA}\n"))
@@ -51,7 +52,8 @@ def test_a_waiver_already_at_the_base_is_honoured(tmp_path, capsys) -> None:
     write(repo, "tests/test_core.py", "def test_a():\n    assert 1 + 1 == 2\n")
     commit(repo, "pr")
     code, out = run_floor(repo, capsys)
-    assert code == 0, out
+    assert code == 1, out
+    assert "assertions removed across tests" in out
 
 
 def test_ask_counts_as_a_refusal(tmp_path, capsys) -> None:
@@ -75,7 +77,7 @@ def test_a_secret_added_then_removed_is_found_by_the_history_pass(tmp_path, caps
     commit(repo, "remove")
     code, out = run_floor(repo, capsys)
     assert code == 1
-    assert f"floor-token [history]: {first[:12]} src/app.py:1 (content-pattern)" in out
+    assert f"FAIL floor-token [history] (block): {first[:12]} src/app.py:1 (content-pattern)" in out
 
 
 def test_a_line_already_at_the_base_is_not_the_pull_requests(tmp_path, capsys) -> None:
@@ -113,8 +115,9 @@ def test_no_head_file_is_executed(tmp_path, capsys) -> None:
     commit(repo, "pr")
     code, out = run_floor(repo, capsys)
     assert not (repo / "MARKER").exists()
-    assert "new-probe [head]: not judged at floor" in out
-    assert code == 0, out
+    assert "new-probe" not in out.replace(".chock/compiled/new-probe/", "")
+    assert code == 1, out
+    assert f"\n  {PROBE['params']['script']}\n" in out
 
 
 def test_the_head_is_read_as_objects_from_a_base_checkout(tmp_path, capsys) -> None:
@@ -124,7 +127,8 @@ def test_the_head_is_read_as_objects_from_a_base_checkout(tmp_path, capsys) -> N
     git(repo, "checkout", "-q", "main")
     code, out = run_floor(repo, capsys, "--head", "pr")
     assert code == 1
-    assert "tamper/hook-removed .cursor/hooks.json" in out
+    assert "FAIL floor/control-plane-changed (refuse): 1 path(s)" in out
+    assert "\n  .cursor/hooks.json\n" in out
 
 
 def test_an_unresolvable_base_is_undecided(tmp_path, capsys) -> None:
