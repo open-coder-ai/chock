@@ -61,7 +61,7 @@ def check_engine(constraint: object, version: str = __version__) -> tuple[str | 
     if constraint == LEGACY_ENGINE_CONSTRAINT:
         return None, (
             f"note: {LOCKFILE_NAME} engine constraint {constraint!r} was written before constraints were read; "
-            "run `chock sync --repo .` to record this engine's"
+            "run `chock sync --repo .` to record this engine's constraint"
         )
     match = _CONSTRAINT_RE.fullmatch(constraint) if isinstance(constraint, str) else None
     running = _version_tuple(version)
