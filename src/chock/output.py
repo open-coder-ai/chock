@@ -77,16 +77,18 @@ def new_command() -> None:
     _said.clear()
 
 
-def warn(message: str) -> None:
-    # codeql[py/clear-text-logging-sensitive-data]
-    print(f"[WARN] {legible(message, sys.stderr)}", file=sys.stderr)
-
-
 def warn_once(key: tuple[str, ...], message: str) -> None:
     if first_time(key):
         warn(message)
 
 
-def error(message: str) -> None:
+def warn(message: str) -> None:
+    message = legible(message, sys.stderr)
     # codeql[py/clear-text-logging-sensitive-data]
-    print(f"[ERROR] {legible(message, sys.stderr)}", file=sys.stderr)
+    print(f"[WARN] {message}", file=sys.stderr)
+
+
+def error(message: str) -> None:
+    message = legible(message, sys.stderr)
+    # codeql[py/clear-text-logging-sensitive-data]
+    print(f"[ERROR] {message}", file=sys.stderr)
