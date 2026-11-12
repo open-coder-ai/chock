@@ -163,17 +163,14 @@ def _require_published(source: str, remote: str, sha: str, into: Path) -> None:
 def tag_commit(source: str, tag: str) -> str | None:
     """The commit tag `tag` of `source` names (peeled), or None when the source has no such tag."""
     _check_ref_syntax(source, tag)
-    local = local_source(source)
-    remote = str(local.resolve()) if local is not None else source
+    remote = str(local.resolve()) if (local := local_source(source)) is not None else source
     name = f"refs/tags/{tag}"
     listed = _run(["git", *INERT, "ls-remote", "--tags", "--", remote, name, f"{name}^{{}}"], REMOTE_TIMEOUT)
     if listed.returncode != 0:
-        detail = _scrub(listed.stderr.strip(), source) or "git step failed"
-        msg = f"could not list the tags of catalog {redact_source(source)}: {detail}"
+        msg = f"could not list the tags of catalog {redact_source(source)}: {_scrub(listed.stderr.strip(), source)}"
         raise RuntimeError(msg)
-    found = dict(reversed(line.split("\t", 1)) for line in listed.stdout.splitlines() if "\t" in line)
-    sha = found.get(f"{name}^{{}}") or found.get(name)
-    return sha.lower() if sha and _FULL_SHA.fullmatch(sha) else None
+    found = {ref: sha for sha, _, ref in (line.partition("\t") for line in listed.stdout.splitlines())}
+    return next((found[k].lower() for k in (f"{name}^{{}}", name) if _FULL_SHA.fullmatch(found.get(k, ""))), None)
 
 
 def _clone_ref(source: str, remote: str, ref: str | None, into: Path) -> str | None:

@@ -115,3 +115,11 @@ def test_help_names_the_default(capsys) -> None:
     with pytest.raises(SystemExit):
         add_mod.main(["--help"])
     assert "v<chock version>" in " ".join(capsys.readouterr().out.split())
+
+
+def test_a_lightweight_tag_resolves_too(catalog, repo: Path, capsys, monkeypatch) -> None:
+    bare, tagged, _ = catalog
+    _git(bare, "tag", "v9.9.9", tagged)
+    monkeypatch.setattr(add_mod, "engine_version", "9.9.9")
+    assert add_mod.main([ID, "--repo", str(repo), "--skip-compile"]) == 0
+    assert f"at {tagged} (tag v9.9.9)" in capsys.readouterr().out
