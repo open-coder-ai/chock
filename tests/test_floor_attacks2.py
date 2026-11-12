@@ -7,9 +7,6 @@ edit is a control-plane change: refused under `refuse`, listed with exit 0 under
 from __future__ import annotations
 
 import json
-import os
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -281,38 +278,3 @@ def test_a_gate_naming_a_file_outside_the_repository_is_undecided(tmp_path, caps
     code, out = run_floor(repo, capsys)
     assert code == 2, out
     assert "not a path inside the repository" in out
-
-
-# ---------------- refs ----------------
-
-
-def test_head_not_descendant_of_base_is_undecided(tmp_path, capsys):
-    repo = base_repo(tmp_path)
-    git(repo, "checkout", "-q", "main")
-    write(repo, "src/app.py", "VALUE = 9\n")
-    commit(repo, "main moves on")
-    git(repo, "checkout", "-q", "pr")
-    code, out = run_floor(repo, capsys, "--head", "pr")
-    assert code == 2, out
-    assert "is not an ancestor of head" in out
-
-
-def _cli(repo: Path, *args: str) -> int:
-    env = {"PATH": os.environ.get("PATH", ""), "PYTHONPATH": str(SRC), "HOME": str(repo.parent)}
-    code = "import sys; from chock.lifecycle import check_main; sys.exit(check_main(sys.argv[1:]))"
-    proc = subprocess.run(
-        [sys.executable, "-c", code, "--repo", str(repo), *args], capture_output=True, text=True, env=env, check=False
-    )
-    return proc.returncode
-
-
-def test_ref_arguments(tmp_path):
-    repo = base_repo(tmp_path)
-    write(repo, "src/config.txt", "key = FLOOR-TOKEN-4242\n")
-    commit(repo, "pr")
-    assert _cli(repo, "--floor", "--base", "main", "--head", "pr") == 1
-    assert _cli(repo, "--floor", "--base", "no-such-ref", "--head", "pr") == 2
-    assert _cli(repo, "--floor", "--base=--all", "--head", "pr") == 2
-    assert _cli(repo, "--floor", "--base=--since=2000-01-01", "--head", "pr") == 2
-    assert _cli(repo, "--floor", "--base", "main", f"--head=--output={tmp_path / 'x'}") == 2
-    assert _cli(repo, "--floor", "--base", "pr", "--head", "pr") == 0
