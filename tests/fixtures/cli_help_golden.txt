@@ -22,6 +22,7 @@ Everyday:
 Authoring:
   new        Create a deterministic artifact skeleton
   compile    Low-level single-policy compile
+  emit       Write a vendor's managed-settings bundle under --out for an admin to deploy (emit --managed claude_code --out <dir>); writes no system path
   install-skills Install bundled authoring skills into agent skill dirs (write mode; check via CI)
   registry   Scan/list/resolve the artifact registry
   plugin     Package policies as installable plugins (plugin build [--format claude] [--check])

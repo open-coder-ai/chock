@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"/srv/chock-managed/block-no-verify/scripts/launch.sh\" \"/srv/chock-managed/block-no-verify/scripts/claude_code.py\" --guard \"/srv/chock-managed/block-no-verify/scripts/block-no-verify.py\"",
+            "timeout": 45,
+            "onFailure": "block"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"/srv/chock-managed/block-no-verify/scripts/launch.sh\" \"/srv/chock-managed/block-no-verify/scripts/claude_code.py\" --stop-check",
+            "timeout": 45,
+            "onFailure": "block"
+          }
+        ]
+      }
+    ]
+  }
+}

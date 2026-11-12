@@ -85,6 +85,10 @@
       "help": "Low-level single-policy compile",
       "person_only": true
     },
+    "emit": {
+      "module": "chock.compile.emitters.managed.cli",
+      "help": "Write a vendor's managed-settings bundle under --out for an admin to deploy (emit --managed claude_code --out <dir>); writes no system path"
+    },
     "install-skills": {
       "module": "chock.scaffold.skills",
       "help": "Install bundled authoring skills into agent skill dirs (write mode; check via CI)"

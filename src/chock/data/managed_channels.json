@@ -1,0 +1,46 @@
+{
+  "system_roots": {
+    "linux": ["/etc", "/usr", "/bin", "/sbin", "/lib", "/boot", "/opt"],
+    "macos": ["/Library", "/System", "/etc", "/private/etc", "/usr", "/bin", "/sbin", "/opt"],
+    "windows": ["C:/Program Files", "C:/Program Files (x86)", "C:/ProgramData", "C:/Windows"]
+  },
+  "vendors": {
+    "claude_code": {
+      "read": "2026-11-12",
+      "sources": [
+        "https://code.claude.com/docs/en/managed-settings",
+        "https://code.claude.com/docs/en/hooks",
+        "https://code.claude.com/docs/en/settings-reference"
+      ],
+      "admin_dir": {
+        "linux": "/etc/claude-code",
+        "macos": "/Library/Application Support/ClaudeCode",
+        "windows": "C:/Program Files/ClaudeCode"
+      },
+      "drop_in": "managed-settings.d/50-chock.json",
+      "deploy_root": {
+        "linux": "/etc/claude-code/chock",
+        "macos": "/Library/Application Support/ClaudeCode/chock",
+        "windows": "C:/Program Files/ClaudeCode/chock"
+      },
+      "fail_block": {"key": "onFailure", "value": "block", "events": ["PreToolUse"], "min_client": "2.1.295"},
+      "lock_key": "allowManagedHooksOnly",
+      "never_emitted": ["allowManagedPermissionRulesOnly"],
+      "requirements": [
+        "Every machine needs git, a POSIX sh (git's) and Python 3.11 or later on PATH. Without them, onFailure \"block\" refuses every matched tool call on that machine.",
+        "onFailure needs Claude Code 2.1.295 or later; an older client lets a crashed or timed-out hook through.",
+        "The bundle must sit at deploy_root exactly: the hook commands name it by absolute path."
+      ],
+      "caveats": [
+        "Managed settings bind Claude Code only. A local administrator can edit or delete these files.",
+        "On WSL, /etc/claude-code is writable by the user as well.",
+        "By default (managedSourcesBehavior \"first-wins\") a machine that also receives server-managed or MDM policy skips the managed settings files without a warning; /status names the source in use.",
+        "onFailure has no effect on Stop hooks, so the turn-end gate fails open when it crashes.",
+        "A file in managed-settings.d that is not valid JSON stops Claude Code from starting.",
+        "The labels are vendor-docs evidence, unwitnessed: nobody has watched this file refuse a call yet."
+      ],
+      "lock_note": "--lock adds allowManagedHooksOnly: every user, project and plugin hook on the machine stops running, chock's own project hooks and plugins included.",
+      "never_note": "allowManagedPermissionRulesOnly is never emitted: it would discard every user and project permission rule."
+    }
+  }
+}
