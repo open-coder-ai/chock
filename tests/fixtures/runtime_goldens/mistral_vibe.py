@@ -23,6 +23,7 @@ try:
         _chock_start_os.write(9, b"chock-python")
         _chock_start_os.close(9)
 except OSError:
+    # No launcher listening on fd 9 is not an error: the marker is only a hint, so run on.
     pass
 
 import contextlib

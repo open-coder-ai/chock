@@ -32,7 +32,7 @@ from chock.policies import discover_policy_dirs
 from chock.registry.core import save_registry, scan
 from chock.scaffold.gitrules import ensure_git_rules
 from chock.scaffold.mcp_register import McpConfigError, mcp_differences, register
-from chock.vendored import vendored_differences
+from chock.vendored import refresh_vendored, vendored_differences
 from chock.vendors import CHOCK_AGENT
 
 
@@ -280,6 +280,8 @@ def recompile(repo_root: Path | str, agents: list[str], *, skip_hooks: bool = Fa
                 coverage = _compile_all(repo_root, agents, Path(tmp2) / "compiled")
             write_generated_json(coverage_path, coverage)
 
+    # A committed gate.py with no gate policy staged none: refresh it here, or only `sync --check` sees it.
+    refresh_vendored(repo_root)
     _refresh_bookkeeping(repo_root)
 
     if not skip_hooks and unwired:
