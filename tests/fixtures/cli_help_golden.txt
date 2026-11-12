@@ -12,7 +12,7 @@ Everyday:
   status     Policy states and coverage (--only registry,log for more)
   stop       Refuse every agent tool call, commit and push here until resume (--agent C for one client)
   resume     Lift a stop: agents are judged by the policies again
-  doctor     Check each client's hooks on each route: present, current, and seen running (--client X)
+  doctor     Check each client's hooks on each route: present, current, and seen running (--client X); --live runs each hook on a canary
   incident   An ordered, redacted timeline from the local decision log (incident --since T [--until T] [--share])
   witness    Export one client's redacted decision log for its agentseam evidence issue (witness export --client C)
   enable     Enable a policy by id
