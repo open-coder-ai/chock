@@ -163,7 +163,7 @@ chock compile <policy-id> [--repo .] [--targets SURFACE ...] [--agents AGENT ...
 ```
 
 Compiles one policy into the surfaces each target agent supports (git hook, CI gate,
-pre-tool-use, agent-hooks, managed-setting, `AGENTS.md` rule) and updates the per-agent
+pre-tool-use, agent-hooks, `AGENTS.md` rule; nothing for `managed-setting`, which only `emit` writes) and updates the per-agent
 coverage report. `--agents` takes the same comma- or space-separated names as `init`
 and `sync`, defaults to the repo's `supported_agents`, and rejects unknown names.
 `sync` runs this for every enabled policy; reach for `compile` directly only when
@@ -230,6 +230,26 @@ shape Codex reads from git marketplaces. `devin` has no index format: it writes 
 each built plugin, and needs `--url` (the marketplace repo's own git URL — never guessed from
 `git remote`). Entries derive from built manifests, never hand-listed; an empty tree exits 2;
 `--check` reports drift without writing.
+
+### `emit` — write a managed-settings bundle for an admin
+
+```bash
+chock emit --managed claude_code --python <absolute path> --on-failure block|allow --out <dir> [--repo .] [--policies a,b] [--platform linux|macos|windows] [--deploy-root <absolute path>] [--lock]
+```
+
+Writes, under `<dir>/claude_code/` only: `managed-settings.d/50-chock.json` (the selected policies' guards and
+gates as exec-form hooks), `bundle/` (each policy's runtime and guard or gate), `deploy.json` (where an
+administrator places each part, what each machine needs, what `--on-failure` does, the caveats, the undo step) and
+`labels.json`. It deploys nothing, elevates nothing, and refuses an `--out` that is a filesystem root or resolves
+into a system folder (the per-OS list in `src/chock/data/managed_channels.json`), names a file, or already holds
+`claude_code/`. `--python` is required: the absolute interpreter on the target machines, which every hook starts
+directly, so neither PATH nor git config picks it. `--on-failure` is required: `block` sets `onFailure: "block"` on
+the `PreToolUse` hooks and refuses a matched call when the interpreter or a bundle file is missing; `allow` sets
+neither and lets the call through with a note on stderr. `--lock` also emits `allowManagedHooksOnly`, which blocks
+every user, project and other-plugin hook on the machine (`deploy.json` lists every documented effect);
+`allowManagedPermissionRulesOnly` is never emitted. Every label is vendor-docs evidence, unwitnessed, at most
+best-effort; a local administrator can still edit or remove the file, and a machine that also receives
+server-managed or MDM policy skips it by default.
 
 ### `gateway run` -- the MCP gateway proxy
 

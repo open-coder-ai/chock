@@ -1,8 +1,50 @@
 {
   "system_roots": {
-    "linux": ["/etc", "/usr", "/bin", "/sbin", "/lib", "/boot", "/opt"],
-    "macos": ["/Library", "/System", "/etc", "/private/etc", "/usr", "/bin", "/sbin", "/opt"],
-    "windows": ["C:/Program Files", "C:/Program Files (x86)", "C:/ProgramData", "C:/Windows"]
+    "linux": [
+      "/",
+      "/etc",
+      "/usr",
+      "/bin",
+      "/sbin",
+      "/lib",
+      "/lib32",
+      "/lib64",
+      "/libx32",
+      "/boot",
+      "/opt",
+      "/var",
+      "/srv",
+      "/run",
+      "/sys",
+      "/proc",
+      "/dev",
+      "/root"
+    ],
+    "macos": [
+      "/",
+      "/Library",
+      "/System",
+      "/Applications",
+      "/etc",
+      "/private/etc",
+      "/usr",
+      "/bin",
+      "/sbin",
+      "/opt",
+      "/cores",
+      "/dev",
+      "/var/root",
+      "/private/var/root",
+      "/var/db",
+      "/private/var/db"
+    ],
+    "windows": [
+      "C:/",
+      "C:/Program Files",
+      "C:/Program Files (x86)",
+      "C:/ProgramData",
+      "C:/Windows"
+    ]
   },
   "vendors": {
     "claude_code": {
@@ -23,23 +65,46 @@
         "macos": "/Library/Application Support/ClaudeCode/chock",
         "windows": "C:/Program Files/ClaudeCode/chock"
       },
-      "fail_block": {"key": "onFailure", "value": "block", "events": ["PreToolUse"], "min_client": "2.1.295"},
+      "fail_block": {
+        "key": "onFailure",
+        "value": "block",
+        "events": [
+          "PreToolUse"
+        ],
+        "min_client": "2.1.295"
+      },
+      "python_flags": [
+        "-I",
+        "-X",
+        "utf8",
+        "-c"
+      ],
       "lock_key": "allowManagedHooksOnly",
-      "never_emitted": ["allowManagedPermissionRulesOnly"],
+      "never_emitted": [
+        "allowManagedPermissionRulesOnly"
+      ],
+      "on_failure": {
+        "block": "--on-failure block: every tool call these hooks match (__MATCHERS__) is refused on a machine where a bundle file is missing or __PYTHON__ is older than Python 3.11 (the hook exits 2, on any client version), and, on Claude Code 2.1.295 or later, where __PYTHON__ is missing or cannot start, or the hook crashes or times out.",
+        "allow": "--on-failure allow: every tool call these hooks match (__MATCHERS__) goes ahead unchecked on a machine where __PYTHON__ is missing, older than Python 3.11 or cannot start, or a bundle file is missing, and whenever the hook crashes or times out; the note is the hook's own stderr, or Claude Code's hook-error notice when the interpreter cannot start."
+      },
       "requirements": [
-        "Every machine needs git, a POSIX sh (git's) and Python 3.11 or later on PATH. Without them, onFailure \"block\" refuses every matched tool call on that machine.",
+        "Every machine needs Python 3.11 or later at __PYTHON__ exactly: the hook commands start that file directly (exec form, no shell), so neither PATH, git config nor a shell picks the interpreter.",
         "onFailure needs Claude Code 2.1.295 or later; an older client lets a crashed or timed-out hook through.",
-        "The bundle must sit at deploy_root exactly: the hook commands name it by absolute path."
+        "The bundle must sit at deploy_root exactly: the hook commands name it by absolute path.",
+        "The bundle folder and __PYTHON__ must be owned by an administrator and not writable by users: whoever can write them can replace the guard. The vendor docs state no ownership rule for the files a managed hook runs; on who can change the managed source they say \"a developer who is an administrator on the machine can edit the managed source itself\"."
       ],
       "caveats": [
         "Managed settings bind Claude Code only. A local administrator can edit or delete these files.",
         "On WSL, /etc/claude-code is writable by the user as well.",
         "By default (managedSourcesBehavior \"first-wins\") a machine that also receives server-managed or MDM policy skips the managed settings files without a warning; /status names the source in use.",
-        "onFailure has no effect on Stop hooks, so the turn-end gate fails open when it crashes.",
+        "onFailure has no effect on Stop hooks, so the turn-end gate lets the turn end when it cannot run, whatever --on-failure says.",
+        "A repository holding .chock/stop.json (valid or not) makes these hooks refuse every tool call they match while Claude Code works in that repository: the bundled runtime honours chock's repository stop.",
+        "The bundled runtime runs git from PATH for repository facts (the stop files, the turn-end gate's changed files); the guards' verdicts on a command do not depend on it.",
+        "Hooks write their decision log under the user's home folder (~/.chock/log).",
         "A file in managed-settings.d that is not valid JSON stops Claude Code from starting.",
-        "The labels are vendor-docs evidence, unwitnessed: nobody has watched this file refuse a call yet."
+        "The labels are vendor-docs evidence, unwitnessed, best-effort: nobody has watched this file refuse a call yet."
       ],
-      "lock_note": "--lock adds allowManagedHooksOnly: every user, project and plugin hook on the machine stops running, chock's own project hooks and plugins included.",
+      "lock_note": "--lock adds allowManagedHooksOnly. The vendor docs list what it changes on the machine: only managed hooks, Agent SDK hooks and hooks of plugins the managed settings force-enable run; user, project and local hooks, hooks and mods of other installed plugins (chock's own project hooks and plugins included) and hooks in agent frontmatter are blocked; monitors of other plugins do not start; plugins with a command source are disabled and marketplace headersHelper commands are blocked unless disableCommandPluginSources is set to false; the status line and file suggestion are read from managed settings only; the /goal command cannot run.",
       "never_note": "allowManagedPermissionRulesOnly is never emitted: it would discard every user and project permission rule."
     }
   }

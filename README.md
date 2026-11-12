@@ -134,7 +134,7 @@ file that wiring lives. A row here is support, not installation — coverage is 
 a given repo once `chock sync` has actually written the file, which is why the CLI's own
 `chock status` always beats this table for what's true *here*. Four of the nine surfaces are
 absent from this page entirely because they credit no agent today — `managed-setting` is
-compiled but not installed, `gateway` is modelled but not yet emitted, `mcp-gateway` credits
+written only by `chock emit --managed`, for an admin to deploy, `gateway` is modelled but not yet emitted, `mcp-gateway` credits
 nothing until its per-client witness ships, and `stop` installs and refuses on eight vendors but is
 a deliberate backstop for what a pre-tool hook cannot see, so it is worth no grade of its own.
 Full nine-surface matrix and per-agent caveats:

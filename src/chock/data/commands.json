@@ -87,7 +87,7 @@
     },
     "emit": {
       "module": "chock.compile.emitters.managed.cli",
-      "help": "Write a vendor's managed-settings bundle under --out for an admin to deploy (emit --managed claude_code --out <dir>); writes no system path"
+      "help": "Write a vendor's managed-settings bundle under --out for an admin to deploy (emit --managed claude_code --python <abs> --on-failure block|allow --out <dir>); refuses an --out that is a filesystem root or inside a system folder"
     },
     "install-skills": {
       "module": "chock.scaffold.skills",
