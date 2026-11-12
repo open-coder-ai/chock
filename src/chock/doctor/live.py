@@ -1,4 +1,4 @@
-"""`chock doctor --live`: run each installed pre-tool hook as its client calls it, on a canary and a harmless command."""
+"""`chock doctor --live`: run chock's own installed pre-tool hooks as the client calls them, on a canary and a harmless command."""
 
 from __future__ import annotations
 
@@ -7,23 +7,26 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 import tomllib
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
 import yaml
-from agentseam import packaging
 
 from chock import vendors
-from chock.doctor.checks import FAIL, INFO, PASS, Check, rebuild
+from chock.doctor.checks import FAIL, INFO, PASS, Check, engine, rebuild
 from chock.doctor.payloads import DENY_ON_THE_WIRE, EXIT_2, payload
-from chock.doctor.targets import ROUTE_PLUGIN, Target
+from chock.doctor.targets import ROUTE_SYNC, Target
 from chock.gate.guard_runner import bash_candidates
 from chock.gate.runner.journal import LOG_LEVEL_ENV, LOG_OFF
+from chock.hooks import launch
+from chock.hooks.in_agent_install import install_hooks
 from chock.plugin import hook_dir, store
 from chock.plugin.clients import CLIENTS
-from chock.plugin.devin import DEVIN_PLUGIN_ROOT_VAR
+from chock.policies import discover_policy_dirs
+from chock.vendored import vendored_differences
 
 REFUSES, ALLOWS, LIVE = "live: refuses the canary", "live: allows a harmless command", "live"
 #: A command every policy lets through: it reads nothing and writes nothing.
@@ -35,7 +38,6 @@ REFUSAL_EXIT = 2
 #: The probe logs nothing, so the decision log never holds a refusal no agent asked for.
 QUIET = {LOG_LEVEL_ENV: LOG_OFF}
 _REFERENCE = re.compile(r'--(guard|multi)\s+"?([^"\s]+)"?')
-_TOKEN = re.compile(r"\$\{(\w+)\}")
 _TOOL_KEYS = ("tool_name", "toolName")
 _ANY = (None, "", "*")
 #: The per-shell keys a hook entry may carry in place of `command` (Copilot's `bash` and `powershell`).
@@ -44,13 +46,6 @@ BASH, POWERSHELL = "bash", "powershell"
 PROBE_SESSION = "chock-doctor-live"
 _SESSION_KEYS = ("session_id", "sessionId", "conversation_id", "conversationId", "trajectory_id")
 _STATE = (".chock", "state")
-
-
-def _root_vars() -> list[str]:
-    """Every plugin-root variable a store or agentseam records: the client sets it to the plugin folder."""
-    tokens = [hook_dir.layout(fmt, client.agent)["plugin_root"] or "" for fmt, client in CLIENTS.items()]
-    tokens += [t for a in packaging.agents() for t in packaging.layout(a)["plugin_root"]]
-    return sorted({name for t in tokens for name in _TOKEN.findall(t)} | {DEVIN_PLUGIN_ROOT_VAR})
 
 
 def _document(path: Path) -> Any:
@@ -101,16 +96,35 @@ def _under(node: Any, event: str) -> Iterator[Any]:
 
 
 def commands(target: Target) -> list[tuple[str, str]]:
-    """The pre-tool commands the client runs for its shell tool, read from the file it reads; plugin roots filled in."""
+    """The pre-tool entries the client runs for its shell tool, read from the very file it reads."""
     doc = _document(target.hooks)
     sample = payload(target.agent, HARMLESS) if target.agent in DENY_ON_THE_WIRE else {}
     tool = next((sample[k] for k in _TOOL_KEYS if isinstance(sample.get(k), str)), None)
-    found = [c for part in _under(doc, vendors.shell_gate_event(target.agent)) for c in _collect(part, tool)]
-    if target.route != ROUTE_PLUGIN:
-        return found
-    root = hook_dir.root_path(target.root)
-    names = _root_vars()
-    return [(key, _TOKEN.sub(lambda m: root if m.group(1) in names else m.group(0), c)) for key, c in found]
+    return [c for part in _under(doc, vendors.shell_gate_event(target.agent)) for c in _collect(part, tool)]
+
+
+def rendered(target: Target) -> set[tuple[str, str]]:
+    """Every entry this engine's installer writes for the target, rendered from the repo's policies into a scratch copy."""
+    rel = target.hooks.relative_to(target.root)
+    with tempfile.TemporaryDirectory(prefix="chock-live-") as tmp:
+        shadow = Path(tmp)
+        compiled = target.root / ".chock" / "compiled"
+        if compiled.is_dir():
+            shutil.copytree(compiled, shadow / ".chock" / "compiled")
+        for pack in discover_policy_dirs(target.root):
+            shutil.copytree(pack, shadow / pack.relative_to(target.root), dirs_exist_ok=True)
+        install_hooks(shadow, target.agent)
+        written = shadow / rel
+        return set(_collect(_document(written), None)) if written.is_file() else set()
+
+
+def own_runtime(target: Target) -> bool:
+    """Whether the launcher and every vendored runtime are byte-equal to what this engine renders."""
+    try:
+        same_launcher = target.launcher.read_text(encoding="utf-8") == launch.launcher_text()
+    except (OSError, UnicodeDecodeError):
+        return False
+    return same_launcher and engine(target).status == PASS and not vendored_differences(target.root)
 
 
 def _guards(command: str, root: Path) -> Iterator[Path]:
@@ -174,14 +188,13 @@ def _probe(agent: str, asked: str, repo: Path) -> dict[str, Any]:
 
 def _call(target: Target, repo: Path, entry: tuple[str, str], asked: str) -> subprocess.CompletedProcess | str:
     """One hook command's answer to `asked`, or why it gave none."""
-    roots = dict.fromkeys(_root_vars(), hook_dir.root_path(target.root)) if target.route == ROUTE_PLUGIN else {}
     argv = _argv(target.agent, *entry)
     try:
-        return subprocess.run(  # noqa: S603 -- the hook command the client itself runs, read from its own config
+        return subprocess.run(  # noqa: S603 -- a hook command this engine rendered, byte-equal, as the client runs it
             argv,
             shell=isinstance(argv, str),
             cwd=repo,
-            env={**os.environ, **roots, **QUIET},
+            env={**os.environ, **QUIET},
             input=json.dumps(_probe(target.agent, asked, repo)),
             capture_output=True,
             text=True,
@@ -225,22 +238,37 @@ def _allows(target: Target, repo: Path, found: list[tuple[str, str]]) -> Check:
     return Check(PASS, ALLOWS, f"`{HARMLESS}` allowed by {len(found)} hook command(s)")
 
 
-def run(target: Target, repo: Path) -> list[Check]:
-    """The two live rows for one target, or the one row that says why it could not run."""
+def _runnable(target: Target) -> tuple[list[tuple[str, str]], list[Check]]:
+    """(chock's own pre-tool entries, the rows that say what was not run); no entries when nothing may run."""
+    if target.route != ROUTE_SYNC:
+        return [], [Check(INFO, LIVE, "skipped (plugin route: chock cannot re-render a plugin's hook commands)")]
     if target.agent not in DENY_ON_THE_WIRE:
-        return [Check(INFO, LIVE, f"skipped (no recorded {target.agent} pre-tool payload)")]
+        return [], [Check(INFO, LIVE, f"skipped (no recorded {target.agent} pre-tool payload)")]
+    if not own_runtime(target):
+        return [], [Check(INFO, LIVE, "skipped (runtime is not this engine's)", rebuild(target))]
     try:
-        found = commands(target)
+        found, ours = commands(target), rendered(target)
     except (OSError, ValueError, tomllib.TOMLDecodeError) as exc:
-        return [Check(FAIL, LIVE, f"{target.hooks} is unreadable ({exc})", rebuild(target))]
+        return [], [Check(FAIL, LIVE, f"{target.hooks} is unreadable ({exc})", rebuild(target))]
+    mine = [entry for entry in found if entry in ours]
+    other = len(found) - len(mine)
+    rows = [Check(INFO, LIVE, f"{other} other hook command(s) not run (not chock's)")] if other else []
+    if not mine:
+        rows.append(Check(FAIL, LIVE, f"{target.hooks} holds no pre-tool command chock renders", rebuild(target)))
+    return mine, rows
+
+
+def run(target: Target, repo: Path) -> list[Check]:
+    """The two live rows for one target, after a row for anything not run; or the one row that says why nothing ran."""
+    found, rows = _runnable(target)
     if not found:
-        return [Check(FAIL, LIVE, f"{target.hooks} holds no pre-tool hook command", rebuild(target))]
+        return rows
     logs = [
         base.joinpath(*_STATE, PROBE_SESSION + suffix) for base in {repo, target.root} for suffix in (".jsonl", ".tmp")
     ]
     fresh = [path for path in logs if not path.exists()]
     try:
-        return [_refuses(target, repo, found, canary(target, repo, found)), _allows(target, repo, found)]
+        return [*rows, _refuses(target, repo, found, canary(target, repo, found)), _allows(target, repo, found)]
     finally:
         for path in fresh:
             path.unlink(missing_ok=True)

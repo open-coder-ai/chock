@@ -19,10 +19,12 @@ def _say(line: str) -> None:
 
 
 _LIVE_HELP = (
-    "also run each installed pre-tool hook command, exactly as the client's config file writes it, from the repo: "
-    "once on the first refusing eval case of the first policy it runs (it must refuse) and once on "
-    f"`{live.HARMLESS}` (it must allow). It runs nothing else, starts no client, sends nothing anywhere and "
-    "logs nothing. It does not prove the client calls the hook: that is the heartbeat row"
+    "also run chock's own pre-tool hook commands, only those byte-equal to what this engine renders and only when "
+    "the launcher and runtime are this engine's, as the client's config file writes them, from the repo: once on "
+    "the first refusing eval case of the first policy they run (it must refuse) and once on "
+    f"`{live.HARMLESS}` (it must allow). Any other hook command is counted, never run. The installed policies' "
+    "guard code runs, as it does in `chock check` evals. It starts no client, sends nothing anywhere and logs "
+    "nothing. It does not prove the client calls the hook: that is the heartbeat row"
 )
 
 

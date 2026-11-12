@@ -77,25 +77,61 @@ def test_without_live_no_hook_is_run(synced: Path, capsys: pytest.CaptureFixture
     assert "live:" not in capsys.readouterr().out
 
 
-def test_a_broken_launcher_path_fails_both_rows_with_the_sync_fix(synced: Path) -> None:
+#: What a foreign hook command or an edited launcher would leave behind if `--live` ran it.
+MARKER = "live-marker"
+WRITE_MARKER = f"echo x > {MARKER}"
+
+
+def _settings(repo: Path) -> tuple[Path, dict]:
+    path = repo / ".claude" / "settings.json"
+    return path, json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_a_foreign_hook_command_is_counted_never_run(synced: Path) -> None:
+    path, doc = _settings(synced)
+    doc["hooks"]["PreToolUse"].append({"matcher": "Bash", "hooks": [{"type": "command", "command": WRITE_MARKER}]})
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    found = _live(synced)
+    assert not (synced / MARKER).exists()
+    assert found[live.LIVE].status == checks.INFO
+    assert found[live.LIVE].detail == "1 other hook command(s) not run (not chock's)"
+    assert found[live.REFUSES].status == found[live.ALLOWS].status == checks.PASS
+
+
+def test_an_edited_launcher_runs_nothing(synced: Path) -> None:
+    launcher = synced / launch.LAUNCHER_REL
+    launcher.write_text(f"{WRITE_MARKER}\n" + launcher.read_text(encoding="utf-8"), encoding="utf-8")
+    [row] = _live(synced).values()
+    assert not (synced / MARKER).exists()
+    assert row.detail == "skipped (runtime is not this engine's)"
+    assert row.fix == f"run `chock sync --repo {synced}`"
+
+
+def test_a_missing_launcher_runs_nothing(synced: Path) -> None:
     (synced / launch.LAUNCHER_REL).unlink()
+    [row] = _live(synced).values()
+    assert row.detail == "skipped (runtime is not this engine's)"
+
+
+def test_a_tampered_pinned_index_fails_both_rows_with_the_sync_fix(synced: Path) -> None:
+    for index in (synced / ".chock" / "bin" / "index").glob("claude_code-*.json"):
+        index.write_text(index.read_text(encoding="utf-8") + " ", encoding="utf-8")
     found = _live(synced)
     for name in (live.REFUSES, live.ALLOWS):
         assert found[name].status == checks.FAIL, found
         assert found[name].fix == f"run `chock sync --repo {synced}`"
-    assert "launch.sh" in found[live.REFUSES].detail
 
 
-def test_a_refusal_by_anything_but_the_policy_is_not_a_pass(synced: Path) -> None:
-    settings = synced / ".claude" / "settings.json"
-    doc = json.loads(settings.read_text(encoding="utf-8"))
+def test_an_edited_chock_command_is_not_chock_s(synced: Path) -> None:
+    path, doc = _settings(synced)
     for group in doc["hooks"]["PreToolUse"]:
         for hook in group["hooks"]:
-            hook["command"] = hook["command"].replace(".chock/bin/claude_code.py", ".chock/bin/gone.py")
-    settings.write_text(json.dumps(doc), encoding="utf-8")
+            hook["command"] += f"; {WRITE_MARKER}"
+    path.write_text(json.dumps(doc), encoding="utf-8")
     found = _live(synced)
-    assert found[live.REFUSES].status == checks.FAIL
-    assert found[live.ALLOWS].status == checks.FAIL
+    assert not (synced / MARKER).exists()
+    assert found[live.LIVE].status == checks.FAIL
+    assert "no pre-tool command chock renders" in found[live.LIVE].detail
 
 
 def test_no_guard_on_the_shell_tool_is_reported_skipped(synced: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -106,30 +142,18 @@ def test_no_guard_on_the_shell_tool_is_reported_skipped(synced: Path, monkeypatc
     assert found[live.ALLOWS].status == checks.PASS
 
 
-def test_a_hooks_file_with_no_pre_tool_command_fails(synced: Path) -> None:
-    (synced / ".claude" / "settings.json").write_text(json.dumps({"hooks": {}}), encoding="utf-8")
+def test_a_plugin_target_is_skipped_and_nothing_runs(tmp_path: Path) -> None:
+    folder = tmp_path / "plugin"
+    target = Target("claude-code", AGENT, ROUTE_PLUGIN, folder, folder, folder, folder / "hooks.json")
+    [row] = live.run(target, tmp_path)
+    assert row.status == checks.INFO
+    assert row.detail.startswith("skipped (plugin route")
+
+
+def test_the_matcher_is_honoured(synced: Path) -> None:
     [target] = [t for t in sync_targets(synced) if t.agent == AGENT]
-    [row] = live.run(target, synced)
-    assert row.status == checks.FAIL
-    assert "no pre-tool hook command" in row.detail
-
-
-def test_a_plugin_command_has_its_root_token_filled_in_and_its_matcher_honoured(tmp_path: Path) -> None:
-    folder = tmp_path / "plugin dir"
-    hooks = folder / "hooks" / "hooks.json"
-    hooks.parent.mkdir(parents=True)
-    doc = {
-        "hooks": {
-            "PreToolUse": [
-                {"matcher": "Bash", "hooks": [{"command": 'sh "${CLAUDE_PLUGIN_ROOT}/scripts/launch.sh" --guard x'}]},
-                {"matcher": "Write", "hooks": [{"command": "never"}]},
-            ],
-            "Stop": [{"hooks": [{"command": "stop"}]}],
-        }
-    }
-    hooks.write_text(json.dumps(doc), encoding="utf-8")
-    target = Target("claude-code", AGENT, ROUTE_PLUGIN, folder, folder, folder, hooks)
-    assert live.commands(target) == [("command", f'sh "{folder.as_posix()}/scripts/launch.sh" --guard x')]
+    assert live.commands(target)
+    assert all(entry in live.rendered(target) for entry in live.commands(target))
 
 
 def test_copilot_s_per_shell_entry_is_read() -> None:
