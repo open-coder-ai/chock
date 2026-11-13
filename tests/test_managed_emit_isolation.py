@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -13,10 +14,12 @@ from managed_emit_helpers import bundle_hook, env_for, make_repo, run_hook
 
 from chock.doctor.payloads import payload
 from chock.gate import budget
+from chock.hooks import launch
 
 CANARY = "git commit --no-verify -m x"
 HARMLESS = "git status"
 #: Each variable the review proved or suspected: ends the guard early, breaks its start-up, or drops its folder.
+POSIX_GIT = pytest.mark.skipif(sys.platform == "win32" or not shutil.which("git"), reason="POSIX sh and git")
 HOSTILE = ("PYTHONPATH", "PYTHONHOME", "PYTHONPLATLIBDIR", "PYTHONSAFEPATH", "PYTHONSTARTUP")
 
 
@@ -102,3 +105,38 @@ def test_an_isolated_child_imports_from_its_own_folder_only(tmp_path: Path, evil
         argv, env={**env, "PYTHONPATH": str(evil)}, cwd=evil, capture_output=True, text=True, check=False
     )
     assert done.stdout.strip() == "own ['x y']", done.stderr
+
+
+def launched(folder: Path, command: str, cwd: Path, env: dict[str, str]) -> subprocess.CompletedProcess:
+    """The runtime in `folder` started through chock's launcher, as a project or plugin hook command starts it."""
+    return subprocess.run(
+        [
+            "sh",
+            str(folder / "launch.sh"),
+            str(folder / "claude_code.py"),
+            "--guard",
+            str(folder / "block-no-verify.py"),
+        ],
+        input=json.dumps(payload("claude_code", command, cwd.as_posix())),
+        capture_output=True,
+        text=True,
+        cwd=cwd,
+        env=env,
+        check=False,
+        timeout=60,
+    )
+
+
+@POSIX_GIT
+@pytest.mark.parametrize("route", ["project", "plugin"])
+@pytest.mark.parametrize("name", [None, *HOSTILE])
+def test_the_launcher_starts_the_runtime_isolated(route, name, bundle, evil, tmp_path) -> None:
+    """Ruling 9 on the launcher routes: the outer interpreter is isolated too, before and with each hostile value."""
+    root, _ = bundle
+    work = tmp_path / "work"
+    subprocess.run(["git", "init", "-q", str(work)], check=True)
+    folder = work / ".chock" / "bin" if route == "project" else tmp_path / "plugin" / "scripts"
+    shutil.copytree(root / "block-no-verify" / "scripts", folder)
+    (folder / "launch.sh").write_text(launch.launcher_text(), encoding="utf-8", newline="\n")
+    env = env_for(tmp_path, **({} if name is None else {name: hostile_value(name, evil)}))
+    assert_verdicts(launched(folder, CANARY, work, env), launched(folder, HARMLESS, work, env))

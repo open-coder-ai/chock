@@ -18,7 +18,9 @@
   Claude Code does not read.
 - Every child interpreter a hook runtime starts (a Python guard, the gate runner, a script gate) now
   runs isolated (`-I`), with its own folder put on the import path explicitly and every `PYTHON*`
-  variable removed from its environment, on every route. A hostile `PYTHONPATH`, `PYTHONHOME`,
+  variable removed from its environment, on every route. The hook launcher (`launch.sh`) starts a
+  runtime script with `-E -s`, so no `PYTHON*` variable or user site reaches the outer interpreter
+  either (its `-m chock` form keeps the environment: it needs the installed package). A hostile `PYTHONPATH`, `PYTHONHOME`,
   `PYTHONPLATLIBDIR` or `PYTHONSAFEPATH` no longer lets a refused command through or turns a refusal
   into a prompt.
 - `chock emit --managed claude_code`: the bootstrap now checks every bundled file, so a missing guard
