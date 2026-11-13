@@ -12,7 +12,7 @@
               "-X",
               "utf8",
               "-c",
-              "import sys,os;r=sys.argv[1];m=[p for p in (r,os.path.join(os.path.dirname(r),'_chock_runtime.py')) if not os.path.isfile(p)];o=sys.version_info<(3, 11,);w='chock: '+('this hook needs Python 3.11+, '+sys.executable+' is older' if o else 'missing '+', '.join(m))+'; refusing this call (--on-failure block)\\n';(o or m) and (sys.stderr.write(w),sys.exit(2));sys.argv=sys.argv[1:];import runpy;runpy.run_path(r,run_name='__main__')",
+              "import sys,os;r=sys.argv[1];m=[p for p in (r,*(os.path.join(os.path.dirname(r),*f.split('/')) for f in ('_chock_runtime.py', 'block-no-verify.py', 'chock_shellparse/__init__.py', 'chock_shellparse/args.py', 'chock_shellparse/parse.py', 'chock_shellparse/targets.py', 'chock_shellparse/writes.py', 'claude_code.py'))) if not os.path.isfile(p)];o=sys.version_info<(3, 11,);w='chock: '+('this hook needs Python 3.11+, '+sys.executable+' is older' if o else 'missing '+', '.join(m))+'; refusing this call (--on-failure block)\\n';(o or m) and (sys.stderr.write(w),sys.exit(2));sys.argv=sys.argv[1:];import runpy;runpy.run_path(r,run_name='__main__')",
               "/srv/chock-managed/block-no-verify/scripts/claude_code.py",
               "--guard",
               "/srv/chock-managed/block-no-verify/scripts/block-no-verify.py"

@@ -89,7 +89,8 @@
       },
       "requirements": [
         "Every machine needs Python 3.11 or later at __PYTHON__ exactly: the hook commands start that file directly (exec form, no shell), so neither PATH, git config nor a shell picks the interpreter.",
-        "onFailure needs Claude Code 2.1.295 or later; an older client lets a crashed or timed-out hook through.",
+        "onFailure needs Claude Code 2.1.295 or later (client_versions); an older client lets a crashed or timed-out hook through.",
+        "Monitor commands are checked only on Claude Code 2.1.314 or later, and WebSocket watches never (client_versions, not_covered).",
         "The bundle must sit at deploy_root exactly: the hook commands name it by absolute path.",
         "The bundle folder and __PYTHON__ must be owned by an administrator and not writable by users: whoever can write them can replace the guard. The vendor docs state no ownership rule for the files a managed hook runs; on who can change the managed source they say \"a developer who is an administrator on the machine can edit the managed source itself\"."
       ],
@@ -99,13 +100,57 @@
         "By default (managedSourcesBehavior \"first-wins\") a machine that also receives server-managed or MDM policy skips the managed settings files without a warning; /status names the source in use.",
         "onFailure has no effect on Stop hooks, so the turn-end gate lets the turn end when it cannot run, whatever --on-failure says.",
         "A repository holding .chock/stop.json (valid or not) makes these hooks refuse every tool call they match while Claude Code works in that repository: the bundled runtime honours chock's repository stop.",
+        "Files under the user's home folder can also stop these hooks: ~/.chock/stops/_everywhere.json (chock stop --everywhere) refuses every tool call they match, in every repository; the other files there refuse calls in their repository; an unreadable ~/.chock/stops refuses every call. The user can create these files, and so can the agent with any tool these hooks do not match (stop_files).",
         "The bundled runtime runs git from PATH for repository facts (the stop files, the turn-end gate's changed files); the guards' verdicts on a command do not depend on it.",
         "Hooks write their decision log under the user's home folder (~/.chock/log).",
         "A file in managed-settings.d that is not valid JSON stops Claude Code from starting.",
         "The labels are vendor-docs evidence, unwitnessed, best-effort: nobody has watched this file refuse a call yet."
       ],
       "lock_note": "--lock adds allowManagedHooksOnly. The vendor docs list what it changes on the machine: only managed hooks, Agent SDK hooks and hooks of plugins the managed settings force-enable run; user, project and local hooks, hooks and mods of other installed plugins (chock's own project hooks and plugins included) and hooks in agent frontmatter are blocked; monitors of other plugins do not start; plugins with a command source are disabled and marketplace headersHelper commands are blocked unless disableCommandPluginSources is set to false; the status line and file suggestion are read from managed settings only; the /goal command cannot run.",
-      "never_note": "allowManagedPermissionRulesOnly is never emitted: it would discard every user and project permission rule."
+      "never_note": "allowManagedPermissionRulesOnly is never emitted: it would discard every user and project permission rule.",
+      "client_versions": [
+        {
+          "needed_for": "onFailure (--on-failure block refuses a call when the hook cannot start, crashes or times out)",
+          "min_client": "2.1.295",
+          "quote": "Requires Claude Code v2.1.295 or later",
+          "source": "https://code.claude.com/docs/en/hooks",
+          "read": "2026-11-13"
+        },
+        {
+          "needed_for": "the Bash|PowerShell matcher also checking commands Claude starts with the Monitor tool",
+          "min_client": "2.1.314",
+          "quote": "A `PreToolUse` or `PermissionRequest` hook with a `Bash` matcher also runs on shell commands Claude starts with the Monitor tool. Requires Claude Code v2.1.314 or later.",
+          "source": "https://code.claude.com/docs/en/hooks",
+          "read": "2026-11-13"
+        }
+      ],
+      "not_covered": [
+        "Monitor commands on a client older than 2.1.314: the hook never sees them.",
+        "WebSocket watches started with the Monitor tool, on every client version (vendor docs, read 2026-11-13: \"A hook with a `Bash` matcher doesn't run for a WebSocket watch\").",
+        "MCP tools and any other tool that no emitted matcher names (the shell matcher is Bash|PowerShell), even when it runs a command."
+      ],
+      "stop_files": [
+        {
+          "path": ".chock/stop.json in any repository the call works in or names",
+          "written_by": "chock stop",
+          "effect": "every tool call these hooks match is refused; a stop file that is not valid JSON refuses as well."
+        },
+        {
+          "path": "~/.chock/stops/_everywhere.json in the user's home folder",
+          "written_by": "chock stop --everywhere",
+          "effect": "every tool call these hooks match is refused, whatever the repository or session; any content, {} included, counts."
+        },
+        {
+          "path": "~/.chock/stops/<repository>.json in the user's home folder",
+          "written_by": "chock stop (its machine registry entry)",
+          "effect": "tool calls that work in or name that repository are refused, and so is every call while Claude Code names no project folder."
+        },
+        {
+          "path": "~/.chock/stops itself",
+          "written_by": "chock stop",
+          "effect": "if it exists but cannot be listed, or an entry in it cannot be read, every tool call these hooks match is refused."
+        }
+      ]
     }
   }
 }

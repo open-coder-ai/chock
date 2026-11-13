@@ -45,10 +45,11 @@ _BOOTSTRAP = (
 _HALF_FLAGS = {"guard": "--guard", "gate": "--gate"}
 
 
-def bootstrap(on_failure: str) -> str:
-    """The `-c` program that starts a bundled runtime, or, when it or Python 3.11+ is missing, says so and exits per `on_failure`."""
+def bootstrap(on_failure: str, needed: tuple[str, ...] = ()) -> str:
+    """The `-c` program that starts a bundled runtime, or, when it, a `needed` file beside it (relative, `/`-separated)
+    or Python 3.11+ is missing, says so and exits per `on_failure`."""
     outcome, code = _OUTCOME[on_failure]
-    return _BOOTSTRAP.replace("__OUTCOME__", outcome).replace("__EXIT__", str(code))
+    return _BOOTSTRAP.replace("__OUTCOME__", outcome).replace("__EXIT__", str(code)).replace("__NEEDED__", repr(needed))
 
 
 def _argv(command: str) -> list[str]:
@@ -59,8 +60,11 @@ def _argv(command: str) -> list[str]:
     return shlex.split(command.removeprefix(_PLUGIN_PREFIX))
 
 
-def _exec_hook(hook: dict[str, Any], event: str, root: str, python: str, on_failure: str) -> dict[str, Any]:
-    """`hook` in exec form: `python` runs the bootstrap on the runtime rooted at `root`; onFailure only where it acts."""
+def _exec_hook(hook: dict[str, Any], event: str, root: str, options: dict[str, Any]) -> dict[str, Any]:
+    """`hook` in exec form: `python` runs the bootstrap on the runtime rooted at `root`; onFailure only where it acts.
+
+    `options`: python, on_failure, needed (every bundled file beside the runtime, which the bootstrap checks)."""
+    python, on_failure = options["python"], options["on_failure"]
     argv = [arg.replace(ROOT_TOKEN, root) for arg in _argv(hook["command"])]
     if any("${" in arg for arg in argv):
         msg = f"{argv!r} still names a client token after rooting it at {root}"
@@ -69,7 +73,7 @@ def _exec_hook(hook: dict[str, Any], event: str, root: str, python: str, on_fail
     entry = {
         "type": hook["type"],
         "command": python,
-        "args": [*_FACTS["python_flags"], bootstrap(on_failure if blocks else ALLOW), *argv],
+        "args": [*_FACTS["python_flags"], bootstrap(on_failure if blocks else ALLOW, options["needed"]), *argv],
     }
     entry.update({key: value for key, value in hook.items() if key not in {"type", "command"}})
     if blocks:
@@ -112,11 +116,12 @@ def build(
             continue
         hooks, scripts = parts
         flags = set()
+        needed = tuple(sorted(rel.relative_to(SCRIPTS_DIR).as_posix() for rel in scripts))
+        hook_options = {**options, "needed": needed}
         for event, groups in hooks.items():
             for group in (group for group in groups if not _is_stop_check(group)):
                 rooted = [
-                    _exec_hook(hook, event, f"{options['root']}/{policy_id}", options["python"], options["on_failure"])
-                    for hook in group["hooks"]
+                    _exec_hook(hook, event, f"{options['root']}/{policy_id}", hook_options) for hook in group["hooks"]
                 ]
                 events.setdefault(event, []).append({**group, "hooks": rooted})
                 flags.update(arg for hook in rooted for arg in hook["args"])
@@ -162,6 +167,9 @@ def deploy_plan(platform: str, options: dict[str, Any], tools: list[str]) -> dic
         "undo": [f"delete {step['to']}" for step in place],
         "requirements": [line.replace("__PYTHON__", python) for line in _FACTS["requirements"]],
         "caveats": _FACTS["caveats"],
+        "stop_files": _FACTS["stop_files"],
+        "client_versions": _FACTS["client_versions"],
+        "not_covered": _FACTS["not_covered"],
         "never_emitted": _FACTS["never_emitted"],
         "notes": [_FACTS["never_note"], *([_FACTS["lock_note"]] if lock else [])],
         "sources": _FACTS["sources"],
