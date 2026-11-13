@@ -8,7 +8,7 @@ Everyday:
   install    Build a chock.sh selection into one plugin for one agent (install --selection <file> [--client C])
   remove     Remove an installed policy and resync
   sync       Recompile + rewire so the repo matches its policies (--ci/--skills for extras)
-  check      Run every truth check: validate, verify, evals, matrix (--only to narrow; --history scans past commits)
+  check      Run every truth check: validate, verify, evals, matrix (--only to narrow; --history scans past commits; --floor, a preview, judges a pull request's merge result with its base's gates; it holds only as a required check the pull request cannot redefine, and judges committed content only)
   status     Policy states and coverage (--only registry,log for more)
   stop       Refuse every agent tool call, commit and push here until resume (--agent C for one client)
   resume     Lift a stop: agents are judged by the policies again
