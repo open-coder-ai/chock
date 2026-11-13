@@ -1,0 +1,17 @@
+"""What `chock check --floor` found: the refusals, undecided lines, notes and listed control-plane paths."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from chock.validation import control_plane as cp
+
+
+@dataclass
+class Outcome:
+    refusals: list[str] = field(default_factory=list)
+    undecided: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+    listed: list[str] = field(default_factory=list)
+    mode: str = cp.REFUSE
+    in_force: str = ""
