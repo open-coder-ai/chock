@@ -30,6 +30,8 @@ def test_every_repo_relative_vendor_hook_file_is_control_plane(vendor):
         "chock.lock",
         ".agents/policies/x/manifest.yaml",
         ".claude/settings.local.json",
+        ".claude/commands/x.md",
+        ".claude/skills/x/SKILL.md",
         ".github/hooks/chock.json",
         ".github/workflows/any.yml",
         ".github/actions/floor/action.yml",
@@ -48,7 +50,9 @@ def test_guardrail_paths_match_in_any_spelling_a_filesystem_may_open(path):
     assert DEFAULT.covers(path)
 
 
-@pytest.mark.parametrize("path", ["src/app.py", ".claude/commands/x.md", "docs/guide.md", "chock.lock.bak", "tests/x"])
+@pytest.mark.parametrize(
+    "path", ["src/app.py", "AGENTS.md", "CLAUDE.md", "docs/guide.md", "chock.lock.bak", "tests/x", ".envrc"]
+)
 def test_ordinary_paths_are_not_control_plane(path):
     assert not DEFAULT.covers(path)
 

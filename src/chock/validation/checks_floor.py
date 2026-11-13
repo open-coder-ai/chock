@@ -34,7 +34,7 @@ from chock.gate.runner.script import _UNDECIDED
 from chock.validation import control_plane as cp
 from chock.validation import floor_sarif
 from chock.validation.floor_context import FloorContext
-from chock.validation.floor_git import FloorError, Revision, changed_paths, require_ancestor, resolve
+from chock.validation.floor_git import FloorError, Revision, changed_paths, require_ancestor, resolve, toplevel
 from chock.validation.floor_history import history_findings
 
 EXIT_REFUSED, EXIT_UNDECIDED = 1, 2
@@ -80,6 +80,7 @@ class Outcome:
     notes: list[str] = field(default_factory=list)
     listed: list[str] = field(default_factory=list)
     mode: str = cp.REFUSE
+    in_force: str = ""
 
 
 def base_gates(base: Revision) -> list[Gate]:
@@ -159,7 +160,7 @@ def judge_gates(  # noqa: PLR0913 -- the range, the branch, what it excludes and
             if "commit" not in (gate.spec.get("on") or []) and gate.spec:
                 continue
             ctx = FloorContext(
-                repo, base=base.sha, head=head.sha, head_ref=head_ref, scope=gate.spec.get("paths"),
+                repo, base=base, head=head, head_ref=head_ref, scope=gate.spec.get("paths"),
                 control_plane=plane.covers,
             )  # fmt: skip
             result = _judge(gate, ctx, Path(scratch))
@@ -188,11 +189,11 @@ def _declared(base: Revision, policy: str) -> str:
 
 
 def _judged(repo: Path, base: Revision, head: Revision, branch: str | None) -> Outcome:
-    plane = cp.from_base(base)
+    plane = cp.through_links(cp.from_base(base), base, head)
     listed = [path for path in changed_paths(repo, base.sha, head.sha) if plane.covers(path)]
     level = committed_rollout(repo, base.sha)
     outcome = judge_gates(repo, base, head, branch, plane=plane, level=level)
-    outcome.listed, outcome.mode = listed, plane.mode
+    outcome.listed, outcome.mode, outcome.in_force = listed, plane.mode, plane.summary()
     if not base_gates(base):
         outcome.notes.append(_NO_GATES)
     try:
@@ -210,6 +211,7 @@ def _judged(repo: Path, base: Revision, head: Revision, branch: str | None) -> O
 
 
 def _print(outcome: Outcome) -> None:
+    _out(outcome.in_force)
     if outcome.listed:
         head = "FAIL" if outcome.mode == cp.REFUSE else "LISTED"
         text = _CONTROL_PLANE.format(rule=cp.RULE, mode=outcome.mode, count=len(outcome.listed))
@@ -235,7 +237,7 @@ def _code(outcome: Outcome) -> int:
 
 
 def floor(repo: Path, base_ref: str, head_ref_rev: str, branch: str | None, sarif: str | None = None) -> int:
-    repo = repo.resolve()
+    repo = toplevel(repo)
     base_sha, head_sha = resolve(repo, base_ref, "base"), resolve(repo, head_ref_rev, "head")
     require_ancestor(repo, base_sha, head_sha)
     _out(f"== floor (preview): base {base_sha[:12]}, head {head_sha[:12]}")

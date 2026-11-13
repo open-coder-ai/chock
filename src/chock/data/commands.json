@@ -29,7 +29,7 @@
     "check": {
       "module": "chock.history.cli",
       "fn": "check_main",
-      "help": "Run every truth check: validate, verify, evals, matrix (--only to narrow; --history scans past commits; --floor, a preview, judges a pull request's merge result with its base's gates)"
+      "help": "Run every truth check: validate, verify, evals, matrix (--only to narrow; --history scans past commits; --floor, a preview, judges a pull request's merge result with its base's gates; it holds only as a required check the pull request cannot redefine, and judges committed content only)"
     },
     "status": {
       "module": "chock.lifecycle",

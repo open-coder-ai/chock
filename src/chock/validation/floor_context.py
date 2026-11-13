@@ -9,12 +9,13 @@ from pathlib import Path
 from chock.gate.runner import GateContext
 from chock.gate.runner.context import _GIT
 from chock.gate.runner.gitparse import DiffError, _diff_sides
+from chock.validation.floor_git import Revision
 
 
 class FloorContext(GateContext):
     """`base..head` as the change; the head's files as the proposal; the base's as what a waiver must already be in.
 
-    Every read is a `git show <rev>:<path>`, so a head file is data and never reaches a program as code.
+    Every read is a blob by revision (unreadable is undecided), so a head file is data and never reaches a program as code.
     Diffs run with `--text` and `--no-renames`, so neither a NUL byte, a head `.gitattributes` nor a rename
     hides a line or a deletion. A control-plane path is never judged here: the control-plane rule owns it.
     """
@@ -23,14 +24,14 @@ class FloorContext(GateContext):
         self,
         repo_root: Path,
         *,
-        base: str,
-        head: str,
+        base: Revision,
+        head: Revision,
         head_ref: str | None,
         scope: Sequence[str] | None,
         control_plane: Callable[[str], bool],
     ) -> None:
-        super().__init__(repo_root=repo_root, base=base, head_ref=head_ref, scope=scope)
-        self.head = head
+        super().__init__(repo_root=repo_root, base=base.sha, head_ref=head_ref, scope=scope)
+        self.head, self._revisions = head.sha, (base, head)
         self.control_plane = control_plane
 
     def in_scope(self, path: str, *, judge_own: bool = False) -> bool:
@@ -55,12 +56,12 @@ class FloorContext(GateContext):
         return proc.stdout.decode("utf-8", "replace")
 
     def staged_blob(self, path: str) -> str:
-        """The proposal: the file at the head."""
-        return self._git("show", f"{self.head}:{path}")
+        """The proposal: the file at the head; "" only when the head has no such file, FloorError when unreadable."""
+        return self._revisions[1].text(path) or ""
 
     def head_blob(self, path: str) -> str:
-        """Before the change: the file at the base."""
-        return self._git("show", f"{self.base}:{path}")
+        """Before the change: the file at the base; "" only when the base has no such file, FloorError when unreadable."""
+        return self._revisions[0].text(path) or ""
 
     def committed_blob(self, path: str) -> str:
         """Where a waiver must be for the floor to honour it: the lines present and unchanged in both base and

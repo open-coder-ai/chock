@@ -31,6 +31,16 @@ def git(repo: Path, *args: str, data: bytes | None = None) -> subprocess.Complet
         raise FloorError(msg) from exc
 
 
+def toplevel(repo: Path) -> Path:
+    """The repository's top level, so a `--repo` below it sees every path; FloorError when `repo` is in none."""
+    proc = git(repo.resolve(), "rev-parse", "--show-toplevel")
+    top = os.fsdecode(proc.stdout).strip()
+    if proc.returncode or not top:
+        msg = f"{repo} is not inside a git repository"
+        raise FloorError(msg)
+    return Path(top).resolve()
+
+
 def resolve(repo: Path, rev: str, what: str) -> str:
     """The commit `rev` names; FloorError when it names none."""
     proc = git(repo, "rev-parse", "--verify", "--quiet", f"{rev}^{{commit}}")

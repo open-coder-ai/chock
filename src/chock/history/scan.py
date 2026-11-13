@@ -63,6 +63,8 @@ class Limits:
     #: The floor's reader: every blob is judged (binary too) in each of `floor_texts`, and a blob still not
     #: judged (over max_blob_bytes) is named in Report.unread.
     judge_binary: bool = False
+    #: False reads a rename as a delete and an add (`--no-renames`), as the floor's tree diff does.
+    renames: bool = True
 
 
 def _say(message: str) -> None:
@@ -223,7 +225,7 @@ def scan(repo: Path, rules: list[Rule], since: str | None, limits: Limits, head:
     report.truncated = in_range > limits.max_commits
     report.commits = min(in_range, limits.max_commits)
     _say(f"history: listing up to {report.commits} of {in_range} commits")
-    log = gitlog.touches(repo, since, limits.max_commits, head)
+    log = gitlog.touches(repo, since, limits.max_commits, head, renames=limits.renames)
     report.skipped_submodules = log.submodules
     oids = sorted({t.oid for t in log.touches})
     _say(f"history: {len(log.touches)} changed paths, {len(oids)} distinct blobs")

@@ -65,7 +65,7 @@ def history_findings(
 ) -> tuple[list[tuple[str, str]], list[str]]:
     """((policy, finding) per refusal candidate, notes) of the per-commit pass; FloorError (undecided) when it
     cannot judge all of it."""
-    limits = Limits(max_blob_bytes=FLOOR_MAX_BLOB_BYTES, judge_binary=True)
+    limits = Limits(max_blob_bytes=FLOOR_MAX_BLOB_BYTES, judge_binary=True, renames=False)
     report = _report(repo, base, head, limits)
     if report is None:
         return [], [NO_CONTENT_GATES]

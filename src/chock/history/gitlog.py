@@ -152,10 +152,10 @@ def _records(tokens: Iterator[bytes], log: Log) -> Iterator[tuple[str, str, str]
             yield commit, fields[3], path
 
 
-def touches(repo: Path, since: str | None, max_commits: int, head: str = "HEAD") -> Log:
+def touches(repo: Path, since: str | None, max_commits: int, head: str = "HEAD", *, renames: bool = True) -> Log:
     """Blobs added or changed per commit, oldest commit first (the newest `max_commits` of the range)."""
     args = [
-        "log", "-z", "--raw", "-m", "-M", "--topo-order", "--reverse", "--no-abbrev",
+        "log", "-z", "--raw", "-m", "-M" if renames else "--no-renames", "--topo-order", "--reverse", "--no-abbrev",
         "--no-ext-diff", "--no-textconv", "--no-show-signature", "--diff-filter=ACMRT",
         "-n", str(max_commits), "--format=%x01%H", *_range(since, head), "--",
     ]  # fmt: skip
