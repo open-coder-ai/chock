@@ -65,10 +65,22 @@ def _rule(repo: Path, gate_path: Path, spec: dict) -> Rule:
     )
 
 
-def load_rules(repo: Path) -> tuple[list[Rule], list[str]]:
-    """(applicable rules, ids of installed commit gates this scan cannot apply), both in policy order."""
+def _same(one: Rule, other: Rule) -> bool:
+    shape = ("policy", "content_pattern", "path_pattern", "pragma_pattern")
+    same = all(getattr(one, key) == getattr(other, key) for key in shape)
+    return same and (one.judge.scope, one.judge.own) == (other.judge.scope, other.judge.own)
+
+
+def load_rules(repo: Path, surfaces: tuple[str, ...] = (GATE_FILE[0],)) -> tuple[list[Rule], list[str]]:
+    """(applicable rules, ids of installed commit gates this scan cannot apply), both in policy order.
+
+    `surfaces` are the compiled surfaces read (the git-hook one by default); a rule two surfaces share is kept once.
+    """
     root = repo.joinpath(*COMPILED)
-    gates = sorted(root.glob("*/" + "/".join(GATE_FILE))) if root.is_dir() else []
+    found = (
+        {path for surface in surfaces for path in root.glob(f"*/{surface}/{GATE_FILE[1]}")} if root.is_dir() else set()
+    )
+    gates = sorted(found)
     rules: list[Rule] = []
     skipped: list[str] = []
     for gate_path in gates:
@@ -82,8 +94,10 @@ def load_rules(repo: Path) -> tuple[list[Rule], list[str]]:
         if EVENT not in spec.get("on", []):
             continue
         if spec.get("kind") == KIND:
-            rules.append(_rule(repo, gate_path, spec))
-        else:
+            rule = _rule(repo, gate_path, spec)
+            if not any(_same(rule, kept) for kept in rules):
+                rules.append(rule)
+        elif name not in skipped:
             skipped.append(gate_path.parents[1].name)
     if not rules:
         raise HistoryError("no installed content gates found under .chock/compiled; run `chock sync` first")
