@@ -12,7 +12,7 @@ import argparse
 import json
 import sys
 import tempfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from chock.display import inert
@@ -36,6 +36,7 @@ from chock.validation import floor_sarif
 from chock.validation.floor_context import FloorContext
 from chock.validation.floor_git import FloorError, Revision, changed_paths, require_ancestor, resolve, toplevel
 from chock.validation.floor_history import history_findings
+from chock.validation.floor_outcome import Outcome
 
 EXIT_REFUSED, EXIT_UNDECIDED = 1, 2
 _CI_GATE = "ci-gate/gate.json"
@@ -71,16 +72,6 @@ class Gate:
     rev: Revision
     path: str
     spec: dict
-
-
-@dataclass
-class Outcome:
-    refusals: list[str] = field(default_factory=list)
-    undecided: list[str] = field(default_factory=list)
-    notes: list[str] = field(default_factory=list)
-    listed: list[str] = field(default_factory=list)
-    mode: str = cp.REFUSE
-    in_force: str = ""
 
 
 def base_gates(base: Revision) -> list[Gate]:

@@ -5,15 +5,12 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from chock import __version__
 from chock.gate.sarif import INFORMATION_URI, SARIF_SCHEMA, safe_text
 from chock.gate.sarif_output import write_output
 from chock.validation import control_plane as cp
-
-if TYPE_CHECKING:
-    from chock.validation.checks_floor import Outcome
+from chock.validation.floor_outcome import Outcome
 
 _REFUSED = "floor/refused"
 _UNDECIDED_EXIT = 2
