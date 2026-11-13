@@ -9,7 +9,7 @@ The "Chock adds" column rests on: the git hook and CI gate ([Enforcement Surface
 | Tool | What it is, per its own docs | Where it runs | Stronger than Chock at | Chock adds |
 | :--- | :--- | :--- | :--- | :--- |
 | Plain agent hooks ([Claude Code](https://code.claude.com/docs/en/hooks), [Cursor](https://cursor.com/docs/hooks)) | The host's own hook API | In the agent | Everything the host offers, with no layer between | One policy for many agents; a commit and CI floor; a coverage report |
-| Managed settings ([Claude Code](https://code.claude.com/docs/en/settings)) | Admin-deployed settings a user cannot override | In the agent, org-wide | Precedence: a user or project cannot override a managed key | Repo-level rules that travel with a clone; commit and CI gates |
+| Managed settings ([Claude Code](https://code.claude.com/docs/en/settings)) | Admin-deployed settings, applied above every other settings level | In the agent, org-wide | Precedence over a user's and a project's own settings files; a local administrator can still edit the managed file | Repo-level rules that travel with a clone; commit and CI gates |
 | [Cupcake](https://github.com/eqtylab/cupcake) | Policy layer for AI agents, OPA Rego compiled to Wasm | In the agent | Richer in-session decisions, Rego, LLM-as-judge, MCP governance | Commit and CI gates; agents without hooks |
 | [agentjail](https://github.com/LuD1161/agentjail) | Policy checks plus OS sandboxing | In the agent and the OS | An OS sandbox: Landlock, network control | Commit and CI gates; more agents |
 | [Kastra](https://kastra.ai) | Authorization layer for AI actions | Cloud, self-hosted, air-gap, and on the laptop | Central allow/deny across prompts, tools, shell and APIs; signed audit trail | A local, repo-committed policy and commit and CI gates |
@@ -23,7 +23,7 @@ The "Chock adds" column rests on: the git hook and CI gate ([Enforcement Surface
 - **Chock is not a security boundary.** Guards are pattern filters that quoting, aliases and encodings can evade; Chock is a governance layer, not a sandbox ([Assurance Case](assurance-case.md), [Baseline Policies](baseline-policies.md)).
 - **Agents without hooks get advice in-session.** They read the compiled `AGENTS.md`; the rules are enforced at commit and in CI, not while the agent works ([Assurance Case](assurance-case.md), [Concepts](concepts.md#coverage-level)).
 - **The commit gate can be skipped locally** (`--no-verify`); the CI gate is the backstop, and it holds only once it is a required status check ([Enforcement Surfaces](enforcement-surfaces.md)).
-- **Chock does not install managed settings.** It compiles a `managed-settings.json` that nothing reads ([Enforcement Surfaces](enforcement-surfaces.md)).
+- **Chock does not install managed settings.** `chock emit --managed claude_code` writes a drop-in file and the hook bundle it runs for an administrator to deploy; chock deploys nothing, and its labels are vendor-docs evidence, unwitnessed, best-effort ([CLI reference](cli-reference.md#emit--write-a-managed-settings-bundle-for-an-admin)).
 - **MCP is thin.** A `tool_call` gate matches tool name and input text and does not understand what a tool does; the `mcp-gateway` credits no agent yet ([Agentic-Risk Coverage](agentic-risk-coverage.md), [Enforcement Surfaces](enforcement-surfaces.md)).
 
 ## Plain agent hooks
@@ -32,7 +32,7 @@ Claude Code hooks can allow, deny, ask, defer or rewrite a tool's input, and inc
 
 ## Managed settings
 
-In Claude Code nothing in a user's own settings files or `--settings` overrides a managed key, and managed settings arrive as a file, an MDM policy or server-managed settings ([settings](https://code.claude.com/docs/en/settings)). Cursor also has enterprise `hooks.json` paths and team hooks synced from a dashboard ([hooks](https://cursor.com/docs/hooks)). Where you control every machine, these are stronger than anything a repository can commit. Chock's rules live in the repo, so they reach contributors whose machines you do not manage ([Why](why.md)).
+In Claude Code the vendor documents that a user's own settings files and `--settings` do not override a managed key (a developer with administrator rights on the machine can still edit the managed file), and managed settings arrive as a file, an MDM policy or server-managed settings ([settings](https://code.claude.com/docs/en/settings)). Cursor also has enterprise `hooks.json` paths and team hooks synced from a dashboard ([hooks](https://cursor.com/docs/hooks)). Where you control every machine, these are stronger than anything a repository can commit. Chock's rules live in the repo, so they reach contributors whose machines you do not manage ([Why](why.md)).
 
 ## Cupcake
 

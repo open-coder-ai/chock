@@ -16,6 +16,7 @@ from chock.manifest import (
     ManifestSourceError,
     load_manifest,
     resolve_manifest_path,
+    warn_defaults,
 )
 
 REGISTRY_DIR = Path(".chock")
@@ -195,8 +196,7 @@ def scan(
         except (yaml.YAMLError, OSError, ManifestSourceError) as exc:
             skips.append(SkippedManifest(manifest, f"{type(exc).__name__}: {exc}"))
             continue
-        for warning in warnings:
-            print(f"[WARN] {entry.path} :: manifest_default: {warning}")
+        warn_defaults(manifest, warnings)
         entries.setdefault(entry.id, []).append(entry)
     return entries, skips
 

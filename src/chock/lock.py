@@ -9,13 +9,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from chock.lock_engine import LOCKFILE_NAME, engine_constraint, engine_failures
 from chock.policies import discover_policy_dirs
 from chock.scaffold.pin import is_remote_source
 from chock.vendored import vendored_differences
 
-LOCKFILE_NAME = "chock.lock"
 LOCKFILE_VERSION = "2"
-ENGINE_CONSTRAINT = ">=0.1,<0.2"
 POLICIES_REL = Path(".agents") / "policies"
 LOCAL_SOURCE = "local"
 _PROVENANCE_KEYS = ("source", "source_commit", "source_ref")
@@ -121,7 +120,7 @@ def read_lock(repo_root: Path | None = None) -> dict[str, Any]:
     repo_root = repo_root or Path.cwd().resolve()
     path = repo_root / LOCKFILE_NAME
     if not path.exists():
-        return {"lockfile_version": LOCKFILE_VERSION, "engine": ENGINE_CONSTRAINT, "packs": []}
+        return {"lockfile_version": LOCKFILE_VERSION, "engine": engine_constraint(), "packs": []}
     try:
         loaded = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
@@ -189,7 +188,7 @@ def build_lock(repo_root: Path) -> dict[str, Any]:
     prior = _prior_provenance(repo_root)
     lock: dict[str, Any] = {
         "lockfile_version": LOCKFILE_VERSION,
-        "engine": ENGINE_CONSTRAINT,
+        "engine": engine_constraint(),
         "packs": [],
     }
     for pack_dir in discover_policy_dirs(repo_root):
@@ -213,14 +212,14 @@ def build_lock(repo_root: Path) -> dict[str, Any]:
     return lock
 
 
-def verify_lock(repo_root: Path | None = None) -> tuple[bool, list[str]]:
-    """Recompute pack and compiled-artifact hashes and report drift."""
+def verify_lock(repo_root: Path | None = None, notes: list[str] | None = None) -> tuple[bool, list[str]]:
+    """Check the running engine against the lock's constraint, recompute hashes, and report drift."""
     repo_root = repo_root or Path.cwd().resolve()
     try:
         lock = read_lock(repo_root)
     except LockError as exc:
         return False, [str(exc)]
-    failures: list[str] = []
+    failures = engine_failures(lock, notes)
 
     failures += [
         f"vendored runtime modified ({d}) -- this is what executes gates" for d in vendored_differences(repo_root)
@@ -284,7 +283,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Wrote {LOCKFILE_NAME} with {len(lock['packs'])} pack(s)")
         return 0
     if args.command == "verify":
-        ok, failures = verify_lock(repo_root)
+        notes: list[str] = []
+        ok, failures = verify_lock(repo_root, notes)
+        for note in notes:
+            print(note)
         if ok:
             print("verify: all packs match lockfile")
             return 0

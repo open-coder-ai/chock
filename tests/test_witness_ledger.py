@@ -114,7 +114,7 @@ def test_the_in_agent_surfaces_the_ledger_accepts_are_the_compilers_own() -> Non
     """A surface renamed in the compiler must not leave the ledger accepting a dead token."""
     in_agent = {Surface.PRE_TOOL_USE.value, Surface.AGENT_HOOKS.value}
     assert in_agent < set(evidence.WITNESS_SURFACES)
-    assert set(evidence.WITNESS_SURFACES) - in_agent == {evidence.PLUGIN_HOOK, evidence.GIT_HOOK_ENV}
+    assert set(evidence.WITNESS_SURFACES) - in_agent == {evidence.PLUGIN_HOOK, evidence.GIT_HOOK_ENV, evidence.MANAGED}
 
 
 @pytest.mark.parametrize("agent", sorted(RENDERS))

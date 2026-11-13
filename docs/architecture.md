@@ -26,7 +26,7 @@ supports**, across up to nine [enforcement surfaces](enforcement-surfaces.md):
 - `pre-tool-use` (nine agents, Claude Code and Cursor among them) and `agent-hooks`
   (Copilot CLI, VS Code) — agent-native hard controls
 - `stop` — the end-of-turn backstop that reads what the turn wrote (nine agent names)
-- `managed-setting` — compiled, not yet installed
+- `managed-setting` — not compiled; `chock emit --managed` writes it for an admin to deploy, and it credits nothing
 - `gateway` — modeled for budgets/egress (future)
 
 It also writes a **coverage report** (`.chock/coverage.json`) mapping every policy × agent onto

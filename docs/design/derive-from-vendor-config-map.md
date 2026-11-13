@@ -31,7 +31,7 @@ Source-of-truth vocabulary:
 | VS Code shell matcher `"bash\|powershell\|pwsh\|sh\|shell"` | `agent_hooks.py:11` | DA | vendor tool vocabulary; **gap**: agentseam's `vscode_copilot` records no `SHELL_TOOLS` today **[v]** — chock's witnessed matcher is the evidence D2 should ingest |
 | interpreter-discovery bash/powershell templates | `agent_hooks.py:14-31` | CC | chock policy (find python, refuse silently-missing); the powershell variant should reuse agentseam `adapters/_windows.py` rather than a second copy |
 | VS Code entry keys `type/matcher/timeout/timeoutSec/bash/command/powershell/windows` | `agent_hooks.py:45-54` | DA | `hook_entry` `entry_extra`; **divergence** — agentseam emits `{type, command, windows}` (`adapters/vscode_copilot.py:185-193`); see M.5(4) |
-| Claude managed-settings fragment schema | `claude_managed.py:14-40` | CC | claude-only surface, policy-conditional content; no config equivalent upstream |
+| Claude managed-settings fragment schema | `claude_managed.py` (removed in 1.2.0; `chock emit --managed` writes the drop-in, `emitters/managed/claude_code.py`) | CC | claude-only surface, policy-conditional content; no config equivalent upstream |
 | `ambient` / `ci` / `git_hook` / `mcp_gateway` emitters | whole files | CC | agent-agnostic **[v]** (no vendor token in any of them) |
 
 ### M.2 `hooks/installers.py`, `hooks/*_install.py`
