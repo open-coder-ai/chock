@@ -68,5 +68,12 @@
     "client": "Claude Code, Bash tool (CLAUDECODE=1, AI_AGENT=claude-code_<version>_agent)",
     "date": "2026-09-29",
     "method": "live probe: both variables were in the environment of a pre-commit hook run by `git commit` from the Bash tool (chock 1b0bcdd)"
+  },
+  {
+    "agent": "claude_code",
+    "surface": "agent-hooks",
+    "client": "Claude Code v2.1.317, Windows",
+    "date": "2026-11-11",
+    "method": "live probe: PreToolUse refused `git commit --no-verify` on the PowerShell tool and no commit was made (chock 295b38c)"
   }
 ]

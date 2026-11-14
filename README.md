@@ -28,7 +28,7 @@ pipx install chock==1.1.0
 
 ### Two ways to adopt it
 
-1. **In your repository, for teams.** Run `chock init .`, then `chock add <id> --ref <catalog commit> --verify-sha <sha256> --skip-compile` for each policy, then `chock sync --repo . --ci`. Commit the result. A fresh clone arms itself from what is committed; a person runs `chock sync` to change it. The commit gates are enforced at commit and in CI.
+1. **In your repository, for teams.** Run `chock init .`, then `chock add <id> --skip-compile` for each policy, then `chock sync --repo . --ci`. Commit the result. A fresh clone arms itself from what is committed; a person runs `chock sync` to change it. The commit gates are enforced at commit and in CI.
 2. **In your coding agent, as one plugin.** Pick policies in the [chock.sh builder](https://chock.sh/coding/builder/) and run `chock install --selection <code> --apply`. <!-- derive:plugins -->It builds one plugin for Claude Code, GitHub Copilot, Codex, Cursor, Devin, goose, Grok or Antigravity, tested live, and, untested by chock, for OpenHands, Kimi Code or Factory Droid.<!-- /derive:plugins --> Best-effort, and it fails open. A selection can add [your own policies](docs/custom-policies.md): install shows their code and asks first. No chock? Add a per-policy marketplace (`chock-*-plugins`; needs Python 3.11+, git, a bash: Git for Windows has one), never both.
 
 ## Application security for the code your agents write
@@ -83,7 +83,7 @@ pip install chock==1.1.0
 
 git init -q demo && cd demo
 chock init .                       # wiring only, no policies
-chock add scan-secrets --ref 1e60d211c1bb767152c6ab0167932da06ab3a10f --verify-sha c7cf363c6eb8a8ed47287beef9c06fe76dfd2d9c0ccc203fe74e32fba0e92a94 --skip-compile
+chock add scan-secrets --skip-compile
 chock sync --repo . --ci           # compile, install hooks, add the CI gate
 ```
 
@@ -104,7 +104,13 @@ git commit -m "read key from env"    # passes
        alt="Terminal recording of the Quick start above, typed in real time, ending with the refused commit and the clean one.">
 </p>
 
-`--ref` pins a catalog commit, `--verify-sha` refuses a policy whose hash differs, and `chock add --ref` refuses a commit that was never published. The allowlist pragma on the key line is for documented test fixtures only. It is honoured at commit, push and in CI, and deliberately not at tool-use, where the scanned text is a live tool argument.
+With no `--ref`, `chock add` pins the catalog tag `v<chock version>`, prints the commit it resolved to and the sha256 of the policy, and installs nothing when that tag does not exist. A tag can move: `--ref <40-hex commit>` pins a catalog commit by hand and refuses a commit that was never published, and `--verify-sha` refuses a policy whose hash differs. The allowlist pragma on the key line is for documented test fixtures only. It is honoured at commit, push and in CI, and deliberately not at tool-use, where the scanned text is a live tool argument.
+
+### Check it, or try it without blocking
+
+`chock doctor` checks the hooks `chock sync` wrote for each client and prints PASS, WARN, FAIL or INFO with a fix; it exits 1 on a FAIL ([Doctor](docs/doctor.md)). `chock doctor --live` also runs chock's own pre-tool hook commands from those files, not the client: once on a command a policy refuses, which must be refused, and once on `echo chock-doctor-live`, which must pass. It skips plugin installs and counts, but never runs, a hook command that is not byte-equal to what this chock renders.
+
+To record instead of refusing, add a top-level `rollout:` line to `.chock/config.yaml`. `observe` turns a refusal into a warning and records what `enforce` would have stopped in `.chock/log/gate-events.jsonl`; `ask` caps a block at ask; `enforce` is the default, and a missing, unknown or repeated value means `enforce`. Your own uncommitted edit counts for your own commit; an agent is held to the level committed at HEAD, and CI never takes a pull request below its base's level. `chock stop` ([Stop](docs/stop.md)) stays in force at every level.
 
 ### Shift left, with no model and no tokens
 
@@ -163,7 +169,7 @@ Full nine-surface matrix and per-agent caveats:
 | **Kimi Code** | git hook + CI gate only — home-anchored config, outside chock's repo-scoped install | `~/.kimi-code/config.toml` |
 | **Replit** | git hook + CI gate only — no native hook API yet | — |
 
-<!-- derive:repo_agents -->Chock tested its repo hooks live in Copilot CLI and VS Code agent mode only; other native hooks follow agentseam's record, untested.<!-- /derive:repo_agents -->
+<!-- derive:repo_agents -->Chock tested its repo hooks live in Copilot CLI and VS Code agent mode; Claude Code v2.1.317, Windows only; other native hooks follow agentseam's record, untested.<!-- /derive:repo_agents -->
 
 ## What it stops
 

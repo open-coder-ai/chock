@@ -8,5 +8,5 @@ pip install chock==1.1.0
 
 git init -q demo && cd demo
 chock init .                       # wiring only, no policies
-chock add scan-secrets --ref 1e60d211c1bb767152c6ab0167932da06ab3a10f --verify-sha c7cf363c6eb8a8ed47287beef9c06fe76dfd2d9c0ccc203fe74e32fba0e92a94 --skip-compile
+chock add scan-secrets --skip-compile
 chock sync --repo . --ci           # compile, install hooks, add the CI gate

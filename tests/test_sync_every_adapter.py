@@ -157,13 +157,14 @@ def test_sync_says_agentseams_row_and_that_the_agent_is_untested(vendor: str) ->
     assert any("Untested" in line for line in lines)
 
 
-def test_a_witnessed_agent_is_not_called_untested() -> None:
-    assert evidence.witness("vscode_copilot", "agent-hooks"), "the ledger's repo-hook row this test rests on"
-    assert sync_notes.witnessed("vscode_copilot")
-    assert not any("Untested" in line for line in sync_notes.notes("vscode_copilot"))
+@pytest.mark.parametrize("vendor", ("vscode_copilot", "claude_code"))
+def test_a_witnessed_agent_is_not_called_untested(vendor: str) -> None:
+    assert evidence.witness(vendor, "agent-hooks"), "the ledger's repo-hook row this test rests on"
+    assert sync_notes.witnessed(vendor)
+    assert not any("Untested" in line for line in sync_notes.notes(vendor))
 
 
-@pytest.mark.parametrize("vendor", ("claude_code", "codex_cli", "cursor", "devin"))
+@pytest.mark.parametrize("vendor", ("codex_cli", "cursor", "devin"))
 def test_a_plugin_witness_does_not_make_sync_say_tested(vendor: str) -> None:
     """A plugin-hook row witnesses `chock install`; sync wires repo hooks nobody saw run there."""
     assert evidence.witness(vendor, evidence.PLUGIN_HOOK)
