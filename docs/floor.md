@@ -18,7 +18,9 @@
   link passed on the way is control plane too. Otherwise the run is undecided (exit 2), naming the link and its
   target. So is a loop, an absolute target, a target outside the repository, or one that passes through a
   submodule. The fix: put the target on `floor.control_plane_paths.add` in the base's config, or replace the link
-  with real files. A base whose `.chock` is a link or a submodule is undecided too.
+  with real files. A link above a control-plane path (`pkg -> real`, with `real/.claude/`) carries on when every
+  control-plane path under it opens a control-plane path, and the link is then control plane too. A base whose
+  `.chock` is a link or a submodule is undecided too.
 - **Everything else** is judged by the base's compiled ci gates and rollout. No file from the head executes.
   `ask` refuses. A gate that crashes, times out or cannot be read is undecided, whatever the rollout. A waiver
   counts only on a line present and unchanged in both base and head.

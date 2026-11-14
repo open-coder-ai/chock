@@ -90,13 +90,15 @@ def test_a_non_control_plane_hop_is_listed_when_retargeted(tmp_path, capsys):
     assert "\n  cfg\n" in out, out
 
 
-def test_a_link_above_a_nested_agent_folder_is_undecided(tmp_path, capsys):
-    """S1, ancestor: `pkg -> vendor` with `vendor/.claude/`: the client opens pkg/.claude through `pkg`."""
+def test_a_link_above_a_nested_agent_folder_that_opens_only_plane_paths_carries_on(tmp_path, capsys):
+    """S1 as amended by G1 A7: `pkg -> vendor` with `vendor/.claude/`: pkg/.claude opens vendor/.claude, which is
+    control plane by itself, so an ordinary change is 0."""
     repo = base_repo(tmp_path)
     _base_link(repo, "pkg", "vendor", "vendor/.claude/settings.json")
     write(repo, "src/app.py", "VALUE = 2\n")
     commit(repo, "pr")
-    undecided(repo, capsys, "pkg")
+    code, out = run_floor(repo, capsys)
+    assert code == 0, out
 
 
 def test_an_unrelated_link_out_of_the_repository_is_not_judged(tmp_path, capsys):
