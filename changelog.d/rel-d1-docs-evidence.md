@@ -12,4 +12,4 @@
   readers (`sync_notes`, `derive.py`) key on for repo hooks.
 - README: made room for the new section within the README budgets (1,600 words, 300 lines): the cost-estimate
   sentence and the FAQ entries on LLM use, data leaving the machine, SAST, install, comparison and cost were removed;
-  each repeats a statement made elsewhere in the README or in `docs/`.
+  each is answered elsewhere in the README or in `docs/`; the comparison link moved to "Guardrails, not guarantees".
