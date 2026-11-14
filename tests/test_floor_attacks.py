@@ -96,7 +96,7 @@ def test_head_gitattributes_minus_diff_does_not_hide_test_weakening(tmp_path, ca
     code, out = run_floor(repo, capsys)
     assert code == 1, out
     assert "assertions removed across tests" in out
-    assert "\n  .gitattributes\n" in out
+    assert "\n  .gitattributes\n" not in out  # S3: attributes come from the base, so the file is no guardrail
 
 
 def test_control_test_weakening_refused(tmp_path, capsys):

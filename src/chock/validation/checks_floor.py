@@ -34,7 +34,14 @@ from chock.gate.runner.script import _UNDECIDED
 from chock.validation import control_plane as cp
 from chock.validation import floor_sarif
 from chock.validation.floor_context import FloorContext
-from chock.validation.floor_git import FloorError, Revision, changed_paths, require_ancestor, resolve, toplevel
+from chock.validation.floor_git import (
+    FloorError,
+    Revision,
+    attributes_from,
+    require_ancestor,
+    resolve,
+    toplevel,
+)
 from chock.validation.floor_history import history_findings
 from chock.validation.floor_outcome import Outcome
 
@@ -43,6 +50,8 @@ _CI_GATE = "ci-gate/gate.json"
 _SURFACES = ("ci-gate", "git-hook")
 _SCRIPT, _DEPENDENCY, _REF = "script", _DEPENDENCY_KIND, "forbidden_ref"
 _REFUSING = (ACTION_BLOCK, ACTION_ASK)
+_CHOCK = ".chock"
+_HISTORY_ONLY = "  (in a commit of the range only; the tree diff leaves it as at the base)"
 _FIRST_ADOPTION = "floor: base has no chock gates; nothing was judged"
 _NO_GATES = "floor: the base has no compiled ci gates; no gate judged the content (the control-plane rule still ran)"
 _CONTROL_PLANE = (
@@ -180,11 +189,16 @@ def _declared(base: Revision, policy: str) -> str:
 
 
 def _judged(repo: Path, base: Revision, head: Revision, branch: str | None) -> Outcome:
-    plane = cp.through_links(cp.from_base(base), base, head)
-    listed = [path for path in changed_paths(repo, base.sha, head.sha) if plane.covers(path)]
+    plane = cp.closed_under_links(cp.from_base(base, head), base, head)
+    listed, history_only = plane.changes(repo, base, head)
     level = committed_rollout(repo, base.sha)
     outcome = judge_gates(repo, base, head, branch, plane=plane, level=level)
-    outcome.listed, outcome.mode, outcome.in_force = listed, plane.mode, plane.summary()
+    outcome.listed, outcome.history_only, outcome.mode, outcome.in_force = (
+        listed,
+        history_only,
+        plane.mode,
+        plane.summary(),
+    )
     if not base_gates(base):
         outcome.notes.append(_NO_GATES)
     try:
@@ -208,7 +222,7 @@ def _print(outcome: Outcome) -> None:
         text = _CONTROL_PLANE.format(rule=cp.RULE, mode=outcome.mode, count=len(outcome.listed))
         _out(f"{head} {text}")
         for path in outcome.listed:
-            _out(f"  {inert(path)}")
+            _out(f"  {inert(path)}{_HISTORY_ONLY if path in outcome.history_only else ''}")
         if outcome.mode == cp.LISTED:
             _out(f"note: {_LISTED_GAP.format(rule=cp.RULE)}")
     for line in outcome.notes:
@@ -227,19 +241,35 @@ def _code(outcome: Outcome) -> int:
     return EXIT_REFUSED if refused else 0
 
 
-def floor(repo: Path, base_ref: str, head_ref_rev: str, branch: str | None, sarif: str | None = None) -> int:
-    repo = toplevel(repo)
+def _base_chock(base: Revision) -> bool:
+    """Whether the base commits chock gates; FloorError (undecided) when its `.chock` is a link or a submodule."""
+    if base.state(_CHOCK) is not None:
+        msg = f"the base's {_CHOCK} is a symbolic link or a submodule; the floor reads gates only from files under {_CHOCK}/"
+        raise FloorError(msg)
+    return bool(base.paths(f"{_CHOCK}/"))
+
+
+def floor(repo: Path, base_ref: str, head_ref_rev: str, branch: str | None) -> Outcome:
     base_sha, head_sha = resolve(repo, base_ref, "base"), resolve(repo, head_ref_rev, "head")
     require_ancestor(repo, base_sha, head_sha)
     _out(f"== floor (preview): base {base_sha[:12]}, head {head_sha[:12]}")
     base, head = Revision(repo, base_sha), Revision(repo, head_sha)
-    if not base.paths(".chock/"):
-        _out(_FIRST_ADOPTION)
-        return 0
-    outcome = _judged(repo, base, head, branch)
-    _print(outcome)
-    code = _code(outcome)
-    return floor_sarif.write(repo, sarif, outcome, code) if sarif else code
+    if not _base_chock(base):
+        return Outcome(first_adoption=True)
+    return _judged(repo, base, head, branch)
+
+
+def _run(repo: Path, args: argparse.Namespace) -> tuple[Outcome, Path]:
+    """(outcome, top level), every attribute read from the base; an error that stops the run is one undecided line."""
+    try:
+        repo = toplevel(repo)
+        with attributes_from(repo, args.base):
+            return floor(repo, args.base, args.head, args.head_ref), repo
+    except FloorError as exc:
+        why = inert(str(exc))
+    except Exception as exc:  # noqa: BLE001 -- 1 means refused; anything undecided is 2, naming only the type
+        why = f"no verdict was established ({type(exc).__name__})"
+    return Outcome(undecided=[f"floor: {why}"], stopped=True), repo
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -250,10 +280,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--head-ref", default=None, help="The branch under test, for branch gates")
     parser.add_argument("--sarif", default=None, help="Also write the result as SARIF 2.1.0 to this file")
     args = parser.parse_args(argv)
-    try:
-        return floor(Path(args.repo), args.base, args.head, args.head_ref, args.sarif)
-    except FloorError as exc:
-        _err(f"UNDECIDED floor: {inert(str(exc))}")
-    except Exception as exc:  # noqa: BLE001 -- 1 means refused; anything undecided is 2, naming only the type
-        _err(f"UNDECIDED floor: no verdict was established ({type(exc).__name__})")
-    return EXIT_UNDECIDED
+    outcome, repo = _run(Path(args.repo), args)
+    if outcome.first_adoption:
+        _out(_FIRST_ADOPTION)
+    elif outcome.stopped:
+        _err(f"UNDECIDED {outcome.undecided[0]}")
+    else:
+        _print(outcome)
+    code = _code(outcome)
+    return floor_sarif.write(repo, args.sarif, outcome, code) if args.sarif else code

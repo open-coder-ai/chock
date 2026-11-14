@@ -7,16 +7,23 @@
   reported as `floor/control-plane-changed` with every path, first. The list: `.chock/**`, `chock.lock`, the whole
   folder of every agent chock or agentseam writes into (`.agents/**`, `.claude/**`, `.codex/**`, `.cursor/**`,
   `.gemini/**`, `.windsurf/**`, `.github/hooks/**` and the rest, plugin folders such as `.claude-plugin/**`),
-  `.mcp.json`, `.vscode/settings.json`, `.vscode/mcp.json`, `.env`, `.env.*`, `.github/workflows/**`,
-  `.github/actions/**`, `CODEOWNERS`, `.gitattributes`; matched case-blind. A symlink or gitlink at a parent
-  folder of a pattern (`.gemini -> cfg`) matches, and a symlinked control-plane folder's in-repo target is
-  control plane (read from the trees at base and head). Root instruction files (`AGENTS.md`, `CLAUDE.md`) are
+  `.mcp.json`, `.vscode/settings.json`, `.vscode/mcp.json`, `.env` (at any depth), `.devcontainer/**`,
+  `.devcontainer.json`, `.github/workflows/**`, `.github/actions/**`, `CODEOWNERS`; agent folders match at any
+  depth (`**/.claude/**`); matched case-blind. A symlink or gitlink at a parent folder of a pattern
+  (`.gemini -> cfg`) matches. Every symlink at, inside or above the control plane must resolve, link by link
+  from the trees at base and head, to a control-plane path or to nothing; otherwise (and for a loop, an absolute
+  or out-of-repository target, or one through a submodule) the run is undecided (exit 2), naming the link and the
+  fix. A base whose `.chock` is a link or a submodule is undecided, never first adoption. A control-plane path a
+  commit in the range changed is named even when the tree diff leaves it as at the base. Every git call reads
+  attributes from the base (`GIT_ATTR_SOURCE`; git 2.42 or newer, else undecided), so `.gitattributes` is off
+  the list. Root instruction files (`AGENTS.md`, `CLAUDE.md`) are
   not on it. These files define the guardrails; the floor does not judge whether a change to them is safe. A
   person decides. The base's `.chock/config.yaml` sets `floor.control_plane`: `refuse` (default, exit 1: every
   guardrail change, including a policy upgrade, a `chock sync` regeneration or a workflow edit, needs a
   privileged merge) or `listed` (exit 0, paths still listed and in the SARIF; the adopter relies on code-owner
   review, and content inside listed paths is not judged). `floor.control_plane_paths: {add, remove}` edits the
-  list; a `remove` entry that names no default pattern is undecided (exit 2). Every run prints the mode, the
+  list; a `remove` entry that names no default pattern is undecided (exit 2); an `add` entry `name/` means
+  `name/**`, a bare folder name is undecided, and an entry matching nothing at base or head is marked so. Every run prints the mode, the
   number of patterns and the base's additions and removals. The head's config is never read.
 - The list is what chock knows about, not a proof of completeness. If your workflow installs chock from a file in
   the repository (`requirements*.txt`, `pyproject.toml`, a lockfile, a local action), add that file to the list.
@@ -33,6 +40,8 @@
   utf-16 in both byte orders and alignments, lines split on `\n` only. A range past the commit limit or a blob over
   64 MiB is undecided, naming the commit and path. Not seen: other encodings, compressed or encoded content, commit
   messages, file names.
+- `--sarif` writes a log on every run; an undecided run's says `executionSuccessful: false`. Not covered: a
+  Windows short name (`CLAUDE~1/`), `*.code-workspace`, submodule content (docs/floor.md).
 - It holds only as a required status check the pull request cannot redefine; that is the adopter's setting, which
   chock does not verify. It judges committed content only.
 - `chock history`'s `load_rules` takes the compiled surfaces to read; its own defaults are unchanged.

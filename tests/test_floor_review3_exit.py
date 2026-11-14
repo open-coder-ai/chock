@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from floor_support import PROBE, TEST_FILE, base_repo, commit, git, run_floor, write
 
-from chock.validation import checks_floor, floor_git
+from chock.validation import checks_floor, control_plane, floor_git
 from chock.validation.checks_floor import main as floor_main
 
 _IDENT = ("-c", "user.name=t", "-c", "user.email=t@example.com")
@@ -68,7 +68,7 @@ def test_keyboard_interrupt_never_returns_zero(tmp_path, monkeypatch):
         raise KeyboardInterrupt
 
     monkeypatch.setattr(floor_git, "changed_paths", boom)
-    monkeypatch.setattr(checks_floor, "changed_paths", boom)
+    monkeypatch.setattr(control_plane, "changed_paths", boom)
     with pytest.raises(KeyboardInterrupt):
         checks_floor.main(["--repo", str(repo), "--base", "main"])
 
