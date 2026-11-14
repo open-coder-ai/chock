@@ -28,11 +28,12 @@ DOC_PROOF = {
     "A path that a commit in the range changed": "test_a_guardrail_changed_and_changed_back_is_named",
     "These files define the guardrails": "test_docs_a_listing_says_the_floor_does_not_judge_safety_and_a_person_decides",
     "A person decides.": "test_docs_a_listing_says_the_floor_does_not_judge_safety_and_a_person_decides",
-    "Links. Every symbolic link at, inside or above": "test_a_link_above_a_nested_agent_folder_is_undecided, test_a_chain_of_symlinks_is_followed",
+    "Links. Every symbolic link at, inside or above": "test_a7_link_at_an_ancestor_of_a_root_anchored_pattern_is_2, test_a7_link_above_a_plane_path_whose_target_is_not_plane_is_2, test_a_chain_of_symlinks_is_followed",
+    "A link above a control-plane path": "test_a7_link_whose_target_tree_holds_an_agent_folder_is_0, test_a7_link_above_the_plane_is_itself_plane_when_changed",
     "If it opens a path that is itself control plane, or nothing": "test_a_link_to_another_control_plane_folder_carries_on, test_a_dangling_control_plane_link_carries_on_until_the_head_fills_it, test_a_non_control_plane_hop_is_listed_when_retargeted",
-    "Otherwise the run is undecided (exit 2), naming the link": "test_a_dangling_control_plane_link_carries_on_until_the_head_fills_it, test_a_link_above_a_nested_agent_folder_is_undecided",
+    "Otherwise the run is undecided (exit 2), naming the link": "test_a_dangling_control_plane_link_carries_on_until_the_head_fills_it, test_a7_link_at_an_ancestor_of_a_root_anchored_pattern_is_2, test_a7_link_above_a_plane_path_whose_target_is_not_plane_is_2",
     "So is a loop, an absolute target": "test_a_control_plane_link_that_cannot_resolve_is_undecided, test_symlinked_agent_folder_into_a_submodule_bump_is_named",
-    "The fix: put the target on": "test_a_base_link_whose_target_the_base_adds_to_the_plane_lists_the_target, test_a_link_above_a_nested_agent_folder_is_undecided",
+    "The fix: put the target on": "test_a_base_link_whose_target_the_base_adds_to_the_plane_lists_the_target, test_a7_link_at_an_ancestor_of_a_root_anchored_pattern_is_2, test_a7_link_above_a_plane_path_whose_target_is_not_plane_is_2",
     "A base whose `.chock` is a link or a submodule": "test_symlinked_chock_folder_at_base_is_not_first_adoption, test_docs_a_base_whose_chock_is_a_submodule_is_undecided",
     "Everything else is judged by the base's compiled ci gates and rollout": "test_a_head_rewrite_of_the_gate_does_not_stop_the_base_gate, test_head_cannot_lower_rollout, test_a_base_observe_rollout_softens_history_and_a_warn_gate_never_refuses",
     "No file from the head executes.": "test_no_head_file_is_executed, test_no_head_file_runs",
@@ -74,7 +75,7 @@ HELP_PROOF = {
     "It holds only as a required check": "test_docs_every_run_says_it_is_a_preview_and_states_its_conditions, test_docs_only_committed_content_is_judged",
     "under `listed` you rely on code-owner review": "test_listed_mode_content_gap_is_stated",
     "The list is what chock knows about": "test_docs_a_file_the_workflow_installs_chock_from_can_be_put_on_the_list",
-    "a symlink at, inside or above the list must open a listed path or nothing": "test_a_link_to_another_control_plane_folder_carries_on, test_a_dangling_control_plane_link_carries_on_until_the_head_fills_it, test_a_link_above_a_nested_agent_folder_is_undecided",
+    "a symlink at, inside or above the list must open a listed path or nothing": "test_a_link_to_another_control_plane_folder_carries_on, test_a_dangling_control_plane_link_carries_on_until_the_head_fills_it, test_a7_link_at_an_ancestor_of_a_root_anchored_pattern_is_2, test_a7_link_above_a_plane_path_whose_target_is_not_plane_is_2",
     "a renamed or moved test file reads as a deletion": "test_renaming_or_moving_a_test_file_is_refused_as_a_deletion",
 }
 
@@ -151,5 +152,5 @@ def test_every_behaviour_sentence_has_a_proof_that_exists(source, proofs):
 
 
 def test_the_splitters_see_every_sentence():
-    """The maps are only as good as the split: the docs give 46 sentences and the help 7 clauses."""
+    """The maps are only as good as the split: the docs give 47 sentences and the help 7 clauses."""
     assert (len(doc_sentences()), len(help_clauses())) == (len(DOC_PROOF), len(HELP_PROOF))
