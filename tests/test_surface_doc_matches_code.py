@@ -148,7 +148,7 @@ def test_readme_enforces_column_matches_the_code() -> None:
 #: What README's one omission paragraph owes each surface it drops. Ordered by where the
 #: names appear in that paragraph, which `_reason_for` slices on.
 README_OMITTED = {
-    Surface.MANAGED_SETTING: "compiled but not installed",
+    Surface.MANAGED_SETTING: "not installed by chock",
     Surface.GATEWAY: "modelled but not yet emitted",
     Surface.MCP_GATEWAY: "per-client witness",
     Surface.STOP: "worth no grade of its own",
@@ -186,6 +186,7 @@ def test_readme_says_why_the_absent_surfaces_are_absent() -> None:
         assert not crediting, f"{surface.value} now credits {crediting}; the README owes it a column"
 
     assert Surface.MANAGED_SETTING not in INSTALLED_SURFACES, "an installer landed; 'not installed' is now false"
+    assert Surface.MANAGED_SETTING not in EMITTERS, "the compiler writes it again; the README wording is stale"
     assert Surface.GATEWAY not in EMITTERS, "gateway emits now; 'not yet emitted' is now false"
     supporting = [a for a, s in SURFACE_AGENTS.items() if Surface.MCP_GATEWAY in s]
     assert not supporting, f"mcp-gateway is now supported by {supporting}; the per-client wording is stale"
@@ -262,7 +263,10 @@ def test_managed_setting_is_disclosed_as_not_installed() -> None:
     from chock.compile.surfaces import INSTALLED_SURFACES
 
     assert Surface.MANAGED_SETTING not in INSTALLED_SURFACES, "an installer landed; drop the caveat"
-    assert "compiled but not installed" in DOC.read_text(encoding="utf-8")
+    from chock.compile.compiler import EMITTERS
+
+    assert Surface.MANAGED_SETTING not in EMITTERS, "the compiler writes it again; 'neither compiled' is now false"
+    assert "neither compiled nor installed" in DOC.read_text(encoding="utf-8")
 
 
 def test_ci_gate_is_disclosed_as_needing_its_installer() -> None:

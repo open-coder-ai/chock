@@ -8,6 +8,7 @@ from typing import Any
 import yaml
 
 from chock import yamlio
+from chock.output import warn_once
 from chock.skill_metadata import _as_bool, _as_list, _chock_metadata
 
 CANONICAL_MANIFEST = "manifest.yaml"
@@ -20,12 +21,37 @@ CONTENT_INSTRUCTIONS_KEY = "content_instructions"
 DETERMINIZATION_REVIEWED_KEY = "determinization_reviewed"
 AGENT_SPECIFIC_VOCABULARY_KEY = "agent_specific_vocabulary"
 
+#: Finding check name for a field the manifest left out and chock filled in.
+MANIFEST_DEFAULT = "manifest_default"
+_ARTIFACT_FILES = frozenset({CANONICAL_MANIFEST, SKILL_MD, INTERFACE_YAML})
+
 #: Longest a manifest/frontmatter `name` may be before it's flagged.
 _MAX_NAME_LENGTH = 128
 
 
 class ManifestSourceError(Exception):
     """A manifest directory has an ambiguous or incomplete source of truth."""
+
+
+def artifact_key(path: Path | str) -> str:
+    """One artifact's identity whether a caller names its folder or its manifest file."""
+    found = Path(path)
+    return (found.parent if found.name in _ARTIFACT_FILES else found).resolve().as_posix()
+
+
+def shown_path(path: Path | str) -> str:
+    """`path` relative to the working directory when it is under it."""
+    found = Path(path)
+    try:
+        return found.resolve().relative_to(Path.cwd().resolve()).as_posix()
+    except ValueError:
+        return found.as_posix()
+
+
+def warn_defaults(path: Path | str, warnings: list[str]) -> None:
+    """Print each defaulted field once per command, always with the artifact's path."""
+    for warning in warnings:
+        warn_once((artifact_key(path), warning), f"{shown_path(path)}: {MANIFEST_DEFAULT}: {warning}")
 
 
 def _set_or_default(

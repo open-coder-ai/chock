@@ -43,6 +43,7 @@ jobs:
         run: >-
           pytest -q
           tests/test_cursor_windows_write_gate.py
+          tests/test_doctor_live.py
           tests/test_repo_stop_gap1d.py
           tests/test_pack_hash_platform.py
           tests/test_install_command.py
