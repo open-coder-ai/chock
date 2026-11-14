@@ -38,8 +38,10 @@ def test_every_repo_relative_vendor_hook_file_is_control_plane(vendor):
         ".github/CODEOWNERS",
         "CODEOWNERS",
         "docs/CODEOWNERS",
-        ".gitattributes",
-        "src/.gitattributes",
+        "pkg/.claude/settings.json",
+        "a/b/.codex/config.toml",
+        "pkg/.env",
+        ".devcontainer/devcontainer.json",
         ".Chock/Config.yaml",
         ".claude/SETTINGS.json",
         ".claude/settings.json.",
@@ -51,7 +53,20 @@ def test_guardrail_paths_match_in_any_spelling_a_filesystem_may_open(path):
 
 
 @pytest.mark.parametrize(
-    "path", ["src/app.py", "AGENTS.md", "CLAUDE.md", "docs/guide.md", "chock.lock.bak", "tests/x", ".envrc"]
+    "path",
+    [
+        "src/app.py",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "docs/guide.md",
+        "chock.lock.bak",
+        "tests/x",
+        ".envrc",
+        ".gitattributes",
+        "src/.gitattributes",
+        ".env.example",
+        "x.env",
+    ],
 )
 def test_ordinary_paths_are_not_control_plane(path):
     assert not DEFAULT.covers(path)

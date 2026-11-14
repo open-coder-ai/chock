@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import subprocess
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
 _GIT_TIMEOUT = 120
+_ATTR_SOURCE = "GIT_ATTR_SOURCE"
+_ATTR_GIT = "2.42"
+_NO_SUCH_TREE = "chock-floor-no-such-tree"
 _TREE_FIELDS = 2
-_BLOB = "blob"
+_BLOB, _COMMIT, _GITLINK = "blob", "commit", "160000"
+_ABSENT = "000000"
 _REGULAR_MODES = ("100644", "100755")
 
 
@@ -58,6 +64,7 @@ class Revision:
     repo: Path
     sha: str
     _entries: dict[str, tuple[str, str]] | None = None
+    _gitlinks: dict[str, str] = field(default_factory=dict)
     _texts: dict[str, str | None] = field(default_factory=dict)
 
     def entries(self) -> dict[str, tuple[str, str]]:
@@ -73,8 +80,21 @@ class Revision:
                 parts = meta.decode("ascii", "replace").split()
                 if len(parts) > _TREE_FIELDS and parts[1] == _BLOB:
                     found[os.fsdecode(raw_path)] = (parts[0], parts[2])
+                elif len(parts) > _TREE_FIELDS and parts[1] == _COMMIT:
+                    self._gitlinks[os.fsdecode(raw_path)] = parts[2]
             self._entries = found
         return self._entries
+
+    def gitlinks(self) -> dict[str, str]:
+        """path -> commit oid for every submodule pointer in the tree."""
+        self.entries()
+        return self._gitlinks
+
+    def state(self, path: str) -> tuple[str, str] | None:
+        """(mode, oid) of `path` here, a submodule pointer included; None when absent."""
+        if path in self.gitlinks():
+            return _GITLINK, self._gitlinks[path]
+        return self.entries().get(path)
 
     def paths(self, prefix: str = "") -> list[str]:
         return sorted(path for path in self.entries() if path.startswith(prefix))
@@ -130,3 +150,40 @@ def changed_paths(repo: Path, base: str, head: str) -> list[str]:
         msg = f"git diff {base[:12]} {head[:12]} failed"
         raise FloorError(msg)
     return sorted(os.fsdecode(raw) for raw in proc.stdout.split(b"\0") if raw)
+
+
+def history_states(repo: Path, base: str, head: str) -> list[tuple[str, tuple[str, str] | None]]:
+    """(path, (mode, oid) or None when deleted) for every entry each commit in base..head writes, a merge read
+    against each parent, as the history pass reads them."""
+    args = ("log", "-z", "--raw", "-m", "--no-renames", "--no-abbrev", "--no-ext-diff", "--no-textconv")
+    proc = git(repo, *args, "--format=", f"{base}..{head}", "--")
+    if proc.returncode:
+        msg = f"git log {base[:12]}..{head[:12]} failed"
+        raise FloorError(msg)
+    tokens, found = iter(proc.stdout.split(b"\0")), []
+    for raw in tokens:
+        meta = raw.lstrip(b"\n").decode("ascii", "replace")
+        if not meta.startswith(":"):
+            continue
+        mode, oid = meta[1:].split(" ")[1], meta[1:].split(" ")[3]
+        found.append((os.fsdecode(next(tokens, b"")), None if mode == _ABSENT else (mode, oid)))
+    return found
+
+
+@contextlib.contextmanager
+def attributes_from(repo: Path, base_ref: str) -> Iterator[None]:
+    """Every git the floor runs reads attributes from the base's tree, never the checkout's or the head's;
+    FloorError (undecided) when this git ignores `GIT_ATTR_SOURCE`."""
+    saved = os.environ.get(_ATTR_SOURCE)
+    os.environ[_ATTR_SOURCE] = _NO_SUCH_TREE
+    try:
+        if git(repo, "-c", "core.fsmonitor=false", "check-attr", "-a", "--", "probe").returncode == 0:
+            msg = f"this git ignores {_ATTR_SOURCE}; the floor needs git {_ATTR_GIT} or newer to read attributes from the base"
+            raise FloorError(msg)
+        os.environ[_ATTR_SOURCE] = resolve(repo, base_ref, "base")
+        yield
+    finally:
+        if saved is None:
+            os.environ.pop(_ATTR_SOURCE, None)
+        else:
+            os.environ[_ATTR_SOURCE] = saved

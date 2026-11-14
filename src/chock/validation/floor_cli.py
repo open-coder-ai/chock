@@ -16,7 +16,8 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         "It holds only as a required check the pull request cannot redefine (your setting, unverified by chock) and "
         "judges committed content only; under `listed` you rely on code-owner review of the listed paths. The list is "
         "what chock knows about, not a proof of completeness (a file your workflow installs chock from belongs on it: "
-        "floor.control_plane_paths.add); a renamed or moved test file reads as a deletion and is refused",
+        "floor.control_plane_paths.add); a symlink at, inside or above the list must open a listed path or the run is "
+        "undecided; a renamed or moved test file reads as a deletion and is refused (docs/floor.md)",
     )
     parser.add_argument("--head", default=None, help="With --floor: the merge result under test (default HEAD)")
 

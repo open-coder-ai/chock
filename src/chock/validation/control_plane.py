@@ -6,19 +6,20 @@ No file is read for meaning: a listed path that changed is reported, whatever th
 
 from __future__ import annotations
 
+import bisect
 import dataclasses
 import fnmatch
 import functools
 import json
-import posixpath
 import unicodedata
 from dataclasses import dataclass
 from importlib import resources
+from pathlib import Path
 
 import yaml
 
 from chock import yamlio
-from chock.validation.floor_git import FloorError, Revision
+from chock.validation.floor_git import FloorError, Revision, changed_paths, history_states
 
 RULE = "floor/control-plane-changed"
 REFUSE, LISTED = "refuse", "listed"
@@ -29,6 +30,8 @@ _EDITS = ("add", "remove")
 _FORMAT = "Cf"
 _SYMLINK = "120000"
 _GLOB = frozenset("*?[")
+_ANY_DEPTH = "**/"
+_MAX_HOPS = 32
 
 
 def default_patterns() -> tuple[str, ...]:
@@ -52,69 +55,139 @@ def _parents(pattern: str) -> set[str]:
     return {"/".join(literal[:k]) for k in range(1, len(literal) + 1) if k < len(parts)}
 
 
+def _match(name: str, pattern: str) -> bool:
+    """fnmatch on folded text; a leading `**/` also matches at the top level."""
+    pat = folded(pattern)
+    return fnmatch.fnmatchcase(name, pat) or (pat.startswith(_ANY_DEPTH) and fnmatch.fnmatchcase(name, pat[3:]))
+
+
 @dataclass(frozen=True)
 class ControlPlane:
     mode: str
     patterns: tuple[str, ...]
     added: tuple[str, ...] = ()
     removed: tuple[str, ...] = ()
-    #: (folded in-repo target, link path) for each symlink the control plane reaches through, at base or head.
-    links: tuple[tuple[str, str], ...] = ()
+    #: Entries of `added` that match no path at base or head, named as such in the summary.
+    unmatched: tuple[str, ...] = ()
+    #: Folded paths of the symlinks resolving a control-plane link passes through, at base or head.
+    hops: frozenset[str] = frozenset()
 
     def _direct(self, name: str) -> bool:
-        return any(fnmatch.fnmatchcase(name, folded(p)) or name in _parents(p) for p in self.patterns)
+        return any(_match(name, p) or _match(f"{name}/", p) or name in _parents(p) for p in self.patterns)
 
-    def covers(self, path: str, _depth: int = 0) -> bool:
-        """Whether `path`, or the path a client opens through a symlinked control-plane folder, is control plane."""
+    def covers(self, path: str) -> bool:
+        """Whether `path`, a folder above it that a client opens it through, or a link on the way, is control plane."""
         name = folded(path)
-        if self._direct(name):
-            return True
-        if _depth > len(self.links):
-            return False
-        rests = ((link, _under(name, target)) for target, link in self.links)
-        return any(self.covers(link + rest, _depth + 1) for link, rest in rests if rest is not None)
+        return name in self.hops or self._direct(name)
+
+    def changes(self, repo: Path, base: Revision, head: Revision) -> tuple[list[str], set[str]]:
+        """(paths of the plane the tree diff changes or any commit leaves in a state the base lacks, those only
+        in history)."""
+        diff = {path for path in changed_paths(repo, base.sha, head.sha) if self.covers(path)}
+        states = history_states(repo, base.sha, head.sha)
+        history = {p for p, state in states if p not in diff and self.covers(p) and state != base.state(p)}
+        return sorted(diff | history), history
 
     def summary(self) -> str:
         """The list in force: mode, size, and the base's own edits to the defaults."""
-        added, removed = ", ".join(self.added) or "none", ", ".join(self.removed) or "none"
+        shown = [f"{p} (matches nothing at base or head)" if p in self.unmatched else p for p in self.added]
+        added, removed = ", ".join(shown) or "none", ", ".join(self.removed) or "none"
         return (
             f"control plane: {self.mode}, {len(self.patterns)} pattern(s); base added: {added}; base removed: {removed}"
         )
 
 
-def _under(name: str, target: str) -> str | None:
-    """`name` relative to `target` ("" when equal, "/rest" below it; the root is ""), None when outside it."""
-    if not target:
-        return f"/{name}"
-    if name == target or name.startswith(f"{target}/"):
-        return name[len(target) :]
-    return None
+class _Tree:
+    """One revision's symlinks, gitlinks and paths, folded, for resolving links from tree data alone."""
+
+    def __init__(self, rev: Revision) -> None:
+        entries = rev.entries()
+        self.rev = rev
+        self.links = {folded(p): p for p, (mode, _) in entries.items() if mode == _SYMLINK}
+        self.gitlinks = {folded(p) for p in rev.gitlinks()}
+        self.files = {folded(p) for p in entries} | self.gitlinks
+        self.folders = {f.rsplit("/", k)[0] for f in self.files for k in range(1, f.count("/") + 1)}
+        self._sorted = sorted(self.files)
+
+    def resolve(self, link: str) -> tuple[str, list[str]]:
+        """(folded in-repo path `link` opens, links passed); FloorError naming the link when it cannot resolve."""
+        todo, done, hops = link.split("/"), [], []
+        while todo:
+            part = todo.pop(0)
+            part = part if part == ".." else folded(part)
+            if not part:
+                continue
+            if part == "..":
+                if not done:
+                    raise _unresolved(link, self.rev, "its target leaves the repository")
+                done.pop()
+                continue
+            here = "/".join([*done, part])
+            if here in self.gitlinks and todo:
+                raise _unresolved(link, self.rev, f"its target passes through the submodule {here}")
+            if here not in self.links:
+                done.append(part)
+                continue
+            hops.append(here)
+            if len(hops) > _MAX_HOPS:
+                raise _unresolved(link, self.rev, f"more than {_MAX_HOPS} links (a loop?)")
+            target = (self.rev.blob(self.links[here]) or b"").decode("utf-8", "replace")
+            if not target or target.startswith("/") or "\\" in target or ":" in target.split("/")[0]:
+                raise _unresolved(link, self.rev, f"{here} has the absolute or empty target {target!r}")
+            todo[:0] = target.split("/")
+        return "/".join(done), hops
+
+    def exists(self, name: str) -> bool:
+        return not name or name in self.files or name in self.folders
+
+    def below(self, folder: str) -> list[str]:
+        """The folded paths under `folder` (the root when "")."""
+        if not folder:
+            return self._sorted
+        start = bisect.bisect_left(self._sorted, f"{folder}/")
+        return self._sorted[start : bisect.bisect_left(self._sorted, f"{folder}0")]  # "0" sorts right after "/"
 
 
-def _target(link: str, data: bytes | None) -> str | None:
-    """The in-repo folder or file a committed symlink names; None when it leaves the repository."""
-    if not data:
-        return None
-    joined = posixpath.normpath(posixpath.join(posixpath.dirname(link), data.decode("utf-8", "replace")))
-    if posixpath.isabs(joined) or joined.split("/")[0] == "..":
-        return None
-    return "" if joined == "." else folded(joined)
+def _unresolved(link: str, rev: Revision, why: str) -> FloorError:
+    return FloorError(
+        f"control plane: the symbolic link {link} at {rev.sha[:12]} does not resolve inside the repository: {why}; "
+        "replace the link with real files"
+    )
 
 
-def through_links(plane: ControlPlane, *revisions: Revision) -> ControlPlane:
-    """`plane` plus every in-repo target of a symlink it covers at any of `revisions`, followed to a fixed point."""
-    symlinks = [(rev, path) for rev in revisions for path, (mode, _) in rev.entries().items() if mode == _SYMLINK]
-    links: list[tuple[str, str]] = []
-    grew = True
-    while grew:
-        grew = False
-        current = dataclasses.replace(plane, links=tuple(links))
-        for rev, path in symlinks:
-            target = _target(path, rev.blob(path)) if current.covers(path) else None
-            if target is not None and (target, folded(path)) not in links:
-                links.append((target, folded(path)))
-                grew = True
-    return dataclasses.replace(plane, links=tuple(links))
+def _opens_control_plane(plane: ControlPlane, tree: _Tree, name: str) -> tuple[str, list[str]] | None:
+    """(target, links passed) when the link `name` is a control-plane root, inside one, or above one; else None."""
+    if plane.covers(name):
+        return tree.resolve(tree.links[name])
+    try:
+        target, passed = tree.resolve(tree.links[name])
+    except FloorError:
+        return None  # leaves the repository: nothing committed lies under it
+    rests = (f[len(target) :] if target else f"/{f}" for f in tree.below(target))
+    return (target, passed) if any(plane.covers(name + rest) for rest in rests) else None
+
+
+def closed_under_links(plane: ControlPlane, *revisions: Revision) -> ControlPlane:
+    """`plane` plus every link a control-plane link passes through, once each link at, inside or above the control
+    plane at each of `revisions` opens a control-plane path or nothing; FloorError (undecided) naming one that does not."""
+    hops: set[str] = set()
+    for rev in revisions:
+        tree = _Tree(rev)
+        for name, link in sorted(tree.links.items()):
+            found = _opens_control_plane(plane, tree, name)
+            if found is None:
+                continue
+            target, passed = found
+            hops.update(passed)
+            if tree.exists(target) and not plane.covers(target):
+                shown = target or "."
+                msg = (
+                    f"control plane: the symbolic link {link} at {rev.sha[:12]} opens {shown}, which is not control "
+                    f"plane; put {shown}/** on floor.{_PATHS}.add in the base's {_CONFIG}, or replace the link with "
+                    "real files"
+                )
+                raise FloorError(msg)
+    return dataclasses.replace(plane, hops=frozenset(hops))
 
 
 def _invalid(what: str) -> FloorError:
@@ -147,7 +220,24 @@ def _edits(section: dict) -> dict[str, list[str]]:
     return found
 
 
-def from_base(base: Revision) -> ControlPlane:
+def _added(entries: list[str], revisions: tuple[Revision, ...]) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """(patterns, entries matching no path at any of `revisions`) for the base's `add:`; `name/` means `name/**`.
+    FloorError (undecided) for a bare entry naming a folder, which as written would match only the folder itself."""
+    trees = [_Tree(rev) for rev in revisions] if entries else []
+    patterns, unmatched = [], []
+    for entry in entries:
+        if not _GLOB & set(entry) and not entry.endswith("/") and any(folded(entry) in t.folders for t in trees):
+            msg = f"{_PATHS}.add names {entry!r}, a folder; write {entry + '/**'!r} for the folder and everything in it"
+            raise _invalid(msg)
+        pattern = f"{entry}**" if entry.endswith("/") else entry
+        alone = ControlPlane(REFUSE, (pattern,))
+        if not any(alone.covers(f) for t in trees for f in t.files | t.folders):
+            unmatched.append(entry)
+        patterns.append(pattern)
+    return tuple(patterns), tuple(unmatched)
+
+
+def from_base(base: Revision, head: Revision) -> ControlPlane:
     """The control plane the base defines; FloorError (undecided) for a `floor:` section it cannot read."""
     section = _section(base)
     mode = section.get(_MODE, REFUSE)
@@ -160,4 +250,5 @@ def from_base(base: Revision) -> ControlPlane:
         msg = f"{_PATHS}.remove names {unknown!r}, which is no default pattern"
         raise _invalid(msg)
     kept = tuple(p for p in defaults if p not in edits["remove"])
-    return ControlPlane(mode, kept + tuple(edits["add"]), tuple(edits["add"]), tuple(edits["remove"]))
+    added, unmatched = _added(edits["add"], (base, head))
+    return ControlPlane(mode, kept + added, tuple(edits["add"]), tuple(edits["remove"]), unmatched)

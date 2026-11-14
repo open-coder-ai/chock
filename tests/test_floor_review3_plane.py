@@ -33,6 +33,15 @@ def _refused(repo, capsys, *paths: str) -> str:
     return out
 
 
+def _undecided(repo, capsys, link: str) -> str:
+    """S1: a control-plane link that opens a path off the control plane is undecided, naming the link and the fix."""
+    code, out = run_floor(repo, capsys)
+    assert code == 2, out
+    assert f"symbolic link {link} at" in out, out
+    assert "floor.control_plane_paths.add" in out or "replace the link with real files" in out, out
+    return out
+
+
 @pytest.mark.parametrize("rel", [".mcp.json", ".cursor/mcp.json", ".vscode/mcp.json"])
 def test_unwrapping_the_mcp_gateway_is_named(tmp_path, capsys, rel):
     repo = base_repo(tmp_path)
@@ -50,7 +59,7 @@ def test_unwrapping_the_mcp_gateway_is_named(tmp_path, capsys, rel):
         (".vscode/settings.json", {"chat.hookFilesLocations": {"elsewhere": True}, "chat.useClaudeHooks": False}),
         (".gemini/.env", "PATH=/tmp/evil:/usr/bin\n"),
         (".env", "PYTHONPATH=/tmp/evil\n"),
-        (".env.local", "PYTHONPATH=/tmp/evil\n"),
+        ("pkg/.env", "PYTHONPATH=/tmp/evil\n"),
         (".claude/skills/x/SKILL.md", SKILL_HOOK),
         (".claude/agents/x.md", SKILL_HOOK),
         (".github/agents/x.agent.md", SKILL_HOOK),
@@ -68,7 +77,7 @@ def test_symlinked_vendor_folder_adds_a_settings_file_named(tmp_path, capsys):
     write(repo, "cfg/settings.json", GEMINI_OFF)
     os.symlink("cfg", repo / ".gemini")
     commit(repo, "pr")
-    _refused(repo, capsys, ".gemini", "cfg/settings.json")
+    _undecided(repo, capsys, ".gemini")
 
 
 def test_a_base_symlinked_vendor_folder_makes_its_target_control_plane(tmp_path, capsys):
@@ -78,6 +87,19 @@ def test_a_base_symlinked_vendor_folder_makes_its_target_control_plane(tmp_path,
     write(repo, "cfg/settings.json", {"hooksConfig": {"enabled": True}})
     os.symlink("cfg", repo / ".gemini")
     commit(repo, "base: linked settings")
+    git(repo, "checkout", "-q", "-B", "pr")
+    _pr(repo, {"cfg/settings.json": GEMINI_OFF})
+    _undecided(repo, capsys, ".gemini")
+
+
+def test_a_base_link_whose_target_the_base_adds_to_the_plane_lists_the_target(tmp_path, capsys):
+    """The fix S1 names: the base puts the link's target on its own list, so an edit there is listed."""
+    repo = base_repo(tmp_path)
+    git(repo, "checkout", "-q", "main")
+    write(repo, "cfg/settings.json", {"hooksConfig": {"enabled": True}})
+    os.symlink("cfg", repo / ".gemini")
+    write(repo, ".chock/config.yaml", "floor:\n  control_plane_paths:\n    add: [cfg/]\n")
+    commit(repo, "base: linked settings, target listed")
     git(repo, "checkout", "-q", "-B", "pr")
     _pr(repo, {"cfg/settings.json": GEMINI_OFF})
     out = _refused(repo, capsys, "cfg/settings.json")
@@ -93,7 +115,7 @@ def test_a_chain_of_symlinks_is_followed(tmp_path, capsys):
     commit(repo, "base: links")
     git(repo, "checkout", "-q", "-B", "pr")
     _pr(repo, {"b/hooks.json": {"hooks": {}}})
-    _refused(repo, capsys, "b/hooks.json")
+    _undecided(repo, capsys, ".codex")
 
 
 def test_a_vendor_folder_linked_to_the_root_makes_the_root_control_plane(tmp_path, capsys):
@@ -103,18 +125,18 @@ def test_a_vendor_folder_linked_to_the_root_makes_the_root_control_plane(tmp_pat
     commit(repo, "base: link to the root")
     git(repo, "checkout", "-q", "-B", "pr")
     _pr(repo, {"hooks.json": {"hooks": {}}})
-    _refused(repo, capsys, "hooks.json")
+    _undecided(repo, capsys, ".windsurf")
 
 
-def test_a_symlink_out_of_the_repository_adds_nothing(tmp_path, capsys):
+def test_a_symlink_out_of_the_repository_is_undecided(tmp_path, capsys):
     repo = base_repo(tmp_path)
     git(repo, "checkout", "-q", "main")
     os.symlink("../elsewhere", repo / ".gemini")
     commit(repo, "base: link out")
     git(repo, "checkout", "-q", "-B", "pr")
     _pr(repo, {"src/app.py": "VALUE = 2\n"})
-    code, out = run_floor(repo, capsys)
-    assert code == 0, out
+    out = _undecided(repo, capsys, ".gemini")
+    assert "leaves the repository" in out, out
 
 
 def test_gitlink_at_a_vendor_folder_is_named(tmp_path, capsys):

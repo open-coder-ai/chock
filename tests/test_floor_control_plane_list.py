@@ -86,8 +86,6 @@ def test_root_instruction_files_stay_out(path):
     assert not DEFAULT.covers(path), path
 
 
-@pytest.mark.parametrize(
-    "path", [".mcp.json", ".vscode/settings.json", ".vscode/mcp.json", ".env", ".env.local", ".cursor/cli.json"]
-)
+@pytest.mark.parametrize("path", [".mcp.json", ".vscode/settings.json", ".vscode/mcp.json", ".env", ".cursor/cli.json"])
 def test_client_config_and_env_files_named_by_the_review_are_control_plane(path):
     assert DEFAULT.covers(path)

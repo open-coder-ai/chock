@@ -88,8 +88,8 @@ each guarantee holds.
 > nested repository, or a clone never synced) the command exits 2 the same way. Installed entries equal compiled ones exactly, so `chock sync` on any machine
 > is a zero diff; entries in the old baked-interpreter form are recognised and replaced.
 
-**`git-hook` + `ci-gate` are the universal hard floor** every agent shares. `pre-tool-use` and
-`agent-hooks` are the premium tier on agents that expose native controls; membership
+**`git-hook` + `ci-gate` are the universal floor** every agent shares (`ci-gate` holds only as a required check the
+PR cannot redefine: [the CI floor](floor.md)). `pre-tool-use` and `agent-hooks` are the premium tier on agents that expose native controls; membership
 derives from agentseam's matrix (see the coverage matrix below).
 `gateway` is reserved for cost/egress controls on the roadmap. `mcp-gateway`
 ([#32](https://github.com/open-coder-ai/chock/issues/32)) governs exactly the MCP slice:
