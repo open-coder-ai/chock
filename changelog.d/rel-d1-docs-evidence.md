@@ -7,3 +7,6 @@
 - Witness ledger: one row, Claude Code v2.1.317 on Windows, 2026-11-11: `PreToolUse` refused
   `git commit --no-verify` on the PowerShell tool and no commit was made (chock `295b38c`). The README
   sentence on where repo hooks were tested now names it.
+- Witness ledger: a second row, Cursor 3.30.14 on Windows, 2026-11-14: the repo's `beforeShellExecution` hook refused
+  `git commit --no-verify` and no commit was made (chock `cc127e4`). Surface `agent-hooks`, the name the ledger's
+  readers (`sync_notes`, `derive.py`) key on for repo hooks.

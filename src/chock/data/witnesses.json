@@ -75,5 +75,12 @@
     "client": "Claude Code v2.1.317, Windows",
     "date": "2026-11-11",
     "method": "live probe: PreToolUse refused `git commit --no-verify` on the PowerShell tool and no commit was made (chock 295b38c)"
+  },
+  {
+    "agent": "cursor",
+    "surface": "agent-hooks",
+    "client": "Cursor 3.30.14, Windows",
+    "date": "2026-11-14",
+    "method": "live probe: the repo's beforeShellExecution hook refused `git commit --no-verify` and no commit was made (chock cc127e4)"
   }
 ]
