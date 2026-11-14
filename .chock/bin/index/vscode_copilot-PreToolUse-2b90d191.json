@@ -14,7 +14,6 @@
         ".chock/compiled/token-efficiency/agent-hooks/tool-call-gate.json": "0689304b5bacd25e9a371674d0faa8f9b8d9d35132d2faf7917c2b165a1a93fa",
         ".chock/compiled/token-efficiency/agent-hooks/tool-call-hooks.json": "7300181bc92f845f81e316813adc9eb6cfd58d8a94525126455203df7fb08e6a",
         ".chock/compiled/token-efficiency/ambient-rule/ambient.md": "6d94b590c79d340fe25c48dc119b41ece181c5c605b4a38a853e54b54f4e9156",
-        ".chock/compiled/token-efficiency/managed-setting/managed-settings.json": "859d05e0265611518ac5329c0a52141581f55956fd86e952206d6651820f018b",
         ".chock/compiled/token-efficiency/pre-tool-use/codex_cli-tool-call-hooks.json": "a80d3ca758064cba6407f75213a659ec24321eddd85b2adc444cf9f367c5e741",
         ".chock/compiled/token-efficiency/pre-tool-use/cursor-post-hooks.json": "4348e99148692cafca9417a6dba71e01bda26a404733926415313428bb7f2d93",
         ".chock/compiled/token-efficiency/pre-tool-use/cursor-postfailure-hooks.json": "9c1e9f0f10255027115cfe5f74ac955be9f66f29973905f8eae319293285f2ab",

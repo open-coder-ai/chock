@@ -41,7 +41,7 @@
       "Stop": [
         {
           "type": "command",
-          "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"__CHOCK_PLUGIN_ROOT__/scripts/launch.sh\" \"__CHOCK_PLUGIN_ROOT__/scripts/chock_bundle.py\" --bundle demo-bundle --members \"__CHOCK_PLUGIN_ROOT__/scripts/antigravity.py\" --multi \"__CHOCK_PLUGIN_ROOT__/scripts/chock_index/Stop-501fc3f8.json\" --index-sha256 e1a30025412bd51fc9294802aec6f3f90f87a006577b73a0fbd3a754379bcbae --root \"__CHOCK_PLUGIN_ROOT__\"",
+          "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"__CHOCK_PLUGIN_ROOT__/scripts/launch.sh\" \"__CHOCK_PLUGIN_ROOT__/scripts/chock_bundle.py\" --bundle demo-bundle --members \"__CHOCK_PLUGIN_ROOT__/scripts/antigravity.py\" --multi \"__CHOCK_PLUGIN_ROOT__/scripts/chock_index/Stop-501fc3f8.json\" --index-sha256 219740d3104a63ad9db2ddcd50a41365693dd6a9643996689a6df7cf6fe7a158 --root \"__CHOCK_PLUGIN_ROOT__\"",
           "timeout": 45
         },
         {
@@ -55,7 +55,7 @@
           "hooks": [
             {
               "type": "command",
-              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"__CHOCK_PLUGIN_ROOT__/scripts/launch.sh\" \"__CHOCK_PLUGIN_ROOT__/scripts/chock_bundle.py\" --bundle demo-bundle --members \"__CHOCK_PLUGIN_ROOT__/scripts/antigravity.py\" --multi \"__CHOCK_PLUGIN_ROOT__/scripts/chock_index/PreToolUse-b4ab2f9e.json\" --index-sha256 654471a853e58075776985e5cb35e276eb57b86dcc39cb934351dd5559dcb8a1 --root \"__CHOCK_PLUGIN_ROOT__\" --stop-check",
+              "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"__CHOCK_PLUGIN_ROOT__/scripts/launch.sh\" \"__CHOCK_PLUGIN_ROOT__/scripts/chock_bundle.py\" --bundle demo-bundle --members \"__CHOCK_PLUGIN_ROOT__/scripts/antigravity.py\" --multi \"__CHOCK_PLUGIN_ROOT__/scripts/chock_index/PreToolUse-b4ab2f9e.json\" --index-sha256 d561a195280bd5b44790dd05466dccd39663df79bc95d20be874d0518524340a --root \"__CHOCK_PLUGIN_ROOT__\" --stop-check",
               "timeout": 45
             }
           ],
