@@ -29,6 +29,7 @@ _SECTION, _MODE, _PATHS = "floor", "control_plane", "control_plane_paths"
 _EDITS = ("add", "remove")
 _FORMAT = "Cf"
 _SYMLINK = "120000"
+_REGULAR = ("100644", "100755")
 _GLOB = frozenset("*?[")
 _ANY_DEPTH = "**/"
 _MAX_HOPS = 32
@@ -79,6 +80,12 @@ class ControlPlane:
         """Whether `path`, a folder above it that a client opens it through, or a link on the way, is control plane."""
         name = folded(path)
         return name in self.hops or self._direct(name)
+
+    def deep_match(self, path: str) -> str | None:
+        """The any-depth pattern that matches `path` only below the top level, so the output can say why."""
+        name = folded(path)
+        deep = (p for p in self.patterns if p.startswith(_ANY_DEPTH) and not fnmatch.fnmatchcase(name, folded(p)[3:]))
+        return next((p for p in deep if _match(name, p) or _match(f"{name}/", p)), None)
 
     def changes(self, repo: Path, base: Revision, head: Revision) -> tuple[list[str], set[str]]:
         """(paths of the plane the tree diff changes or any commit leaves in a state the base lacks, those only
@@ -195,9 +202,18 @@ def _invalid(what: str) -> FloorError:
 
 
 def _section(base: Revision) -> dict:
-    text = base.text(_CONFIG)
+    state = base.state(_CONFIG)
+    if base.paths(f"{_CONFIG}/") or (state is not None and state[0] not in _REGULAR):
+        msg = (
+            f"the base's {_CONFIG} is a folder, a symbolic link or a submodule, not a file; the floor reads only a file"
+        )
+        raise FloorError(msg)
     try:
+        text = (base.blob(_CONFIG) or b"").decode("utf-8")
         doc = yamlio.safe_load(text) if text else None
+    except UnicodeDecodeError as exc:
+        msg = f"the base's {_CONFIG} is not UTF-8"
+        raise FloorError(msg) from exc
     except yaml.YAMLError as exc:
         msg = "could not be read as YAML"
         raise _invalid(msg) from exc
@@ -247,7 +263,10 @@ def from_base(base: Revision, head: Revision) -> ControlPlane:
     edits, defaults = _edits(section), default_patterns()
     unknown = [p for p in edits["remove"] if p not in defaults]
     if unknown:
-        msg = f"{_PATHS}.remove names {unknown!r}, which is no default pattern"
+        hint = [f"{_ANY_DEPTH}{p}" for p in unknown if f"{_ANY_DEPTH}{p}" in defaults]
+        msg = f"{_PATHS}.remove names {unknown!r}, which is no default pattern" + (
+            f"; write {hint[0]!r}" if hint else ""
+        )
         raise _invalid(msg)
     kept = tuple(p for p in defaults if p not in edits["remove"])
     added, unmatched = _added(edits["add"], (base, head))
