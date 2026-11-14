@@ -6,7 +6,7 @@ import os
 import shutil
 from pathlib import Path
 
-from floor_support import base_repo, commit, git, run_floor, write  # noqa: F401
+from floor_support import commit, git, run_floor
 
 FAKE_A = "1" * 40
 FAKE_B = "2" * 40

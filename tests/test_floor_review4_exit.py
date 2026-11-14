@@ -25,7 +25,7 @@ def _obj(repo: Path, oid: str) -> Path:
 
 def _corrupt(repo: Path, oid: str, how: str) -> None:
     path = _obj(repo, oid)
-    os.chmod(path, 0o644)
+    os.chmod(path, 0o600)  # writable by the owner, so the object can be corrupted
     raw = zlib.decompress(path.read_bytes())
     if how == "garbage":
         path.write_bytes(b"not zlib at all")
