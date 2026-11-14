@@ -41,32 +41,19 @@ def test_commit_gate_still_enforced_at_commit(tmp_path: Path) -> None:
     assert result.coverage["protect-main-branch"]["claude"]["level"] == "enforced-at-commit"
 
 
-def test_managed_patterns_are_honest_and_valid(tmp_path: Path) -> None:
-    import re
+def test_compile_writes_no_managed_setting_artifact(tmp_path: Path) -> None:
+    """The old stub wrote a schema Claude Code does not read; managed files now come from `chock emit --managed` only."""
+    from chock.compile.compiler import EMITTERS
 
-    pmb = tmp_path / ".chock" / "compiled"
-    compile_policy(
-        baseline_policy("protect-main-branch"),
-        targets=[Surface.MANAGED_SETTING.value],
-        output_root=pmb,
-        agents=["claude"],
-    )
-    pmb_managed = json.loads((pmb / "protect-main-branch" / "managed-setting" / "managed-settings.json").read_text())
-    assert pmb_managed["deny"] == [], "branch protection cannot be a static managed deny; must be empty"
-
-    ss = tmp_path / ".chock-ss" / "compiled"
-    compile_policy(
-        baseline_policy("scan-secrets"),
-        targets=[Surface.MANAGED_SETTING.value],
-        output_root=ss,
-        agents=["claude"],
-    )
-    ss_managed = json.loads((ss / "scan-secrets" / "managed-setting" / "managed-settings.json").read_text())
-    assert ss_managed["deny"], "scan-secrets must emit managed deny patterns"
-    for entry in ss_managed["deny"]:
-        pattern = entry["pattern"]
-        assert "\b" not in pattern, "must not carry a U+0008 backspace byte"
-        re.compile(pattern)
+    assert Surface.MANAGED_SETTING not in EMITTERS
+    for policy_id in ("protect-main-branch", "scan-secrets"):
+        out = tmp_path / policy_id / ".chock" / "compiled"
+        result = compile_policy(
+            baseline_policy(policy_id), targets=[Surface.MANAGED_SETTING.value], output_root=out, agents=["claude"]
+        )
+        assert result.artifacts == {}
+        assert not (out / policy_id / Surface.MANAGED_SETTING.value).exists()
+        assert result.coverage[policy_id]["claude"]["level"] == "none"
 
 
 def test_auto_compile_uses_configured_agents(tmp_path: Path) -> None:

@@ -25,7 +25,9 @@ PLUGIN_HOOK = "plugin-hook"
 #: Not a place chock blocks: the environment a vendor's shell hands a git hook, which is how an
 #: agent's commit is recognised. A row here witnesses a marker, never a capability.
 GIT_HOOK_ENV = "git-hook-env"
-WITNESS_SURFACES = ("pre-tool-use", "agent-hooks", PLUGIN_HOOK, GIT_HOOK_ENV)
+#: A vendor's admin-deployed file (`chock emit --managed`); until a row lands, every managed label stays vendor-docs.
+MANAGED = "managed"
+WITNESS_SURFACES = ("pre-tool-use", "agent-hooks", PLUGIN_HOOK, GIT_HOOK_ENV, MANAGED)
 
 HONOURS_ASK = "honours_ask"
 CLAIM_NAMES = (HONOURS_ASK,)

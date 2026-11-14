@@ -12,6 +12,7 @@ from collections import Counter
 from pathlib import Path
 
 from ..budget import ENGINE_BUDGET_SECONDS, run_tree
+from .constants import FLOOR_EVENT
 from .context import GateContext, GateResult
 
 # >>> gate.py 07
@@ -34,6 +35,15 @@ _UNDECIDED = " -- refusing rather than allowing what it never judged"
 
 _FINDINGS_KEY = "findings"
 
+#: All a script gate's environment holds at the floor: no token, secret or runner variable reaches it.
+_FLOOR_ENV_KEYS = ("PATH", "HOME", "SYSTEMROOT")
+
+
+def _env(event: object) -> dict[str, str]:
+    if event == FLOOR_EVENT:
+        return {key: os.environ[key] for key in _FLOOR_ENV_KEYS if key in os.environ} | _BYTECODE_OFF
+    return {**os.environ, **_BYTECODE_OFF}
+
 
 def _spawn(script: Path, ctx: GateContext, payload: dict, timeout: float) -> subprocess.CompletedProcess[str]:
     return run_tree(
@@ -44,7 +54,7 @@ def _spawn(script: Path, ctx: GateContext, payload: dict, timeout: float) -> sub
         encoding="utf-8",
         errors="replace",
         cwd=ctx.repo_root,
-        env={**os.environ, **_BYTECODE_OFF},
+        env=_env(payload.get("event")),
         timeout=timeout,
         check=False,
     )
@@ -159,7 +169,7 @@ def _judge_findings(
 def _kind_script(ctx: GateContext, params: dict, event: str) -> GateResult:
     """Hand the material to the policy's own script and carry back its verdict.
 
-    The script reads `{"event", "repo_root", "writes": {path: text}}` on stdin -- the staged
+    The script reads `{"event", "repo_root", "writes": {path: text}}` on stdin (plus `deleted` at the floor) -- the staged
     blobs at commit and push, the write itself at tool use and at the turn's end -- so one
     script serves every surface the declarative kinds do, and reads them the same way. It
     answers with an exit code: 0 allows; 1 refuses, 3 asks, 4 warns, with its own words on stderr.
@@ -175,9 +185,13 @@ def _kind_script(ctx: GateContext, params: dict, event: str) -> GateResult:
     if not script.is_file():
         return GateResult(allowed=False, message=f"script gate: {named!r} is not installed{_UNDECIDED}")
     writes = {path: ctx.staged_blob(path) for path in ctx.staged_paths()}
-    if not writes:
+    # Only the floor hands a script the deleted paths: the contract every other event has is unchanged.
+    deleted = sorted(ctx.staged_paths("D")) if event == FLOOR_EVENT else []
+    if not writes and not deleted:
         return GateResult(allowed=True)
     material = {"event": event, "repo_root": str(ctx.repo_root), "writes": writes}
+    if event == FLOOR_EVENT:
+        material["deleted"] = deleted
     if ctx.session:
         material["session"] = ctx.session
     started = time.monotonic()

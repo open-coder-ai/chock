@@ -88,8 +88,8 @@ each guarantee holds.
 > nested repository, or a clone never synced) the command exits 2 the same way. Installed entries equal compiled ones exactly, so `chock sync` on any machine
 > is a zero diff; entries in the old baked-interpreter form are recognised and replaced.
 
-**`git-hook` + `ci-gate` are the universal hard floor** every agent shares. `pre-tool-use` and
-`agent-hooks` are the premium tier on agents that expose native controls; membership
+**`git-hook` + `ci-gate` are the universal floor** every agent shares (`ci-gate` holds only as a required check the
+PR cannot redefine: [the CI floor](floor.md)). `pre-tool-use` and `agent-hooks` are the premium tier on agents that expose native controls; membership
 derives from agentseam's matrix (see the coverage matrix below).
 `gateway` is reserved for cost/egress controls on the roadmap. `mcp-gateway`
 ([#32](https://github.com/open-coder-ai/chock/issues/32)) governs exactly the MCP slice:
@@ -132,10 +132,10 @@ per gateway process; wrap N servers with N entries.
 > clone is not bricked: the launcher finds one or refuses with a fix-it message. The guard
 > covers shell commands (`beforeShellExecution`); other tool classes are not intercepted.
 
-> **`managed-setting` is compiled but not installed.** The compiler writes
-> `.chock/compiled/<id>/managed-setting/managed-settings.json` and nothing reads it — there is
-> no installer, so it enforces nothing today. It is excluded from `INSTALLED_SURFACES` in
-> `surfaces.py`, so no policy can raise a coverage claim through it. Read the row below as *what the
+> **`managed-setting` is neither compiled nor installed.** The compiler writes nothing for it; `chock emit --managed claude_code`
+> writes a drop-in and its hook bundle under a folder you name, for an administrator to deploy ([CLI reference](cli-reference.md#emit--write-a-managed-settings-bundle-for-an-admin)).
+> chock deploys nothing. It is excluded from `INSTALLED_SURFACES` in `surfaces.py`, so no policy can raise a coverage claim
+> through it, and the emitted labels are vendor-docs evidence, unwitnessed, best-effort. Read the row below as *what the
 > agent could support*, not as something switched on.
 
 > **`ci-gate` needs `chock sync --ci` to actually run.** The compiler always writes
@@ -195,7 +195,7 @@ evidence cap that bounds every grade -- is on its own page: **[Coverage Levels](
 ## How a policy picks its surfaces
 
 A hook that must stop a command targets `git-hook` + `ci-gate` (the universal floor) and, where available,
-`pre-tool-use` + `managed-setting`. A hook whose `on:` includes `tool_use` is compiled to the `pre-tool-use`
+`pre-tool-use` (Claude Code's target list also names `managed-setting`, for which the compiler writes nothing). A hook whose `on:` includes `tool_use` is compiled to the `pre-tool-use`
 surface on agents that support it (thirteen of them, Claude Code and Cursor among them; Copilot CLI and VS Code
 get the same guard via `agent-hooks`, and a content gate's write check as a `PreToolUse` entry over `Edit|Write`
 there). A hook whose `on:` includes `tool_call` (a `content_regex` or `script` gate with `params.tools`, globs

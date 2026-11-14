@@ -9,7 +9,7 @@ import yaml
 
 from chock.compile.surface_kinds import Surface
 from chock.config import load_config
-from chock.manifest import CANONICAL_MANIFEST, ManifestSourceError, load_manifest
+from chock.manifest import CANONICAL_MANIFEST, MANIFEST_DEFAULT, ManifestSourceError, load_manifest
 from chock.scaffold.recompile import discover_policy_dirs
 from chock.validation.report import Finding, Report
 
@@ -30,7 +30,7 @@ def _load_manifest(pack_dir: Path, report: Report | None = None) -> dict[str, An
     data, manifest_path = result
     if report is not None:
         for warning in warnings:
-            report.add(Finding(str(manifest_path), "manifest_default", "warning", warning))
+            report.add(Finding(str(manifest_path), MANIFEST_DEFAULT, "warning", warning))
     return data
 
 
