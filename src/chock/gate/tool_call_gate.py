@@ -11,18 +11,17 @@ from __future__ import annotations
 
 import fnmatch
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
 
 from .budget import (
-    BYTECODE_OFF,
     PATTERN_SECONDS,
     allowed_seconds,
     close_judge,
     engine_deadline,
     engine_remaining,
+    isolated_child,
     judge_patterns,
     pattern_judge,
     run_tree,
@@ -98,7 +97,7 @@ def _tool_call_script(spec, root, payload, deadline=None):
     if not script.is_file():
         return ("deny", f"script gate: {named!r} is not installed{_TOOL_CALL_UNDECIDED}")
     deadline = engine_deadline() if deadline is None else deadline
-    argv = [sys.executable, str(script)]
+    argv, env = isolated_child([sys.executable, str(script)])
     try:
         proc = run_tree(
             argv,
@@ -108,7 +107,7 @@ def _tool_call_script(spec, root, payload, deadline=None):
             encoding="utf-8",
             errors="replace",
             cwd=str(root),
-            env={**os.environ, **BYTECODE_OFF},
+            env=env,
             timeout=time_left(deadline, argv),
             check=False,
         )

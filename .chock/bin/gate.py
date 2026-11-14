@@ -34,6 +34,14 @@ ENGINE_BUDGET_SECONDS = 30
 BYTECODE_OFF = {"PYTHONDONTWRITEBYTECODE": "1"}
 
 
+ISOLATED_START = (
+    "import os, runpy, sys\n"
+    "sys.argv = sys.argv[1:]\n"
+    "sys.path.insert(0, os.path.dirname(os.path.abspath(sys.argv[0])))\n"
+    "runpy.run_path(sys.argv[0], run_name='__main__')\n"
+)
+
+
 PATTERN_SECONDS = 10
 
 
@@ -135,6 +143,19 @@ def run_tree(argv, *, timeout=None, **options):
         finally:
             untrack_tree(proc)
     return subprocess.CompletedProcess(argv, proc.returncode, out, err)
+
+
+def python_free_env(env=None):
+    """`env` (this process's by default) without any `PYTHON*` variable, plus bytecode off for grandchildren."""
+    base = os.environ if env is None else env
+    return {**{k: v for k, v in base.items() if not k.upper().startswith("PYTHON")}, **BYTECODE_OFF}
+
+
+def isolated_child(argv, env=None):
+    """(argv, env) that run the Python child `[interpreter, script, *args]` isolated: no PYTHON* variable,
+    user site or current folder can change what it imports; its own folder is put on sys.path explicitly."""
+    interpreter, script, *args = argv
+    return [interpreter, "-I", "-B", "-X", "utf8", "-c", ISOLATED_START, str(script), *args], python_free_env(env)
 
 
 def engine_remaining(deadline):
@@ -550,8 +571,12 @@ ALLOW_ENV = "CHOCK_ALLOW"
 #: adds is not honoured. Coverage (`on: [commit]`) is still decided by the name `commit`.
 AGENT_COMMIT_EVENT = "agent-commit"
 
+#: The event `chock check --floor` judges at: the change under judgement may be the refused party's, so a
+#: waiver counts only when the base already has that line (the floor's `committed_blob` reads the base).
+FLOOR_EVENT = "ci-floor"
+
 #: Events where the actor may be the refused agent: a waiver counts only when HEAD already has that line.
-HEAD_WAIVER_EVENTS = frozenset({AGENT_COMMIT_EVENT, TOOL_USE_EVENT})
+HEAD_WAIVER_EVENTS = frozenset({AGENT_COMMIT_EVENT, TOOL_USE_EVENT, FLOOR_EVENT})
 
 _HUMAN_ENV = frozenset({"0", "false", "no", "off"})
 
@@ -959,6 +984,15 @@ _UNDECIDED = " -- refusing rather than allowing what it never judged"
 
 _FINDINGS_KEY = "findings"
 
+#: All a script gate's environment holds at the floor: no token, secret or runner variable reaches it.
+_FLOOR_ENV_KEYS = ("PATH", "HOME", "SYSTEMROOT")
+
+
+def _env(event: object) -> dict[str, str]:
+    if event == FLOOR_EVENT:
+        return {key: os.environ[key] for key in _FLOOR_ENV_KEYS if key in os.environ} | _BYTECODE_OFF
+    return {**os.environ, **_BYTECODE_OFF}
+
 
 def _spawn(script: Path, ctx: GateContext, payload: dict, timeout: float) -> subprocess.CompletedProcess[str]:
     return run_tree(
@@ -969,7 +1003,7 @@ def _spawn(script: Path, ctx: GateContext, payload: dict, timeout: float) -> sub
         encoding="utf-8",
         errors="replace",
         cwd=ctx.repo_root,
-        env={**os.environ, **_BYTECODE_OFF},
+        env=_env(payload.get("event")),
         timeout=timeout,
         check=False,
     )
@@ -1084,7 +1118,7 @@ def _judge_findings(
 def _kind_script(ctx: GateContext, params: dict, event: str) -> GateResult:
     """Hand the material to the policy's own script and carry back its verdict.
 
-    The script reads `{"event", "repo_root", "writes": {path: text}}` on stdin -- the staged
+    The script reads `{"event", "repo_root", "writes": {path: text}}` on stdin (plus `deleted` at the floor) -- the staged
     blobs at commit and push, the write itself at tool use and at the turn's end -- so one
     script serves every surface the declarative kinds do, and reads them the same way. It
     answers with an exit code: 0 allows; 1 refuses, 3 asks, 4 warns, with its own words on stderr.
@@ -1100,9 +1134,13 @@ def _kind_script(ctx: GateContext, params: dict, event: str) -> GateResult:
     if not script.is_file():
         return GateResult(allowed=False, message=f"script gate: {named!r} is not installed{_UNDECIDED}")
     writes = {path: ctx.staged_blob(path) for path in ctx.staged_paths()}
-    if not writes:
+    # Only the floor hands a script the deleted paths: the contract every other event has is unchanged.
+    deleted = sorted(ctx.staged_paths("D")) if event == FLOOR_EVENT else []
+    if not writes and not deleted:
         return GateResult(allowed=True)
     material = {"event": event, "repo_root": str(ctx.repo_root), "writes": writes}
+    if event == FLOOR_EVENT:
+        material["deleted"] = deleted
     if ctx.session:
         material["session"] = ctx.session
     started = time.monotonic()
