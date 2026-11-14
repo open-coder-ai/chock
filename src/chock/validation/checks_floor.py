@@ -199,6 +199,7 @@ def _judged(repo: Path, base: Revision, head: Revision, branch: str | None) -> O
         plane.mode,
         plane.summary(),
     )
+    outcome.deep = {path: why for path in listed if (why := plane.deep_match(path))}
     if not base_gates(base):
         outcome.notes.append(_NO_GATES)
     try:
@@ -223,6 +224,8 @@ def _print(outcome: Outcome) -> None:
         _out(f"{head} {text}")
         for path in outcome.listed:
             _out(f"  {inert(path)}{_HISTORY_ONLY if path in outcome.history_only else ''}")
+            if path in outcome.deep:
+                _out(f"    matched {inert(outcome.deep[path])}")
         if outcome.mode == cp.LISTED:
             _out(f"note: {_LISTED_GAP.format(rule=cp.RULE)}")
     for line in outcome.notes:
@@ -253,6 +256,8 @@ def floor(repo: Path, base_ref: str, head_ref_rev: str, branch: str | None) -> O
     base_sha, head_sha = resolve(repo, base_ref, "base"), resolve(repo, head_ref_rev, "head")
     require_ancestor(repo, base_sha, head_sha)
     _out(f"== floor (preview): base {base_sha[:12]}, head {head_sha[:12]}")
+    if base_sha == head_sha:
+        _out("floor: base and head are the same commit; nothing changed")
     base, head = Revision(repo, base_sha), Revision(repo, head_sha)
     if not _base_chock(base):
         return Outcome(first_adoption=True)
