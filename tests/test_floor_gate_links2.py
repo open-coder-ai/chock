@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 
+import pytest
 from floor_support import CLAUDE, base_repo, commit, git, run_floor, write
 from floor_support4 import FAKE_A, FAKE_B, gitlink, raw_commit, rebase_main, rm, symlink, undecided
 from test_floor_gate_links import pr_source, raw_base
@@ -108,3 +109,44 @@ def test_a11_two_thousand_plane_links_within_the_plane_is_0_in_bounded_time(tmp_
     print(f"A11: {A11_LINKS} links, exit {code} in {elapsed:.1f}s")
     assert code == 0, out[-800:]
     assert elapsed < A11_SECONDS, elapsed
+
+
+def _real_and_other(r):
+    write(r, "real/.claude/settings.json", CLAUDE)
+    write(r, "other/.claude/settings.json", CLAUDE)
+
+
+A7_LINK_CHANGES = {
+    "added": (_real_and_other, lambda r: symlink(r, "pkg", "real")),
+    "removed": (lambda r: (_real_and_other(r), symlink(r, "pkg", "real")), lambda r: rm(r, "pkg")),
+    "retargeted": (lambda r: (_real_and_other(r), symlink(r, "pkg", "real")), lambda r: symlink(r, "pkg", "other")),
+}
+
+
+@pytest.mark.parametrize("case", list(A7_LINK_CHANGES))
+def test_a7_link_above_the_plane_is_itself_plane_when_changed(tmp_path, capsys, case):
+    """Orchestrator ruling on A7: the link above the plane counts as a hop, so adding, removing or retargeting it
+    (even to another folder holding an agent folder) is named."""
+    base, change = A7_LINK_CHANGES[case]
+    repo = base_repo(tmp_path)
+    rebase_main(repo, base)
+    change(repo)
+    commit(repo, f"pr: link {case}")
+    code, out = run_floor(repo, capsys)
+    assert code == 1, (case, out)
+    assert "\n  pkg\n" in out, (case, out)
+
+
+def test_a7_link_above_a_plane_path_whose_target_is_not_plane_is_2(tmp_path, capsys):
+    """Ruling on A7, condition 1: `p*/secret/**` covers pkg/secret/x but not real/secret/x, which pkg opens."""
+    repo = base_repo(tmp_path)
+
+    def base(r):
+        write(r, ".chock/config.yaml", "floor:\n  control_plane_paths:\n    add: ['p*/secret/**']\n")
+        write(r, "real/secret/x", "x\n")
+        symlink(r, "pkg", "real")
+
+    rebase_main(repo, base)
+    pr_source(repo)
+    out = undecided(repo, capsys, "pkg")
+    assert "opens real, which is not control plane" in out, out

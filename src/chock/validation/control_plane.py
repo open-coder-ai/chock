@@ -156,15 +156,20 @@ def _unresolved(link: str, rev: Revision, why: str) -> FloorError:
 
 
 def _opens_control_plane(plane: ControlPlane, tree: _Tree, name: str) -> tuple[str, list[str]] | None:
-    """(target, links passed) when the link `name` is a control-plane root, inside one, or above one; else None."""
+    """(what must be control plane, links passed) when the link `name` is a control-plane root, inside one, or above
+    one; else None. Above one, every control-plane path under it must open one: else its target is returned."""
     if plane.covers(name):
         return tree.resolve(tree.links[name])
     try:
         target, passed = tree.resolve(tree.links[name])
     except FloorError:
         return None  # leaves the repository: nothing committed lies under it
-    rests = (f[len(target) :] if target else f"/{f}" for f in tree.below(target))
-    return (target, passed) if any(plane.covers(name + rest) for rest in rests) else None
+    rests = [f[len(target) :] if target else f"/{f}" for f in tree.below(target)]
+    reached = [rest for rest in rests if plane.covers(name + rest)]
+    if not reached:
+        return None
+    opened = [f"{target}{rest}" if target else rest[1:] for rest in reached]
+    return next((target for path in opened if not plane.covers(path)), opened[0]), passed
 
 
 def closed_under_links(plane: ControlPlane, *revisions: Revision) -> ControlPlane:
