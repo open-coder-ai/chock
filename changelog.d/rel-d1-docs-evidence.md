@@ -10,3 +10,6 @@
 - Witness ledger: a second row, Cursor 3.30.14 on Windows, 2026-11-14: the repo's `beforeShellExecution` hook refused
   `git commit --no-verify` and no commit was made (chock `cc127e4`). Surface `agent-hooks`, the name the ledger's
   readers (`sync_notes`, `derive.py`) key on for repo hooks.
+- README: made room for the new section within the README budgets (1,600 words, 300 lines): the cost-estimate
+  sentence and the FAQ entries on LLM use, data leaving the machine, SAST, install, comparison and cost were removed;
+  each repeats a statement made elsewhere in the README or in `docs/`.
