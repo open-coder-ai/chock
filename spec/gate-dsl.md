@@ -227,7 +227,7 @@ script lives beside this gate file" instead of "under the repository root". Only
 plugin writes it: there the gate, the runner and the script travel together and no repository
 holds them.
 
-`event` is `commit`, `push`, `tool_use` or (see above) `tool_call`. `session` is present only at the agent events. `writes` is the staged blobs at `commit` and
+Script payload contract **v2** (v1 was unnumbered; v2 adds `ci-floor`, from `chock check --floor`, and nothing elsewhere). `event` is `commit`, `push`, `tool_use`, `ci-floor` or (see above) `tool_call`. `session` is present only at the agent events. At `ci-floor` the payload adds `deleted` (sorted deleted paths; a deletion-only range still runs the script), the environment is only `PATH`, `HOME`, `SYSTEMROOT`, the script is the base's copy, a waiver counts only on a line unchanged in base and head, and `ask` refuses. `writes` is the staged blobs at `commit` and
 `push`, and the write itself at `tool_use` -- the file a tool call is about to write, or what
 the turn left on disk at its end -- so one script serves every surface, and it reaches the
 write path and the turn's end exactly as `content_regex` does. The script answers with its

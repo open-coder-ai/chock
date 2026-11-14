@@ -26,7 +26,8 @@ discredits every honest number.
 Boundaries: (1) the adopter repository (trusted content, versioned); (2) the agent
 session (untrusted executor — it may ignore, misread, or attempt to modify guidance);
 (3) the catalog (semi-trusted remote — executable content, trust-on-first-use, hash
-pinned); (4) CI (the enforcement floor — the one surface a local actor cannot bypass).
+pinned); (4) CI (the enforcement floor, and only where its check is a required status check the pull request cannot
+redefine — the repository's setting, which chock does not verify; see [the CI floor](floor.md)).
 
 Threat classes defended against:
 
