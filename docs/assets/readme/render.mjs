@@ -111,7 +111,7 @@ const ADOPT = page(`<div class="frame" style="display:flex;flex-direction:column
 <div class="panel" style="padding:28px;display:flex;flex-direction:column;gap:18px;border-color:#F0B53C">
 <div style="display:flex;justify-content:space-between;align-items:center"><span class="eyebrow">Route 1</span><span class="mono" style="font-size:13px;padding:5px 10px;border-radius:999px;background:#F0B53C;color:#222C44">for teams</span></div>
 <div style="font-size:26px;font-weight:600">In your repository</div>
-${term([cmd('chock init .'), cmd('chock add &lt;id&gt; --ref &lt;sha&gt; \\'), '<div>&nbsp;&nbsp;--verify-sha &lt;sha256&gt; --skip-compile</div>', cmd('chock sync --repo . --ci')])}
+${term([cmd('chock init .'), cmd('chock add &lt;id&gt; --skip-compile'), cmd('chock sync --repo . --ci')])}
 <div style="font-size:17px;line-height:1.55;color:#D5DBE8">Everyone and every agent on the repo. Enforced at commit and in CI. Travels with every clone.</div></div>
 <div class="panel" style="padding:30px;display:flex;flex-direction:column;gap:18px">
 <div style="display:flex;justify-content:space-between;align-items:center"><span class="eyebrow">Route 2</span><span class="mono" style="font-size:13px;padding:5px 10px;border-radius:999px;border:1px solid #3A4870;color:#D5DBE8">no repo changes</span></div>
@@ -187,7 +187,7 @@ ${layer('Templates', 'chock-quickstart is what chock init leaves behind. chock-e
 
 const QUICKSTART = SECTION('See it work', 'Two commands. Real hooks. <span class="gold">Real refusals.</span>', `
 <div style="display:grid;grid-template-columns:repeat(1,minmax(0,1fr));gap:18px">
-${term(['<div class="c"># set up once</div>', cmd('chock init .'), cmd('chock add scan-secrets --ref &lt;sha&gt; \\'), '<div>&nbsp;&nbsp;--verify-sha &lt;sha256&gt; --skip-compile</div>', cmd('chock sync --repo . --ci')], 'git never clones hooks. Every clone runs chock sync --repo . once.')}
+${term(['<div class="c"># set up once</div>', cmd('chock init .'), cmd('chock add scan-secrets --skip-compile'), cmd('chock sync --repo . --ci')], 'git never clones hooks. Every clone runs chock sync --repo . once.')}
 ${term(['<div class="c"># the next commit with a credential</div>', cmd('git commit -m "add config"'), '<div class="no">✗ Potential secret detected in this change.</div>', '<div class="no">&nbsp;&nbsp;- config.py: content pattern</div>', cmd('git commit -m "read key from env"'), '<div class="d">✓ passes</div>'])}
 </div>
 ${note('The refusal text is the gate message of scan-secrets in chock-catalog. The recording is in the text version.')}`);

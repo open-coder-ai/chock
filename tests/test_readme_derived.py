@@ -76,3 +76,21 @@ def test_a_deprecated_policy_is_not_counted(tmp_path: Path) -> None:
     assert data["eval_cases"] == 3 * live
     assert data["eval_executed"] == 2 * live
     assert sum(data["tiers"].values()) == live
+
+
+def test_witnessed_clients_group_by_the_platform_the_ledger_records() -> None:
+    from chock.evidence import Witness
+
+    trusted = "x, after the project's hooks were trusted (y)"
+    rows = [
+        Witness("vscode_copilot", "agent-hooks", "Copilot CLI and VS Code agent mode", "2026-08-23", "live probe"),
+        Witness("claude_code", "agent-hooks", "Claude Code v2.1.317, Windows", "2026-11-11", "live probe"),
+        Witness("codex_cli", "agent-hooks", "Codex CLI 0.169.0, Windows", "2026-11-14", trusted),
+    ]
+    text = _derive().witnessed_clients(rows)
+    assert text == (
+        "Copilot CLI and VS Code agent mode and, on Windows, in Claude Code and Codex CLI "
+        "(Codex after the project's hooks were trusted)"
+    )
+    assert text.index("Windows") > text.index("Copilot CLI and VS Code agent mode")
+    assert _derive().witnessed_clients(rows[1:2]) == "on Windows, in Claude Code"

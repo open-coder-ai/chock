@@ -28,7 +28,7 @@ pipx install chock==1.1.0
 
 ### Two ways to adopt it
 
-1. **In your repository, for teams.** Run `chock init .`, then `chock add <id> --ref <catalog commit> --verify-sha <sha256> --skip-compile` for each policy, then `chock sync --repo . --ci`. Commit the result. A fresh clone arms itself from what is committed; a person runs `chock sync` to change it. The commit gates are enforced at commit and in CI.
+1. **In your repository, for teams.** Run `chock init .`, then `chock add <id> --skip-compile` for each policy, then `chock sync --repo . --ci`. Commit the result. A fresh clone arms itself from what is committed; a person runs `chock sync` to change it. The commit gates are enforced at commit and in CI.
 2. **In your coding agent, as one plugin.** Pick policies in the [chock.sh builder](https://chock.sh/coding/builder/) and run `chock install --selection <code> --apply`. <!-- derive:plugins -->It builds one plugin for Claude Code, GitHub Copilot, Codex, Cursor, Devin, goose, Grok or Antigravity, tested live, and, untested by chock, for OpenHands, Kimi Code or Factory Droid.<!-- /derive:plugins --> Best-effort, and it fails open. A selection can add [your own policies](docs/custom-policies.md): install shows their code and asks first. No chock? Add a per-policy marketplace (`chock-*-plugins`; needs Python 3.11+, git, a bash: Git for Windows has one), never both.
 
 ## Application security for the code your agents write
@@ -83,7 +83,7 @@ pip install chock==1.1.0
 
 git init -q demo && cd demo
 chock init .                       # wiring only, no policies
-chock add scan-secrets --ref 1e60d211c1bb767152c6ab0167932da06ab3a10f --verify-sha c7cf363c6eb8a8ed47287beef9c06fe76dfd2d9c0ccc203fe74e32fba0e92a94 --skip-compile
+chock add scan-secrets --skip-compile
 chock sync --repo . --ci           # compile, install hooks, add the CI gate
 ```
 
@@ -104,7 +104,11 @@ git commit -m "read key from env"    # passes
        alt="Terminal recording of the Quick start above, typed in real time, ending with the refused commit and the clean one.">
 </p>
 
-`--ref` pins a catalog commit, `--verify-sha` refuses a policy whose hash differs, and `chock add --ref` refuses a commit that was never published. The allowlist pragma on the key line is for documented test fixtures only. It is honoured at commit, push and in CI, and deliberately not at tool-use, where the scanned text is a live tool argument.
+With no `--ref`, `chock add` pins the catalog tag `v<chock version>`, prints the commit and sha256, and fails if the tag is missing. `--ref` and `--verify-sha` pin by hand; `--ref` refuses a commit never published. The allowlist pragma on the key line is for documented test fixtures only. It is honoured at commit, push and in CI, and deliberately not at tool-use, where the scanned text is a live tool argument.
+
+### Check it, or try it without blocking
+
+`chock doctor` and `--live` check your hooks ([Doctor](docs/doctor.md)). `rollout: observe` in `.chock/config.yaml` logs refusals instead of blocking; `chock stop` still holds.
 
 ### Shift left, with no model and no tokens
 
@@ -112,9 +116,7 @@ git commit -m "read key from env"    # passes
 - With Chock: the check runs as the agent writes, the refusal names the fix, and the agent corrects it in the same turn.
 - A check costs no tokens. A passing check adds nothing to the agent's context; a refusal adds one short reason.
 - Chock adds no new place your code goes: checks run where the agent writes, on the laptop, in the dev container or in the cloud agent's environment. The agent still sends context to its own model provider. Installing fetches policies once; enforcement makes no network calls.
-- Chock does not replace code review, your SAST suite or a penetration test. It refuses known classes while the agent writes, so they are fixed before review.
-
-To estimate what a late finding costs you, fill in your own numbers: findings per release x share Chock covers x minutes to triage and fix x hourly rate, plus the days a security loop adds.
+- Chock does not replace code review, your SAST suite or a penetration test.
 
 | | Agent defaults | With Chock |
 | :--- | :--- | :--- |
@@ -127,11 +129,9 @@ To estimate what a late finding costs you, fill in your own numbers: findings pe
 
 ### Supported agents
 
-Every agent in this table gets the same floor: a git hook, a CI gate and an ambient `AGENTS.md`
-rule, which is why those three columns aren't repeated below. What varies is whether the agent
-also exposes a native hook chock can wire directly into its own tool-call loop, and where the
+Every agent in this table gets the same floor: a git hook, a CI gate and an ambient `AGENTS.md` rule, which is why those three columns aren't repeated below. What varies is whether the agent also exposes a native hook chock can wire directly into its own tool-call loop, and where the
 file that wiring lives. A row here is support, not installation — coverage is only credited on
-a given repo once `chock sync` has actually written the file, which is why the CLI's own
+a given repo once `chock sync` has written the file, which is why the CLI's own
 `chock status` always beats this table for what's true *here*. Four of the nine surfaces are
 absent from this page entirely because they credit no agent today — `managed-setting` is
 not installed by chock, `gateway` is modelled but not yet emitted, `mcp-gateway` credits
@@ -163,7 +163,7 @@ Full nine-surface matrix and per-agent caveats:
 | **Kimi Code** | git hook + CI gate only — home-anchored config, outside chock's repo-scoped install | `~/.kimi-code/config.toml` |
 | **Replit** | git hook + CI gate only — no native hook API yet | — |
 
-<!-- derive:repo_agents -->Chock tested its repo hooks live in Copilot CLI and VS Code agent mode only; other native hooks follow agentseam's record, untested.<!-- /derive:repo_agents -->
+<!-- derive:repo_agents -->Repo hooks refused commands live in Copilot CLI and VS Code agent mode and, on Windows, in Claude Code, Cursor and Codex CLI (Codex after the project's hooks were trusted); others follow agentseam's record, untested.<!-- /derive:repo_agents -->
 
 ## What it stops
 
@@ -287,7 +287,7 @@ The 15 public repositories:
 
 <p><img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/v2/contribute.png" alt="Three numbered contribution cards, each with a one-line how-to." width="100%"></p>
 
-A policy manifest for the guardrail your stack needs is the contribution we want most; send it to the [catalog](https://github.com/open-coder-ai/chock-catalog). An evidence report on what your agent does, or a `policy wanted` entry in the [threat ledger](https://github.com/open-coder-ai/chock-threat-intel/blob/main/reference/agentic-threat-ledger.md), also counts; see [docs/ecosystem.md](docs/ecosystem.md). Run `pytest -q && ruff check . && ruff format --check . && chock check` before a pull request; [`good first issue`](https://github.com/open-coder-ai/chock/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) is where to start. Questions: [Discussions](https://github.com/open-coder-ai/chock/discussions).
+A policy manifest for the guardrail your stack needs is the contribution we want most; send it to the [catalog](https://github.com/open-coder-ai/chock-catalog). An evidence report on what your agent does, or a `policy wanted` entry in the [threat ledger](https://github.com/open-coder-ai/chock-threat-intel/blob/main/reference/agentic-threat-ledger.md), counts; see [docs/ecosystem.md](docs/ecosystem.md). Run `pytest -q && ruff check . && ruff format --check . && chock check` before a pull request; [`good first issue`](https://github.com/open-coder-ai/chock/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) is where to start. Questions: [Discussions](https://github.com/open-coder-ai/chock/discussions).
 
 Chock policies are committed content, so your rules travel with every clone and fork, and the CI gate (`chock sync --ci`) depends on nothing the contributor does. [The full case.](docs/why.md)
 
