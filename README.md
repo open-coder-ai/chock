@@ -104,13 +104,11 @@ git commit -m "read key from env"    # passes
        alt="Terminal recording of the Quick start above, typed in real time, ending with the refused commit and the clean one.">
 </p>
 
-With no `--ref`, `chock add` pins the catalog tag `v<chock version>`, prints the commit and sha256, and installs nothing if that tag is missing. `--ref <40-hex commit>` and `--verify-sha <sha256>` pin by hand; `--ref` refuses a commit that was never published. The allowlist pragma on the key line is for documented test fixtures only. It is honoured at commit, push and in CI, and deliberately not at tool-use, where the scanned text is a live tool argument.
+With no `--ref`, `chock add` pins the catalog tag `v<chock version>`, prints the commit and sha256, and fails if the tag is missing. `--ref` and `--verify-sha` pin by hand; `--ref` refuses a commit never published. The allowlist pragma on the key line is for documented test fixtures only. It is honoured at commit, push and in CI, and deliberately not at tool-use, where the scanned text is a live tool argument.
 
 ### Check it, or try it without blocking
 
-`chock doctor` prints PASS, WARN, FAIL or INFO with a fix for each client's hooks, and exits 1 on a FAIL ([Doctor](docs/doctor.md)). `chock doctor --live` also runs chock's own hook commands, not the client: once on a command a policy refuses, once on `echo chock-doctor-live`. It skips plugin installs and never runs a hook command chock did not render.
-
-A top-level `rollout:` line in `.chock/config.yaml` records instead of refusing: `observe` warns and logs what `enforce` would have stopped, `ask` caps a block at ask, and `enforce` (the default, also for a missing or unknown value) blocks. An agent is held to the level committed at HEAD. `chock stop` ([Stop](docs/stop.md)) stays in force at every level.
+`chock doctor` and `--live` check your hooks ([Doctor](docs/doctor.md)). `rollout: observe` in `.chock/config.yaml` logs refusals instead of blocking; `chock stop` still holds.
 
 ### Shift left, with no model and no tokens
 
@@ -118,7 +116,7 @@ A top-level `rollout:` line in `.chock/config.yaml` records instead of refusing:
 - With Chock: the check runs as the agent writes, the refusal names the fix, and the agent corrects it in the same turn.
 - A check costs no tokens. A passing check adds nothing to the agent's context; a refusal adds one short reason.
 - Chock adds no new place your code goes: checks run where the agent writes, on the laptop, in the dev container or in the cloud agent's environment. The agent still sends context to its own model provider. Installing fetches policies once; enforcement makes no network calls.
-- Chock does not replace code review, your SAST suite or a penetration test. It refuses known classes while the agent writes, so they are fixed before review.
+- Chock does not replace code review, your SAST suite or a penetration test.
 
 | | Agent defaults | With Chock |
 | :--- | :--- | :--- |
@@ -131,9 +129,7 @@ A top-level `rollout:` line in `.chock/config.yaml` records instead of refusing:
 
 ### Supported agents
 
-Every agent in this table gets the same floor: a git hook, a CI gate and an ambient `AGENTS.md`
-rule, which is why those three columns aren't repeated below. What varies is whether the agent
-also exposes a native hook chock can wire directly into its own tool-call loop, and where the
+Every agent in this table gets the same floor: a git hook, a CI gate and an ambient `AGENTS.md` rule, which is why those three columns aren't repeated below. What varies is whether the agent also exposes a native hook chock can wire directly into its own tool-call loop, and where the
 file that wiring lives. A row here is support, not installation — coverage is only credited on
 a given repo once `chock sync` has written the file, which is why the CLI's own
 `chock status` always beats this table for what's true *here*. Four of the nine surfaces are
@@ -218,13 +214,37 @@ OWASP Top 10 for Agentic Applications, from each manifest's `compliance.owasp_as
 
 Tiers: `commit` is a git hook or CI gate that exits non-zero. `in-agent` is the agent's pre-tool hook: best-effort, and it fails open. `advisory` is rule text the agent reads. No agent reaches `enforced` today.
 
-OWASP mappings are partial and the engine is frozen at the commit above. Chock does not stop every attack: it closes common, known entry points before they ship. How it compares with other tools: [docs/compare.md](docs/compare.md).
+OWASP mappings are partial and the engine is frozen at the commit above. Chock does not stop every attack: it closes common, known entry points before they ship.
 
 ## FAQ for people and agents
+
+### Does Chock use an LLM?
+
+No. Each check is a deterministic script (a parser plus rules) with no model call and no network access at enforcement time.
+
+### Does my code leave my machine?
+
+Chock adds no new place your code goes. Your agent still sends context to its own model provider.
 
 ### Which agents does it work with?
 
 <!-- derive:faq_agents -->All 20 above get a git hook, a CI gate and an `AGENTS.md` rule; 15 also get a native hook. As one plugin: 8 tested, 3 untested.<!-- /derive:faq_agents -->
+
+### How do I install it?
+
+See [Install](#install): in your repo, or as one plugin from the builder.
+
+### What does it cost?
+
+Nothing: Apache-2.0, and a check costs no tokens.
+
+### How does it compare with other tools?
+
+See [docs/compare.md](docs/compare.md).
+
+### Does it replace SAST or code review?
+
+No. It refuses known classes while the agent writes, so they are fixed before review.
 
 ### Which OWASP and CWE items does it cover?
 

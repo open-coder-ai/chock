@@ -10,9 +10,10 @@
 - Witness ledger: a second row, Cursor 3.30.14 on Windows, 2026-11-14: the repo's `beforeShellExecution` hook refused
   `git commit --no-verify` and no commit was made (chock `cc127e4`). Surface `agent-hooks`, the name the ledger's
   readers (`sync_notes`, `derive.py`) key on for repo hooks.
-- README: made room for the new section within the README budgets (1,600 words, 300 lines): the cost-estimate
-  sentence and the FAQ entries on LLM use, data leaving the machine, SAST, install, comparison and cost were removed;
-  each is answered elsewhere in the README or in `docs/`; the comparison link moved to "Guardrails, not guarantees".
+- README: the new section is kept to a short paragraph; the FAQ keeps its six entries. The "estimate what a late
+  finding costs" paragraph and a sentence repeating the comparison link were removed to stay within the README
+  budgets (1,600 words, 300 lines).
 - Witness ledger: a third row, Codex CLI 0.169.0 on Windows, 2026-11-14: the repo's `PreToolUse` hook refused
   `git commit --no-verify` and no commit was made, after the project's hooks were trusted (chock `cc127e4`).
-  `derive.py` now joins the ledger's clients plainly, without versions, and carries the platform and the trust condition.
+  `derive.py` now groups the ledger's clients by the platform each records, without versions, and carries the trust
+  condition.
