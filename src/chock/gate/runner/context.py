@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import difflib
 import fnmatch
 import shutil
@@ -144,17 +145,11 @@ class GateContext:
         A listing that fails or does not parse says no rename, which leaves the baseline at the path (stricter).
         """
         if self._rename_map is None:
-            scope = self._rename_range()
-            found: dict[str, str] = {}
+            scope, tokens = self._rename_range(), []
             if scope is not None:
-                try:
+                with contextlib.suppress(ListingError):
                     tokens = self._listing("diff", *scope, "-M", "--relative", "--name-status", "--diff-filter=R")
-                except ListingError:
-                    tokens = []
-                for index in range(0, len(tokens) - 2, 3):
-                    if tokens[index].startswith("R"):
-                        found[tokens[index + 2]] = tokens[index + 1]
-            self._rename_map = found
+            self._rename_map = {tokens[i + 2]: tokens[i + 1] for i in range(0, len(tokens) - 2, 3)}
         return self._rename_map
 
     def _diff_text(self, path: str) -> str:
