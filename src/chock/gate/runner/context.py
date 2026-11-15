@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import difflib
 import fnmatch
 import shutil
@@ -67,6 +68,7 @@ class GateContext:
         self.scope = tuple(scope or ())
         #: Path prefixes this gate never judges: its own policy's source and compiled folders.
         self.own = tuple(own)
+        self._rename_map: dict[str, str] | None = None
 
     def is_own(self, path: str) -> bool:
         """Whether `path` is in this policy's own source or compiled folder."""
@@ -133,9 +135,28 @@ class GateContext:
         paths = self._listing("diff", *self._range(), "--name-only", f"--diff-filter={diff_filter}")
         return [path for path in paths if self.in_scope(path, judge_own=judge_own)]
 
+    def _rename_range(self) -> list[str] | None:
+        """The git-diff scope whose renames the baseline follows; None when this context has none."""
+        return self._range()
+
+    def _renames(self) -> dict[str, str]:
+        """{new path: old path} for what git itself reports as renamed (`-M`, default similarity); never a guess.
+
+        A listing that fails or does not parse says no rename, which leaves the baseline at the path (stricter).
+        """
+        if self._rename_map is None:
+            scope, tokens = self._rename_range(), []
+            if scope is not None:
+                with contextlib.suppress(ListingError):
+                    tokens = self._listing("diff", *scope, "-M", "--relative", "--name-status", "--diff-filter=R")
+            self._rename_map = {tokens[i + 2]: tokens[i + 1] for i in range(0, len(tokens) - 2, 3)}
+        return self._rename_map
+
     def _diff_text(self, path: str) -> str:
         """`path`'s `-U0` diff as git writes it, unconverted; raises DiffError when git fails."""
-        args = ("diff", *self._range(), "-U0", "--no-color", "--no-ext-diff", "--no-textconv", "--", path)
+        old = self._renames().get(path)
+        paths = (path, old) if old else (path,)
+        args = ("diff", *self._range(), "-M", "-U0", "--no-color", "--no-ext-diff", "--no-textconv", "--", *paths)
         try:
             proc = subprocess.run(  # noqa: S603 -- reading repo facts via git is this class's whole job
                 [_GIT, "--literal-pathspecs", *args],
@@ -164,8 +185,8 @@ class GateContext:
         return self._git("show", f"HEAD:{path}" if self.base else f":{path}")
 
     def head_blob(self, path: str) -> str:
-        """Content before the change, or "" when the path is new in it."""
-        return self._git("show", f"{self.base or 'HEAD'}:{path}")
+        """Content before the change, or "" when the path is new in it; a renamed path reads its old path."""
+        return self._git("show", f"{self.base or 'HEAD'}:{self._renames().get(path, path)}")
 
     def committed_blob(self, path: str) -> str:
         """The file as HEAD has it, or "" when HEAD does not."""
@@ -234,6 +255,10 @@ class WriteContext(GateContext):
         self._added = dict(added or {})
         self._stop = stop
 
+    def _rename_range(self) -> list[str] | None:
+        """At the turn's end, HEAD against the index and tree; a write before the tool runs has no rename."""
+        return ["HEAD"] if self._stop else None
+
     def staged_paths(self, diff_filter: str = "ACMRT", *, judge_own: bool = False) -> list[str]:
         """Every write is a present file, so a filter asking only for deletions finds none."""
         if not set(diff_filter) & set("ACMRT"):
@@ -265,7 +290,7 @@ class WriteContext(GateContext):
     def head_blob(self, path: str) -> str:
         """The baseline: HEAD at the turn's end, else what is on disk now, which this write would replace."""
         if self._stop:
-            return self.committed_blob(path)
+            return self.committed_blob(self._renames().get(path, path))
         try:
             return (self.repo_root / path).read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
