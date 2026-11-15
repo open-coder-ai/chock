@@ -258,9 +258,8 @@ introduces:
   are for display. An optional `"new": true` makes the finding count as new whatever the
   baseline holds, for a script that already compared with HEAD itself. An optional `rule` (string,
   `[A-Za-z0-9][A-Za-z0-9 ._:/-]{0,63}`) names the rule for the gate log; a missing or malformed
-  `rule` is ignored and never invalidates the document. An optional `tier` (`"block"`, `"ask"` or
-  `"warn"`) is the verdict this one finding warrants (see Verdict); any other value counts as no tier
-  and never invalidates the document.
+  `rule` is ignored and never invalidates the document. An optional `tier` (`block`, `ask` or `warn`)
+  is the verdict this finding warrants (see Verdict); any other value is ignored.
 - A document is valid only when `findings` is a list of objects each carrying string `key`, `path`
   and `message`, an integer `line`, and a boolean `new` if present. Anything else on stdout is not
   a document, and the script keeps the exit-code contract above exactly (one run).
@@ -273,13 +272,11 @@ introduces:
 - **New findings.** Per `path`, each baseline finding cancels one change-run finding with the
   same `key`, so a finding is new when its key occurs more often in the change-run than in the
   baseline; a second copy of an old violation is new.
-- **Verdict.** No new findings allows, whatever the change-run's exit code. Otherwise, when every
-  new finding carries a `tier`, the verdict is the highest among them (`block` over `ask` over
-  `warn`), so an old block-tier finding in a touched file cannot turn a new ask-tier one into a
-  block; when any new finding lacks one, the change-run's exit code decides (`1` blocks, `3` asks,
-  `4` warns; any other code is undecided as above). Either way the verdict is capped by the declared
-  `action`, exit `0` allows, and the reason lists only the new findings as `path:line: message`,
-  not the script's stderr. A script that sets no `tier` behaves exactly as before.
+- **Verdict.** No new findings allows, whatever the change-run's exit code. Otherwise, when every new
+  finding carries a `tier`, the highest (`block` over `ask` over `warn`) decides, so an old block-tier
+  finding cannot turn a new ask-tier one into a block; if any lacks one, the change-run's exit code
+  decides (codes as above). The declared `action` caps either; the reason lists only the new
+  findings as `path:line: message`, not the script's stderr. No `tier` anywhere: exactly as before.
 - **Baseline text** is the file before the change: `commit`, HEAD; `push` and `ci`, the base of
   the range; `tool_use` before the write (PreToolUse), the file on disk, and at the turn's end
   (Stop), HEAD. A write outside the repository has the file on disk before the write, or no
@@ -289,16 +286,14 @@ introduces:
   git, no HEAD) leaves the baseline findings empty, which errs toward blocking.
 - **Budget.** Both runs share the 30s timeout; the baseline run gets what the change-run left.
 - The gate log records `new_findings`, `baseline_findings` and, per declared `rule`, `rules`
-  (rule to count of new findings). `tool_call` scripts and the
-  `hook.script` event scripts are unchanged.
+  (rule to count of new findings). `tool_call` scripts and the `hook.script` event scripts are unchanged.
 
 `chock compile` rewrites `script` to the file's path from the repository root, which is all
 the runner has; the ambient line an agent reads keeps the bare name, so the packaged `SKILL.md`
 is the same wherever the policy sits. `chock check` refuses a name that is not a bare `.py` file
 name, and a script the policy does not ship. The script is deterministic code under
-`implementations/`, so SEC-2 applies to it as to any guard, and `chock check --only evals`
-copies that directory into the throwaway repository a staged-files case is replayed in, where
-the compiled gate names it.
+`implementations/`, so SEC-2 applies to it, and `chock check --only evals` copies that directory
+into the throwaway repository a staged-files case is replayed in, where the compiled gate names it.
 
 ## Runtime note
 
