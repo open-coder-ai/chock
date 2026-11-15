@@ -155,18 +155,22 @@ def plugin_clients() -> tuple[list[str], list[str]]:
     return [n for cid, n in names if cid not in untested], [n for cid, n in names if cid in untested]
 
 
-def witnessed_clients(rows: list) -> tuple[str, str]:
-    """(client names joined plainly, the platform and trust conditions) from the ledger rows; versions stay in the ledger."""
-    names, platforms, notes = [], [], []
+def witnessed_clients(rows: list) -> str:
+    """Client names from the ledger rows, grouped by the platform each records; versions stay in the ledger."""
+    groups: dict[str, list[str]] = {}
+    notes = []
     for row in rows:
         platform = CLIENT_PLATFORM.search(row.client)
         name = CLIENT_VERSION.sub("", CLIENT_PLATFORM.sub("", row.client)).strip()
-        names.append(name)
-        if platform and platform["platform"] not in platforms:
-            platforms.append(platform["platform"])
+        groups.setdefault(platform["platform"] if platform else "", []).append(name)
         if TRUST_CONDITION in row.method:
             notes.append(f"{name.split()[0]} {TRUST_CONDITION}")
-    return _either_and(names), "; ".join([" and ".join(platforms)] * bool(platforms) + notes)
+    parts = [
+        _either_and(names) if not platform else f"on {platform}, in {_either_and(names)}"
+        for platform, names in sorted(groups.items(), key=lambda g: g[0] != "")
+    ]
+    text = parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and, " + parts[-1]
+    return text + (f" ({'; '.join(notes)})" if notes else "")
 
 
 def repo_agents() -> tuple[int, int, list]:
@@ -211,7 +215,7 @@ def readme_blocks(data: dict) -> dict[str, str]:
         + _table(("Class of flaw behind", "Policy", "Tier", "Eval cases"), (":---", ":---", ":---", "---:"), incidents)
         + "\n",
         "plugins": _fill(t["plugins"], TESTED=_either(tested), UNTESTED=_either(untested)),
-        "repo_agents": _fill(t["repo_agents"], WITNESSED=witnessed_clients(seen)[0], NOTES=witnessed_clients(seen)[1]),
+        "repo_agents": _fill(t["repo_agents"], WITNESSED=witnessed_clients(seen)),
         "faq_agents": _fill(t["faq_agents"], ALL=agents, NATIVE=native, TESTED_N=len(tested), UNTESTED_N=len(untested)),
         "repos": f"\n{_fill(t['repos'], COUNT=len(repos))}\n\n"
         + _table(("Repository", "What it is"), (":---", ":---"), repos)

@@ -135,7 +135,7 @@ Every agent in this table gets the same floor: a git hook, a CI gate and an ambi
 rule, which is why those three columns aren't repeated below. What varies is whether the agent
 also exposes a native hook chock can wire directly into its own tool-call loop, and where the
 file that wiring lives. A row here is support, not installation — coverage is only credited on
-a given repo once `chock sync` has actually written the file, which is why the CLI's own
+a given repo once `chock sync` has written the file, which is why the CLI's own
 `chock status` always beats this table for what's true *here*. Four of the nine surfaces are
 absent from this page entirely because they credit no agent today — `managed-setting` is
 not installed by chock, `gateway` is modelled but not yet emitted, `mcp-gateway` credits
@@ -167,7 +167,7 @@ Full nine-surface matrix and per-agent caveats:
 | **Kimi Code** | git hook + CI gate only — home-anchored config, outside chock's repo-scoped install | `~/.kimi-code/config.toml` |
 | **Replit** | git hook + CI gate only — no native hook API yet | — |
 
-<!-- derive:repo_agents -->Repo hooks refused commands live in Copilot CLI and VS Code agent mode, Claude Code, Cursor and Codex CLI (Windows; Codex after the project's hooks were trusted); other hooks follow agentseam's record, untested.<!-- /derive:repo_agents -->
+<!-- derive:repo_agents -->Repo hooks refused commands live in Copilot CLI and VS Code agent mode and, on Windows, in Claude Code, Cursor and Codex CLI (Codex after the project's hooks were trusted); others follow agentseam's record, untested.<!-- /derive:repo_agents -->
 
 ## What it stops
 
@@ -267,7 +267,7 @@ The 15 public repositories:
 
 <p><img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/v2/contribute.png" alt="Three numbered contribution cards, each with a one-line how-to." width="100%"></p>
 
-A policy manifest for the guardrail your stack needs is the contribution we want most; send it to the [catalog](https://github.com/open-coder-ai/chock-catalog). An evidence report on what your agent does, or a `policy wanted` entry in the [threat ledger](https://github.com/open-coder-ai/chock-threat-intel/blob/main/reference/agentic-threat-ledger.md), also counts; see [docs/ecosystem.md](docs/ecosystem.md). Run `pytest -q && ruff check . && ruff format --check . && chock check` before a pull request; [`good first issue`](https://github.com/open-coder-ai/chock/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) is where to start. Questions: [Discussions](https://github.com/open-coder-ai/chock/discussions).
+A policy manifest for the guardrail your stack needs is the contribution we want most; send it to the [catalog](https://github.com/open-coder-ai/chock-catalog). An evidence report on what your agent does, or a `policy wanted` entry in the [threat ledger](https://github.com/open-coder-ai/chock-threat-intel/blob/main/reference/agentic-threat-ledger.md), counts; see [docs/ecosystem.md](docs/ecosystem.md). Run `pytest -q && ruff check . && ruff format --check . && chock check` before a pull request; [`good first issue`](https://github.com/open-coder-ai/chock/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) is where to start. Questions: [Discussions](https://github.com/open-coder-ai/chock/discussions).
 
 Chock policies are committed content, so your rules travel with every clone and fork, and the CI gate (`chock sync --ci`) depends on nothing the contributor does. [The full case.](docs/why.md)
 
