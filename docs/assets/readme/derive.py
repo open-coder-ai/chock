@@ -166,7 +166,7 @@ def witnessed_clients(rows: list) -> tuple[str, str]:
             platforms.append(platform["platform"])
         if TRUST_CONDITION in row.method:
             notes.append(f"{name.split()[0]} {TRUST_CONDITION}")
-    return _either_and(names), "; ".join([f"on {' and '.join(platforms)}"] * bool(platforms) + notes)
+    return _either_and(names), "; ".join([" and ".join(platforms)] * bool(platforms) + notes)
 
 
 def repo_agents() -> tuple[int, int, list]:

@@ -93,4 +93,4 @@ def test_witnessed_clients_read_plainly_without_versions() -> None:
     ]
     names, notes = _derive().witnessed_clients(rows)
     assert names == "Claude Code and Codex CLI"
-    assert notes == "on Windows; Codex after the project's hooks were trusted"
+    assert notes == "Windows; Codex after the project's hooks were trusted"

@@ -167,7 +167,7 @@ Full nine-surface matrix and per-agent caveats:
 | **Kimi Code** | git hook + CI gate only — home-anchored config, outside chock's repo-scoped install | `~/.kimi-code/config.toml` |
 | **Replit** | git hook + CI gate only — no native hook API yet | — |
 
-<!-- derive:repo_agents -->Chock saw its repo hooks refuse a command live in Copilot CLI and VS Code agent mode, Claude Code, Cursor and Codex CLI (on Windows; Codex after the project's hooks were trusted); other native hooks follow agentseam's record, untested.<!-- /derive:repo_agents -->
+<!-- derive:repo_agents -->Repo hooks refused commands live in Copilot CLI and VS Code agent mode, Claude Code, Cursor and Codex CLI (Windows; Codex after the project's hooks were trusted); other hooks follow agentseam's record, untested.<!-- /derive:repo_agents -->
 
 ## What it stops
 
