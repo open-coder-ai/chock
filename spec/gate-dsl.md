@@ -258,7 +258,9 @@ introduces:
   are for display. An optional `"new": true` makes the finding count as new whatever the
   baseline holds, for a script that already compared with HEAD itself. An optional `rule` (string,
   `[A-Za-z0-9][A-Za-z0-9 ._:/-]{0,63}`) names the rule for the gate log; a missing or malformed
-  `rule` is ignored and never invalidates the document.
+  `rule` is ignored and never invalidates the document. An optional `tier` (`"block"`, `"ask"` or
+  `"warn"`) is the verdict this one finding warrants (see Verdict); any other value counts as no tier
+  and never invalidates the document.
 - A document is valid only when `findings` is a list of objects each carrying string `key`, `path`
   and `message`, an integer `line`, and a boolean `new` if present. Anything else on stdout is not
   a document, and the script keeps the exit-code contract above exactly (one run).
@@ -271,10 +273,13 @@ introduces:
 - **New findings.** Per `path`, each baseline finding cancels one change-run finding with the
   same `key`, so a finding is new when its key occurs more often in the change-run than in the
   baseline; a second copy of an old violation is new.
-- **Verdict.** No new findings allows, whatever the change-run's exit code. Otherwise the
-  change-run's exit code decides (`1` blocks, `3` asks, `4` warns, capped by the declared
-  `action`; exit `0` allows; any other code is undecided as above), and the reason lists only the
-  new findings as `path:line: message`, not the script's stderr.
+- **Verdict.** No new findings allows, whatever the change-run's exit code. Otherwise, when every
+  new finding carries a `tier`, the verdict is the highest among them (`block` over `ask` over
+  `warn`), so an old block-tier finding in a touched file cannot turn a new ask-tier one into a
+  block; when any new finding lacks one, the change-run's exit code decides (`1` blocks, `3` asks,
+  `4` warns; any other code is undecided as above). Either way the verdict is capped by the declared
+  `action`, exit `0` allows, and the reason lists only the new findings as `path:line: message`,
+  not the script's stderr. A script that sets no `tier` behaves exactly as before.
 - **Baseline text** is the file before the change: `commit`, HEAD; `push` and `ci`, the base of
   the range; `tool_use` before the write (PreToolUse), the file on disk, and at the turn's end
   (Stop), HEAD. A write outside the repository has the file on disk before the write, or no

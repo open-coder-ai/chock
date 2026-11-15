@@ -109,6 +109,19 @@ def _new_findings(found: list[dict], baseline: list[dict]) -> list[dict]:
     return fresh
 
 
+#: A finding's optional `tier`, ranked; a verdict is the highest among the findings the change adds.
+_TIER_RANK = {"warn": 1, "ask": 2, "block": 3}
+
+
+def _tier_verdict(fresh: list[dict]) -> str | None:
+    """The verdict word ("" blocks) when every kept finding carries a known tier, else None: the exit code decides."""
+    tiers = [item.get("tier") for item in fresh]
+    if not all(isinstance(tier, str) and tier in _TIER_RANK for tier in tiers):
+        return None
+    top = max(tiers, key=_TIER_RANK.__getitem__)
+    return "" if top == "block" else top
+
+
 def _baseline_findings(ctx: GateContext, script: Path, material: dict, started: float) -> list[dict]:
     """What the script finds in the baseline text of the change's files; empty when it cannot say.
 
@@ -147,7 +160,7 @@ def _exit_verdict(script: Path, proc: subprocess.CompletedProcess[str]) -> GateR
 def _judge_findings(
     ctx: GateContext, script: Path, material: dict, proc: subprocess.CompletedProcess[str], started: float
 ) -> GateResult:
-    """Judge only the findings the change introduces; the change-run's exit code is the verdict for them."""
+    """Judge only the findings the change introduces: the highest tier among them, else the change-run's exit code."""
     if proc.returncode not in (_SCRIPT_ALLOW, _SCRIPT_BLOCK, _SCRIPT_ASK, _SCRIPT_WARN):
         # A document followed by a crash or an unknown exit is undecided, never a clean pass.
         return _exit_verdict(script, proc)
@@ -160,7 +173,9 @@ def _judge_findings(
     if not fresh or proc.returncode == _SCRIPT_ALLOW:
         return GateResult(allowed=True, detail=counts)
     lines = [f"{item['path']}:{item['line']}: {item['message']}" for item in fresh]
-    verdict = {_SCRIPT_ASK: "ask", _SCRIPT_WARN: "warn"}.get(proc.returncode, "")
+    verdict = _tier_verdict(fresh)
+    if verdict is None:
+        verdict = {_SCRIPT_ASK: "ask", _SCRIPT_WARN: "warn"}.get(proc.returncode, "")
     return GateResult(
         allowed=False, matches=lines, verdict=verdict, detail=counts, rules=_rule_ids(fresh), findings=fresh
     )
