@@ -76,3 +76,21 @@ def test_a_deprecated_policy_is_not_counted(tmp_path: Path) -> None:
     assert data["eval_cases"] == 3 * live
     assert data["eval_executed"] == 2 * live
     assert sum(data["tiers"].values()) == live
+
+
+def test_witnessed_clients_read_plainly_without_versions() -> None:
+    from chock.evidence import Witness
+
+    rows = [
+        Witness("claude_code", "agent-hooks", "Claude Code v2.1.317, Windows", "2026-11-11", "live probe"),
+        Witness(
+            "codex_cli",
+            "agent-hooks",
+            "Codex CLI 0.169.0, Windows",
+            "2026-11-14",
+            "x, after the project's hooks were trusted (y)",
+        ),
+    ]
+    names, notes = _derive().witnessed_clients(rows)
+    assert names == "Claude Code and Codex CLI"
+    assert notes == "on Windows; Codex after the project's hooks were trusted"

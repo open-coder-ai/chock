@@ -28,6 +28,9 @@ README = Path(__file__).resolve().parents[3] / "README.md"
 BLOCK = re.compile(r"(<!-- derive:(?P<name>[a-z_]+) -->)(?P<body>.*?)(<!-- /derive:(?P=name) -->)", re.DOTALL)
 UNTESTED_PREFIX = "Untested:"
 DEPRECATED = "deprecated"
+TRUST_CONDITION = "after the project's hooks were trusted"
+CLIENT_VERSION = re.compile(r"\s+v?\d[\d.]*")
+CLIENT_PLATFORM = re.compile(r",\s*(?P<platform>[^,]+)$")
 ASI = [f"ASI{n:02d}" for n in range(1, 11)]
 INCIDENTS = [
     ("Log4Shell (CVE-2021-44228)", "java-security"),
@@ -128,6 +131,10 @@ def _either(names: list[str]) -> str:
     return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " or " + names[-1]
 
 
+def _either_and(names: list[str]) -> str:
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
 def _table(head: tuple[str, ...], align: tuple[str, ...], rows: list[tuple[object, ...]]) -> str:
     lines = ["| " + " | ".join(head) + " |", "| " + " | ".join(align) + " |"]
     lines += ["| " + " | ".join(str(c) for c in row) + " |" for row in rows]
@@ -148,14 +155,28 @@ def plugin_clients() -> tuple[list[str], list[str]]:
     return [n for cid, n in names if cid not in untested], [n for cid, n in names if cid in untested]
 
 
-def repo_agents() -> tuple[int, int, list[str]]:
-    """(agents chock sync wires, those with a native hook, clients its repo hooks were witnessed in)."""
+def witnessed_clients(rows: list) -> tuple[str, str]:
+    """(client names joined plainly, the platform and trust conditions) from the ledger rows; versions stay in the ledger."""
+    names, platforms, notes = [], [], []
+    for row in rows:
+        platform = CLIENT_PLATFORM.search(row.client)
+        name = CLIENT_VERSION.sub("", CLIENT_PLATFORM.sub("", row.client)).strip()
+        names.append(name)
+        if platform and platform["platform"] not in platforms:
+            platforms.append(platform["platform"])
+        if TRUST_CONDITION in row.method:
+            notes.append(f"{name.split()[0]} {TRUST_CONDITION}")
+    return _either_and(names), "; ".join([f"on {' and '.join(platforms)}"] * bool(platforms) + notes)
+
+
+def repo_agents() -> tuple[int, int, list]:
+    """(agents chock sync wires, those with a native hook, ledger rows of its repo hooks witnessed live)."""
     from chock import evidence  # noqa: PLC0415
     from chock.compile.surfaces import SURFACE_AGENTS, Surface  # noqa: PLC0415
     from chock.hooks import sync_notes  # noqa: PLC0415
 
     native = sum(1 for s in SURFACE_AGENTS.values() if {Surface.PRE_TOOL_USE, Surface.AGENT_HOOKS} & set(s))
-    seen = [w.client for w in evidence.witnesses() if w.surface in sync_notes._HOOK_SURFACES]
+    seen = [w for w in evidence.witnesses() if w.surface in sync_notes._HOOK_SURFACES]
     return len(SURFACE_AGENTS), native, seen
 
 
@@ -190,7 +211,7 @@ def readme_blocks(data: dict) -> dict[str, str]:
         + _table(("Class of flaw behind", "Policy", "Tier", "Eval cases"), (":---", ":---", ":---", "---:"), incidents)
         + "\n",
         "plugins": _fill(t["plugins"], TESTED=_either(tested), UNTESTED=_either(untested)),
-        "repo_agents": _fill(t["repo_agents"], WITNESSED="; ".join(seen)),
+        "repo_agents": _fill(t["repo_agents"], WITNESSED=witnessed_clients(seen)[0], NOTES=witnessed_clients(seen)[1]),
         "faq_agents": _fill(t["faq_agents"], ALL=agents, NATIVE=native, TESTED_N=len(tested), UNTESTED_N=len(untested)),
         "repos": f"\n{_fill(t['repos'], COUNT=len(repos))}\n\n"
         + _table(("Repository", "What it is"), (":---", ":---"), repos)

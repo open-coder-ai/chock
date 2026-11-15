@@ -82,5 +82,12 @@
     "client": "Cursor 3.30.14, Windows",
     "date": "2026-11-14",
     "method": "live probe: the repo's beforeShellExecution hook refused `git commit --no-verify` and no commit was made (chock cc127e4)"
+  },
+  {
+    "agent": "codex_cli",
+    "surface": "agent-hooks",
+    "client": "Codex CLI 0.169.0, Windows",
+    "date": "2026-11-14",
+    "method": "live probe: the repo's PreToolUse hook refused `git commit --no-verify` and no commit was made, after the project's hooks were trusted (chock cc127e4)"
   }
 ]
