@@ -46,6 +46,7 @@
     "items": [
       "Working tree",
       "git commit",
+      "git push",
       "Pull request",
       "CI",
       "Main branch"

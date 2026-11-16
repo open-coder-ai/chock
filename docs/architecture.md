@@ -65,6 +65,8 @@ Actions workflow that invokes it; the coverage report only credits `ci-gate` tow
 `enforced-at-commit` once that workflow is actually present, the same check `pre-tool-use` already
 gets — a control nothing wires up enforces nothing.
 
+The CI gate emits SARIF (`chock check --event ci --format sarif`), and a baseline step fails a pull request that disables or narrows a policy (`chock check --only baseline`). `chock mcp` serves read-only guidance to the agent; `chock sync` registers it per client, opt-in.
+
 ## Why "author once" matters
 
 The AI-agent ecosystem is fragmented: Claude reads `CLAUDE.md`, Cursor reads `.cursor/rules`,
