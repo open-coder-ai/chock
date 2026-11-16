@@ -125,10 +125,19 @@ def _tier_verdict(fresh: list[dict]) -> str | None:
 def _baseline_findings(ctx: GateContext, script: Path, material: dict, started: float) -> list[dict]:
     """What the script finds in the baseline text of the change's files; empty when it cannot say.
 
-    A new file has no baseline and is left out. A run that fails, times out, prints no findings
-    document, or has no budget left contributes nothing, which errs toward blocking.
+    A new file has no baseline and is left out. A renamed file is judged as it was before the change:
+    its old content at its OLD path, so a finding that exists because of the new name is not in the
+    baseline; findings are mapped back to the new path, where a content finding is the same one.
+    A run that fails, times out, prints no findings document, or has no budget left contributes
+    nothing, which errs toward blocking.
     """
-    texts = {path: text for path in material["writes"] if (text := ctx.head_blob(path))}
+    writes, texts, back = material["writes"], {}, {}
+    for path in writes:
+        if not (text := ctx.head_blob(path)):
+            continue
+        old = ctx.renamed_from(path)
+        old = path if old in writes or old in texts else old  # never shadow another file in the same run
+        texts[old], back[old] = text, path
     remaining = _SCRIPT_TIMEOUT_SECONDS - (time.monotonic() - started)
     if not texts or remaining <= 0:
         return []
@@ -136,7 +145,9 @@ def _baseline_findings(ctx: GateContext, script: Path, material: dict, started: 
         proc = _spawn(script, ctx, {**material, "writes": texts, "baseline": True}, remaining)
     except (subprocess.TimeoutExpired, OSError):
         return []
-    return _findings_document(proc.stdout or "") or []
+    return [
+        {**item, "path": back.get(item["path"], item["path"])} for item in _findings_document(proc.stdout or "") or []
+    ]
 
 
 def _exit_verdict(script: Path, proc: subprocess.CompletedProcess[str]) -> GateResult:

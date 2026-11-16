@@ -282,9 +282,9 @@ introduces:
   (Stop), HEAD. A write outside the repository has the file on disk before the write, or no
   baseline when absent. HEAD is read from `repo_root` (`git show HEAD:./<path>`), which may sit
   below the git top-level.
+- **A rename's baseline** (a path git reports as renamed, `-M`) is its old content under its OLD path, mapped back to the new path: a finding whose `key` names the new path is new.
 - **Baseline failure** (crash, timeout, non-zero exit without a document, non-JSON stdout, no
-  git, no HEAD) leaves the baseline findings empty, which errs toward blocking.
-- **Budget.** Both runs share the 30s timeout; the baseline run gets what the change-run left.
+  git, no HEAD) leaves the baseline findings empty, which errs toward blocking. Both runs share the 30s timeout; the baseline run gets what the change-run left.
 - The gate log records `new_findings`, `baseline_findings` and, per declared `rule`, `rules`
   (rule to count of new findings). `tool_call` scripts and the `hook.script` event scripts are unchanged.
 

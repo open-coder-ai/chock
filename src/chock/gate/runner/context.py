@@ -184,16 +184,19 @@ class GateContext:
         """The proposed content: staged in index mode, committed at HEAD in range mode."""
         return self._git("show", f"HEAD:{path}" if self.base else f":{path}")
 
+    def renamed_from(self, path: str) -> str:  # the old path git reports, else `path`
+        return self._renames().get(path, path)
+
     def head_blob(self, path: str) -> str:
-        """Content before the change, or "" when the path is new in it; a renamed path reads its old path."""
-        return self._git("show", f"{self.base or 'HEAD'}:{self._renames().get(path, path)}")
+        """Content before the change ("" when new); a renamed path reads its old path."""
+        return self._git("show", f"{self.base or 'HEAD'}:{self.renamed_from(path)}")
 
     def committed_blob(self, path: str) -> str:
         """The file as HEAD has it, or "" when HEAD does not."""
         return self._git("show", f"HEAD:{path}")
 
     def net_added_lines(self, path: str) -> list[str]:
-        """The lines this change introduces; at a commit that is what `added_lines` already says."""
+        """The lines this change introduces: at a commit, `added_lines`."""
         return self.added_lines(path)
 
     def current_branch(self) -> str:
@@ -290,7 +293,7 @@ class WriteContext(GateContext):
     def head_blob(self, path: str) -> str:
         """The baseline: HEAD at the turn's end, else what is on disk now, which this write would replace."""
         if self._stop:
-            return self.committed_blob(self._renames().get(path, path))
+            return self.committed_blob(self.renamed_from(path))
         try:
             return (self.repo_root / path).read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
