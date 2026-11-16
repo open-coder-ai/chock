@@ -5,7 +5,7 @@ coding agent** that touches your repo — your team's or a contributor's — wit
 exactly where each guarantee holds.
 
 <div align="center">
-  <img src="assets/readme/v2/where-chock-sits.png" alt="A left-to-right diagram: you ask your coding agent for a change; Chock checks each action before the agent's tool runs where the agent has hooks, at git commit and in CI; an allowed change lands, and a refused one tells the agent in one line what to do instead." width="820">
+  <img src="assets/readme/v2/where-chock-sits.png" alt="A layered sketch: you ask a coding agent for a change; inside the agent a model and an agent loop work with context, and the loop's tool calls pass a hook point before the tools run. Chock sits below with four connectors: a rules block in the agent's context, a judgement at the hook point where the agent has hooks, the git hook at commit and the same gates in CI." width="820">
 </div>
 
 <div align="center">

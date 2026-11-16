@@ -215,23 +215,46 @@ const HONEST = SECTION('Guardrails, not guarantees', 'And we tell you <span clas
 ${grid(3, 16, [['commit', 'A git hook or CI gate that exits non-zero.'], ['in-agent', 'The agent\'s own pre-tool hook. Best-effort, and it fails open.'], ['advisory', 'Rule text the agent reads. Nothing makes the agent follow it.']].map(([t, p]) => `<div class="panel" style="padding:24px;display:flex;flex-direction:column;gap:12px">${tag(t)}<span style="font-size:17px;line-height:1.5;color:#D5DBE8">${p}</span></div>`))}
 ${grid(3, 16, [[A.grades.enforced, 'matrix cells graded &ldquo;enforced&rdquo;: no agent reaches it'], [`${D.asi.refused_at_commit.length} of ${D.asi.with_policy}`, 'OWASP Agentic risks with a slice refused at commit'], [D.asi.fully_covered, 'OWASP Agentic risks fully covered: every mapping is partial']].map(([n, l]) => stat(n, l)))}`);
 
-// The README's "How it works" figure: the user's view. Every word comes from where-chock-sits.json.
+// The README's "How it works" figure: a light layered sketch of an agent and where Chock meets it. Every word comes from where-chock-sits.json.
 const W = JSON.parse(readFileSync(path.join(HERE, 'where-chock-sits.json'), 'utf8'));
-const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-const node = (name, line, extra = '') => `<div class="panel" style="padding:16px 14px;display:flex;flex-direction:column;gap:8px;justify-content:flex-start;${extra}"><span style="font-size:21px;font-weight:600">${esc(name)}</span><span style="font-size:15px;line-height:1.45;color:#B4BED2">${esc(line)}</span></div>`;
-const point = (p) => `<div style="display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:start"><span class="mono gold" style="font-size:15px;font-weight:600;border:1px solid #F0B53C;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center">${p.at}</span><span style="font-size:16px;line-height:1.35;font-weight:600">${esc(p.name)}<br><span style="font-weight:500;font-size:14px;color:#B4BED2">${esc(p.scope)}</span></span></div>`;
-const outcome = (o) => `<div class="panel" style="padding:14px;display:flex;flex-direction:column;gap:6px;border-color:${o.kind === 'ok' ? '#8FB4F0' : '#F29B8A'}"><span style="font-size:20px;font-weight:600;color:${o.kind === 'ok' ? '#8FB4F0' : '#F29B8A'}">${esc(o.name)}</span><span style="font-size:15px;line-height:1.45;color:#D5DBE8">${esc(o.line)}</span></div>`;
-const stopTag = (t) => `<span class="tier ${t === 'commit' ? 'tc' : 'ta'}" style="font-size:12px;white-space:normal;align-self:flex-start;line-height:1.35">${t === 'commit' ? 'at commit' : 'in the agent, best-effort'}</span>`;
-const WHERE = SECTION('', '', `
-<div style="font-size:21px;line-height:1.4;font-weight:600">${esc(W.title)}</div>
-<div style="display:grid;grid-template-columns:104px 18px 150px 18px minmax(0,1fr) 18px 176px;gap:8px;align-items:stretch">
-${node(W.you.name, W.you.line)}${arrow}
-${node(W.agent.name, `${W.agent.names.join(', ')} ${W.agent.more}. It ${W.agent.line}.`)}${arrow}
-<div class="panel" style="padding:16px 16px;display:flex;flex-direction:column;gap:12px;border-color:#F0B53C"><span class="gold" style="font-size:21px;font-weight:600">${esc(W.chock.name)}</span><span style="font-size:14px;line-height:1.4;color:#B4BED2">${esc(W.chock.line)}</span>${W.chock.points.map(point).join('')}</div>${arrow}
-<div style="display:flex;flex-direction:column;justify-content:flex-start;gap:12px">${W.outcomes.map(outcome).join('')}</div></div>
-<div style="display:flex;flex-direction:column;gap:10px"><span class="eyebrow" style="font-size:14px">${esc(W.stops_title)}</span>
-<div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px">${W.stops.map((s) => `<div class="panel" style="padding:12px;display:flex;flex-direction:column;gap:10px;justify-content:space-between"><span style="font-size:14.5px;line-height:1.4;color:#D5DBE8">${esc(s.line)}</span>${stopTag(s.tier)}</div>`).join('')}</div></div>
-<div style="font-size:16px;line-height:1.5;color:#B4BED2">${esc(W.footer)}</div>`, { bare: true });
+const wEsc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const INK = '#2B2A35', SOFT = '#5C5A6B', LINE = '#6B6877', PAPER = '#FBF7EE', ACCENT = '#C2410C';
+const wAbs = (x, y, w, h, css, inner) => `<div style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;${css}">${inner}</div>`;
+const wFrame = (x, y, w, h, title, sub) => wAbs(x, y, w, h, `border:2px dashed ${LINE};border-radius:18px`, `<div style="position:absolute;left:10px;top:-13px;padding:0 8px;white-space:nowrap;background:${PAPER};font-size:14px;font-weight:600;color:${INK}">${wEsc(title)}${sub ? ` <span style="font-weight:500;color:${SOFT}">&middot; ${wEsc(sub)}</span>` : ''}</div>`);
+const wBox = (x, y, w, h, fill, b) => wAbs(x, y, w, h, `background:${fill};border:1.5px solid ${LINE};border-radius:12px;padding:8px 12px;display:flex;flex-direction:column;justify-content:center;gap:3px`, `<span style="font-size:16px;font-weight:700;color:${INK}">${wEsc(b.name || b.box)}</span><span style="font-size:14px;line-height:1.35;color:${SOFT}">${wEsc(b.line)}</span>`);
+const wPlain = (x, y, w, h, fill, text) => wAbs(x, y, w, h, `background:${fill};border:1.5px solid ${LINE};border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:${INK}`, wEsc(text));
+const wTag = (x, y, text, extra = '') => `<span style="position:absolute;left:${x}px;top:${y}px;font-size:13px;font-weight:600;color:${SOFT};${extra}">${wEsc(text)}</span>`;
+const wDot = (x, y, n) => wAbs(x - 12, y - 12, 24, 24, `border-radius:50%;background:${ACCENT};color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center`, n);
+const AG = W.agent, CN = W.connectors;
+const wLine = (d, color = LINE, w = 1.8) => `<path d="${d}" fill="none" stroke="${color}" stroke-width="${w}" marker-end="url(#a${color === ACCENT ? 'c' : 'g'})"/>`;
+const wArrows = `<svg width="840" height="560" style="position:absolute;left:0;top:0" xmlns="http://www.w3.org/2000/svg"><defs>
+<marker id="ag" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="${LINE}" stroke-width="1.6"/></marker>
+<marker id="ac" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="${ACCENT}" stroke-width="1.8"/></marker></defs>
+${wLine('M100 105 H130')}${wLine('M330 84 H395')}${wLine('M330 170 H395')}${wLine('M395 190 H330')}
+${wLine('M485 210 V240')}${wLine('M485 300 V326')}${wLine('M575 357 H588 V125 H575')}
+${wLine('M140 460 V84 H150', ACCENT, 2.2)}${wLine('M362 460 V270 H395', ACCENT, 2.2)}
+${wLine('M630 460 V128 H645', ACCENT, 2.2)}${wLine('M828 460 V264 H815', ACCENT, 2.2)}
+${[0, 1, 2, 3].map((i) => wLine(`M730 ${80 + i * 68} V${108 + i * 68}`)).join('')}</svg>`;
+const wStrip = W.stops.map((s, i) => wAbs(i * 170, 0, 160, 160, `background:#fff;border:1.5px solid ${LINE};border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;justify-content:space-between`, `<span style="font-size:14px;line-height:1.4;color:${INK}">${wEsc(s.line)}</span><span class="mono" style="font-size:13px;font-weight:600;align-self:flex-start;padding:2px 8px;border-radius:6px;background:${s.tier === 'commit' ? '#FCE3D3' : '#E3ECF8'};color:${INK}">${s.tier === 'commit' ? 'at commit' : 'in the agent, best-effort'}</span>`)).join('');
+const wLegend = CN.map((c, i) => wAbs(i * 210, 0, 198, 170, `border-top:2.5px solid ${ACCENT};padding-top:8px`, `<div style="font-size:15px;font-weight:700;color:${INK}"><span style="color:${ACCENT}">${c.n}</span> ${wEsc(c.name)}</div><div style="font-size:14px;line-height:1.4;color:${SOFT};margin-top:4px">${wEsc(c.line)}${c.scope ? ` <div style="font-weight:700;color:${INK};margin-top:4px">${wEsc(c.scope[0].toUpperCase() + c.scope.slice(1))}.</div>` : ''}</div>`)).join('');
+const WHERE = page(`<div class="frame" style="width:880px;padding:20px;background:${PAPER};color:${INK};position:relative;height:1110px">
+<div style="position:absolute;left:20px;top:20px;width:840px;font-size:20px;line-height:1.35;font-weight:600">${wEsc(W.title)}</div>
+<div style="position:absolute;left:20px;top:90px;width:840px;height:1000px">
+${wFrame(0, 0, 110, 410, W.you.name)}${wBox(10, 40, 90, 130, '#EFE9F9', { name: W.you.box, line: W.you.line })}
+${wFrame(130, 0, 470, 410, AG.name, AG.sub)}
+${wBox(150, 40, 180, 88, '#DDEFE0', AG.context)}${wBox(150, 145, 180, 72, '#E8E1F6', AG.model)}${wBox(395, 40, 180, 170, '#DCEAF9', AG.loop)}
+${wBox(395, 240, 180, 60, '#F6E2EC', AG.hook)}${wBox(395, 326, 180, 62, '#ECE6D8', AG.tools)}
+${wFrame(604, 0, 236, 410, W.repo.name)}${W.repo.items.map((t, i) => wPlain(645, 40 + i * 68, 170, 40, '#DDF0EE', t)).join('')}
+${wAbs(130, 460, 710, 80, `background:#FFF1E8;border:2.5px solid ${ACCENT};border-radius:14px;padding:10px 16px;display:flex;flex-direction:column;justify-content:center;gap:3px`, `<span style="font-size:20px;font-weight:700;color:${ACCENT}">${wEsc(W.chock.name)}</span><span style="font-size:15px;color:${INK}">${wEsc(W.chock.line)}</span>`)}
+${wArrows}
+${wTag(333, 64, AG.arrows.feeds, 'width:60px;text-align:center')}${wTag(331, 148, AG.arrows.plan, 'width:64px;text-align:center')}
+${wTag(392, 216, AG.arrows.call, 'width:74px;text-align:right')}${wTag(522, 216, AG.arrows.result)}
+${wDot(140, 438, CN[0].n)}${wDot(362, 438, CN[1].n)}${wDot(630, 438, CN[2].n)}${wDot(828, 438, CN[3].n)}
+${wAbs(0, 568, 840, 170, '', wLegend)}
+${wAbs(0, 756, 840, 24, '', `<span class="eyebrow" style="font-size:14px;color:${ACCENT}">${wEsc(W.stops_title)}</span>`)}
+${wAbs(0, 788, 840, 160, '', wStrip)}
+${wAbs(0, 970, 840, 30, '', `<span style="font-size:16px;color:${SOFT}">${wEsc(W.footer)}</span>`)}
+</div></div>`);
 
 const ALL_NEW = { layers: LAYERS, quickstart: QUICKSTART, matrix: MATRIX, catalog: CATALOG, family: FAMILY, honest: HONEST };
 // README v2 panels go under v2/; the titled refusal, roles and contribute PNGs at the old paths stay frozen until RW-7b.
