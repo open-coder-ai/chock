@@ -4,7 +4,7 @@
     {"id": "session_start", "label": "session start", "name": "Session start", "line": "arms the hooks from what is committed.", "scope": "where the agent has hooks", "source": "agentseam", "acts": true, "proof": ["tests/test_sessionstart_arm.py"], "place": {"row": "agent", "into": 0, "slot": 0, "of": 1}, "does": "arms the hooks", "on": "session"},
     {"id": "session_end", "label": "session end", "name": "Session end", "line": "agentseam exposes this point; no shipped Chock code acts on it.", "scope": "where the agent has hooks", "source": "agentseam", "acts": false, "proof": [], "place": {"chip": true}, "on": "session"},
     {"id": "prompt_submit", "label": "prompt submit", "name": "Prompt submitted", "line": "agentseam exposes this point; no shipped Chock code acts on it.", "scope": "where the agent has hooks", "source": "agentseam", "acts": false, "proof": [], "place": {"row": "agent", "into": 1, "slot": 0, "of": 1}, "on": "prompt"},
-    {"id": "instructions_loaded", "label": "instructions loaded", "name": "Instructions loaded", "line": "agentseam exposes this point; no shipped Chock code acts on it.", "scope": "where the agent has hooks", "source": "agentseam", "acts": false, "proof": [], "place": {"chip": true}, "on": "context"},
+    {"id": "instructions_loaded", "label": "instructions", "name": "Instructions loaded", "line": "agentseam exposes this point; no shipped Chock code acts on it.", "scope": "where the agent has hooks", "source": "agentseam", "acts": false, "proof": [], "place": {"chip": true}, "on": "context"},
     {"id": "pre_compact", "label": "pre-compact", "name": "Before context is compacted", "line": "agentseam exposes this point; no shipped Chock code acts on it.", "scope": "where the agent has hooks", "source": "agentseam", "acts": false, "proof": [], "place": {"chip": true}, "on": "context"},
     {"id": "pre_tool", "label": "pre-tool", "name": "Before a tool runs", "line": "Chock judges the call: allow, ask or block. A refusal goes back to the model with one line on what to do instead.", "scope": "where the agent has hooks", "source": "agentseam", "acts": true, "proof": ["tests/test_agent_hooks.py", "tests/test_claude_warn_ask_wire.py"], "place": {"row": "agent", "into": 4, "slot": 0, "of": 1}, "does": "allow, ask or block", "on": "gate"},
     {"id": "post_tool", "label": "post-tool", "name": "After a tool runs", "line": "records what ran, for checks that read the session. It never changes a verdict.", "scope": "where the agent has hooks", "source": "agentseam", "acts": true, "proof": ["tests/test_session_log.py"], "place": {"row": "agent", "into": 5, "slot": 0, "of": 2}, "does": "records what ran", "on": "gate"},
@@ -38,15 +38,15 @@
       {"id": "subagents", "name": "Subagents", "line": "helpers the loop starts", "row": 2, "col": 0, "span": 1},
       {"id": "gate", "name": "Tool gate", "line": "asks before a tool runs", "row": 2, "col": 1, "span": 1},
       {"id": "tools", "name": "Tools", "line": "edit, write, run, git", "row": 2, "col": 2, "span": 1},
-      {"id": "external", "name": "External tools (MCP)", "line": "tools from other programs", "row": 3, "col": 2, "span": 1}
+      {"id": "external", "name": "External tools (MCP)", "line": "tools from other programs", "row": 2, "col": 3, "span": 1}
     ],
     "repo_cards": [
       {"id": "commit", "name": "git commit", "line": "saves the change"},
-      {"id": "push", "name": "git push", "line": "sends it to the remote"},
-      {"id": "ci", "name": "CI on the pull request", "line": "checks the pull request"},
-      {"id": "main", "name": "main branch", "line": "where the change lands"}
+      {"id": "push", "name": "git push", "line": "sends it on"},
+      {"id": "ci", "name": "CI on the pull request", "line": "runs the checks"},
+      {"id": "main", "name": "main branch", "line": "where it lands"}
     ],
-    "arrows": {"you-prompt": "asks", "prompt-loop": "request", "context-loop": "feeds", "loop-model": "proposes", "loop-gate": "tool call", "gate-loop": "refused", "gate-tools": "allowed", "tools-loop": "result", "tools-external": "calls", "loop-subagents": "starts", "tools-commit": "writes"},
+    "arrows": {"you-prompt": "asks", "prompt-loop": "request", "session-loop": "opens", "context-loop": "feeds", "loop-model": "plans", "loop-gate": "tool call", "gate-loop": "refused", "gate-tools": "allow", "tools-loop": "result", "tools-external": "calls", "loop-subagents": "starts", "tools-commit": "writes"},
     "key": {"acts": "Chock runs here: a local program, rules are files in your repository, no model, no tokens", "exposed": "a hook your own policy can use"},
     "alt": "A coding agent's harness drawn as component cards in three layers: input (you, the prompt, the session), core (context, the agent loop and the model) and execution (the tool gate, tools, external tools over MCP and subagents), with arrows showing how they talk to each other, beside the repository and pipeline (git commit, git push, CI, main branch). Small diamonds on each card are the hooks on that component: filled where Chock runs today, hollow where a policy of your own can run. The model has none, because Chock never touches it."
   },
