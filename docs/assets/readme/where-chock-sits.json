@@ -19,7 +19,7 @@
   "stops_title": "What it stops",
   "stops": [
     {"policy": "scan-secrets", "line": "a password or API key written into code", "tier": "commit"},
-    {"policy": "dockerfile-compose-security", "line": "a container that runs as root or on an unpinned image", "tier": "commit"},
+    {"policy": "dockerfile-compose-security", "line": "a container that runs as root or uses a floating image tag such as latest", "tier": "commit"},
     {"policy": "block-curl-pipe-sh", "line": "a download piped straight into a shell", "tier": "in-agent"},
     {"policy": "block-unapproved-egress", "line": "data sent to a host you have not approved", "tier": "in-agent"},
     {"policy": "protect-ci-workflows", "line": "the agent weakening the checks that review its work (asks you first)", "tier": "in-agent"}
