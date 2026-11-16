@@ -5,20 +5,28 @@ coding agent** that touches your repo — your team's or a contributor's — wit
 exactly where each guarantee holds.
 
 <div align="center">
-  <img src="assets/readme/v2/where-chock-sits.png" alt="A layered sketch: you ask a coding agent for a change, and inside the agent a model and an agent loop work with context and call tools, some through an MCP server. Chock sits below with a marker on each place it meets them: session start, rules in context, before and after each tool, the end of the turn and the MCP gateway, then commit, push and CI in your repository; solid markers apply to every agent, outlined ones only where the agent has hooks." width="820">
+  <img src="assets/readme/v2/where-chock-sits.png" alt="A layered sketch of a coding agent: you send a prompt to an agent loop that works with a model, context, tools, an MCP server and subagents, and your repository and pipeline follow. Every point agentseam exposes is marked on the drawing, and the ones Chock acts on today, the rules in context, before and after each tool, session start, stop, the MCP gateway, commit, push and CI, are filled in accent colour and joined to the Chock box below; the rest are hollow grey." width="820">
 </div>
 
-Chock meets the agent and your repository at nine points, in the order they happen in a session. A solid marker in the figure applies to every agent; an outlined one only where the agent has hooks or a gateway.
+The figure marks every point agentseam exposes in an agent, plus the other places Chock meets the agent and your repository. A filled marker is a point Chock acts on today and is joined to the Chock box; a hollow grey one is exposed by agentseam but unused by Chock.
 
-1. **Session start**: arms the hooks from what is committed. *Where the agent has hooks.*
-2. **Rules in context**: a short rules block Chock writes into AGENTS.md. Advisory. *Every agent.*
-3. **Before a tool runs**: Chock judges the call: allow, ask or block. A refusal goes back to the model with one line on what to do instead. *Where the agent has hooks.*
-4. **After a tool runs**: records what ran, for checks that read the session. It never changes a verdict. *Where the agent has hooks.*
-5. **End of the turn**: reads what the turn left in the working tree and refuses to end the turn on a finding. A backstop. *Where the agent has hooks.*
-6. **MCP gateway**: a proxy that judges calls to an MCP server. *Where a server is set up through it.*
-7. **At git commit**: the git hook. *Every agent, and people.*
-8. **At git push**: the pre-push hook. *Every agent, and people.*
-9. **In CI**: the same gates on the pull request. *Every agent.*
+- **Session start**: arms the hooks from what is committed. *Where the agent has hooks.*
+- **Session end** (not used): agentseam exposes this point; no shipped Chock code acts on it. *Where the agent has hooks.*
+- **Prompt submitted** (not used): agentseam exposes this point; no shipped Chock code acts on it. *Where the agent has hooks.*
+- **Instructions loaded** (not used): agentseam exposes this point; no shipped Chock code acts on it. *Where the agent has hooks.*
+- **Before context is compacted** (not used): agentseam exposes this point; no shipped Chock code acts on it. *Where the agent has hooks.*
+- **Before a tool runs**: Chock judges the call: allow, ask or block. A refusal goes back to the model with one line on what to do instead. *Where the agent has hooks.*
+- **After a tool runs**: records what ran, for checks that read the session. It never changes a verdict. *Where the agent has hooks.*
+- **After a tool fails**: records the failed call the same way. *Where the agent has hooks.*
+- **A file changes** (not used): agentseam exposes this point; no shipped Chock code acts on it. *Where the agent has hooks.*
+- **Subagent starts** (not used): agentseam exposes this point; no shipped Chock code acts on it. *Where the agent has hooks.*
+- **Subagent stops** (not used): agentseam exposes this point; no shipped Chock code acts on it. *Where the agent has hooks.*
+- **End of the turn**: reads what the turn left in the working tree and refuses to end the turn on a finding. A backstop. *Where the agent has hooks.*
+- **Rules in context**: a short rules block Chock writes into AGENTS.md. Advisory. *Every agent.*
+- **MCP gateway**: a proxy that judges calls to an MCP server. *Where a server is set up through it.*
+- **At git commit**: the git hook. *Every agent, and people.*
+- **At git push**: the pre-push hook. *Every agent, and people.*
+- **In CI**: the same gates on the pull request. *Every agent.*
 
 <div align="center">
   <img src="assets/architecture.svg" alt="Author a policy once, compile it, and enforce it on every agent's native surface." width="820">

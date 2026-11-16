@@ -1,5 +1,5 @@
 {
-  "_": "Text of the README 'How it works' figure (v2/where-chock-sits.png), read by where-chock-sits.mjs. Component names are generic: no vendor is named. 'points' is every place Chock meets the agent or the repository, in session order: 'label' is drawn on the marker, 'kind' is its style (all = solid: every agent; hooks = outlined: only where the agent has hooks or a gateway), 'name', 'line' and 'scope' are the list in docs/architecture.md. tests/test_readme_picture.py derives the same list from the engine (Surface enum, git script events, the agentseam events chock uses) and fails when they differ. 'proof' lists the tests that prove each point (checked, not drawn). Not drawn, because the engine does not wire them: a prompt-submit hook; the managed-setting and gateway surfaces.",
+  "_": "Text of the README 'How it works' figure (v2/where-chock-sits.png), read by where-chock-sits.mjs. Component names are generic: no vendor is named. 'points' are the 12 agentseam events (agentseam.contract.EVENTS) plus the five other places Chock meets the agent or the repository. 'acts' is true where shipped Chock code acts on the point: a filled marker joined to the Chock box; false is a hollow grey marker. tests/test_readme_picture.py asserts the agentseam points equal agentseam.contract.EVENTS and the 'acts' set equals what the engine handles (the agentseam events used in src/chock, the Surface enum, the git script events). 'proof' lists the tests that prove each acting point. Not drawn: the managed-setting and gateway surfaces (not wired).",
   "title": "You keep working with your agent as before. Chock checks each action before it lands.",
   "you": {
     "name": "You",
@@ -7,7 +7,7 @@
   },
   "agent": {
     "name": "Your coding agent (any vendor)",
-    "sub": "",
+    "sub": "where the agent has hooks",
     "context": {
       "name": "Context"
     },
@@ -27,6 +27,9 @@
     },
     "mcp": {
       "name": "MCP servers"
+    },
+    "subagents": {
+      "name": "Subagents"
     }
   },
   "repo": {
@@ -38,7 +41,8 @@
       "Pull request",
       "CI",
       "Main branch"
-    ]
+    ],
+    "sub": "every agent, and people"
   },
   "chock": {
     "name": "Chock",
@@ -53,111 +57,202 @@
     "weakened CI checks"
   ],
   "footer": "The rules are files in your repository. A person turns them on once with chock sync.",
-  "alt": "A layered sketch: you ask a coding agent for a change, and inside the agent a model and an agent loop work with context and call tools, some through an MCP server. Chock sits below with a marker on each place it meets them: session start, rules in context, before and after each tool, the end of the turn and the MCP gateway, then commit, push and CI in your repository; solid markers apply to every agent, outlined ones only where the agent has hooks.",
+  "alt": "A layered sketch of a coding agent: you send a prompt to an agent loop that works with a model, context, tools, an MCP server and subagents, and your repository and pipeline follow. Every point agentseam exposes is marked on the drawing, and the ones Chock acts on today, the rules in context, before and after each tool, session start, stop, the MCP gateway, commit, push and CI, are filled in accent colour and joined to the Chock box below; the rest are hollow grey.",
   "points": [
     {
-      "id": "session-start",
+      "id": "session_start",
+      "label": "session start",
       "name": "Session start",
       "line": "arms the hooks from what is committed.",
       "scope": "where the agent has hooks",
+      "source": "agentseam",
+      "acts": true,
       "proof": [
         "tests/test_sessionstart_arm.py"
-      ],
-      "label": "session start",
-      "kind": "hooks"
+      ]
     },
     {
-      "id": "ambient-rule",
-      "name": "Rules in context",
-      "line": "a short rules block Chock writes into AGENTS.md. Advisory.",
-      "scope": "every agent",
-      "proof": [
-        "tests/test_agents_md_pointer.py"
-      ],
-      "label": "rules",
-      "kind": "all"
+      "id": "session_end",
+      "label": "session end",
+      "name": "Session end",
+      "line": "agentseam exposes this point; no shipped Chock code acts on it.",
+      "scope": "where the agent has hooks",
+      "source": "agentseam",
+      "acts": false,
+      "proof": []
     },
     {
-      "id": "pre-tool-use",
+      "id": "prompt_submit",
+      "label": "prompt submit",
+      "name": "Prompt submitted",
+      "line": "agentseam exposes this point; no shipped Chock code acts on it.",
+      "scope": "where the agent has hooks",
+      "source": "agentseam",
+      "acts": false,
+      "proof": []
+    },
+    {
+      "id": "instructions_loaded",
+      "label": "instructions loaded",
+      "name": "Instructions loaded",
+      "line": "agentseam exposes this point; no shipped Chock code acts on it.",
+      "scope": "where the agent has hooks",
+      "source": "agentseam",
+      "acts": false,
+      "proof": []
+    },
+    {
+      "id": "pre_compact",
+      "label": "pre-compact",
+      "name": "Before context is compacted",
+      "line": "agentseam exposes this point; no shipped Chock code acts on it.",
+      "scope": "where the agent has hooks",
+      "source": "agentseam",
+      "acts": false,
+      "proof": []
+    },
+    {
+      "id": "pre_tool",
+      "label": "pre-tool",
       "name": "Before a tool runs",
       "line": "Chock judges the call: allow, ask or block. A refusal goes back to the model with one line on what to do instead.",
       "scope": "where the agent has hooks",
+      "source": "agentseam",
+      "acts": true,
       "proof": [
         "tests/test_agent_hooks.py",
         "tests/test_claude_warn_ask_wire.py"
-      ],
-      "label": "pre-tool",
-      "kind": "hooks"
+      ]
     },
     {
-      "id": "post-tool-use",
+      "id": "post_tool",
+      "label": "post-tool",
       "name": "After a tool runs",
       "line": "records what ran, for checks that read the session. It never changes a verdict.",
       "scope": "where the agent has hooks",
+      "source": "agentseam",
+      "acts": true,
       "proof": [
         "tests/test_session_log.py"
-      ],
-      "label": "post-tool",
-      "kind": "hooks"
+      ]
+    },
+    {
+      "id": "tool_failure",
+      "label": "tool failure",
+      "name": "After a tool fails",
+      "line": "records the failed call the same way.",
+      "scope": "where the agent has hooks",
+      "source": "agentseam",
+      "acts": true,
+      "proof": [
+        "tests/test_session_log.py"
+      ]
+    },
+    {
+      "id": "file_changed",
+      "label": "file changed",
+      "name": "A file changes",
+      "line": "agentseam exposes this point; no shipped Chock code acts on it.",
+      "scope": "where the agent has hooks",
+      "source": "agentseam",
+      "acts": false,
+      "proof": []
+    },
+    {
+      "id": "subagent_start",
+      "label": "subagent start",
+      "name": "Subagent starts",
+      "line": "agentseam exposes this point; no shipped Chock code acts on it.",
+      "scope": "where the agent has hooks",
+      "source": "agentseam",
+      "acts": false,
+      "proof": []
+    },
+    {
+      "id": "subagent_stop",
+      "label": "subagent stop",
+      "name": "Subagent stops",
+      "line": "agentseam exposes this point; no shipped Chock code acts on it.",
+      "scope": "where the agent has hooks",
+      "source": "agentseam",
+      "acts": false,
+      "proof": []
     },
     {
       "id": "stop",
+      "label": "stop",
       "name": "End of the turn",
       "line": "reads what the turn left in the working tree and refuses to end the turn on a finding. A backstop.",
       "scope": "where the agent has hooks",
+      "source": "agentseam",
+      "acts": true,
       "proof": [
         "tests/test_stop_surface.py"
-      ],
-      "label": "stop",
-      "kind": "hooks"
+      ]
+    },
+    {
+      "id": "ambient-rule",
+      "label": "rules",
+      "name": "Rules in context",
+      "line": "a short rules block Chock writes into AGENTS.md. Advisory.",
+      "scope": "every agent",
+      "source": "chock",
+      "acts": true,
+      "proof": [
+        "tests/test_agents_md_pointer.py"
+      ]
     },
     {
       "id": "mcp-gateway",
+      "label": "MCP gateway",
       "name": "MCP gateway",
       "line": "a proxy that judges calls to an MCP server.",
       "scope": "where a server is set up through it",
+      "source": "chock",
+      "acts": true,
       "proof": [
         "tests/test_mcp_gateway.py"
-      ],
-      "label": "MCP gateway",
-      "kind": "hooks"
+      ]
     },
     {
       "id": "git-commit",
+      "label": "commit",
       "name": "At git commit",
       "line": "the git hook.",
       "scope": "every agent, and people",
+      "source": "chock",
+      "acts": true,
       "proof": [
         "tests/test_hook_gate_and_script.py"
-      ],
-      "label": "commit",
-      "kind": "all"
+      ]
     },
     {
       "id": "git-push",
+      "label": "push",
       "name": "At git push",
       "line": "the pre-push hook.",
       "scope": "every agent, and people",
+      "source": "chock",
+      "acts": true,
       "proof": [
         "tests/test_default_hooks.py"
-      ],
-      "label": "push",
-      "kind": "all"
+      ]
     },
     {
       "id": "ci-gate",
+      "label": "CI",
       "name": "In CI",
       "line": "the same gates on the pull request.",
       "scope": "every agent",
+      "source": "chock",
+      "acts": true,
       "proof": [
         "tests/test_ci_emitter.py"
-      ],
-      "label": "CI",
-      "kind": "all"
+      ]
     }
   ],
   "key": {
-    "all": "every agent",
-    "hooks": "where the agent has hooks"
+    "acts": "Chock acts here",
+    "exposed": "exposed, not used"
   }
 }
