@@ -5,10 +5,10 @@ coding agent** that touches your repo — your team's or a contributor's — wit
 exactly where each guarantee holds.
 
 <div align="center">
-  <img src="assets/readme/v2/where-chock-sits.png" alt="A layered sketch of a coding agent: you send a prompt to an agent loop that works with a model, context, tools, an MCP server and subagents, and your repository and pipeline follow. Every point agentseam exposes is marked on the drawing, and the ones Chock acts on today, the rules in context, before and after each tool, session start, stop, the MCP gateway, commit, push and CI, are filled in accent colour and joined to the Chock box below; the rest are hollow grey." width="820">
+  <img src="assets/readme/v2/where-chock-sits.png" alt="A session as an ordered path with checkpoints. Inside your agent: you open a session, type a request, the agent loads its rules, the model picks the next action, a tool runs (repeating until done) and the agent ends its turn; then in your repository: git commit, git push, CI on the pull request and the main branch. Diamonds on the arrows are the hook points: filled where Chock runs today (session start, rules, before and after a tool, stop, the MCP gateway, commit, push, CI) and hollow where a policy of your own can run; the other agent events sit in a row of more hooks." width="820">
 </div>
 
-The figure marks every point agentseam exposes in an agent, plus the other places Chock meets the agent and your repository. A filled marker is a point Chock acts on today and is joined to the Chock box; a hollow grey one is exposed by agentseam but unused by Chock.
+The figure is one session as an ordered path. Each diamond is a hook point agentseam exposes in an agent, or a place Chock meets your repository. A filled diamond is a point Chock runs at today; a hollow one is a hook a policy of your own can use.
 
 - **Session start**: arms the hooks from what is committed. *Where the agent has hooks.*
 - **Session end** (not used): agentseam exposes this point; no shipped Chock code acts on it. *Where the agent has hooks.*

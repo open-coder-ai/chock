@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import subprocess
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "docs" / "assets" / "readme"
@@ -50,6 +54,9 @@ def test_agentseam_points_equal_the_contract_events_and_acting_points_equal_the_
     assert len({p["id"] for p in points}) == len(points)
     assert {p["id"] for p in points if p["acts"]} == engine_acts()
     assert all(len(p["label"].split()) <= 3 for p in points)
+    assert all(len(p["does"].split()) <= 4 for p in points if p["acts"] and "does" in p)
+    assert all(("does" in p) == (p["acts"] and "chip" not in p["place"]) for p in points)
+    assert all(len(p["place"]) >= 1 for p in points)
 
 
 def test_no_prompt_submit_hook_is_wired_so_none_is_drawn() -> None:
@@ -107,3 +114,20 @@ def test_a_sixth_chip_invites_the_reader_to_add_their_own_policy() -> None:
     assert "new" in commands["authoring"]
     for rel in own["proof"]:
         assert (ROOT / rel).is_file(), rel
+
+
+def test_no_two_shapes_of_the_layout_are_closer_than_the_gap() -> None:
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node is not installed")
+    script = (
+        "import {layout, crowded} from './docs/assets/readme/where-chock-sits.mjs';"
+        "import {readFileSync} from 'node:fs';"
+        "const W = JSON.parse(readFileSync('docs/assets/readme/where-chock-sits.json', 'utf8'));"
+        "console.log(JSON.stringify(crowded(layout(W))));"
+    )
+    done = subprocess.run(
+        [node, "--input-type=module", "-e", script], cwd=ROOT, capture_output=True, text=True, check=False
+    )
+    assert done.returncode == 0, done.stderr
+    assert json.loads(done.stdout) == []

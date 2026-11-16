@@ -50,7 +50,7 @@ Tiers: see [Guardrails, not guarantees](#guardrails-not-guarantees).
 
 ## How it works
 
-<p><img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/v2/where-chock-sits.png" alt="A layered sketch of a coding agent: you send a prompt to an agent loop that works with a model, context, tools, an MCP server and subagents, and your repository and pipeline follow. Every point agentseam exposes is marked on the drawing, and the ones Chock acts on today, the rules in context, before and after each tool, session start, stop, the MCP gateway, commit, push and CI, are filled in accent colour and joined to the Chock box below; the rest are hollow grey." width="100%"></p>
+<p><img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/v2/where-chock-sits.png" alt="A session as an ordered path with checkpoints. Inside your agent: you open a session, type a request, the agent loads its rules, the model picks the next action, a tool runs (repeating until done) and the agent ends its turn; then in your repository: git commit, git push, CI on the pull request and the main branch. Diamonds on the arrows are the hook points: filled where Chock runs today (session start, rules, before and after a tool, stop, the MCP gateway, commit, push, CI) and hollow where a policy of your own can run; the other agent events sit in a row of more hooks." width="100%"></p>
 
 A policy is one folder, and the manifest is the rule. Here is `scan-secrets` in this repo:
 
