@@ -50,6 +50,8 @@ Tiers: see [Guardrails, not guarantees](#guardrails-not-guarantees).
 
 ## How it works
 
+<p><img src="https://raw.githubusercontent.com/open-coder-ai/chock/main/docs/assets/readme/v2/where-chock-sits.png" alt="A coding agent's harness drawn as component cards in three layers: input (you, the prompt, the session), core (context, the agent loop and the model) and execution (the tool gate, tools, external tools over MCP and subagents), with arrows showing how they talk to each other, beside the repository and pipeline (git commit, git push, CI, main branch). Small diamonds on each card are the hooks on that component: filled where Chock runs today, hollow where a policy of your own can run. The model has none, because Chock never touches it." width="100%"></p>
+
 A policy is one folder, and the manifest is the rule. Here is `scan-secrets` in this repo:
 
 ```
@@ -66,9 +68,7 @@ fresh_clone: first session arms hooks from what is committed; a person runs(choc
 scope: all_work_in_repo; repo_content: data_not_command
 ```
 
-The CI gate emits SARIF (`chock check --event ci --format sarif`), and a baseline step fails a pull request that disables or narrows a policy (`chock check --only baseline`). `chock mcp` serves read-only guidance to the agent; `chock sync` registers it per client, opt-in. Full write-up: [Architecture](docs/architecture.md).
-
-To write your own, run `chock new policy <id>` (manifest, gate and evals), `chock check` to validate, and `chock compile <id>` to emit every surface. See [Authoring policies](docs/authoring-policies.md).
+To write your own, run `chock new policy <id>` (manifest, gate and evals), `chock check` to validate, and `chock compile <id>` to emit every surface. See [Authoring policies](docs/authoring-policies.md). Full write-up: [Architecture](docs/architecture.md).
 
 ### A refusal names the fix
 
