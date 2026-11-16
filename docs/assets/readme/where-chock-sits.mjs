@@ -1,118 +1,99 @@
-// The README "How it works" figure: a session as an ordered path with checkpoints. Every word comes from where-chock-sits.json; positions are computed here by a flow layout, and `layout` also reports every shape so a test can check nothing overlaps.
-const R = 14, TEXT_W = 84, DIAMOND = 20, GAP = 12, T1 = 56, YA = 244, H1 = 414, T2 = T1 + H1 + 40, YR = T2 + 104, H2 = 210, TEXT_TOP = 52;
-const LINES = (text, perLine = 11) => Math.ceil(text.length / perLine);
-const nameW = (s) => Math.ceil(s.length * 6 + 4);
+// The README figure: a coding agent's harness as component cards in layers, with the hooks drawn ON the card they belong to. Every word comes from where-chock-sits.json; positions are computed here, and `layout` reports every shape so a test can check nothing overlaps.
+const HW = 696, PAD = 16, COLS = 4, G = 76, CW = (HW - 2 * PAD - (COLS - 1) * G) / COLS, VG = 56, GAP = 12;
+const RX = 720, RW = 120, RCW = RW - 32;
+const col = (c) => PAD + c * (CW + G);
+const lines = (text, width, per = 6.4) => Math.max(1, Math.ceil((text.length * per) / width));
+const badgeH = (label, width) => 20 + (lines(label, width - 16 - 6 - 15, 6.9) - 1) * 14;
 
 export const layout = (W) => {
-  const shapes = [], arrows = [], diamonds = [];
+  const H = W.harness, shapes = [], segs = [], cards = {}, badges = [];
   const add = (id, x, y, w, h) => shapes.push({ id, x, y, w, h });
-  const rows = {};
-  const label = (p, x, y) => {
-    add(`${p.id}-diamond`, x - DIAMOND / 2, y - DIAMOND / 2, DIAMOND, DIAMOND);
-    add(`${p.id}-name`, x - nameW(p.label) / 2, y + 26, nameW(p.label), 14);
-    if (p.acts) add(`${p.id}-does`, x - (p.place.of > 1 ? 28 : 40), y - 30 - 32, p.place.of > 1 ? 56 : 80, 32);
+  const mine = (id) => W.points.filter((p) => p.on === id);
+  const size = (c, width) => {
+    const bs = mine(c.id);
+    c.w = width;
+    c.nameH = lines(c.name, width - 16, 8.2) * 18;
+    c.lineH = lines(c.line, width - 16, 7.2) * 16;
+    c.badgeH = bs.reduce((a, p) => a + badgeH(p.label, width) + 4, bs.length ? 8 : 0);
+    c.h = 12 + c.nameH + 4 + c.lineH + c.badgeH + 8;
   };
-  const place = (key, x0, x1, y, T) => {
-    const steps = W.paths[key].steps;
-    const pts = W.points.filter((p) => p.place?.row === key);
-    const weight = steps.map((_, k) => Math.max(1, ...pts.filter((p) => p.place.into === k).map((p) => (p.place.of > 1 ? p.place.of + 1.5 : 1))));
-    const free = x1 - x0 - steps.length * 2 * R, unit = free / weight.reduce((a, b) => a + b, 0);
-    let cursor = x0;
-    const cx = steps.map((_, k) => { const start = cursor; cursor += weight[k] * unit + 2 * R; arrows.push({ key, k, x1: start, x2: start + weight[k] * unit + R, y }); return start + weight[k] * unit + R; });
-    steps.forEach((s, k) => {
-      s.h = (LINES(s.text) + (s.sub ? LINES(s.sub, 13) : 0)) * 16 + 6;
-      add(`${key}-circle-${k}`, cx[k] - R, y - R, 2 * R, 2 * R);
-      add(`${key}-text-${k}`, cx[k] - TEXT_W / 2, y + TEXT_TOP, TEXT_W, s.h);
-    });
-    pts.forEach((p) => {
-      const a = arrows.find((q) => q.key === key && q.k === p.place.into);
-      const x = a.x1 + ((a.x2 - R - a.x1) * (p.place.slot + 1)) / (p.place.of + 1);
-      diamonds.push({ id: p.id, x, y, acts: p.acts });
-      label(p, x, y);
-    });
-    rows[key] = { cx, y, T };
-  };
-  place('agent', 24, 782, YA, T1);
-  place('repo', 10, 782, YR, T2);
-  const A = rows.agent, tool = A.cx[4], mcp = W.points.find((p) => p.place?.tag), toolText = A.cx.length && W.paths.agent.steps[4].h;
-  const lineTop = YA + TEXT_TOP + toolText + 6, mid = lineTop + 28, tagTop = lineTop + 56;
-  add('tag', tool - 76, tagTop, 152, 24);
-  add(`${mcp.id}-diamond`, tool - DIAMOND / 2, mid - DIAMOND / 2, DIAMOND, DIAMOND);
-  add(`${mcp.id}-name`, tool - 22 - nameW(mcp.label) - 8, mid - 7, nameW(mcp.label) + 8, 14);
-  add(`${mcp.id}-does`, tool + 14, mid - 8, 90, 16);
-  diamonds.push({ id: mcp.id, x: tool, y: mid, acts: mcp.acts });
-  const loop = W.paths.agent.loop, post = diamonds.find((d) => d.id === loop.after), next = diamonds.find((d) => d.id === 'stop');
-  const xs = (post.x + next.x) / 2, xm = A.cx[loop.to], y0 = YA - R;
-  const yv = YA - 110, p1 = [xs, yv - 55], p2 = [xm - 40, y0 - 140], end = [xm, y0 - 2];
-  const bez = (t) => { const u = 1 - t; return [u ** 3 * xs + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t ** 3 * end[0], u ** 3 * yv + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t ** 3 * end[1]]; };
-  const curve = [...Array.from({ length: 20 }, (_, i) => [xs, YA - 4 - ((YA - 4 - yv) * i) / 19]), ...Array.from({ length: 51 }, (_, i) => bez(i / 50))];
-  const loopPath = `M${xs} ${YA - 4} V${yv} C${p1[0]} ${p1[1]} ${p2[0]} ${p2[1]} ${end[0]} ${end[1]}`;
-  add('loop-label', (xs + xm) / 2 - 60, YA - 172, 120, 16);
-  return { shapes, arrows, diamonds, rows, curve, loop: { xs, xm, y0 }, loopPath, mid, lineTop, tagTop };
+  H.cards.forEach((c) => size(c, c.span * CW + (c.span - 1) * G));
+  const rowH = [0, 1, 2, 3].map((r) => Math.max(...H.cards.filter((c) => c.row === r).map((c) => c.h)));
+  const rowTop = []; let y = 56;
+  rowH.forEach((h, r) => { if (r < 3) y += r ? 0 : 0; rowTop[r] = y; y += h + VG + (r === 2 ? 0 : 0); });
+  const layerTitleY = [rowTop[0] - 30, rowTop[1] - 30, rowTop[2] - 30];
+  H.layers.forEach((t, i) => add(`layer-${i}`, PAD + 6, layerTitleY[i], t.length * 8 + 4, 14));
+  H.cards.forEach((c) => { c.x = col(c.col); c.y = rowTop[c.row]; c.h = rowH[c.row]; cards[c.id] = c; add(`card-${c.id}`, c.x, c.y, c.w, c.h); });
+  H.cards.forEach((c) => { let by = c.y + c.h - 8; [...mine(c.id)].reverse().forEach((p) => { const bh = badgeH(p.label, c.w); by -= bh; badges.push({ p, x: c.x + 8, y: by, w: c.w - 16, h: bh }); by -= 4; }); });
+  // repository cards, top to bottom
+  let ry = 100;
+  H.repo_cards.forEach((c) => { size(c, RCW); c.x = RX + 16; c.y = ry; add(`card-${c.id}`, c.x, c.y, c.w, c.h); cards[c.id] = c; ry += c.h + 22; badges.push(...(() => { let by = c.y + c.h - 8; return mine(c.id).map((p) => { const bh = badgeH(p.label, c.w); by -= bh; const b = { p, x: c.x + 8, y: by, w: c.w - 16, h: bh }; by -= 4; return b; }); })()); });
+  const A = H.arrows, mid = (c) => c.x + c.w / 2, rt = (c) => c.x + c.w, bt = (c) => c.y + c.h, ln = (id, y0 = 26) => cards[id].y + y0;
+  const label = (id, text, x, y, w, anchor = 'center') => { const lw = Math.ceil(text.length * 6 + 2); const lx = anchor === 'center' ? x - lw / 2 : anchor === 'right' ? x - lw : x; add(`label-${id}`, lx, y, lw, 14); return { text, x: lx, y, w: lw }; };
+  const labels = [];
+  const seg = (d, tail = true, both = false) => segs.push({ d, tail, both });
+  const { you, prompt, context, loop, model, subagents, gate, tools, external, commit } = cards;
+  seg(`M${rt(you)} ${ln('you')} H${prompt.x}`); labels.push(label('you-prompt', A['you-prompt'], (rt(you) + prompt.x) / 2, ln('you') - 22));
+  seg(`M${prompt.x + prompt.w / 2} ${bt(prompt)} V${loop.y}`); labels.push(label('prompt-loop', A['prompt-loop'], prompt.x + prompt.w / 2 + 10, (bt(prompt) + loop.y) / 2 - 7, 0, 'left'));
+  seg(`M${rt(context)} ${ln('context')} H${loop.x}`); labels.push(label('context-loop', A['context-loop'], (rt(context) + loop.x) / 2, ln('context') - 22));
+  seg(`M${rt(loop)} ${ln('loop')} H${model.x}`, true, true); labels.push(label('loop-model', A['loop-model'], (rt(loop) + model.x) / 2, ln('loop') - 22));
+  const xa = gate.x + 10, xb = gate.x + gate.w - 10, ym = (bt(loop) + gate.y) / 2 - 7;
+  seg(`M${xa} ${bt(loop)} V${gate.y}`); labels.push(label('loop-gate', A['loop-gate'], mid(gate), ym));
+  seg(`M${xb} ${gate.y} V${bt(loop)}`); labels.push(label('gate-loop', A['gate-loop'], xb + 10, ym, 0, 'left'));
+  seg(`M${rt(gate)} ${ln('gate')} H${tools.x}`); labels.push(label('gate-tools', A['gate-tools'], (rt(gate) + tools.x) / 2, ln('gate') - 22));
+  seg(`M${mid(tools)} ${tools.y} V${bt(loop)}`); labels.push(label('tools-loop', A['tools-loop'], mid(tools) + 10, ym, 0, 'left'));
+  seg(`M${mid(tools)} ${bt(tools)} V${external.y}`); labels.push(label('tools-external', A['tools-external'], mid(tools) + 10, (bt(tools) + external.y) / 2 - 7, 0, 'left'));
+  const gx = rt(context) + G / 2, sy = ln('subagents');
+  seg(`M${loop.x} ${loop.y + loop.h - 28} H${gx} V${sy} H${rt(subagents)}`); labels.push(label('loop-subagents', A['loop-subagents'], gx - 10, (bt(context) + subagents.y) / 2 - 7, 0, 'right'));
+  const wx = HW + 12;
+  seg(`M${rt(tools)} ${ln('tools')} H${wx} V${ln('commit')} H${commit.x}`); labels.push(label('tools-commit', A['tools-commit'], (rt(tools) + HW) / 2 + 20, ln('tools') - 22));
+  const Ht = Math.max(rowTop[3] + rowH[3] + 28, ry + 6);
+  return { shapes, segs, cards, badges, labels, rowTop, layerTitleY, Ht, wx, ry };
 };
 
-// Pairs of shapes closer than GAP, the loop arrow passing a label, and arrows with a shaft under 40 px.
+// Cards, labels and badges closer than GAP; a label too near an arrow line.
 export const crowded = (L) => {
-  const bad = [];
-  const near = (a, b) => a.x < b.x + b.w + GAP && b.x < a.x + a.w + GAP && a.y < b.y + b.h + GAP && b.y < a.y + a.h + GAP;
-  const base = (id) => id.replace(/-(diamond|does|name)$/, '');
-  const own = (a, b) => (base(a.id) === base(b.id) && a.id !== b.id && /-(diamond|does|name)$/.test(a.id) && /-(diamond|does|name)$/.test(b.id)) || (a.id.replace('-circle-', '-text-') === b.id && a.id.includes('-circle-'));
-  L.shapes.forEach((a, i) => L.shapes.slice(i + 1).forEach((b) => { if (!own(a, b) && near(a, b)) bad.push([a.id, b.id]); }));
-  L.shapes.filter((s) => /-(does|name)$/.test(s.id) || s.id === 'loop-label').forEach((s) => { if (L.curve.some(([x, y]) => x > s.x - 8 && x < s.x + s.w + 8 && y > s.y - 8 && y < s.y + s.h + 8)) bad.push([s.id, 'loop-arrow']); });
-  L.arrows.forEach((a) => { if (a.x2 - R - a.x1 - 8 < 40) bad.push([`${a.key}-arrow-${a.k}`, 'short']); });
+  const bad = [], near = (a, b, g = GAP) => a.x < b.x + b.w + g && b.x < a.x + a.w + g && a.y < b.y + b.h + g && b.y < a.y + a.h + g;
+  L.shapes.forEach((a, i) => L.shapes.slice(i + 1).forEach((b) => { if (near(a, b)) bad.push([a.id, b.id]); }));
+  L.badges.forEach((b) => L.shapes.filter((s) => s.id.startsWith('label-')).forEach((s) => { if (near(b, s)) bad.push([b.p.id, s.id]); }));
+  L.badges.forEach((b, i) => L.badges.slice(i + 1).forEach((c) => { if (near(b, c, 2)) bad.push([b.p.id, c.p.id]); }));
+  const points = (d) => { const n = [...d.matchAll(/([MHV])(-?[\d.]+)(?: (-?[\d.]+))?/g)]; let x = 0, y = 0; const out = []; n.forEach((m) => { if (m[1] === 'M') { x = +m[2]; y = +m[3]; } else if (m[1] === 'H') x = +m[2]; else y = +m[2]; out.push([x, y]); }); return out; };
+  const hit = (r, i) => r.x <= i.x + i.w && i.x <= r.x + r.w && r.y <= i.y + i.h && i.y <= r.y + r.h;
+  L.segs.forEach((s) => { const p = points(s.d); p.slice(1).forEach((q, i) => { const a = p[i], r = { x: Math.min(a[0], q[0]), y: Math.min(a[1], q[1]), w: Math.abs(q[0] - a[0]), h: Math.abs(q[1] - a[1]) };
+    L.shapes.filter((c) => c.id.startsWith('card-')).forEach((c) => { if (hit(r, { x: c.x + 2, y: c.y + 2, w: c.w - 4, h: c.h - 4 })) bad.push([s.d, c.id]); });
+    L.shapes.filter((l) => l.id.startsWith('label-')).forEach((l) => { if (near(l, r, 6)) bad.push([s.d, l.id]); }); }); });
   return bad;
 };
 
 export const where = (page, W) => {
-  const L = layout(W), bad = crowded(L);
+  const L = layout(W), bad = crowded(L), H = W.harness;
   if (bad.length) throw new Error(`figure shapes too close: ${JSON.stringify(bad)}`);
   const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const INK = '#2B2A35', SOFT = '#5C5A6B', LINE = '#6B6877', PAPER = '#FBF7EE', ACCENT = '#C2410C', GREY = '#8D8A99';
+  const FILL = { you: '#EFE9F9', prompt: '#EFE9F9', session: '#EFE9F9', context: '#DDEFE0', loop: '#DCEAF9', model: '#E8E1F6', subagents: '#F6E2EC', gate: '#F6E2EC', tools: '#ECE6D8', external: '#E9E4F3', commit: '#DDF0EE', push: '#DDF0EE', ci: '#DDF0EE', main: '#DDF0EE' };
   const abs = (x, y, w, h, css, inner) => `<div style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;${css}">${inner}</div>`;
-  const diamond = (x, y, acts, s = 14) => abs(x - s / 2, y - s / 2, s, s, `transform:rotate(45deg);box-sizing:border-box;border:2px solid ${acts ? ACCENT : GREY};background:${acts ? ACCENT : PAPER}`, '');
-  const text = (s, css, inner) => abs(s.x, s.y, s.w, s.h, `font-size:12.5px;line-height:1.25;font-weight:600;text-align:center;${css}`, esc(inner));
-  const frame = (y, h, name) => abs(0, y, 840, h, `border:2px dashed ${LINE};border-radius:18px;box-sizing:border-box`, `<div style="position:absolute;left:20px;top:8px;font-size:14px;font-weight:700;color:${INK}">${esc(name)}</div>`);
-  const head = `<marker id="g" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="${LINE}" stroke-width="1.7"/></marker>`;
-  const line = (d, arrow = true) => `<path d="${d}" fill="none" stroke="${LINE}" stroke-width="1.8"${arrow ? ' marker-end="url(#g)"' : ''}/>`;
-  const yr = L.rows.repo.y, last = L.rows.agent.cx[5], tool = L.rows.agent.cx[4];
-  const entry = L.arrows.find((a) => a.key === 'repo' && a.k === 0), ymid = (T1 + H1 + T2) / 2;
-  const paths = [
-    ...L.arrows.map((a) => line(`M${a.x1} ${a.y} H${a.x2 - R}`)),
-    line(L.loopPath),
-    `<circle cx="${L.loop.xs}" cy="${YA - 4}" r="3.5" fill="${LINE}"/>`,
-    line(`M${tool} ${L.lineTop} V${L.tagTop}`, false),
-    line(`M${last + R} ${YA} H828 V${ymid} H10 V${yr} H${entry.x2 - R}`),
-  ].join('');
-  const stepHtml = (key) => W.paths[key].steps.map((s, k) => {
-    const cx = L.rows[key].cx[k], y = L.rows[key].y, n = key === 'agent' ? k + 1 : k + 7;
-    return abs(cx - R, y - R, 2 * R, 2 * R, `box-sizing:border-box;border:2px solid ${LINE};border-radius:50%;background:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center`, n)
-      + abs(cx - TEXT_W / 2, y + TEXT_TOP, TEXT_W, s.h, `text-align:center;font-size:13.5px;line-height:16px;font-weight:600;color:${INK}`, `${esc(s.text)}${s.sub ? `<div style="font-weight:500;color:${SOFT}">${esc(s.sub)}</div>` : ''}`);
-  }).join('');
-  const marks = W.points.filter((p) => p.place?.row || p.place?.tag).map((p) => {
-    const d = L.diamonds.find((q) => q.id === p.id), get = (suffix) => L.shapes.find((q) => q.id === `${p.id}-${suffix}`);
-    const name = get('name'), does = get('does');
-    return diamond(d.x, d.y, p.acts) + text(name, `color:${GREY};font-size:12px;font-weight:600;white-space:nowrap`, p.label) + (p.acts ? text(does, `color:${ACCENT};display:flex;align-items:flex-end;justify-content:center`, p.does) : '');
-  }).join('');
-  const tagHtml = abs(tool - 76, L.tagTop, 152, 24, `box-sizing:border-box;border:1.5px solid ${LINE};border-radius:999px;background:#fff;font-size:12.5px;font-weight:600;color:${INK};display:flex;align-items:center;justify-content:center`, esc(W.paths.agent.steps[4].tag));
-  const loopLabel = text(L.shapes.find((s) => s.id === 'loop-label'), `color:${SOFT}`, W.paths.agent.loop.label);
-  const keyRow = (acts, label, y) => `<div style="position:absolute;left:0;top:${y}px;font-size:13px;font-weight:600;color:${SOFT};display:flex;align-items:center;gap:12px"><span style="position:relative;width:14px;height:14px;display:inline-block">${diamond(7, 7, acts)}</span>${esc(label)}</div>`;
-  const chip = (p) => `<span style="display:inline-flex;align-items:center;gap:10px;padding:4px 10px;border:1.5px solid ${LINE};border-radius:999px;background:#fff;font-size:12.5px;font-weight:600;color:${INK};white-space:nowrap"><span style="position:relative;width:10px;height:10px;display:inline-block">${diamond(5, 5, p.acts, 10)}</span>${esc(p.label)}</span>`;
-  const more = W.points.filter((p) => p.place?.chip).map(chip).join('');
+  const diamond = (x, y, acts, s = 10) => abs(x - s / 2, y - s / 2, s, s, `transform:rotate(45deg);box-sizing:border-box;border:2px solid ${acts ? ACCENT : GREY};background:${acts ? ACCENT : PAPER}`, '');
+  const frame = (x, y, w, h, title, inside = false) => abs(x, y, w, h, `border:2px dashed ${LINE};border-radius:18px;box-sizing:border-box`, inside ? `<div style="position:absolute;left:14px;top:10px;width:${w - 28}px;font-size:14px;font-weight:700;line-height:18px;color:${INK}">${esc(title)}</div>` : `<div style="position:absolute;left:16px;top:-13px;padding:0 8px;background:${PAPER};font-size:14px;font-weight:700;color:${INK};white-space:nowrap">${esc(title)}</div>`);
+  const card = (c) => abs(c.x, c.y, c.w, c.h, `box-sizing:border-box;background:${FILL[c.id]};border:1.5px solid ${LINE};border-radius:12px;padding:10px 8px`, `<div style="font-size:14px;font-weight:700;line-height:18px;color:${INK}">${esc(c.name)}</div><div style="font-size:12.5px;line-height:16px;color:${SOFT};margin-top:4px">${esc(c.line)}</div>`);
+  const badge = (b) => abs(b.x, b.y, b.w, b.h, `box-sizing:border-box;display:flex;align-items:center;gap:5px;padding:0 4px;border-radius:999px;background:#fff;font-size:12px;line-height:14px;font-weight:600;color:${b.p.acts ? ACCENT : '#7C7989'}`, `<span style="position:relative;flex:none;width:10px;height:10px">${diamond(5, 5, b.p.acts)}</span><span>${esc(b.p.label)}</span>`);
+  const arrow = `<marker id="g" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="${LINE}" stroke-width="1.7"/></marker><marker id="s" markerWidth="10" markerHeight="10" refX="2" refY="5" orient="auto"><path d="M9 1 L1 5 L9 9" fill="none" stroke="${LINE}" stroke-width="1.7"/></marker>`;
+  const paths = L.segs.map((s) => `<path d="${s.d}" fill="none" stroke="${LINE}" stroke-width="1.8" marker-end="url(#g)"${s.both ? ' marker-start="url(#s)"' : ''}/>`).join('');
+  const layerTitles = H.layers.map((t, i) => abs(PAD + 6, L.layerTitleY[i], 120, 14, `font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${SOFT}`, esc(t))).join('');
+  const labels = L.labels.map((l) => abs(l.x, l.y, l.w, 14, `font-size:12px;line-height:14px;font-weight:600;color:${SOFT};white-space:nowrap`, esc(l.text))).join('');
+  const keyRow = (acts, text, y) => `<div style="position:absolute;left:0;top:${y}px;font-size:13px;font-weight:600;color:${SOFT};display:flex;align-items:center;gap:12px"><span style="position:relative;width:14px;height:14px;display:inline-block">${diamond(7, 7, acts, 12)}</span>${esc(text)}</div>`;
   const stop = `padding:4px 6px;border:1.5px solid ${LINE};border-radius:999px;background:#fff;font-size:12.5px;font-weight:600;color:${INK};white-space:nowrap`;
   const own = `<span style="display:inline-flex;flex-direction:column;align-items:center;gap:1px;padding:3px 8px;border:1.5px dashed ${ACCENT};border-radius:14px;color:${ACCENT};font-size:12.5px;font-weight:700;white-space:nowrap">${esc(W.own.label)}<span class="mono" style="font-size:12px;font-weight:500;color:${INK}">${esc(W.own.command)}</span></span>`;
   const stops = W.stops.map((s) => `<span style="${stop}">${esc(s)}</span>`).join('') + own;
-  const base = T2 + H2 + 22;
-  return page(`<div class="frame" style="width:880px;padding:20px;background:${PAPER};color:${INK};position:relative;height:${base + 346}px">
-<div style="position:absolute;left:20px;top:20px;width:840px;font-size:20px;line-height:1.35;font-weight:600">${esc(W.title)}</div>
-<div style="position:absolute;left:20px;top:30px;width:840px;height:${base + 300}px">
-${frame(T1, H1, W.paths.agent.name)}${frame(T2, H2, W.paths.repo.name)}
-<svg width="840" height="${T2 + H2}" style="position:absolute;left:0;top:0" xmlns="http://www.w3.org/2000/svg"><defs>${head}</defs>${paths}</svg>
-${stepHtml('agent')}${stepHtml('repo')}${tagHtml}${loopLabel}${marks}
-${keyRow(true, W.key.acts, base)}${keyRow(false, W.key.exposed, base + 28)}
-<div class="eyebrow" style="position:absolute;left:0;top:${base + 70}px;font-size:14px;color:${LINE}">${esc(W.more_title)}</div>
-<div style="position:absolute;left:0;top:${base + 96}px;width:840px;display:flex;flex-wrap:wrap;gap:8px">${more}</div>
-<div class="eyebrow" style="position:absolute;left:0;top:${base + 180}px;font-size:14px;color:${ACCENT}">${esc(W.stops_title)}</div>
-<div style="position:absolute;left:0;top:${base + 208}px;width:840px;display:flex;flex-wrap:nowrap;align-items:center;gap:5px">${stops}</div>
-<div style="position:absolute;left:0;top:${base + 276}px;font-size:16px;color:${SOFT}">${esc(W.footer)}</div>
+  const base = L.Ht + 20, total = base + 196;
+  return page(`<div class="frame" style="width:880px;padding:20px;background:${PAPER};color:${INK};position:relative;height:${total + 110}px">
+<div style="position:absolute;left:20px;top:20px;width:840px;font-size:20px;line-height:1.35;font-weight:600">${esc(H.title)}</div>
+<div style="position:absolute;left:20px;top:78px;width:840px;height:${total}px">
+${frame(0, 0, HW, L.Ht, H.frame)}${frame(RX, 0, RW, L.Ht, H.repo_frame, true)}
+<svg width="840" height="${L.Ht}" style="position:absolute;left:0;top:0" xmlns="http://www.w3.org/2000/svg"><defs>${arrow}</defs>${paths}</svg>
+${layerTitles}${[...H.cards, ...H.repo_cards].map(card).join('')}${L.badges.map(badge).join('')}${labels}
+${keyRow(true, H.key.acts, base)}${keyRow(false, H.key.exposed, base + 28)}
+<div class="eyebrow" style="position:absolute;left:0;top:${base + 70}px;font-size:14px;color:${ACCENT}">${esc(W.stops_title)}</div>
+<div style="position:absolute;left:0;top:${base + 98}px;width:840px;display:flex;flex-wrap:nowrap;align-items:center;gap:5px">${stops}</div>
+<div style="position:absolute;left:0;top:${base + 166}px;font-size:16px;color:${SOFT}">${esc(W.footer)}</div>
 </div></div>`);
 };
