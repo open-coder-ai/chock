@@ -27,7 +27,7 @@
   "key": {"acts": "Chock runs here: a local program, rules are files in your repository, no model, no tokens", "exposed": "a hook your own policy can use"},
   "own": {"label": "+ your own policy", "command": "chock new policy", "proof": ["src/chock/data/commands.json", "tests/test_scaffold_dx.py"]},
   "paths": {
-    "agent": {"name": "Inside your agent", "steps": [{"text": "You open a session"}, {"text": "You type a request"}, {"text": "The agent loads its rules"}, {"text": "The model picks the next action"}, {"text": "A tool runs", "sub": "edit a file, run a command, git", "tag": "external tools (MCP)"}, {"text": "The agent ends its turn"}], "loop": {"from": 4, "to": 3, "label": "repeats until done"}},
+    "agent": {"name": "Inside your agent", "steps": [{"text": "You open a session"}, {"text": "You type a request"}, {"text": "The agent loads its rules"}, {"text": "The model picks the next action"}, {"text": "A tool runs", "sub": "edit a file, run a command, git", "tag": "external tools (MCP)"}, {"text": "The agent ends its turn"}], "loop": {"to": 3, "after": "post_tool", "label": "repeats until done"}},
     "repo": {"name": "In your repository", "steps": [{"text": "git commit"}, {"text": "git push"}, {"text": "CI on the pull request"}, {"text": "main branch"}]}
   },
   "more_title": "More hooks"
