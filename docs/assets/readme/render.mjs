@@ -215,9 +215,27 @@ const HONEST = SECTION('Guardrails, not guarantees', 'And we tell you <span clas
 ${grid(3, 16, [['commit', 'A git hook or CI gate that exits non-zero.'], ['in-agent', 'The agent\'s own pre-tool hook. Best-effort, and it fails open.'], ['advisory', 'Rule text the agent reads. Nothing makes the agent follow it.']].map(([t, p]) => `<div class="panel" style="padding:24px;display:flex;flex-direction:column;gap:12px">${tag(t)}<span style="font-size:17px;line-height:1.5;color:#D5DBE8">${p}</span></div>`))}
 ${grid(3, 16, [[A.grades.enforced, 'matrix cells graded &ldquo;enforced&rdquo;: no agent reaches it'], [`${D.asi.refused_at_commit.length} of ${D.asi.with_policy}`, 'OWASP Agentic risks with a slice refused at commit'], [D.asi.fully_covered, 'OWASP Agentic risks fully covered: every mapping is partial']].map(([n, l]) => stat(n, l)))}`);
 
+// The README's "How it works" figure: the user's view. Every word comes from where-chock-sits.json.
+const W = JSON.parse(readFileSync(path.join(HERE, 'where-chock-sits.json'), 'utf8'));
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const node = (name, line, extra = '') => `<div class="panel" style="padding:16px 14px;display:flex;flex-direction:column;gap:8px;justify-content:flex-start;${extra}"><span style="font-size:21px;font-weight:600">${esc(name)}</span><span style="font-size:15px;line-height:1.45;color:#B4BED2">${esc(line)}</span></div>`;
+const point = (p) => `<div style="display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:start"><span class="mono gold" style="font-size:15px;font-weight:600;border:1px solid #F0B53C;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center">${p.at}</span><span style="font-size:16px;line-height:1.35;font-weight:600">${esc(p.name)}<br><span style="font-weight:500;font-size:14px;color:#B4BED2">${esc(p.scope)}</span></span></div>`;
+const outcome = (o) => `<div class="panel" style="padding:14px;display:flex;flex-direction:column;gap:6px;border-color:${o.kind === 'ok' ? '#8FB4F0' : '#F29B8A'}"><span style="font-size:20px;font-weight:600;color:${o.kind === 'ok' ? '#8FB4F0' : '#F29B8A'}">${esc(o.name)}</span><span style="font-size:15px;line-height:1.45;color:#D5DBE8">${esc(o.line)}</span></div>`;
+const stopTag = (t) => `<span class="tier ${t === 'commit' ? 'tc' : 'ta'}" style="font-size:12px;white-space:normal;align-self:flex-start;line-height:1.35">${t === 'commit' ? 'at commit' : 'in the agent, best-effort'}</span>`;
+const WHERE = SECTION('', '', `
+<div style="font-size:21px;line-height:1.4;font-weight:600">${esc(W.title)}</div>
+<div style="display:grid;grid-template-columns:104px 18px 150px 18px minmax(0,1fr) 18px 176px;gap:8px;align-items:stretch">
+${node(W.you.name, W.you.line)}${arrow}
+${node(W.agent.name, `${W.agent.names.join(', ')} ${W.agent.more}. It ${W.agent.line}.`)}${arrow}
+<div class="panel" style="padding:16px 16px;display:flex;flex-direction:column;gap:12px;border-color:#F0B53C"><span class="gold" style="font-size:21px;font-weight:600">${esc(W.chock.name)}</span><span style="font-size:14px;line-height:1.4;color:#B4BED2">${esc(W.chock.line)}</span>${W.chock.points.map(point).join('')}</div>${arrow}
+<div style="display:flex;flex-direction:column;justify-content:flex-start;gap:12px">${W.outcomes.map(outcome).join('')}</div></div>
+<div style="display:flex;flex-direction:column;gap:10px"><span class="eyebrow" style="font-size:14px">${esc(W.stops_title)}</span>
+<div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px">${W.stops.map((s) => `<div class="panel" style="padding:12px;display:flex;flex-direction:column;gap:10px;justify-content:space-between"><span style="font-size:14.5px;line-height:1.4;color:#D5DBE8">${esc(s.line)}</span>${stopTag(s.tier)}</div>`).join('')}</div></div>
+<div style="font-size:16px;line-height:1.5;color:#B4BED2">${esc(W.footer)}</div>`, { bare: true });
+
 const ALL_NEW = { layers: LAYERS, quickstart: QUICKSTART, matrix: MATRIX, catalog: CATALOG, family: FAMILY, honest: HONEST };
 // README v2 panels go under v2/; the titled refusal, roles and contribute PNGs at the old paths stay frozen until RW-7b.
-const V2 = { 'v2/refusal': REFUSAL, 'v2/roles': ROLES, 'v2/contribute': CONTRIBUTE };
+const V2 = { 'v2/refusal': REFUSAL, 'v2/roles': ROLES, 'v2/contribute': CONTRIBUTE, 'v2/where-chock-sits': WHERE };
 
 // 1280x640 social preview banners: the same specs as the covers, laid out for the fixed canvas.
 const social = ({ repo, title, sub, chips, right }) => `<div class="social" style="width:1280px;height:640px;padding:64px 72px;background:#222C44;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:48px;align-items:center;overflow:hidden">

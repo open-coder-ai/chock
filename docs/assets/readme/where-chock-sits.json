@@ -1,0 +1,29 @@
+{
+  "_": "Text of the README 'How it works' figure (v2/where-chock-sits.png), read by render.mjs. Agent names: clients in src/chock/data/witnesses.json. Stops: policies with status production in chock-catalog registry.yaml (rel12-catalog) that stay production after CAT-S1; 'in-agent' marks a best-effort tool-call guard (registry enforcement: advise), 'commit' a gate that blocks.",
+  "title": "You keep working with your agent as before. Chock checks each action before it lands.",
+  "you": {"name": "You", "line": "ask your coding agent for a change"},
+  "agent": {"name": "Your agent", "names": ["Claude Code", "Cursor", "Copilot", "Codex"], "more": "and others", "line": "edits files, runs commands and commits"},
+  "chock": {
+    "name": "Chock checks the action",
+    "line": "on your machine and in your pipeline, with no model and no tokens",
+    "points": [
+      {"at": "1", "name": "Before the agent's tool runs", "scope": "where the agent has hooks"},
+      {"at": "2", "name": "At git commit", "scope": "every agent"},
+      {"at": "3", "name": "In CI, on the pull request", "scope": "every agent"}
+    ]
+  },
+  "outcomes": [
+    {"name": "Allowed", "line": "the change lands", "kind": "ok"},
+    {"name": "Refused", "line": "the agent is told in one line what to do instead, and tries again", "kind": "no"}
+  ],
+  "stops_title": "What it stops",
+  "stops": [
+    {"policy": "scan-secrets", "line": "a password or API key written into code", "tier": "commit"},
+    {"policy": "dockerfile-compose-security", "line": "a container that runs as root or on an unpinned image", "tier": "commit"},
+    {"policy": "block-curl-pipe-sh", "line": "a download piped straight into a shell", "tier": "in-agent"},
+    {"policy": "block-unapproved-egress", "line": "data sent to a host you have not approved", "tier": "in-agent"},
+    {"policy": "protect-ci-workflows", "line": "the agent weakening the checks that review its work (asks you first)", "tier": "in-agent"}
+  ],
+  "footer": "The rules are files in your repository. A person turns them on once with chock sync.",
+  "alt": "A left-to-right diagram: you ask your coding agent for a change; Chock checks each action before the agent's tool runs where the agent has hooks, at git commit and in CI; an allowed change lands, and a refused one tells the agent in one line what to do instead."
+}

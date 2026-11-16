@@ -5,6 +5,10 @@ coding agent** that touches your repo — your team's or a contributor's — wit
 exactly where each guarantee holds.
 
 <div align="center">
+  <img src="assets/readme/v2/where-chock-sits.png" alt="A left-to-right diagram: you ask your coding agent for a change; Chock checks each action before the agent's tool runs where the agent has hooks, at git commit and in CI; an allowed change lands, and a refused one tells the agent in one line what to do instead." width="820">
+</div>
+
+<div align="center">
   <img src="assets/architecture.svg" alt="Author a policy once, compile it, and enforce it on every agent's native surface." width="820">
 </div>
 
