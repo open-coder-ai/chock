@@ -53,7 +53,9 @@ def test_figure_points_equal_the_engine_points_in_session_order() -> None:
     ids = [p["id"] for p in FIGURE["points"]]
     assert set(ids) == engine_points()
     assert len(ids) == len(set(ids))
-    assert [p["n"] for p in FIGURE["points"]] == [str(i) for i in range(1, len(ids) + 1)]
+    assert all(len(p["label"].split()) <= 3 for p in FIGURE["points"])
+    solid = {p["id"] for p in FIGURE["points"] if p["kind"] == "all"}
+    assert solid == {p["id"] for p in FIGURE["points"] if p["scope"].startswith("every agent")}
     assert ids == [
         "session-start", "ambient-rule", "pre-tool-use", "post-tool-use", "stop", "mcp-gateway",
         "git-commit", "git-push", "ci-gate",
@@ -88,9 +90,7 @@ def test_components_are_generic_and_the_stops_are_five() -> None:
     text = json.dumps(shown).lower()
     for vendor in ("claude", "cursor", "copilot", "codex", "gemini", "devin"):
         assert vendor not in text, vendor
-    assert len(FIGURE["stops"]) == 5
-    assert {s["tier"] for s in FIGURE["stops"]} <= {"commit", "in-agent"}
-    assert "floating image tag such as latest" in text
+    assert "floating-tag containers" in text
 
 
 def test_figure_png_exists_and_architecture_doc_shows_it_above_the_old_figure() -> None:
@@ -102,3 +102,15 @@ def test_figure_png_exists_and_architecture_doc_shows_it_above_the_old_figure() 
 
 def test_renderer_registers_the_figure() -> None:
     assert "'v2/where-chock-sits': WHERE" in (ASSETS / "render.mjs").read_text(encoding="utf-8")
+
+
+def test_architecture_doc_lists_every_point_with_its_scope() -> None:
+    doc = (ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
+    for point in FIGURE["points"]:
+        assert f"**{point['name']}**: {point['line']}" in doc, point["id"]
+        assert point["scope"][0].upper() + point["scope"][1:] in doc, point["id"]
+
+
+def test_figure_has_no_legend_and_five_short_chips() -> None:
+    assert len(FIGURE["stops"]) == 5
+    assert all(len(chip.split()) <= 4 for chip in FIGURE["stops"])

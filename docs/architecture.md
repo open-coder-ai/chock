@@ -5,8 +5,20 @@ coding agent** that touches your repo — your team's or a contributor's — wit
 exactly where each guarantee holds.
 
 <div align="center">
-  <img src="assets/readme/v2/where-chock-sits.png" alt="A layered sketch: you ask a coding agent for a change. Inside the agent, a model and an agent loop work with context, and tool calls pass a hook point before the tools run. Chock sits below and meets the agent at nine points: session start, a rules block in context, before and after each tool, the end of the turn and an MCP gateway, then your repository at git commit, git push and CI." width="820">
+  <img src="assets/readme/v2/where-chock-sits.png" alt="A layered sketch: you ask a coding agent for a change, and inside the agent a model and an agent loop work with context and call tools, some through an MCP server. Chock sits below with a marker on each place it meets them: session start, rules in context, before and after each tool, the end of the turn and the MCP gateway, then commit, push and CI in your repository; solid markers apply to every agent, outlined ones only where the agent has hooks." width="820">
 </div>
+
+Chock meets the agent and your repository at nine points, in the order they happen in a session. A solid marker in the figure applies to every agent; an outlined one only where the agent has hooks or a gateway.
+
+1. **Session start**: arms the hooks from what is committed. *Where the agent has hooks.*
+2. **Rules in context**: a short rules block Chock writes into AGENTS.md. Advisory. *Every agent.*
+3. **Before a tool runs**: Chock judges the call: allow, ask or block. A refusal goes back to the model with one line on what to do instead. *Where the agent has hooks.*
+4. **After a tool runs**: records what ran, for checks that read the session. It never changes a verdict. *Where the agent has hooks.*
+5. **End of the turn**: reads what the turn left in the working tree and refuses to end the turn on a finding. A backstop. *Where the agent has hooks.*
+6. **MCP gateway**: a proxy that judges calls to an MCP server. *Where a server is set up through it.*
+7. **At git commit**: the git hook. *Every agent, and people.*
+8. **At git push**: the pre-push hook. *Every agent, and people.*
+9. **In CI**: the same gates on the pull request. *Every agent.*
 
 <div align="center">
   <img src="assets/architecture.svg" alt="Author a policy once, compile it, and enforce it on every agent's native surface." width="820">

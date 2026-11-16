@@ -1,44 +1,32 @@
 {
-  "_": "Text of the README 'How it works' figure (v2/where-chock-sits.png), read by render.mjs. Component names are generic: no vendor is named. 'points' is every place Chock meets the agent or the repository, in session order; tests/test_readme_picture.py derives the same list from the engine (Surface enum, git script events, the agentseam events chock uses) and fails when they differ. 'proof' lists the tests that prove each point (checked, not drawn). Not drawn, because the engine does not wire them: a prompt-submit hook; the managed-setting and gateway surfaces. Stops: policies with status production in chock-catalog registry.yaml (rel12-catalog) that stay production after CAT-S1; 'in-agent' marks a best-effort tool-call guard (registry enforcement: advise), 'commit' a gate that blocks.",
+  "_": "Text of the README 'How it works' figure (v2/where-chock-sits.png), read by where-chock-sits.mjs. Component names are generic: no vendor is named. 'points' is every place Chock meets the agent or the repository, in session order: 'label' is drawn on the marker, 'kind' is its style (all = solid: every agent; hooks = outlined: only where the agent has hooks or a gateway), 'name', 'line' and 'scope' are the list in docs/architecture.md. tests/test_readme_picture.py derives the same list from the engine (Surface enum, git script events, the agentseam events chock uses) and fails when they differ. 'proof' lists the tests that prove each point (checked, not drawn). Not drawn, because the engine does not wire them: a prompt-submit hook; the managed-setting and gateway surfaces.",
   "title": "You keep working with your agent as before. Chock checks each action before it lands.",
   "you": {
     "name": "You",
-    "box": "Terminal or IDE",
-    "line": "asks for a change"
+    "box": "Terminal or IDE"
   },
   "agent": {
     "name": "Your coding agent (any vendor)",
-    "sub": "the harness",
+    "sub": "",
     "context": {
-      "name": "Context",
-      "line": "rules files such as AGENTS.md, skills, memory"
+      "name": "Context"
     },
     "model": {
-      "name": "Model (LLM)",
-      "line": "proposes the next action"
+      "name": "Model (LLM)"
     },
     "loop": {
-      "name": "Agent loop",
-      "line": "read, decide, act, observe"
-    },
-    "hook": {
-      "name": "Hook point",
-      "line": "the harness asks before a tool runs"
+      "name": "Agent loop"
     },
     "tools": {
       "name": "Tools",
-      "line": "edit file, write file, run command, git"
+      "line": "edit, write, run, git"
     },
     "arrows": {
-      "feeds": "feeds",
-      "plan": "proposes",
-      "call": "tool call",
-      "result": "result",
-      "calls": "calls"
+      "allow": "allow",
+      "block": "block"
     },
     "mcp": {
-      "name": "MCP servers",
-      "line": "tools from other programs"
+      "name": "MCP servers"
     }
   },
   "repo": {
@@ -58,125 +46,118 @@
   },
   "stops_title": "What it stops",
   "stops": [
-    {
-      "policy": "scan-secrets",
-      "line": "a password or API key written into code",
-      "tier": "commit"
-    },
-    {
-      "policy": "dockerfile-compose-security",
-      "line": "a container that runs as root or uses a floating image tag such as latest",
-      "tier": "commit"
-    },
-    {
-      "policy": "block-curl-pipe-sh",
-      "line": "a download piped straight into a shell",
-      "tier": "in-agent"
-    },
-    {
-      "policy": "block-unapproved-egress",
-      "line": "data sent to a host you have not approved",
-      "tier": "in-agent"
-    },
-    {
-      "policy": "protect-ci-workflows",
-      "line": "the agent weakening the checks that review its work (asks you first)",
-      "tier": "in-agent"
-    }
+    "secrets in code",
+    "root or floating-tag containers",
+    "curl piped to shell",
+    "unapproved egress",
+    "weakened CI checks"
   ],
   "footer": "The rules are files in your repository. A person turns them on once with chock sync.",
-  "alt": "A layered sketch: you ask a coding agent for a change. Inside the agent, a model and an agent loop work with context, and tool calls pass a hook point before the tools run. Chock sits below and meets the agent at nine points: session start, a rules block in context, before and after each tool, the end of the turn and an MCP gateway, then your repository at git commit, git push and CI.",
+  "alt": "A layered sketch: you ask a coding agent for a change, and inside the agent a model and an agent loop work with context and call tools, some through an MCP server. Chock sits below with a marker on each place it meets them: session start, rules in context, before and after each tool, the end of the turn and the MCP gateway, then commit, push and CI in your repository; solid markers apply to every agent, outlined ones only where the agent has hooks.",
   "points": [
     {
       "id": "session-start",
-      "n": "1",
       "name": "Session start",
       "line": "arms the hooks from what is committed.",
       "scope": "where the agent has hooks",
       "proof": [
         "tests/test_sessionstart_arm.py"
-      ]
+      ],
+      "label": "session start",
+      "kind": "hooks"
     },
     {
       "id": "ambient-rule",
-      "n": "2",
       "name": "Rules in context",
       "line": "a short rules block Chock writes into AGENTS.md. Advisory.",
       "scope": "every agent",
       "proof": [
         "tests/test_agents_md_pointer.py"
-      ]
+      ],
+      "label": "rules",
+      "kind": "all"
     },
     {
       "id": "pre-tool-use",
-      "n": "3",
       "name": "Before a tool runs",
       "line": "Chock judges the call: allow, ask or block. A refusal goes back to the model with one line on what to do instead.",
       "scope": "where the agent has hooks",
       "proof": [
         "tests/test_agent_hooks.py",
         "tests/test_claude_warn_ask_wire.py"
-      ]
+      ],
+      "label": "pre-tool",
+      "kind": "hooks"
     },
     {
       "id": "post-tool-use",
-      "n": "4",
       "name": "After a tool runs",
       "line": "records what ran, for checks that read the session. It never changes a verdict.",
       "scope": "where the agent has hooks",
       "proof": [
         "tests/test_session_log.py"
-      ]
+      ],
+      "label": "post-tool",
+      "kind": "hooks"
     },
     {
       "id": "stop",
-      "n": "5",
       "name": "End of the turn",
       "line": "reads what the turn left in the working tree and refuses to end the turn on a finding. A backstop.",
       "scope": "where the agent has hooks",
       "proof": [
         "tests/test_stop_surface.py"
-      ]
+      ],
+      "label": "stop",
+      "kind": "hooks"
     },
     {
       "id": "mcp-gateway",
-      "n": "6",
       "name": "MCP gateway",
       "line": "a proxy that judges calls to an MCP server.",
       "scope": "where a server is set up through it",
       "proof": [
         "tests/test_mcp_gateway.py"
-      ]
+      ],
+      "label": "MCP gateway",
+      "kind": "hooks"
     },
     {
       "id": "git-commit",
-      "n": "7",
       "name": "At git commit",
       "line": "the git hook.",
       "scope": "every agent, and people",
       "proof": [
         "tests/test_hook_gate_and_script.py"
-      ]
+      ],
+      "label": "commit",
+      "kind": "all"
     },
     {
       "id": "git-push",
-      "n": "8",
       "name": "At git push",
       "line": "the pre-push hook.",
       "scope": "every agent, and people",
       "proof": [
         "tests/test_default_hooks.py"
-      ]
+      ],
+      "label": "push",
+      "kind": "all"
     },
     {
       "id": "ci-gate",
-      "n": "9",
       "name": "In CI",
       "line": "the same gates on the pull request.",
       "scope": "every agent",
       "proof": [
         "tests/test_ci_emitter.py"
-      ]
+      ],
+      "label": "CI",
+      "kind": "all"
     }
-  ]
+  ],
+  "key": {
+    "all": "every agent",
+    "hooks": "where the agent has hooks"
+  }
 }
