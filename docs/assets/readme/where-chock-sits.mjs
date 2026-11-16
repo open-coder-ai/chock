@@ -19,7 +19,9 @@ export const where = (page, W) => {
   const lines = `<svg width="840" height="600" style="position:absolute;left:0;top:0" xmlns="http://www.w3.org/2000/svg"><defs>
 <marker id="g" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="${LINE}" stroke-width="1.6"/></marker></defs>
 ${ARROWS.map((d) => path(d)).join('')}${chain}${[...TRUNKS, ...SPURS].map((d) => path(d, ACCENT, 1.6, false)).join('')}</svg>`;
-  const chips = W.stops.map((s) => `<span style="padding:5px 10px;border:1.5px solid ${LINE};border-radius:999px;background:#fff;font-size:13px;font-weight:600;color:${INK};white-space:nowrap">${esc(s)}</span>`).join('');
+  const chip = 'padding:4px 6px;border:1.5px solid ' + LINE + ';border-radius:999px;background:#fff;font-size:12.5px;font-weight:600;color:' + INK + ';white-space:nowrap';
+  const own = `<span style="display:inline-flex;flex-direction:column;align-items:center;gap:1px;padding:3px 8px;border:1.5px dashed ${ACCENT};border-radius:14px;color:${ACCENT};font-size:12.5px;font-weight:700;white-space:nowrap">${esc(W.own.label)}<span class="mono" style="font-size:12px;font-weight:500;color:${INK}">${esc(W.own.command)}</span></span>`;
+  const chips = W.stops.map((s) => `<span style="${chip}">${esc(s)}</span>`).join('') + own;
   const sample = (acts) => `<span style="display:inline-block;vertical-align:middle;width:26px;height:12px;border-radius:999px;${acts ? `background:${ACCENT};border:2px solid ${ACCENT}` : 'border:1.5px solid #9A97A6'}"></span>`;
   return page(`<div class="frame" style="width:880px;padding:20px;background:${PAPER};color:${INK};position:relative;height:840px">
 <div style="position:absolute;left:20px;top:20px;width:840px;font-size:20px;line-height:1.35;font-weight:600">${esc(W.title)}</div>
@@ -34,7 +36,7 @@ ${lines}
 ${small(276, 232, A.arrows.block, 'width:38px;text-align:right')}${small(356, 300, A.arrows.allow)}
 ${W.points.map((p) => pill(p, ...AT[p.id])).join('')}
 <div style="position:absolute;left:0;top:620px;width:840px;display:flex;justify-content:space-between;align-items:center"><span class="eyebrow" style="font-size:14px;color:${ACCENT}">${esc(W.stops_title)}</span><span style="font-size:13px;font-weight:600;color:${SOFT}">${sample(true)} ${esc(W.key.acts)} &nbsp;&nbsp; ${sample(false)} ${esc(W.key.exposed)}</span></div>
-<div style="position:absolute;left:0;top:652px;width:840px;display:flex;flex-wrap:wrap;gap:8px">${chips}</div>
+<div style="position:absolute;left:0;top:652px;width:840px;display:flex;flex-wrap:nowrap;align-items:center;gap:5px">${chips}</div>
 <div style="position:absolute;left:0;top:710px;font-size:16px;color:${SOFT}">${esc(W.footer)}</div>
 </div></div>`);
 };

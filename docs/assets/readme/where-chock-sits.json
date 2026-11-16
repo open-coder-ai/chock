@@ -48,7 +48,7 @@
     "name": "Chock",
     "line": "a local program; its rules are files in your repository; no model, no tokens"
   },
-  "stops_title": "What it stops",
+  "stops_title": "What it stops, for example",
   "stops": [
     "secrets in code",
     "root or floating-tag containers",
@@ -254,5 +254,13 @@
   "key": {
     "acts": "Chock acts here",
     "exposed": "exposed, not used"
+  },
+  "own": {
+    "label": "+ your own policy",
+    "command": "chock new policy",
+    "proof": [
+      "src/chock/data/commands.json",
+      "tests/test_scaffold_dx.py"
+    ]
   }
 }

@@ -96,3 +96,14 @@ def test_architecture_doc_lists_every_point_with_its_scope() -> None:
 def test_figure_has_no_legend_and_five_short_chips() -> None:
     assert len(FIGURE["stops"]) == 5
     assert all(len(chip.split()) <= 4 for chip in FIGURE["stops"])
+
+
+def test_a_sixth_chip_invites_the_reader_to_add_their_own_policy() -> None:
+    own = FIGURE["own"]
+    assert own["label"] == "+ your own policy" and own["command"] == "chock new policy"
+    assert FIGURE["stops_title"] == "What it stops, for example"
+    assert own["label"] not in FIGURE["stops"]
+    commands = json.loads((ROOT / "src" / "chock" / "data" / "commands.json").read_text(encoding="utf-8"))
+    assert "new" in commands["authoring"]
+    for rel in own["proof"]:
+        assert (ROOT / rel).is_file(), rel
