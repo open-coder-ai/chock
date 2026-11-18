@@ -1,0 +1,157 @@
+{
+  "_doc": "One shell pre-tool payload per vendored runtime (__COMMAND__, __ROOT__ swapped in), and the deny word each one's wire carries: block is the devin-family spelling, exit-2 windsurf's wordless exit-code grammar (G5). The last four payloads are agentseam's golden pre_tool payloads (tests/fixtures/golden at bebbfa6), shell tool.",
+  "payloads": {
+    "claude_code": {
+      "hook_event_name": "PreToolUse",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "__COMMAND__"
+      },
+      "session_id": "s",
+      "transcript_path": "/t",
+      "permission_mode": "default"
+    },
+    "vscode_copilot": {
+      "hook_event_name": "PreToolUse",
+      "timestamp": "2026-08-31T00:00:00Z",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "__COMMAND__"
+      },
+      "tool_use_id": "1"
+    },
+    "cursor": {
+      "hook_event_name": "beforeShellExecution",
+      "conversation_id": "a",
+      "generation_id": "b",
+      "cursor_version": "3.17.8",
+      "workspace_roots": [
+        "__ROOT__"
+      ],
+      "command": "__COMMAND__",
+      "cwd": "__ROOT__",
+      "sandbox": false
+    },
+    "codex_cli": {
+      "hook_event_name": "PreToolUse",
+      "turn_id": "t1",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "__COMMAND__"
+      }
+    },
+    "antigravity": {
+      "toolCall": {
+        "name": "run_command",
+        "args": {
+          "CommandLine": "__COMMAND__",
+          "Cwd": "__ROOT__"
+        }
+      },
+      "conversationId": "c1",
+      "stepIdx": 1,
+      "workspacePaths": [
+        "__ROOT__"
+      ]
+    },
+    "devin": {
+      "hook_event_name": "PreToolUse",
+      "prompt_id": "p1",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "__COMMAND__"
+      },
+      "session_id": "s"
+    },
+    "gemini_cli": {
+      "hook_event_name": "BeforeTool",
+      "tool_name": "run_shell_command",
+      "tool_input": {
+        "command": "__COMMAND__"
+      },
+      "session_id": "s"
+    },
+    "grok": {
+      "hookEventName": "PreToolUse",
+      "toolName": "Bash",
+      "toolInput": {
+        "command": "__COMMAND__"
+      },
+      "sessionId": "s"
+    },
+    "tabnine": {
+      "hook_event_name": "BeforeTool",
+      "timestamp": "2026-08-31T00:00:00Z",
+      "tool_name": "shell",
+      "tool_input": {
+        "command": "__COMMAND__"
+      }
+    },
+    "windsurf": {
+      "trajectory_id": "t1",
+      "tool_info": {
+        "command_line": "__COMMAND__"
+      },
+      "cwd": "__ROOT__"
+    },
+    "factory_droid": {
+      "hook_event_name": "PreToolUse",
+      "permission_mode": "auto-medium",
+      "session_id": "s",
+      "transcript_path": "__ROOT__/.factory/projects/x/session.jsonl",
+      "cwd": "__ROOT__",
+      "tool_name": "Execute",
+      "tool_input": {
+        "command": "__COMMAND__"
+      }
+    },
+    "goose": {
+      "event": "PreToolUse",
+      "matcher_context": "shell",
+      "session_id": "s",
+      "tool_call_id": "call-1",
+      "tool_name": "shell",
+      "tool_input": {
+        "command": "__COMMAND__"
+      },
+      "working_dir": "__ROOT__"
+    },
+    "openhands": {
+      "event_type": "PreToolUse",
+      "session_id": "s",
+      "tool_name": "terminal",
+      "tool_input": {
+        "command": "__COMMAND__"
+      },
+      "working_dir": "__ROOT__"
+    },
+    "mistral_vibe": {
+      "hook_event_name": "pre_tool",
+      "parent_session_id": null,
+      "session_id": "s",
+      "tool_call_id": "call-1",
+      "tool_name": "bash",
+      "tool_input": {
+        "command": "__COMMAND__"
+      },
+      "transcript_path": "__ROOT__/.vibe/session.jsonl",
+      "cwd": "__ROOT__"
+    }
+  },
+  "deny_on_the_wire": {
+    "claude_code": "deny",
+    "codex_cli": "deny",
+    "cursor": "deny",
+    "vscode_copilot": "deny",
+    "antigravity": "deny",
+    "devin": "block",
+    "gemini_cli": "deny",
+    "grok": "deny",
+    "tabnine": "deny",
+    "windsurf": "exit-2",
+    "factory_droid": "deny",
+    "goose": "block",
+    "openhands": "deny",
+    "mistral_vibe": "deny"
+  }
+}

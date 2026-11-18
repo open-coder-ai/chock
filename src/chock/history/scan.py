@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import shutil
 import sys
@@ -31,6 +32,8 @@ class Finding:
     line: int | None
     rule: str
     policy: str
+    #: The matched line's digest (the forbidden-path rule's name for a path finding), as the scan read it.
+    key: str = ""
 
     def as_dict(self) -> dict[str, object]:
         return {"commit": self.commit, "path": self.path, "line": self.line, "rule": self.rule, "policy": self.policy}
@@ -46,6 +49,9 @@ class Report:
     skipped_submodules: int = 0
     truncated: bool = False
     shallow: bool = False
+    #: (commit, path, why) of every introduced blob this scan did not judge; filled when Limits.judge_binary is set.
+    unread: list[tuple[str, str, str]] = field(default_factory=list)
+    _unread_oids: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -54,6 +60,11 @@ class Limits:
     max_blob_bytes: int = DEFAULT_MAX_BLOB_BYTES
     allow_shallow: bool = False
     time_budget: int = DEFAULT_TIME_BUDGET
+    #: The floor's reader: every blob is judged (binary too) in each of `floor_texts`, and a blob still not
+    #: judged (over max_blob_bytes) is named in Report.unread.
+    judge_binary: bool = False
+    #: False reads a rename as a delete and an add (`--no-renames`), as the floor's tree diff does.
+    renames: bool = True
 
 
 def _say(message: str) -> None:
@@ -85,10 +96,35 @@ def _judged(judge: dict, policy: str, jobs: list[tuple[str, list[str]]]) -> list
     return [set(found) for found in hits]
 
 
-def _judge_blob(rules: list[Rule], data: bytes, judge: dict) -> tuple[list[tuple[int, int, str]], set[int]]:
+_UTF16 = ("utf-16-le", "utf-16-be")
+
+
+def floor_texts(data: bytes) -> list[str]:
+    """Every reading the floor judges: latin-1 (lossless), utf-8 when the bytes are utf-8, and, when the blob
+    holds a NUL byte, utf-16 in both byte orders at both alignments (a BOM decodes to U+FEFF, a stray byte shifts)."""
+    texts = [data.decode("latin-1")]
+    with contextlib.suppress(UnicodeDecodeError):
+        texts.append(data.decode("utf-8"))
+    if b"\0" in data:
+        texts += [data[skip:].decode(codec, "replace") for codec in _UTF16 for skip in (0, 1)]
+    return texts
+
+
+def floor_lines(data: bytes) -> list[str]:
+    """`floor_texts`, each split on `\\n` only: one line list, so a line number never needs a second count."""
+    return [line for text in floor_texts(data) for line in text.split("\n")]
+
+
+def _judge_blob(
+    rules: list[Rule], data: bytes, judge: dict, *, lossless: bool = False
+) -> tuple[list[tuple[int, int, str]], set[int]]:
     """(rule index, line number, line digest) per hit, and the rules whose waiver pragma the blob carries."""
-    text = data.decode("utf-8", "replace")
-    lines = text.splitlines()
+    if lossless:
+        lines = floor_lines(data)
+        text = "\n".join(lines)
+    else:
+        text = data.decode("utf-8", "replace")
+        lines = text.splitlines()
     hits: list[tuple[int, int, str]] = []
     waived: set[int] = set()
     for index, rule in enumerate(rules):
@@ -109,6 +145,14 @@ def _read_judged(repo: Path, rules: list[Rule], oids: list[str], limits: Limits,
     if missing:
         raise gitlog.HistoryError(f"{len(missing)} blob(s) missing from the object database, e.g. {missing[0]}")
     report.skipped_oversize = sum(1 for o in oids if sizes[o] > limits.max_blob_bytes)
+    if limits.judge_binary:
+        report._unread_oids.update(
+            {
+                o: f"{sizes[o]} bytes, over the {limits.max_blob_bytes}-byte limit"
+                for o in oids
+                if sizes[o] > limits.max_blob_bytes
+            }
+        )
     wanted = [o for o in oids if 0 < sizes[o] <= limits.max_blob_bytes]
     deadline = time.monotonic() + limits.time_budget
     judged: Judged = {}
@@ -119,10 +163,10 @@ def _read_judged(repo: Path, rules: list[Rule], oids: list[str], limits: Limits,
                 raise gitlog.HistoryError(
                     f"time budget of {limits.time_budget}s exceeded; narrow with --since or --max-commits"
                 )
-            if gitlog.is_binary(data):
+            if gitlog.is_binary(data) and not limits.judge_binary:
                 report.skipped_binary += 1
             else:
-                judged[oid] = _judge_blob(rules, data, judge)
+                judged[oid] = _judge_blob(rules, data, judge, lossless=limits.judge_binary)
                 report.blobs_scanned += 1
             if done % _PROGRESS_EVERY == 0:
                 _say(f"history: read {done}/{len(wanted)} blobs")
@@ -155,7 +199,7 @@ def _collect(touched: list[gitlog.Touch], rules: list[Rule], judged: Judged) -> 
         marker = (item.path, rule.policy, key)
         if marker not in seen:
             seen.add(marker)
-            found.append(Finding(item.commit, item.path, line, kind, rule.policy))
+            found.append(Finding(item.commit, item.path, line, kind, rule.policy, key))
 
     for item in touched:
         hits, waived = judged.get(item.oid, ([], set()))
@@ -168,7 +212,7 @@ def _collect(touched: list[gitlog.Touch], rules: list[Rule], judged: Judged) -> 
     return found
 
 
-def scan(repo: Path, rules: list[Rule], since: str | None, limits: Limits) -> Report:
+def scan(repo: Path, rules: list[Rule], since: str | None, limits: Limits, head: str = "HEAD") -> Report:
     report = Report(shallow=gitlog.is_shallow(repo))
     if report.shallow:
         if not limits.allow_shallow:
@@ -177,16 +221,19 @@ def scan(repo: Path, rules: list[Rule], since: str | None, limits: Limits) -> Re
                 "would claim too much. Fetch full history (git fetch --unshallow) or pass --allow-shallow."
             )
         _say("history: WARNING shallow clone; commits beyond the shallow boundary were not scanned")
-    in_range = gitlog.count_commits(repo, since)
+    in_range = gitlog.count_commits(repo, since, head)
     report.truncated = in_range > limits.max_commits
     report.commits = min(in_range, limits.max_commits)
     _say(f"history: listing up to {report.commits} of {in_range} commits")
-    log = gitlog.touches(repo, since, limits.max_commits)
+    log = gitlog.touches(repo, since, limits.max_commits, head, renames=limits.renames)
     report.skipped_submodules = log.submodules
     oids = sorted({t.oid for t in log.touches})
     _say(f"history: {len(log.touches)} changed paths, {len(oids)} distinct blobs")
     judged = _read_judged(repo, rules, oids, limits, report)
     report.findings = _collect(log.touches, rules, judged)
+    report.unread = [
+        (t.commit, t.path, report._unread_oids[t.oid]) for t in log.touches if t.oid in report._unread_oids
+    ]
     _say(
         f"history: skipped {report.skipped_binary} binary, {report.skipped_oversize} oversize blobs "
         f"and {report.skipped_submodules} submodule pointers (not scanned)"

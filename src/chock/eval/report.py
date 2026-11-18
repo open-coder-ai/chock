@@ -6,6 +6,7 @@ import json
 from typing import Any
 
 from chock.eval.model import PolicyResult
+from chock.output import ellipsis
 
 MARK = {"pass": "PASS", "fail": "FAIL", "pending": "PEND", "skipped": "SKIP", "error": "ERR "}
 
@@ -13,7 +14,7 @@ _DETAIL_WIDTH = 68
 
 
 def _trim(detail: str) -> str:
-    return detail if len(detail) <= _DETAIL_WIDTH else detail[: _DETAIL_WIDTH - 1] + "…"
+    return detail if len(detail) <= _DETAIL_WIDTH else detail[: _DETAIL_WIDTH - len(ellipsis())] + ellipsis()
 
 
 def render_text(policies: list[PolicyResult], *, verbose: bool = False) -> str:

@@ -10,7 +10,7 @@ from typing import Any
 
 import yaml
 
-from chock.manifest import MANIFEST_NAMES, ManifestSourceError, load_manifest
+from chock.manifest import MANIFEST_DEFAULT, MANIFEST_NAMES, ManifestSourceError, load_manifest
 from chock.validation.checks_content import (
     check_description_parity,
     check_no_agent_specific_leakage,
@@ -87,7 +87,7 @@ def validate_artifact(
         manifest, manifest_path = result
 
     for warning in warnings:
-        report.add(Finding(str(manifest_path or artifact_dir), "manifest_default", "warning", warning))
+        report.add(Finding(str(manifest_path or artifact_dir), MANIFEST_DEFAULT, "warning", warning))
 
     schema_name = {
         "rule": MANIFEST_SCHEMA,

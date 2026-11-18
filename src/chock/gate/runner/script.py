@@ -12,6 +12,7 @@ from collections import Counter
 from pathlib import Path
 
 from ..budget import ENGINE_BUDGET_SECONDS, run_tree
+from .constants import FLOOR_EVENT
 from .context import GateContext, GateResult
 
 # >>> gate.py 07
@@ -34,6 +35,15 @@ _UNDECIDED = " -- refusing rather than allowing what it never judged"
 
 _FINDINGS_KEY = "findings"
 
+#: All a script gate's environment holds at the floor: no token, secret or runner variable reaches it.
+_FLOOR_ENV_KEYS = ("PATH", "HOME", "SYSTEMROOT")
+
+
+def _env(event: object) -> dict[str, str]:
+    if event == FLOOR_EVENT:
+        return {key: os.environ[key] for key in _FLOOR_ENV_KEYS if key in os.environ} | _BYTECODE_OFF
+    return {**os.environ, **_BYTECODE_OFF}
+
 
 def _spawn(script: Path, ctx: GateContext, payload: dict, timeout: float) -> subprocess.CompletedProcess[str]:
     return run_tree(
@@ -44,7 +54,7 @@ def _spawn(script: Path, ctx: GateContext, payload: dict, timeout: float) -> sub
         encoding="utf-8",
         errors="replace",
         cwd=ctx.repo_root,
-        env={**os.environ, **_BYTECODE_OFF},
+        env=_env(payload.get("event")),
         timeout=timeout,
         check=False,
     )
@@ -99,13 +109,35 @@ def _new_findings(found: list[dict], baseline: list[dict]) -> list[dict]:
     return fresh
 
 
+#: A finding's optional `tier`, ranked; a verdict is the highest among the findings the change adds.
+_TIER_RANK = {"warn": 1, "ask": 2, "block": 3}
+
+
+def _tier_verdict(fresh: list[dict]) -> str | None:
+    """The verdict word ("" blocks) when every kept finding carries a known tier, else None: the exit code decides."""
+    tiers = [item.get("tier") for item in fresh]
+    if not all(isinstance(tier, str) and tier in _TIER_RANK for tier in tiers):
+        return None
+    top = max(tiers, key=_TIER_RANK.__getitem__)
+    return "" if top == "block" else top
+
+
 def _baseline_findings(ctx: GateContext, script: Path, material: dict, started: float) -> list[dict]:
     """What the script finds in the baseline text of the change's files; empty when it cannot say.
 
-    A new file has no baseline and is left out. A run that fails, times out, prints no findings
-    document, or has no budget left contributes nothing, which errs toward blocking.
+    A new file has no baseline and is left out. A renamed file is judged as it was before the change:
+    its old content at its OLD path, so a finding that exists because of the new name is not in the
+    baseline; findings are mapped back to the new path, where a content finding is the same one.
+    A run that fails, times out, prints no findings document, or has no budget left contributes
+    nothing, which errs toward blocking.
     """
-    texts = {path: text for path in material["writes"] if (text := ctx.head_blob(path))}
+    writes, texts, back = material["writes"], {}, {}
+    for path in writes:
+        if not (text := ctx.head_blob(path)):
+            continue
+        old = ctx.renamed_from(path)
+        old = path if old in writes or old in texts else old  # never shadow another file in the same run
+        texts[old], back[old] = text, path
     remaining = _SCRIPT_TIMEOUT_SECONDS - (time.monotonic() - started)
     if not texts or remaining <= 0:
         return []
@@ -113,7 +145,9 @@ def _baseline_findings(ctx: GateContext, script: Path, material: dict, started: 
         proc = _spawn(script, ctx, {**material, "writes": texts, "baseline": True}, remaining)
     except (subprocess.TimeoutExpired, OSError):
         return []
-    return _findings_document(proc.stdout or "") or []
+    return [
+        {**item, "path": back.get(item["path"], item["path"])} for item in _findings_document(proc.stdout or "") or []
+    ]
 
 
 def _exit_verdict(script: Path, proc: subprocess.CompletedProcess[str]) -> GateResult:
@@ -137,7 +171,7 @@ def _exit_verdict(script: Path, proc: subprocess.CompletedProcess[str]) -> GateR
 def _judge_findings(
     ctx: GateContext, script: Path, material: dict, proc: subprocess.CompletedProcess[str], started: float
 ) -> GateResult:
-    """Judge only the findings the change introduces; the change-run's exit code is the verdict for them."""
+    """Judge only the findings the change introduces: the highest tier among them, else the change-run's exit code."""
     if proc.returncode not in (_SCRIPT_ALLOW, _SCRIPT_BLOCK, _SCRIPT_ASK, _SCRIPT_WARN):
         # A document followed by a crash or an unknown exit is undecided, never a clean pass.
         return _exit_verdict(script, proc)
@@ -150,7 +184,9 @@ def _judge_findings(
     if not fresh or proc.returncode == _SCRIPT_ALLOW:
         return GateResult(allowed=True, detail=counts)
     lines = [f"{item['path']}:{item['line']}: {item['message']}" for item in fresh]
-    verdict = {_SCRIPT_ASK: "ask", _SCRIPT_WARN: "warn"}.get(proc.returncode, "")
+    verdict = _tier_verdict(fresh)
+    if verdict is None:
+        verdict = {_SCRIPT_ASK: "ask", _SCRIPT_WARN: "warn"}.get(proc.returncode, "")
     return GateResult(
         allowed=False, matches=lines, verdict=verdict, detail=counts, rules=_rule_ids(fresh), findings=fresh
     )
@@ -159,7 +195,7 @@ def _judge_findings(
 def _kind_script(ctx: GateContext, params: dict, event: str) -> GateResult:
     """Hand the material to the policy's own script and carry back its verdict.
 
-    The script reads `{"event", "repo_root", "writes": {path: text}}` on stdin -- the staged
+    The script reads `{"event", "repo_root", "writes": {path: text}}` on stdin (plus `deleted` at the floor) -- the staged
     blobs at commit and push, the write itself at tool use and at the turn's end -- so one
     script serves every surface the declarative kinds do, and reads them the same way. It
     answers with an exit code: 0 allows; 1 refuses, 3 asks, 4 warns, with its own words on stderr.
@@ -175,9 +211,13 @@ def _kind_script(ctx: GateContext, params: dict, event: str) -> GateResult:
     if not script.is_file():
         return GateResult(allowed=False, message=f"script gate: {named!r} is not installed{_UNDECIDED}")
     writes = {path: ctx.staged_blob(path) for path in ctx.staged_paths()}
-    if not writes:
+    # Only the floor hands a script the deleted paths: the contract every other event has is unchanged.
+    deleted = sorted(ctx.staged_paths("D")) if event == FLOOR_EVENT else []
+    if not writes and not deleted:
         return GateResult(allowed=True)
     material = {"event": event, "repo_root": str(ctx.repo_root), "writes": writes}
+    if event == FLOOR_EVENT:
+        material["deleted"] = deleted
     if ctx.session:
         material["session"] = ctx.session
     started = time.monotonic()

@@ -85,7 +85,7 @@ number comparing them would invent a scale that does not exist.
 > [Arming a fresh clone](adopting.md#arming-a-fresh-clone).
 
 Example for `protect-main-branch`, whose gate declares `on: [commit, push]` and so targets
-git-hook + CI + ambient-rule + managed-setting, with no pre-tool surface at all. Every agent
+git-hook + CI + ambient-rule + managed-setting (for which the compiler writes nothing), with no pre-tool surface at all. Every agent
 reaches the same grade, because the git hook is what earns it:
 
 ```json

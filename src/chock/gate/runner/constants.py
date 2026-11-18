@@ -22,6 +22,7 @@ __all__ = [
     "CONFIG_AGENT_ENV_KEY",
     "EXIT_ASK",
     "EXIT_WARN",
+    "FLOOR_EVENT",
     "GATE_LOG_ENV",
     "HEAD_WAIVER_EVENTS",
     "POLICIES_PREFIX",
@@ -107,8 +108,12 @@ ALLOW_ENV = "CHOCK_ALLOW"
 #: adds is not honoured. Coverage (`on: [commit]`) is still decided by the name `commit`.
 AGENT_COMMIT_EVENT = "agent-commit"
 
+#: The event `chock check --floor` judges at: the change under judgement may be the refused party's, so a
+#: waiver counts only when the base already has that line (the floor's `committed_blob` reads the base).
+FLOOR_EVENT = "ci-floor"
+
 #: Events where the actor may be the refused agent: a waiver counts only when HEAD already has that line.
-HEAD_WAIVER_EVENTS = frozenset({AGENT_COMMIT_EVENT, TOOL_USE_EVENT})
+HEAD_WAIVER_EVENTS = frozenset({AGENT_COMMIT_EVENT, TOOL_USE_EVENT, FLOOR_EVENT})
 
 _HUMAN_ENV = frozenset({"0", "false", "no", "off"})
 

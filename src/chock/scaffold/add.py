@@ -12,6 +12,7 @@ from pathlib import Path
 
 import yaml
 
+from chock import __version__ as engine_version
 from chock import yamlio
 from chock.config import agents_from_config as _agents_from_config
 from chock.lock import (
@@ -24,7 +25,7 @@ from chock.lock import (
     write_lock,
 )
 from chock.output import error
-from chock.scaffold.pin import PinError, fetch_catalog, redact_source
+from chock.scaffold.pin import PinError, fetch_catalog, redact_source, tag_commit
 from chock.scaffold.recompile import BookkeepingError, recompile
 
 
@@ -178,6 +179,43 @@ def record_provenance(repo_root: Path, artifact_id: str, source: str, ref: str |
         return
 
 
+def is_default_catalog(source: str) -> bool:
+    """True when `source` names the default catalog, however its URL ends."""
+
+    def bare(url: str) -> str:
+        return url.rstrip("/").removesuffix(".git")
+
+    return bare(source) == bare(DEFAULT_CATALOG)
+
+
+def default_tag(source: str, ref: str | None) -> str | None:
+    """The catalog release tag to fetch when none was asked for: the default catalog only."""
+    return f"v{engine_version}" if ref is None and is_default_catalog(source) else None
+
+
+def resolve_default_ref(source: str, tag: str) -> str:
+    """The commit the default catalog's release tag names; refuse rather than take the moving branch."""
+    commit = tag_commit(source, tag)
+    if commit is None:
+        msg = (
+            f"chock add: catalog {redact_source(source)} has no tag {tag} for this chock; "
+            "pin --ref <40-hex commit>, or --ref main to take the moving branch on purpose (nothing installed)"
+        )
+        raise PinError(msg)
+    return commit
+
+
+def _report(args: argparse.Namespace, added: Added, tag: str | None) -> None:
+    if added.commit:
+        print(f"  from {redact_source(args.source)} at {added.commit}" + (f" (tag {tag})" if tag else ""))
+    print(f"  sha256 {added.sha256}")
+    pin = f"--ref {added.commit}, or --verify-sha {added.sha256}"
+    if tag and added.commit:
+        print(f"  (a tag can move; the strong pin is {pin})")
+    elif not args.ref and added.commit:
+        print(f"  (unpinned: a later run may fetch another commit. Pin with {pin})")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="chock add", description="Install a policy or skill from a catalog and compile it"
@@ -185,7 +223,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("artifact_id", help="Policy or skill id, e.g. protect-main-branch")
     parser.add_argument("--repo", default=".", help="Target repo root")
     parser.add_argument("--from", dest="source", default=DEFAULT_CATALOG, help="Catalog URL or local path")
-    parser.add_argument("--ref", default=None, help="Full 40-hex commit SHA (recommended), or a branch/tag (mutable)")
+    parser.add_argument(
+        "--ref",
+        default=None,
+        help="Full 40-hex commit SHA (recommended), or a branch/tag (mutable). "
+        "Default for the default catalog: the tag v<chock version>; elsewhere: the default branch",
+    )
     parser.add_argument("--force", action="store_true", help="Replace an artifact that is already installed")
     parser.add_argument("--skip-compile", action="store_true", help="Copy only; do not compile or install hooks")
     parser.add_argument(
@@ -197,8 +240,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     repo_root = Path(args.repo).resolve()
+    tag = default_tag(args.source, args.ref)
     try:
-        added = add(repo_root, args.artifact_id, args.source, args.ref, force=args.force, verify_sha=args.verify_sha)
+        ref = resolve_default_ref(args.source, tag) if tag else args.ref
+        added = add(repo_root, args.artifact_id, args.source, ref, force=args.force, verify_sha=args.verify_sha)
     except PinError as exc:
         print(exc, file=sys.stderr)
         return 2
@@ -208,13 +253,7 @@ def main(argv: list[str] | None = None) -> int:
 
     rel = added.path.relative_to(repo_root).as_posix()
     print(f"Added {args.artifact_id} to {rel}")
-
-    if added.commit:
-        print(f"  from {redact_source(args.source)} at {added.commit}")
-    print(f"  sha256 {added.sha256}")
-    if not args.ref and added.commit:
-        pin = f"Pin with --ref {added.commit}, or --verify-sha {added.sha256}"
-        print(f"  (unpinned: a later run may fetch another commit. {pin})")
+    _report(args, added, tag)
 
     if args.skip_compile:
         print("Run `chock sync --repo .` to compile it.")
@@ -230,7 +269,7 @@ def main(argv: list[str] | None = None) -> int:
     except BookkeepingError as exc:
         error(str(exc))
         return 1
-    record_provenance(repo_root, args.artifact_id, args.source, args.ref, added)
+    record_provenance(repo_root, args.artifact_id, args.source, tag or args.ref, added)
     print("Compiled. Run `chock sync --repo .` to activate commit-time enforcement.")
     return 0
 

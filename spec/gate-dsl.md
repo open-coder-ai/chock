@@ -227,7 +227,7 @@ script lives beside this gate file" instead of "under the repository root". Only
 plugin writes it: there the gate, the runner and the script travel together and no repository
 holds them.
 
-`event` is `commit`, `push`, `tool_use` or (see above) `tool_call`. `session` is present only at the agent events. `writes` is the staged blobs at `commit` and
+Script payload contract **v2** (v1 was unnumbered; v2 adds `ci-floor`, from `chock check --floor`, and nothing elsewhere). `event` is `commit`, `push`, `tool_use`, `ci-floor` or (see above) `tool_call`. `session` is present only at the agent events. At `ci-floor` the payload adds `deleted` (sorted deleted paths; a deletion-only range still runs the script), the environment is only `PATH`, `HOME`, `SYSTEMROOT`, the script is the base's copy, a waiver counts only on a line unchanged in base and head, and `ask` refuses. `writes` is the staged blobs at `commit` and
 `push`, and the write itself at `tool_use` -- the file a tool call is about to write, or what
 the turn left on disk at its end -- so one script serves every surface, and it reaches the
 write path and the turn's end exactly as `content_regex` does. The script answers with its
@@ -258,7 +258,8 @@ introduces:
   are for display. An optional `"new": true` makes the finding count as new whatever the
   baseline holds, for a script that already compared with HEAD itself. An optional `rule` (string,
   `[A-Za-z0-9][A-Za-z0-9 ._:/-]{0,63}`) names the rule for the gate log; a missing or malformed
-  `rule` is ignored and never invalidates the document.
+  `rule` is ignored and never invalidates the document. An optional `tier` (`block`, `ask` or `warn`)
+  is the verdict this finding warrants (see Verdict); any other value is ignored.
 - A document is valid only when `findings` is a list of objects each carrying string `key`, `path`
   and `message`, an integer `line`, and a boolean `new` if present. Anything else on stdout is not
   a document, and the script keeps the exit-code contract above exactly (one run).
@@ -271,29 +272,28 @@ introduces:
 - **New findings.** Per `path`, each baseline finding cancels one change-run finding with the
   same `key`, so a finding is new when its key occurs more often in the change-run than in the
   baseline; a second copy of an old violation is new.
-- **Verdict.** No new findings allows, whatever the change-run's exit code. Otherwise the
-  change-run's exit code decides (`1` blocks, `3` asks, `4` warns, capped by the declared
-  `action`; exit `0` allows; any other code is undecided as above), and the reason lists only the
-  new findings as `path:line: message`, not the script's stderr.
+- **Verdict.** No new findings allows, whatever the change-run's exit code. Otherwise, when every new
+  finding carries a `tier`, the highest (`block` over `ask` over `warn`) decides, so an old block-tier
+  finding cannot turn a new ask-tier one into a block; if any lacks one, the change-run's exit code
+  decides (codes as above). The declared `action` caps either; the reason lists only the new
+  findings as `path:line: message`, not the script's stderr. No `tier` anywhere: exactly as before.
 - **Baseline text** is the file before the change: `commit`, HEAD; `push` and `ci`, the base of
   the range; `tool_use` before the write (PreToolUse), the file on disk, and at the turn's end
   (Stop), HEAD. A write outside the repository has the file on disk before the write, or no
   baseline when absent. HEAD is read from `repo_root` (`git show HEAD:./<path>`), which may sit
   below the git top-level.
+- **A rename's baseline** (a path git reports as renamed, `-M`) is its old content under its OLD path, mapped back to the new path: a finding whose `key` names the new path is new.
 - **Baseline failure** (crash, timeout, non-zero exit without a document, non-JSON stdout, no
-  git, no HEAD) leaves the baseline findings empty, which errs toward blocking.
-- **Budget.** Both runs share the 30s timeout; the baseline run gets what the change-run left.
+  git, no HEAD) leaves the baseline findings empty, which errs toward blocking. Both runs share the 30s timeout; the baseline run gets what the change-run left.
 - The gate log records `new_findings`, `baseline_findings` and, per declared `rule`, `rules`
-  (rule to count of new findings). `tool_call` scripts and the
-  `hook.script` event scripts are unchanged.
+  (rule to count of new findings). `tool_call` scripts and the `hook.script` event scripts are unchanged.
 
 `chock compile` rewrites `script` to the file's path from the repository root, which is all
 the runner has; the ambient line an agent reads keeps the bare name, so the packaged `SKILL.md`
 is the same wherever the policy sits. `chock check` refuses a name that is not a bare `.py` file
 name, and a script the policy does not ship. The script is deterministic code under
-`implementations/`, so SEC-2 applies to it as to any guard, and `chock check --only evals`
-copies that directory into the throwaway repository a staged-files case is replayed in, where
-the compiled gate names it.
+`implementations/`, so SEC-2 applies to it, and `chock check --only evals` copies that directory
+into the throwaway repository a staged-files case is replayed in, where the compiled gate names it.
 
 ## Runtime note
 

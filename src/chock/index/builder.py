@@ -12,7 +12,7 @@ from chock.compile.emitters.advisory import substitute_policy_vars, template_mes
 from chock.compile.surface_kinds import Surface
 from chock.config import _disabled_list, load_config, policy_status
 from chock.gate.build import build_gate_json
-from chock.manifest import ManifestSourceError, load_manifest
+from chock.manifest import ManifestSourceError, load_manifest, warn_defaults
 from chock.output import warn
 
 _ENFORCEMENT_ORDER = {"block": 0, "verify": 1, "advise": 2}
@@ -47,15 +47,17 @@ def _default_id(artifact_dir: Path, manifest: dict[str, Any]) -> str:
 
 
 def _load_policy(root: Path, artifact_dir: Path, warnings: list[str]) -> tuple[dict[str, Any], str] | None:
-    """Return (manifest, manifest_relative_path) or None on any failure."""
+    """Return (manifest, manifest_relative_path) or None on any failure; defaulted fields are printed, once, here."""
+    defaults: list[str] = []
     try:
-        result = load_manifest(artifact_dir, warnings=warnings)
+        result = load_manifest(artifact_dir, warnings=defaults)
     except (yaml.YAMLError, OSError, ManifestSourceError) as exc:
         warnings.append(f"{artifact_dir}: manifest_parse: {exc}")
         return None
     if result is None:
         return None
     manifest, manifest_path = result
+    warn_defaults(manifest_path, defaults)
     rel_path = manifest_path.relative_to(root).as_posix()
     return manifest, rel_path
 

@@ -7,6 +7,8 @@ import os
 import sys
 from typing import Any, TextIO
 
+from chock.output import legible
+
 
 def _is_broken_pipe(exc: OSError) -> bool:
     return isinstance(exc, BrokenPipeError) or exc.errno in (errno.EPIPE, errno.EINVAL)
@@ -24,7 +26,7 @@ class PipeTolerantWriter:
             return len(text)
         try:
             try:
-                return self._stream.write(text)
+                return self._stream.write(legible(text, self._stream))
             except UnicodeEncodeError:
                 encoding = getattr(self._stream, "encoding", None) or "ascii"
                 return self._stream.write(text.encode(encoding, "backslashreplace").decode(encoding))

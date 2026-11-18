@@ -34,7 +34,8 @@ class Check:
     fix: str = ""
 
 
-def _rebuild(target: Target) -> str:
+def rebuild(target: Target) -> str:
+    """The one-line fix for a target whose hooks are missing, stale or broken."""
     if target.route == ROUTE_SYNC:
         return f"run `chock sync --repo {target.root}`"
     return f"rebuild it: `chock install --selection <your selection> --client {target.client}`"
@@ -44,8 +45,8 @@ def hooks_present(target: Target) -> Check:
     if target.wired() and target.runtime.is_file():
         return Check(PASS, "hooks", f"{target.hooks} runs {target.runtime.name}")
     if target.wired():
-        return Check(FAIL, "hooks", f"{target.hooks} runs {target.runtime}, which is missing", _rebuild(target))
-    return Check(FAIL, "hooks", f"{target.hooks} does not run {target.runtime.name}", _rebuild(target))
+        return Check(FAIL, "hooks", f"{target.hooks} runs {target.runtime}, which is missing", rebuild(target))
+    return Check(FAIL, "hooks", f"{target.hooks} does not run {target.runtime.name}", rebuild(target))
 
 
 def _python_version(name: str) -> tuple[int, ...] | None:
@@ -66,7 +67,7 @@ def _python_version(name: str) -> tuple[int, ...] | None:
 
 def launcher(target: Target) -> Check:
     if not target.launcher.is_file():
-        return Check(FAIL, "launcher", f"{target.launcher} is missing: every hook refuses", _rebuild(target))
+        return Check(FAIL, "launcher", f"{target.launcher} is missing: every hook refuses", rebuild(target))
     least = ".".join(map(str, launch.MIN_PYTHON))
     usable = [(n, v) for n in PYTHONS if (v := _python_version(n)) is not None and v >= launch.MIN_PYTHON]
     if not usable:
@@ -90,16 +91,16 @@ def engine(target: Target) -> Check:
         try:
             same = path.read_text(encoding="utf-8") == expected
         except (OSError, UnicodeDecodeError):
-            return Check(FAIL, "engine", f"{path} is unreadable", _rebuild(target))
+            return Check(FAIL, "engine", f"{path} is unreadable", rebuild(target))
         if not same:
-            return Check(FAIL, "engine", f"{path.name} was not built by {_engine_names()}", _rebuild(target))
+            return Check(FAIL, "engine", f"{path.name} was not built by {_engine_names()}", rebuild(target))
     if target.route == ROUTE_SYNC:
         return Check(PASS, "engine", f"runtime matches {_engine_names()}")
     built = marker_engine(target)
     recorded, version = built.get("commit"), built.get("version")
     if version != __version__ or (recorded and engine_commit() and recorded != engine_commit()):
         what = f"chock {version}" + (f" ({str(recorded)[:12]})" if recorded else "")
-        return Check(WARN, "engine", f"runtime matches, but built by {what}, not {_engine_names()}", _rebuild(target))
+        return Check(WARN, "engine", f"runtime matches, but built by {what}, not {_engine_names()}", rebuild(target))
     return Check(PASS, "engine", f"runtime matches; built by {_engine_names()}")
 
 
@@ -146,7 +147,7 @@ def _heartbeat(target: Target, beats: list[dict], hooks: list[dict], sessions: i
             WARN,
             "heartbeat",
             what,
-            f"start a new session; if none appears, the client is not loading it: {_rebuild(target)}",
+            f"start a new session; if none appears, the client is not loading it: {rebuild(target)}",
         )
     since = beats[-sessions:][0]["ts"]
     quiet = not any(r["ts"] >= since for r in hooks)

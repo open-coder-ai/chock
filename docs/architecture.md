@@ -5,6 +5,36 @@ coding agent** that touches your repo — your team's or a contributor's — wit
 exactly where each guarantee holds.
 
 <div align="center">
+  <img src="assets/readme/v2/where-chock-sits.png" alt="A coding agent's harness drawn as component cards in three layers: input (you, the prompt, the session), core (context, the agent loop and the model) and execution (the tool gate, tools, external tools over MCP and subagents), with arrows showing how they talk to each other, beside the repository and pipeline (git commit, git push, CI, main branch). Small diamonds on each card are the hooks on that component: filled where Chock runs today, hollow where a policy of your own can run. The model has none, because Chock never touches it." width="820">
+</div>
+
+Each card is a component of a coding agent's harness; the badges on a card are the hooks on that component. A filled badge is a point Chock runs at today; a hollow one is a hook a policy of your own can use. The model has none: Chock never touches it.
+
+- **Session start**: arms the hooks from what is committed. *Where the agent has hooks.*
+- **Session end** (not used): agentseam exposes this point; no shipped Chock code acts on it. *Where the agent has hooks.*
+- **Prompt submitted** (not used): agentseam exposes this point; no shipped Chock code acts on it. *Where the agent has hooks.*
+- **Instructions loaded** (not used): agentseam exposes this point; no shipped Chock code acts on it. *Where the agent has hooks.*
+- **Before context is compacted** (not used): agentseam exposes this point; no shipped Chock code acts on it. *Where the agent has hooks.*
+- **Before a tool runs**: Chock judges the call: allow, ask or block. A refusal goes back to the model with one line on what to do instead. *Where the agent has hooks.*
+- **After a tool runs**: records what ran, for checks that read the session. It never changes a verdict. *Where the agent has hooks.*
+- **After a tool fails**: records the failed call the same way. *Where the agent has hooks.*
+- **A file changes** (not used): agentseam exposes this point; no shipped Chock code acts on it. *Where the agent has hooks.*
+- **Subagent starts** (not used): agentseam exposes this point; no shipped Chock code acts on it. *Where the agent has hooks.*
+- **Subagent stops** (not used): agentseam exposes this point; no shipped Chock code acts on it. *Where the agent has hooks.*
+- **End of the turn**: reads what the turn left in the working tree and refuses to end the turn on a finding. A backstop. *Where the agent has hooks.*
+- **Rules in context**: a short rules block Chock writes into AGENTS.md. Advisory. *Every agent.*
+- **MCP gateway**: a proxy that judges calls to an MCP server. *Where a server is set up through it.*
+- **At git commit**: the git hook. *Every agent, and people.*
+- **At git push**: the pre-push hook. *Every agent, and people.*
+- **In CI**: the same gates on the pull request. *Every agent.*
+
+The same points in session order:
+
+<div align="center">
+  <img src="assets/readme/v2/session-path.png" alt="A session as an ordered path with checkpoints. Inside your agent: you open a session, type a request, the agent loads its rules, the model picks the next action, a tool runs (repeating until done) and the agent ends its turn; then in your repository: git commit, git push, CI on the pull request and the main branch. Diamonds on the arrows are the hook points: filled where Chock runs today (session start, rules, before and after a tool, stop, the MCP gateway, commit, push, CI) and hollow where a policy of your own can run; the other agent events sit in a row of more hooks." width="820">
+</div>
+
+<div align="center">
   <img src="assets/architecture.svg" alt="Author a policy once, compile it, and enforce it on every agent's native surface." width="820">
 </div>
 
@@ -26,7 +56,7 @@ supports**, across up to nine [enforcement surfaces](enforcement-surfaces.md):
 - `pre-tool-use` (nine agents, Claude Code and Cursor among them) and `agent-hooks`
   (Copilot CLI, VS Code) — agent-native hard controls
 - `stop` — the end-of-turn backstop that reads what the turn wrote (nine agent names)
-- `managed-setting` — compiled, not yet installed
+- `managed-setting` — not compiled; `chock emit --managed` writes it for an admin to deploy, and it credits nothing
 - `gateway` — modeled for budgets/egress (future)
 
 It also writes a **coverage report** (`.chock/coverage.json`) mapping every policy × agent onto
@@ -60,6 +90,8 @@ of the (nonexistent, in a CI checkout) staged index. `chock sync --ci` writes th
 Actions workflow that invokes it; the coverage report only credits `ci-gate` toward
 `enforced-at-commit` once that workflow is actually present, the same check `pre-tool-use` already
 gets — a control nothing wires up enforces nothing.
+
+The CI gate emits SARIF (`chock check --event ci --format sarif`), and a baseline step fails a pull request that disables or narrows a policy (`chock check --only baseline`). `chock mcp` serves read-only guidance to the agent; `chock sync` registers it per client, opt-in.
 
 ## Why "author once" matters
 

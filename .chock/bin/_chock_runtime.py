@@ -32,6 +32,8 @@ ENGINE_BUDGET_SECONDS = 30
 
 BYTECODE_OFF = {'PYTHONDONTWRITEBYTECODE': '1'}
 
+ISOLATED_START = "import os, runpy, sys\nsys.argv = sys.argv[1:]\nsys.path.insert(0, os.path.dirname(os.path.abspath(sys.argv[0])))\nrunpy.run_path(sys.argv[0], run_name='__main__')\n"
+
 PATTERN_SECONDS = 10
 
 PATTERN_START_SECONDS = 10
@@ -110,6 +112,17 @@ def run_tree(argv, *, timeout=None, **options):
         finally:
             untrack_tree(proc)
     return _chock_subprocess.CompletedProcess(argv, proc.returncode, out, err)
+
+def python_free_env(env=None):
+    """`env` (this process's by default) without any `PYTHON*` variable, plus bytecode off for grandchildren."""
+    base = _chock_os.environ if env is None else env
+    return {**{k: v for k, v in base.items() if not k.upper().startswith('PYTHON')}, **BYTECODE_OFF}
+
+def isolated_child(argv, env=None):
+    """(argv, env) that run the Python child `[interpreter, script, *args]` isolated: no PYTHON* variable,
+    user site or current folder can change what it imports; its own folder is put on sys.path explicitly."""
+    interpreter, script, *args = argv
+    return ([interpreter, '-I', '-B', '-X', 'utf8', '-c', ISOLATED_START, str(script), *args], python_free_env(env))
 
 def engine_remaining(deadline):
     """Seconds left before `deadline`, never negative."""
@@ -803,7 +816,7 @@ def bash_candidates() -> list[str]:
 
 def interpreter_env(interpreter: str) -> dict[str, str]:
     """The environment a guard runs in: on Windows, Git's usr/bin ahead on PATH for sed and grep."""
-    env = {**_chock_os.environ, **BYTECODE_OFF}
+    env = python_free_env()
     env.pop(CAN_ASK_ENV, None)
     if _chock_os.name != _WINDOWS:
         return env
@@ -861,6 +874,11 @@ def split_command(command: str) -> tuple[list[str], bool]:
     except ValueError:
         return (command.split(), True)
 
+def _guard_start(interpreter: str, guard: _chock_Path, args: list[str], env: dict[str, str]):
+    """(argv, env) for the guard: a Python guard starts isolated, a shell guard as given."""
+    argv = [interpreter, str(guard), *args]
+    return isolated_child(argv, env) if guard.suffix == PYTHON_SUFFIX else (argv, env)
+
 def run_guard(guard: _chock_Path, command: str, tool: str='') -> str:
     """`GUARD_BLOCKED` / `GUARD_ASKED` / `GUARD_CLEAN` when the guard ran, otherwise why it did not."""
     return run_guard_detailed(guard, command, tool)[0]
@@ -888,7 +906,8 @@ def run_guard_detailed(guard: _chock_Path, command: str, tool: str='', *, can_as
         if fallback:
             env[ARGV_FALLBACK_ENV] = '1'
         env.update({} if can_ask is None else {CAN_ASK_ENV: '1' if can_ask else '0'})
-        proc = run_tree([interpreter, str(guard), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=time_left(deadline, [interpreter, str(guard)]), check=False)
+        argv, env = _guard_start(interpreter, guard, args, env)
+        proc = run_tree(argv, capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=time_left(deadline, [interpreter, str(guard)]), check=False)
     except _chock_subprocess.TimeoutExpired:
         print(f'chock: guard timed out after {ENGINE_BUDGET_SECONDS}s, not checked', file=sys.stderr)
         return (GUARD_ERRORED, '')
@@ -2624,9 +2643,9 @@ def run_gate(gate, writes, event, run_in, deadline):
     runner = runner_for(gate)
     if runner is None:
         return (GATE_ERRORED, 'the vendored gate runner is not installed beside this gate')
-    argv = [sys.executable, str(runner), 'run', '--gate', str(gate), '--event', event]
+    argv, env = isolated_child([sys.executable, str(runner), 'run', '--gate', str(gate), '--event', event])
     try:
-        proc = run_tree(argv, input=json.dumps({'writes': writes, **(extra or {})}), capture_output=True, text=True, encoding=_UTF8, errors='replace', timeout=time_left(deadline, argv), check=False, cwd=str(root) if root is not None else None)
+        proc = run_tree(argv, env=env, input=json.dumps({'writes': writes, **(extra or {})}), capture_output=True, text=True, encoding=_UTF8, errors='replace', timeout=time_left(deadline, argv), check=False, cwd=str(root) if root is not None else None)
     except _chock_subprocess.TimeoutExpired as exc:
         return (GATE_ERRORED, f'the gate runner gave no verdict within {allowed_seconds(exc)}')
     except (OSError, _chock_subprocess.SubprocessError) as exc:
@@ -2767,9 +2786,9 @@ def _tool_call_script(spec, root, payload, deadline=None):
     if not script.is_file():
         return ('deny', f'script gate: {named!r} is not installed{_TOOL_CALL_UNDECIDED}')
     deadline = engine_deadline() if deadline is None else deadline
-    argv = [sys.executable, str(script)]
+    argv, env = isolated_child([sys.executable, str(script)])
     try:
-        proc = run_tree(argv, input=json.dumps(payload), capture_output=True, text=True, encoding='utf-8', errors='replace', cwd=str(root), env={**_chock_os.environ, **BYTECODE_OFF}, timeout=time_left(deadline, argv), check=False)
+        proc = run_tree(argv, input=json.dumps(payload), capture_output=True, text=True, encoding='utf-8', errors='replace', cwd=str(root), env=env, timeout=time_left(deadline, argv), check=False)
     except _chock_subprocess.TimeoutExpired as exc:
         budget = f'gave no verdict within {allowed_seconds(exc)}'
         return ('deny', f'script gate: {script.name} {budget}{_TOOL_CALL_UNDECIDED}')

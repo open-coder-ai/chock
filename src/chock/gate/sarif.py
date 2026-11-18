@@ -6,6 +6,7 @@ logged or annotated here. Paths, escaping and the verdict come from the gate run
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import re
@@ -282,3 +283,12 @@ def emit(repo: Path, base: str, head_ref: str | None, output: str | None) -> int
         return 2
     sys.stderr.write(f"sarif: {len(log['runs'][0]['results'])} result(s) written to {output}\n")
     return code
+
+
+def check_main(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    """`chock check --format sarif`; the exit code is the gate step's own (0, 1 on a block, 2 undecided)."""
+    if args.format != "sarif":
+        parser.error("--output and --head-ref go with --format sarif")
+    if args.event != "ci" or not args.base or args.only or args.mode:
+        parser.error("--format sarif needs --event ci and --base, and takes no --only or --mode")
+    return emit(Path(args.repo), args.base, args.head_ref, args.output)

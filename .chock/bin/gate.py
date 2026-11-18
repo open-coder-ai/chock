@@ -34,6 +34,14 @@ ENGINE_BUDGET_SECONDS = 30
 BYTECODE_OFF = {"PYTHONDONTWRITEBYTECODE": "1"}
 
 
+ISOLATED_START = (
+    "import os, runpy, sys\n"
+    "sys.argv = sys.argv[1:]\n"
+    "sys.path.insert(0, os.path.dirname(os.path.abspath(sys.argv[0])))\n"
+    "runpy.run_path(sys.argv[0], run_name='__main__')\n"
+)
+
+
 PATTERN_SECONDS = 10
 
 
@@ -135,6 +143,19 @@ def run_tree(argv, *, timeout=None, **options):
         finally:
             untrack_tree(proc)
     return subprocess.CompletedProcess(argv, proc.returncode, out, err)
+
+
+def python_free_env(env=None):
+    """`env` (this process's by default) without any `PYTHON*` variable, plus bytecode off for grandchildren."""
+    base = os.environ if env is None else env
+    return {**{k: v for k, v in base.items() if not k.upper().startswith("PYTHON")}, **BYTECODE_OFF}
+
+
+def isolated_child(argv, env=None):
+    """(argv, env) that run the Python child `[interpreter, script, *args]` isolated: no PYTHON* variable,
+    user site or current folder can change what it imports; its own folder is put on sys.path explicitly."""
+    interpreter, script, *args = argv
+    return [interpreter, "-I", "-B", "-X", "utf8", "-c", ISOLATED_START, str(script), *args], python_free_env(env)
 
 
 def engine_remaining(deadline):
@@ -298,6 +319,7 @@ class GateContext:
         self.scope = tuple(scope or ())
         #: Path prefixes this gate never judges: its own policy's source and compiled folders.
         self.own = tuple(own)
+        self._rename_map: dict[str, str] | None = None
 
     def is_own(self, path: str) -> bool:
         """Whether `path` is in this policy's own source or compiled folder."""
@@ -364,9 +386,28 @@ class GateContext:
         paths = self._listing("diff", *self._range(), "--name-only", f"--diff-filter={diff_filter}")
         return [path for path in paths if self.in_scope(path, judge_own=judge_own)]
 
+    def _rename_range(self) -> list[str] | None:
+        """The git-diff scope whose renames the baseline follows; None when this context has none."""
+        return self._range()
+
+    def _renames(self) -> dict[str, str]:
+        """{new path: old path} for what git itself reports as renamed (`-M`, default similarity); never a guess.
+
+        A listing that fails or does not parse says no rename, which leaves the baseline at the path (stricter).
+        """
+        if self._rename_map is None:
+            scope, tokens = self._rename_range(), []
+            if scope is not None:
+                with contextlib.suppress(ListingError):
+                    tokens = self._listing("diff", *scope, "-M", "--relative", "--name-status", "--diff-filter=R")
+            self._rename_map = {tokens[i + 2]: tokens[i + 1] for i in range(0, len(tokens) - 2, 3)}
+        return self._rename_map
+
     def _diff_text(self, path: str) -> str:
         """`path`'s `-U0` diff as git writes it, unconverted; raises DiffError when git fails."""
-        args = ("diff", *self._range(), "-U0", "--no-color", "--no-ext-diff", "--no-textconv", "--", path)
+        old = self._renames().get(path)
+        paths = (path, old) if old else (path,)
+        args = ("diff", *self._range(), "-M", "-U0", "--no-color", "--no-ext-diff", "--no-textconv", "--", *paths)
         try:
             proc = subprocess.run(  # noqa: S603 -- reading repo facts via git is this class's whole job
                 [_GIT, "--literal-pathspecs", *args],
@@ -394,16 +435,19 @@ class GateContext:
         """The proposed content: staged in index mode, committed at HEAD in range mode."""
         return self._git("show", f"HEAD:{path}" if self.base else f":{path}")
 
+    def renamed_from(self, path: str) -> str:  # the old path git reports, else `path`
+        return self._renames().get(path, path)
+
     def head_blob(self, path: str) -> str:
-        """Content before the change, or "" when the path is new in it."""
-        return self._git("show", f"{self.base or 'HEAD'}:{path}")
+        """Content before the change ("" when new); a renamed path reads its old path."""
+        return self._git("show", f"{self.base or 'HEAD'}:{self.renamed_from(path)}")
 
     def committed_blob(self, path: str) -> str:
         """The file as HEAD has it, or "" when HEAD does not."""
         return self._git("show", f"HEAD:{path}")
 
     def net_added_lines(self, path: str) -> list[str]:
-        """The lines this change introduces; at a commit that is what `added_lines` already says."""
+        """The lines this change introduces: at a commit, `added_lines`."""
         return self.added_lines(path)
 
     def current_branch(self) -> str:
@@ -465,6 +509,10 @@ class WriteContext(GateContext):
         self._added = dict(added or {})
         self._stop = stop
 
+    def _rename_range(self) -> list[str] | None:
+        """At the turn's end, HEAD against the index and tree; a write before the tool runs has no rename."""
+        return ["HEAD"] if self._stop else None
+
     def staged_paths(self, diff_filter: str = "ACMRT", *, judge_own: bool = False) -> list[str]:
         """Every write is a present file, so a filter asking only for deletions finds none."""
         if not set(diff_filter) & set("ACMRT"):
@@ -496,7 +544,7 @@ class WriteContext(GateContext):
     def head_blob(self, path: str) -> str:
         """The baseline: HEAD at the turn's end, else what is on disk now, which this write would replace."""
         if self._stop:
-            return self.committed_blob(path)
+            return self.committed_blob(self.renamed_from(path))
         try:
             return (self.repo_root / path).read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
@@ -550,8 +598,12 @@ ALLOW_ENV = "CHOCK_ALLOW"
 #: adds is not honoured. Coverage (`on: [commit]`) is still decided by the name `commit`.
 AGENT_COMMIT_EVENT = "agent-commit"
 
+#: The event `chock check --floor` judges at: the change under judgement may be the refused party's, so a
+#: waiver counts only when the base already has that line (the floor's `committed_blob` reads the base).
+FLOOR_EVENT = "ci-floor"
+
 #: Events where the actor may be the refused agent: a waiver counts only when HEAD already has that line.
-HEAD_WAIVER_EVENTS = frozenset({AGENT_COMMIT_EVENT, TOOL_USE_EVENT})
+HEAD_WAIVER_EVENTS = frozenset({AGENT_COMMIT_EVENT, TOOL_USE_EVENT, FLOOR_EVENT})
 
 _HUMAN_ENV = frozenset({"0", "false", "no", "off"})
 
@@ -959,6 +1011,15 @@ _UNDECIDED = " -- refusing rather than allowing what it never judged"
 
 _FINDINGS_KEY = "findings"
 
+#: All a script gate's environment holds at the floor: no token, secret or runner variable reaches it.
+_FLOOR_ENV_KEYS = ("PATH", "HOME", "SYSTEMROOT")
+
+
+def _env(event: object) -> dict[str, str]:
+    if event == FLOOR_EVENT:
+        return {key: os.environ[key] for key in _FLOOR_ENV_KEYS if key in os.environ} | _BYTECODE_OFF
+    return {**os.environ, **_BYTECODE_OFF}
+
 
 def _spawn(script: Path, ctx: GateContext, payload: dict, timeout: float) -> subprocess.CompletedProcess[str]:
     return run_tree(
@@ -969,7 +1030,7 @@ def _spawn(script: Path, ctx: GateContext, payload: dict, timeout: float) -> sub
         encoding="utf-8",
         errors="replace",
         cwd=ctx.repo_root,
-        env={**os.environ, **_BYTECODE_OFF},
+        env=_env(payload.get("event")),
         timeout=timeout,
         check=False,
     )
@@ -1024,13 +1085,35 @@ def _new_findings(found: list[dict], baseline: list[dict]) -> list[dict]:
     return fresh
 
 
+#: A finding's optional `tier`, ranked; a verdict is the highest among the findings the change adds.
+_TIER_RANK = {"warn": 1, "ask": 2, "block": 3}
+
+
+def _tier_verdict(fresh: list[dict]) -> str | None:
+    """The verdict word ("" blocks) when every kept finding carries a known tier, else None: the exit code decides."""
+    tiers = [item.get("tier") for item in fresh]
+    if not all(isinstance(tier, str) and tier in _TIER_RANK for tier in tiers):
+        return None
+    top = max(tiers, key=_TIER_RANK.__getitem__)
+    return "" if top == "block" else top
+
+
 def _baseline_findings(ctx: GateContext, script: Path, material: dict, started: float) -> list[dict]:
     """What the script finds in the baseline text of the change's files; empty when it cannot say.
 
-    A new file has no baseline and is left out. A run that fails, times out, prints no findings
-    document, or has no budget left contributes nothing, which errs toward blocking.
+    A new file has no baseline and is left out. A renamed file is judged as it was before the change:
+    its old content at its OLD path, so a finding that exists because of the new name is not in the
+    baseline; findings are mapped back to the new path, where a content finding is the same one.
+    A run that fails, times out, prints no findings document, or has no budget left contributes
+    nothing, which errs toward blocking.
     """
-    texts = {path: text for path in material["writes"] if (text := ctx.head_blob(path))}
+    writes, texts, back = material["writes"], {}, {}
+    for path in writes:
+        if not (text := ctx.head_blob(path)):
+            continue
+        old = ctx.renamed_from(path)
+        old = path if old in writes or old in texts else old  # never shadow another file in the same run
+        texts[old], back[old] = text, path
     remaining = _SCRIPT_TIMEOUT_SECONDS - (time.monotonic() - started)
     if not texts or remaining <= 0:
         return []
@@ -1038,7 +1121,9 @@ def _baseline_findings(ctx: GateContext, script: Path, material: dict, started: 
         proc = _spawn(script, ctx, {**material, "writes": texts, "baseline": True}, remaining)
     except (subprocess.TimeoutExpired, OSError):
         return []
-    return _findings_document(proc.stdout or "") or []
+    return [
+        {**item, "path": back.get(item["path"], item["path"])} for item in _findings_document(proc.stdout or "") or []
+    ]
 
 
 def _exit_verdict(script: Path, proc: subprocess.CompletedProcess[str]) -> GateResult:
@@ -1062,7 +1147,7 @@ def _exit_verdict(script: Path, proc: subprocess.CompletedProcess[str]) -> GateR
 def _judge_findings(
     ctx: GateContext, script: Path, material: dict, proc: subprocess.CompletedProcess[str], started: float
 ) -> GateResult:
-    """Judge only the findings the change introduces; the change-run's exit code is the verdict for them."""
+    """Judge only the findings the change introduces: the highest tier among them, else the change-run's exit code."""
     if proc.returncode not in (_SCRIPT_ALLOW, _SCRIPT_BLOCK, _SCRIPT_ASK, _SCRIPT_WARN):
         # A document followed by a crash or an unknown exit is undecided, never a clean pass.
         return _exit_verdict(script, proc)
@@ -1075,7 +1160,9 @@ def _judge_findings(
     if not fresh or proc.returncode == _SCRIPT_ALLOW:
         return GateResult(allowed=True, detail=counts)
     lines = [f"{item['path']}:{item['line']}: {item['message']}" for item in fresh]
-    verdict = {_SCRIPT_ASK: "ask", _SCRIPT_WARN: "warn"}.get(proc.returncode, "")
+    verdict = _tier_verdict(fresh)
+    if verdict is None:
+        verdict = {_SCRIPT_ASK: "ask", _SCRIPT_WARN: "warn"}.get(proc.returncode, "")
     return GateResult(
         allowed=False, matches=lines, verdict=verdict, detail=counts, rules=_rule_ids(fresh), findings=fresh
     )
@@ -1084,7 +1171,7 @@ def _judge_findings(
 def _kind_script(ctx: GateContext, params: dict, event: str) -> GateResult:
     """Hand the material to the policy's own script and carry back its verdict.
 
-    The script reads `{"event", "repo_root", "writes": {path: text}}` on stdin -- the staged
+    The script reads `{"event", "repo_root", "writes": {path: text}}` on stdin (plus `deleted` at the floor) -- the staged
     blobs at commit and push, the write itself at tool use and at the turn's end -- so one
     script serves every surface the declarative kinds do, and reads them the same way. It
     answers with an exit code: 0 allows; 1 refuses, 3 asks, 4 warns, with its own words on stderr.
@@ -1100,9 +1187,13 @@ def _kind_script(ctx: GateContext, params: dict, event: str) -> GateResult:
     if not script.is_file():
         return GateResult(allowed=False, message=f"script gate: {named!r} is not installed{_UNDECIDED}")
     writes = {path: ctx.staged_blob(path) for path in ctx.staged_paths()}
-    if not writes:
+    # Only the floor hands a script the deleted paths: the contract every other event has is unchanged.
+    deleted = sorted(ctx.staged_paths("D")) if event == FLOOR_EVENT else []
+    if not writes and not deleted:
         return GateResult(allowed=True)
     material = {"event": event, "repo_root": str(ctx.repo_root), "writes": writes}
+    if event == FLOOR_EVENT:
+        material["deleted"] = deleted
     if ctx.session:
         material["session"] = ctx.session
     started = time.monotonic()

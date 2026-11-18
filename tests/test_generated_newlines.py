@@ -15,7 +15,7 @@ FRAMEWORK_ROOT = Path(__file__).resolve().parents[1]
 
 GENERATED_WRITERS = [
     "src/chock/compile/emitters/ambient.py",
-    "src/chock/compile/emitters/claude_managed.py",
+    "src/chock/compile/emitters/managed/__init__.py",
     "src/chock/compile/emitters/in_agent.py",
     "src/chock/compile/emitters/git_hook.py",
     "src/chock/index/cli.py",

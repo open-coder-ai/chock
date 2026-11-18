@@ -24,6 +24,7 @@ Everything you need to understand, use, and extend Chock. New here? Start with
 | [Agentic-Risk Coverage](agentic-risk-coverage.md) | Problem-first index: what Chock stops, at which honest tier — and what it doesn't |
 | [Agent Plugins](agent-plugins.md) | Package policies for the open standard — and what that does not buy you |
 | [Validation](validation.md) | Understand what `chock check` checks |
+| [CI Floor](floor.md) | What `chock check --floor` (preview) claims, the conditions it holds under, and what it does not cover |
 | [Registry & Lockfile](registry-and-lockfile.md) | Reproducible, hash-pinned distribution |
 | [Compatibility](compatibility.md) | What may change between versions, and what pinning guarantees |
 | [Reviewer Evidence](reviewer-evidence.md) | Recording what a review rests on, so the next reader can re-derive it |

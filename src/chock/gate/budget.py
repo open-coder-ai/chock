@@ -30,6 +30,14 @@ ENGINE_BUDGET_SECONDS = 30
 #: Added to the environment of every policy script, so running a gate never writes bytecode into its pack.
 BYTECODE_OFF = {"PYTHONDONTWRITEBYTECODE": "1"}
 
+#: Starts a child script under `-I` with only the script's own folder on sys.path, as running it directly would.
+ISOLATED_START = (
+    "import os, runpy, sys\n"
+    "sys.argv = sys.argv[1:]\n"
+    "sys.path.insert(0, os.path.dirname(os.path.abspath(sys.argv[0])))\n"
+    "runpy.run_path(sys.argv[0], run_name='__main__')\n"
+)
+
 #: Seconds a gate's patterns may spend on one judgement (one commit's lines, one write, one blob)
 #: before the gate refuses naming itself: a repo-supplied pattern can be catastrophic.
 PATTERN_SECONDS = 10
@@ -140,6 +148,19 @@ def run_tree(argv, *, timeout=None, **options):
         finally:
             untrack_tree(proc)
     return subprocess.CompletedProcess(argv, proc.returncode, out, err)
+
+
+def python_free_env(env=None):
+    """`env` (this process's by default) without any `PYTHON*` variable, plus bytecode off for grandchildren."""
+    base = os.environ if env is None else env
+    return {**{k: v for k, v in base.items() if not k.upper().startswith("PYTHON")}, **BYTECODE_OFF}
+
+
+def isolated_child(argv, env=None):
+    """(argv, env) that run the Python child `[interpreter, script, *args]` isolated: no PYTHON* variable,
+    user site or current folder can change what it imports; its own folder is put on sys.path explicitly."""
+    interpreter, script, *args = argv
+    return [interpreter, "-I", "-B", "-X", "utf8", "-c", ISOLATED_START, str(script), *args], python_free_env(env)
 
 
 def engine_remaining(deadline):

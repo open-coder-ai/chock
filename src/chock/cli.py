@@ -11,6 +11,7 @@ from importlib import import_module
 from pathlib import Path
 
 from chock import __version__
+from chock.output import new_command
 from chock.pipe import guard_stdout, silence_interpreter_flush
 from chock.resources import package_data_dir
 from chock.stop_common import committed_refused, person_only_refused
@@ -97,6 +98,7 @@ COMMANDS = {**EVERYDAY, **AUTHORING, **ALIASES}
 
 def main(argv: list[str] | None = None) -> int:
     writer = guard_stdout()
+    new_command()
     try:
         return _dispatch(list(sys.argv[1:] if argv is None else argv))
     finally:

@@ -102,17 +102,6 @@ def _run_mechanisms(args: argparse.Namespace) -> int:
     return _run("matrix mechanisms", mechanisms_main, ["--repo", args.repo])
 
 
-def _sarif_main(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
-    """The ci gates' findings as SARIF; the exit code is the gate step's own (0, 1 on a block, 2 undecided)."""
-    if args.format != "sarif":
-        parser.error("--output and --head-ref go with --format sarif")
-    if args.event != "ci" or not args.base or args.only or args.mode:
-        parser.error("--format sarif needs --event ci and --base, and takes no --only or --mode")
-    from chock.gate.sarif import emit
-
-    return emit(Path(args.repo), args.base, args.head_ref, args.output)
-
-
 def _check_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="chock check")
     parser.add_argument("--repo", default=".", help="Repo root")
@@ -127,9 +116,10 @@ def _check_parser() -> argparse.ArgumentParser:
         help="sarif: run the compiled ci gates (needs --event ci and --base) and print their findings as SARIF 2.1.0",
     )
     parser.add_argument("--output", default=None, help="With --format sarif: write the log to this file, not stdout")
-    parser.add_argument(
-        "--head-ref", default=None, help="With --format sarif: the branch under test ($GITHUB_HEAD_REF)"
-    )
+    parser.add_argument("--head-ref", default=None, help="With --format sarif or --floor: the branch under test")
+    from chock.validation.floor_cli import add_arguments
+
+    add_arguments(parser)
     return parser
 
 
@@ -161,8 +151,14 @@ def check_main(argv: list[str] | None) -> int:
     """Run every truth check: validate, verify, evals, matrix, index freshness, conflicts."""
     parser = _check_parser()
     args = parser.parse_args(argv)
+    if args.floor or args.head:
+        from chock.validation.floor_cli import from_check
+
+        return from_check(args, parser)
     if args.format == "sarif" or args.output or args.head_ref:
-        return _sarif_main(args, parser)
+        from chock.gate.sarif import check_main as sarif_main
+
+        return sarif_main(args, parser)
 
     selected = _selected_checks(args.only)
     if selected is None:

@@ -12,11 +12,12 @@ import sys
 from pathlib import Path
 
 from .budget import (
-    BYTECODE_OFF,
     ENGINE_BUDGET_SECONDS,
     engine_deadline,
     engine_remaining,
+    isolated_child,
     last_state,
+    python_free_env,
     run_tree,
     time_left,
 )
@@ -101,7 +102,7 @@ def bash_candidates() -> list[str]:
 
 def interpreter_env(interpreter: str) -> dict[str, str]:
     """The environment a guard runs in: on Windows, Git's usr/bin ahead on PATH for sed and grep."""
-    env = {**os.environ, **BYTECODE_OFF}
+    env = python_free_env()
     env.pop(CAN_ASK_ENV, None)  # only a caller that knows the client may say; never inherited
     if os.name != _WINDOWS:
         return env
@@ -167,6 +168,12 @@ def split_command(command: str) -> tuple[list[str], bool]:
         return command.split(), True
 
 
+def _guard_start(interpreter: str, guard: Path, args: list[str], env: dict[str, str]):
+    """(argv, env) for the guard: a Python guard starts isolated, a shell guard as given."""
+    argv = [interpreter, str(guard), *args]
+    return isolated_child(argv, env) if guard.suffix == PYTHON_SUFFIX else (argv, env)
+
+
 def run_guard(guard: Path, command: str, tool: str = "") -> str:
     """`GUARD_BLOCKED` / `GUARD_ASKED` / `GUARD_CLEAN` when the guard ran, otherwise why it did not."""
     return run_guard_detailed(guard, command, tool)[0]
@@ -198,8 +205,9 @@ def run_guard_detailed(guard: Path, command: str, tool: str = "", *, can_ask: bo
         if fallback:
             env[ARGV_FALLBACK_ENV] = "1"
         env.update({} if can_ask is None else {CAN_ASK_ENV: "1" if can_ask else "0"})
+        argv, env = _guard_start(interpreter, guard, args, env)
         proc = run_tree(
-            [interpreter, str(guard), *args],
+            argv,
             capture_output=True,
             text=True,
             encoding="utf-8",
