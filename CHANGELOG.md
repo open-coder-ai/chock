@@ -1,5 +1,167 @@
 # Chock changelog
 
+## 1.2.0 - 2026-11-18
+
+- `chock add <id>` with no `--ref` from the default catalog now fetches the catalog release tag
+  `v<chock version>`, prints the tag and the commit it resolved to, and records both in
+  `chock.lock`. If that tag does not exist it fails and names `--ref <40-hex commit>` or
+  `--ref main`; it never falls back to the moving branch. `--ref`, and `--from` another catalog,
+  are unchanged.
+- A gate judges a file that git reports as renamed (`-M`) against its old path's content, for a script gate and a
+  `content_regex` gate, at commit, at the turn's end and on the CI range. A pure `git mv` of a file holding an old
+  finding is no longer refused as new work; a new finding added in the move is, and a copy (old path kept) is judged
+  as new, as before.
+- A script gate's baseline for a file git reports as renamed is its old content at its old path. A rename into a
+  refused name (a finding keyed by the new name) is new work again and is refused, while a pure rename of a file
+  holding only old content findings stays allowed.
+- A script gate's finding may carry a `tier` (`block`, `ask` or `warn`). When every finding the change adds carries
+  one, the verdict is the highest tier among them, so an old block-tier finding in a touched file no longer turns a
+  new ask-tier finding into a block. A script that reports no tier, or tiers only some findings, keeps its exit code
+  as the verdict, as before. See `spec/gate-dsl.md`.
+- `chock.lock`'s `engine` field is now true and read (IR-F71): `sync` writes `>=<major>.<minor>,<<major+1>`
+  derived from the running engine (`>=1.1,<2` at 1.1.x, was the stale `>=0.1,<0.2`), and `chock check --only verify`
+  fails with one line naming the running engine, the lock's constraint and the fix (`pip install` a matching chock,
+  or `chock sync --repo .` with the newer engine) when the engine is outside it. A lock that still says `>=0.1,<0.2`
+  passes with a one-line note to run `chock sync`; a missing or unparseable constraint fails.
+- `chock sync` refreshes every committed `.chock/bin/` runtime that `chock sync --check` compares,
+  `gate.py` included: a repo with no gate policy no longer fails the check with "differs: bin/gate.py"
+  after an engine upgrade (IR-F73).
+- The hook runtime's start marker explains why it ignores `OSError` (no launcher on fd 9 is not an
+  error), clearing CodeQL py/empty-except; behaviour unchanged (IR-F74).
+- Each defaulted manifest field is warned about once per command, always with the artifact's path:
+  `chock check` no longer repeats a skill's eleven `manifest_default` warnings, two copies of them with
+  no path (IR-F75). The registry scan's copy now goes to stderr with the others.
+- On a console stream that is not UTF (a Windows code page such as cp1252), chock prints ASCII for its
+  own symbols: the eval table's truncation reads `...`, not U+2026 shown as another letter (IR-F76).
+- README: "How it works" opens with a picture of a coding agent's harness: component cards in layers (input, core,
+  execution) with short arrows between neighbours, beside the repository and pipeline. The hooks of each component
+  are badges on its card: filled where Chock runs today, hollow where a policy of your own can run; the model has
+  none. No prose was added: the README stays at its budgets. The figure is `docs/assets/readme/v2/where-chock-sits.png`,
+  rendered by `render.mjs` and `where-chock-sits.mjs` from `where-chock-sits.json`. `docs/architecture.md` shows it,
+  lists every hook, and shows the same points in session order (`v2/session-path.png`). Tests assert the badges equal
+  agentseam's events plus the other points, the filled set equals what the engine handles, and that no two shapes of
+  either layout are too close.
+- README: the catalog numbers are derived from chock-catalog `38fb487` (the chock 1.1.0 catalog):
+  4,602 eval cases (was 4,572), 4,420 replayed automatically (was 4,390); 71 live policies, tiers,
+  labels and incident rows unchanged.
+- README: the quick start's `chock add` line no longer carries `--ref` and `--verify-sha`; the text under
+  it says what the command pins by default (the catalog tag `v<chock version>`) and that `--ref` and
+  `--verify-sha` still pin by hand. `docs/quickstart.sh` and the panel sources in
+  `docs/assets/readme/render.mjs` follow.
+- README: a short section after the quick start names `chock doctor`, `chock doctor --live` and the
+  `rollout:` line in `.chock/config.yaml`.
+- Witness ledger: one row, Claude Code v2.1.317 on Windows, 2026-11-11: `PreToolUse` refused
+  `git commit --no-verify` on the PowerShell tool and no commit was made (chock `295b38c`). The README
+  sentence on where repo hooks were tested now names it.
+- Witness ledger: a second row, Cursor 3.30.14 on Windows, 2026-11-14: the repo's `beforeShellExecution` hook refused
+  `git commit --no-verify` and no commit was made (chock `cc127e4`). Surface `agent-hooks`, the name the ledger's
+  readers (`sync_notes`, `derive.py`) key on for repo hooks.
+- README: the new section is kept to a short paragraph; the FAQ keeps its six entries. The "estimate what a late
+  finding costs" paragraph and a sentence repeating the comparison link were removed to stay within the README
+  budgets (1,600 words, 300 lines).
+- Witness ledger: a third row, Codex CLI 0.169.0 on Windows, 2026-11-14: the repo's `PreToolUse` hook refused
+  `git commit --no-verify` and no commit was made, after the project's hooks were trusted (chock `cc127e4`).
+  `derive.py` now groups the ledger's clients by the platform each records, without versions, and carries the trust
+  condition.
+- `chock doctor --live` (preview): for each sync-route target `doctor` lists, runs chock's own
+  pre-tool hook commands from the client's config file, as written and from the repo, in the
+  client's shell, on that client's own payload. Only an entry byte-equal to what this engine's
+  installer renders for that target is run, and only when the launcher and vendored runtime are
+  this engine's; any other hook command is counted in an INFO row and never run. The installed
+  policies' guard code runs, as it does in `chock check` evals. It sends the first refusing eval
+  case of the first policy the hook runs (it must be refused, by that policy) and
+  `echo chock-doctor-live` (it must be allowed): two rows, `live: refuses the canary` and
+  `live: allows a harmless command`, each with the fix doctor already prints. Plugin-route targets
+  are skipped. It runs no client, sends nothing anywhere, logs nothing (the probe runs at log level
+  off and in its own session, whose state file it removes), and does not prove the client calls
+  the hook: that is the heartbeat row. The per-vendor payloads and wire denies the tests used are
+  now package data (`chock.doctor.payloads`), one source for the engine and the tests.
+- `chock check --floor --base <ref> [--head <rev>] [--head-ref <branch>] [--format sarif --output <file>]`
+  (preview): judges what a pull request will land. The base must be an ancestor of the head (pass GitHub's
+  `refs/pull/<n>/merge` or the merge queue's head; anything else is undecided). Everything comes from the tree
+  diff `base..head` (no renames, no external diff or textconv) and the commits in it; no merge-base is computed.
+  Exit 0 clean, 1 refused, 2 undecided.
+- Control plane: a change (add, edit, delete, mode) to any path in `src/chock/data/control_plane.json` is
+  reported as `floor/control-plane-changed` with every path, first. The list: `.chock/**`, `chock.lock`, the whole
+  folder of every agent chock or agentseam writes into (`.agents/**`, `.claude/**`, `.codex/**`, `.cursor/**`,
+  `.gemini/**`, `.windsurf/**`, `.github/hooks/**` and the rest, plugin folders such as `.claude-plugin/**`),
+  `.mcp.json`, `.vscode/settings.json`, `.vscode/mcp.json`, `.env` (at any depth), `.devcontainer/**`,
+  `.devcontainer.json`, `.github/workflows/**`, `.github/actions/**`, `CODEOWNERS`; agent folders match at any
+  depth (`**/.claude/**`); matched case-blind. A symlink or gitlink at a parent folder of a pattern
+  (`.gemini -> cfg`) matches. Every symlink at, inside or above the control plane must resolve, link by link
+  from the trees at base and head, to a control-plane path or to nothing; otherwise (and for a loop, an absolute
+  or out-of-repository target, or one through a submodule) the run is undecided (exit 2), naming the link and the
+  fix. A base whose `.chock` is a link or a submodule is undecided, never first adoption. A control-plane path a
+  commit in the range changed is named even when the tree diff leaves it as at the base. Every git call reads
+  attributes from the base (`GIT_ATTR_SOURCE`; git 2.42 or newer, else undecided), so `.gitattributes` is off
+  the list. Root instruction files (`AGENTS.md`, `CLAUDE.md`) are
+  not on it. These files define the guardrails; the floor does not judge whether a change to them is safe. A
+  person decides. The base's `.chock/config.yaml` sets `floor.control_plane`: `refuse` (default, exit 1: every
+  guardrail change, including a policy upgrade, a `chock sync` regeneration or a workflow edit, needs a
+  privileged merge) or `listed` (exit 0, paths still listed and in the SARIF; the adopter relies on code-owner
+  review, and content inside listed paths is not judged). `floor.control_plane_paths: {add, remove}` edits the
+  list; a `remove` entry that names no default pattern is undecided (exit 2); an `add` entry `name/` means
+  `name/**`, a bare folder name is undecided, and an entry matching nothing at base or head is marked so. Every run prints the mode, the
+  number of patterns and the base's additions and removals. The head's config is never read.
+- The list is what chock knows about, not a proof of completeness. If your workflow installs chock from a file in
+  the repository (`requirements*.txt`, `pyproject.toml`, a lockfile, a local action), add that file to the list.
+  Renaming or moving a test file reads as a deletion and is refused by test-integrity.
+- `--repo` may name a folder below the top level; every diff is computed from the top level. A file git cannot
+  read at base or head is undecided (exit 2), never handed to a gate as empty text.
+- Everything else is judged by the base's compiled ci gates and rollout, run by this engine; no head file executes.
+  `ask` refuses; a gate that crashes, times out or cannot be read is undecided whatever the rollout. A waiver counts
+  only on a line present and unchanged in both base and head. Script gates receive deleted paths under `deleted`
+  and an environment of `PATH`, `HOME` (and `SYSTEMROOT`) only (script payload contract version 2,
+  `spec/gate-dsl.md`).
+- A per-commit pass runs the base's content gates (both surfaces) over every blob a commit in `base..head` adds or
+  changes outside the control plane (renames read as a delete and an add), read as latin-1, as utf-8 when valid, and, for a blob with a NUL byte, as
+  utf-16 in both byte orders and alignments, lines split on `\n` only. A range past the commit limit or a blob over
+  64 MiB is undecided, naming the commit and path. Not seen: other encodings, compressed or encoded content, commit
+  messages, file names.
+- `--sarif` writes a log on every run; an undecided run's says `executionSuccessful: false`. Not covered: a
+  Windows short name (`CLAUDE~1/`), `*.code-workspace`, submodule content (docs/floor.md).
+- It holds only as a required status check the pull request cannot redefine; that is the adopter's setting, which
+  chock does not verify. It judges committed content only.
+- `chock history`'s `load_rules` takes the compiled surfaces to read; its own defaults are unchanged.
+- `chock check --floor`: a path listed only because an any-depth pattern matched it below the top level
+  (`node_modules/x/.claude/...`) is followed by the pattern that matched it (`matched **/.claude/**`). A base
+  `remove:` entry that is the old top-level form of a default (`.claude/**`) names the pattern to write
+  (`**/.claude/**`). A base `.chock/config.yaml` that is a folder, a symbolic link, a submodule or not UTF-8 is
+  undecided (exit 2). When base and head are the same commit the run says that nothing changed. The `--floor`
+  help says a link may also open nothing. Release gate G1 (GT-2): regression tests for patterns, config, SARIF,
+  abnormal paths and ordinary pull requests, and a map from every behaviour sentence in `docs/floor.md` and the
+  `--floor` help to the test that proves it.
+- `chock emit --managed claude_code --python <absolute path> --on-failure block|allow --out <dir>`
+  (preview) writes, under `<dir>/claude_code/` and nowhere else, a Claude Code managed-settings
+  drop-in (`managed-settings.d/50-chock.json`), the hook bundle it runs (`bundle/<policy>/scripts/`:
+  runtime, guard or gate), `deploy.json` (where an admin places each part, what every machine needs,
+  what the `--on-failure` choice does, what it does not promise, the undo step) and `labels.json`.
+  Every hook is exec form: it starts the `--python` interpreter directly, so no shell, PATH lookup
+  or git config picks it. `--on-failure` has no default: `block` sets `onFailure: "block"` on the
+  `PreToolUse` hooks and refuses a matched call when the interpreter or a bundle file is missing;
+  `allow` sets neither and lets the call through with a note. The repository stop's every-tool
+  entry is not emitted. The command refuses an `--out` that is a filesystem root or resolves into
+  a system folder (any spelling, case-insensitive on macOS and Windows), names a file, or already
+  holds `claude_code/`; it elevates nothing and deploys nothing. `--lock` adds
+  `allowManagedHooksOnly` (off by default; `deploy.json` lists every effect the vendor documents);
+  `allowManagedPermissionRulesOnly` is never emitted. Every label is `best-effort (vendor-docs)`,
+  unwitnessed, until a `managed` witness row exists. A local administrator can still edit or remove
+  the file. Native `permissions.deny` rules are not emitted yet.
+- `chock compile` no longer writes `managed-setting/managed-settings.json`: that file used a shape
+  Claude Code does not read.
+- Every child interpreter a hook runtime starts (a Python guard, the gate runner, a script gate) now
+  runs isolated (`-I`), with its own folder put on the import path explicitly and every `PYTHON*`
+  variable removed from its environment, on every route. The hook launcher (`launch.sh`) starts a
+  runtime script with `-E -s`, so no `PYTHON*` variable or user site reaches the outer interpreter
+  either (its `-m chock` form keeps the environment: it needs the installed package). A hostile `PYTHONPATH`, `PYTHONHOME`,
+  `PYTHONPLATLIBDIR` or `PYTHONSAFEPATH` no longer lets a refused command through or turns a refusal
+  into a prompt.
+- `chock emit --managed claude_code`: the bootstrap now checks every bundled file, so a missing guard
+  or `chock_shellparse` follows `--on-failure` like any other missing file. `deploy.json` gains
+  `stop_files` (the repository's `.chock/stop.json` and the `~/.chock/stops/` files, each with its
+  effect), `client_versions` (2.1.295 for `onFailure`, 2.1.314 for Monitor commands, each quoted with
+  the date read) and `not_covered`.
+
 ## 1.1.0 - 2026-11-11
 
 - `.agents/policies/INDEX.md` says "Also checked in the agent" only when the policy's effective surfaces
