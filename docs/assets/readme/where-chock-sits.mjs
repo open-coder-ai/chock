@@ -69,23 +69,35 @@ export const crowded = (L) => {
   return bad;
 };
 
-export const where = (page, W) => {
+// A palette is a small object of named colours; the layout never reads it, so every palette gives the same shapes.
+export const DEFAULT_PALETTE = {
+  paper: '#FBF7EE', ink: '#2B2A35', soft: '#5C5A6B', line: '#6B6877', accent: '#C2410C', grey: '#8D8A99',
+  chip: '#fff', hollow: '#7C7989',
+  fill: { you: '#EFE9F9', prompt: '#EFE9F9', session: '#EFE9F9', context: '#DDEFE0', loop: '#DCEAF9', model: '#E8E1F6', subagents: '#F6E2EC', gate: '#F6E2EC', tools: '#ECE6D8', external: '#E9E4F3', commit: '#DDF0EE', push: '#DDF0EE', ci: '#DDF0EE', main: '#DDF0EE' },
+};
+// The chock-site palette: the tokens in chock-site static/css/site.css (--bg, --text, --body, --line-2, --accent, --muted, --footer-bg).
+export const SITE_PALETTE = {
+  paper: '#0B1B33', ink: '#FFFFFF', soft: '#C7D2E3', line: '#607198', accent: '#38BDF8', grey: '#94A3B8',
+  chip: '#081326', hollow: '#94A3B8',
+  fill: { you: '#1B2F55', prompt: '#1B2F55', session: '#1B2F55', context: '#113A44', loop: '#16365E', model: '#2A2856', subagents: '#3A2647', gate: '#3A2647', tools: '#24324F', external: '#2A2856', commit: '#0E3B42', push: '#0E3B42', ci: '#0E3B42', main: '#0E3B42' },
+};
+
+export const where = (page, W, palette = DEFAULT_PALETTE) => {
   const L = layout(W), bad = crowded(L), H = W.harness;
   if (bad.length) throw new Error(`figure shapes too close: ${JSON.stringify(bad)}`);
   const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  const INK = '#2B2A35', SOFT = '#5C5A6B', LINE = '#6B6877', PAPER = '#FBF7EE', ACCENT = '#C2410C', GREY = '#8D8A99';
-  const FILL = { you: '#EFE9F9', prompt: '#EFE9F9', session: '#EFE9F9', context: '#DDEFE0', loop: '#DCEAF9', model: '#E8E1F6', subagents: '#F6E2EC', gate: '#F6E2EC', tools: '#ECE6D8', external: '#E9E4F3', commit: '#DDF0EE', push: '#DDF0EE', ci: '#DDF0EE', main: '#DDF0EE' };
+  const { ink: INK, soft: SOFT, line: LINE, paper: PAPER, accent: ACCENT, grey: GREY, chip: CHIP, hollow: HOLLOW, fill: FILL } = palette;
   const abs = (x, y, w, h, css, inner) => `<div style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;${css}">${inner}</div>`;
   const diamond = (x, y, acts, s = 10) => abs(x - s / 2, y - s / 2, s, s, `transform:rotate(45deg);box-sizing:border-box;border:2px solid ${acts ? ACCENT : GREY};background:${acts ? ACCENT : PAPER}`, '');
   const frame = (x, y, w, h, title, inside = false) => abs(x, y, w, h, `border:2px dashed ${LINE};border-radius:18px;box-sizing:border-box`, inside ? `<div style="position:absolute;left:14px;top:10px;width:${w - 28}px;font-size:14px;font-weight:700;line-height:18px;color:${INK}">${esc(title)}</div>` : `<div style="position:absolute;left:16px;top:-13px;padding:0 8px;background:${PAPER};font-size:14px;font-weight:700;color:${INK};white-space:nowrap">${esc(title)}</div>`);
   const card = (c) => abs(c.x, c.y, c.w, c.h, `box-sizing:border-box;background:${FILL[c.id]};border:1.5px solid ${LINE};border-radius:12px;padding:10px 8px`, `<div style="font-size:14px;font-weight:700;line-height:18px;color:${INK}">${esc(c.name)}</div><div style="font-size:12.5px;line-height:16px;color:${SOFT};margin-top:4px">${esc(c.line)}</div>`);
-  const badge = (b) => abs(b.x, b.y, b.w, b.h, `box-sizing:border-box;display:flex;align-items:center;gap:4px;padding:0 5px;border-radius:999px;background:#fff;white-space:nowrap;font-size:12px;line-height:14px;font-weight:600;color:${b.p.acts ? ACCENT : '#7C7989'}`, `<span style="position:relative;flex:none;width:10px;height:10px">${diamond(5, 5, b.p.acts)}</span><span>${esc(b.p.label)}</span>`);
+  const badge = (b) => abs(b.x, b.y, b.w, b.h, `box-sizing:border-box;display:flex;align-items:center;gap:4px;padding:0 5px;border-radius:999px;background:${CHIP};white-space:nowrap;font-size:12px;line-height:14px;font-weight:600;color:${b.p.acts ? ACCENT : HOLLOW}`, `<span style="position:relative;flex:none;width:10px;height:10px">${diamond(5, 5, b.p.acts)}</span><span>${esc(b.p.label)}</span>`);
   const arrow = `<marker id="g" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="${LINE}" stroke-width="1.7"/></marker><marker id="s" markerWidth="10" markerHeight="10" refX="2" refY="5" orient="auto"><path d="M9 1 L1 5 L9 9" fill="none" stroke="${LINE}" stroke-width="1.7"/></marker>`;
   const paths = L.segs.map((s) => `<path d="${s.d}" fill="none" stroke="${LINE}" stroke-width="1.8" marker-end="url(#g)"${s.both ? ' marker-start="url(#s)"' : ''}/>`).join('');
   const layerTitles = H.layers.map((t, i) => abs(PAD + 6, L.layerTitleY[i], 120, 14, `font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${SOFT}`, esc(t))).join('');
   const labels = L.labels.map((l) => abs(l.x, l.y, l.w, 14, `font-size:12px;line-height:14px;font-weight:600;color:${SOFT};white-space:nowrap`, esc(l.text))).join('');
   const keyRow = (acts, text, y) => `<div style="position:absolute;left:0;top:${y}px;font-size:13px;font-weight:600;color:${SOFT};display:flex;align-items:center;gap:12px"><span style="position:relative;width:14px;height:14px;display:inline-block">${diamond(7, 7, acts, 12)}</span>${esc(text)}</div>`;
-  const stop = `padding:4px 6px;border:1.5px solid ${LINE};border-radius:999px;background:#fff;font-size:12.5px;font-weight:600;color:${INK};white-space:nowrap`;
+  const stop = `padding:4px 6px;border:1.5px solid ${LINE};border-radius:999px;background:${CHIP};font-size:12.5px;font-weight:600;color:${INK};white-space:nowrap`;
   const own = `<span style="display:inline-flex;flex-direction:column;align-items:center;gap:1px;padding:3px 8px;border:1.5px dashed ${ACCENT};border-radius:14px;color:${ACCENT};font-size:12.5px;font-weight:700;white-space:nowrap">${esc(W.own.label)}<span class="mono" style="font-size:12px;font-weight:500;color:${INK}">${esc(W.own.command)}</span></span>`;
   const stops = W.stops.map((s) => `<span style="${stop}">${esc(s)}</span>`).join('') + own;
   const base = L.Ht + 20, total = base + 196;

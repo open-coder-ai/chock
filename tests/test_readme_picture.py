@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import json
+import shutil
+import struct
+import subprocess
 
+import pytest
 from readme_figure_support import FIGURE, OTHER_POINTS, ROOT, crowded, engine_acts
 
 PNG = "docs/assets/readme/v2/where-chock-sits.png"
@@ -79,6 +83,37 @@ def test_architecture_doc_shows_the_harness_then_the_session_path_and_lists_ever
     assert f'alt="{HARNESS["alt"]}"' in doc and f'alt="{FIGURE["path"]["alt"]}"' in doc
     for point in FIGURE["points"]:
         assert f"**{point['name']}**" in doc and point["line"] in doc, point["id"]
+
+
+def test_site_palette_render_has_the_same_layout_as_the_default() -> None:
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node is not installed")
+    script = (
+        "import {where, DEFAULT_PALETTE, SITE_PALETTE} from './docs/assets/readme/where-chock-sits.mjs';"
+        "import {readFileSync} from 'node:fs';"
+        "const W = JSON.parse(readFileSync('docs/assets/readme/where-chock-sits.json', 'utf8'));"
+        "const strip = (h) => h.replace(/#[0-9a-fA-F]{3,8}\\b/g, '#');"
+        "const a = where((b) => b, W), b = where((b) => b, W, SITE_PALETTE);"
+        "console.log(JSON.stringify({same: strip(a) === strip(b), differs: a !== b,"
+        " keys: Object.keys(DEFAULT_PALETTE.fill).join() === Object.keys(SITE_PALETTE.fill).join()}));"
+    )
+    done = subprocess.run(
+        [node, "--input-type=module", "-e", script], cwd=ROOT, capture_output=True, text=True, check=False
+    )
+    assert done.returncode == 0, done.stderr
+    assert json.loads(done.stdout) == {"same": True, "differs": True, "keys": True}
+
+
+def test_both_figure_pngs_exist_with_the_same_size() -> None:
+    sizes = []
+    for name in ("where-chock-sits", "where-chock-sits-site"):
+        png = ROOT / "docs" / "assets" / "readme" / "v2" / f"{name}.png"
+        assert png.stat().st_size > 10_000, name
+        sizes.append(struct.unpack(">II", png.read_bytes()[16:24]))
+    assert sizes[0] == sizes[1]
+    render = (ROOT / "docs" / "assets" / "readme" / "render.mjs").read_text(encoding="utf-8")
+    assert "'v2/where-chock-sits-site': WHERE_SITE" in render
 
 
 def test_renderer_registers_both_figures() -> None:
