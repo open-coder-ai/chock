@@ -1,8 +1,8 @@
 // An incident teardown figure in the harness picture's look: cards in dashed frames, the incident's path as a line, the checks that refuse it as diamonds. Every word comes from incident-<slug>.json; positions are computed here and `layout` reports every shape so a test can check nothing overlaps.
 import { DEFAULT_PALETTE } from './where-chock-sits.mjs';
 
-const W = 840, FW = 560, RX = 600, RW = 240, CW = 150, GAP = 8, ROW1 = 40;
-const lines = (text, width, per = 6.4) => Math.max(1, Math.ceil((text.length * per) / width));
+const FW = 560, RX = 600, RW = 240, CW = 130, AW = 230, GAP = 8, ROW1 = 40;
+const lines = (text, width, per = 6.4) => text.split('\n').reduce((n, t) => n + Math.max(1, Math.ceil((t.length * per) / width)), 0);
 const PANEL_LINES = (D) => D.printed.reduce((n, l) => n + lines(l.text, 808, 7.4), 0);
 
 export const layout = (D) => {
@@ -10,19 +10,19 @@ export const layout = (D) => {
   const C = {};
   const card = (id, x, y, w) => {
     const c = { ...D.cards[id], id, x, y, w };
-    c.h = 12 + lines(c.name, w - 16, 8.2) * 18 + 4 + lines(c.line, w - 16, c.mono ? 7.6 : 7.8) * 16 + (c.badge ? 28 : 8);
+    c.h = 12 + lines(c.name, w - 16, 8.2) * 18 + 4 + lines(c.line, w - 16, c.mono ? 7.1 : 7.8) * 16 + (c.badge ? 28 : 8);
     C[id] = c; add(`card-${id}`, x, y, w, c.h);
   };
-  card('workflow', 16, ROW1, CW); card('job', FW - 16 - CW, ROW1, CW); card('tag', RX + 16, ROW1, RW - 32);
+  card('workflow', 16, ROW1, AW); card('job', FW - 16 - CW, ROW1, CW); card('tag', RX + 16, ROW1, RW - 32);
   const row2 = ROW1 + Math.max(C.workflow.h, C.job.h, C.tag.h) + 56;
   card('bad', RX + 16, row2, RW - 32); card('fix', 16, row2, FW - 32);
   const rowH = Math.max(C.bad.h, C.fix.h); C.bad.h = C.fix.h = rowH;
   shapes.filter((s) => s.id === 'card-bad' || s.id === 'card-fix').forEach((s) => { s.h = rowH; });
   const frameH = row2 + rowH + 24, ya = C.workflow.y + 26;
-  const dx = [C.workflow.x + CW + 64, C.workflow.x + CW + 164];
+  const dx = [C.workflow.x + AW + 50, C.workflow.x + AW + 126];
   const diamonds = D.diamonds.map((d, i) => ({ ...d, x: dx[i], y: ya }));
   diamonds.forEach((d) => { add(`${d.id}-exit`, d.x - 24, d.y - 30, 48, 14); add(`${d.id}-name`, d.x - Math.ceil(d.label.length * 3.2), d.y + 14, Math.ceil(d.label.length * 6.4), 14); add(`${d.id}-diamond`, d.x - 5, d.y - 5, 10, 10); });
-  const labels = [['tag-bad', C.tag.x + (RW - 32) / 2 + 10, (C.tag.y + C.tag.h + row2) / 2 - 7], ['workflow-fix', C.workflow.x + CW / 2 + 10, (C.workflow.y + C.workflow.h + row2) / 2 - 7]]
+  const labels = [['tag-bad', C.tag.x + (RW - 32) / 2 + 10, (C.tag.y + C.tag.h + row2) / 2 - 7], ['workflow-fix', C.workflow.x + AW / 2 + 10, (C.workflow.y + C.workflow.h + row2) / 2 - 7]]
     .map(([k, x, y]) => { const w = Math.ceil(D.arrows[k].length * 6 + 2); const lx = x; add(`label-${k}`, lx, y, w, 14); return { text: D.arrows[k], x: lx, y, w }; });
   const base = frameH + 20, panelTop = base + 140, panelH = PANEL_LINES(D) * 19 + 28;
   const limitTop = panelTop + panelH + 18, sourceTop = limitTop + 48, footTop = sourceTop + 42, total = footTop + 34;
@@ -47,13 +47,13 @@ export const where = (page, D, palette = DEFAULT_PALETTE) => {
   const frame = (x, w, h, title) => abs(x, 0, w, h, `border:2px dashed ${LINE};border-radius:18px;box-sizing:border-box`, `<div style="position:absolute;left:16px;top:-13px;padding:0 8px;background:${PAPER};font-size:14px;font-weight:700;color:${INK};white-space:nowrap">${esc(title)}</div>`);
   const ghost = (id) => id === 'job' || id === 'tag' || id === 'bad';
   const card = (c) => abs(c.x, c.y, c.w, c.h, `box-sizing:border-box;background:${FILL[c.id]};border:1.5px ${ghost(c.id) ? 'dashed' : 'solid'} ${LINE};border-radius:12px;padding:10px 8px;${ghost(c.id) ? 'opacity:.8' : ''}`,
-    `<div style="font-size:14px;font-weight:700;line-height:18px;color:${INK}">${esc(c.name)}</div><div class="${c.mono ? 'mono' : ''}" style="font-size:${c.mono ? 12 : 12.5}px;line-height:16px;color:${SOFT};margin-top:4px;${c.mono ? 'word-break:break-all' : ''}">${esc(c.line)}</div>`
+    `<div style="font-size:14px;font-weight:700;line-height:18px;color:${INK}">${esc(c.name)}</div><div class="${c.mono ? 'mono' : ''}" style="font-size:${c.mono ? 11.5 : 12.5}px;line-height:16px;color:${SOFT};margin-top:4px;white-space:pre-line">${esc(c.line)}</div>`
     + (c.badge ? abs(4, c.h - 28, c.w - 8, 20, `box-sizing:border-box;display:flex;align-items:center;gap:4px;padding:0 5px;border-radius:999px;background:${CHIP};font-size:12px;font-weight:600;color:${ACCENT}`, `<span style="position:relative;flex:none;width:10px;height:10px">${diamond(5, 5, true)}</span><span>${esc(c.badge)}</span>`) : ''), true);
   const { C, ya } = L, [d1, d2] = L.diamonds;
   const head = (id, c) => `<marker id="${id}" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="${c}" stroke-width="1.7"/></marker>`;
   const seg = (d, stroke, dash, marker) => `<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${stroke === ACCENT ? 2.6 : 1.8}"${dash ? ' stroke-dasharray="6 5"' : ''}${marker ? ` marker-end="url(#${marker})"` : ''}/>`;
   const mid = (c) => c.x + c.w / 2, bt = (c) => c.y + c.h;
-  const paths = [seg(`M${C.workflow.x + CW} ${ya} H${d1.x - 7}`, ACCENT, false), `<path d="M${d1.x - 7} ${ya - 9} V${ya + 9}" stroke="${ACCENT}" stroke-width="3"/>`,
+  const paths = [seg(`M${C.workflow.x + AW} ${ya} H${d1.x - 7}`, ACCENT, false), `<path d="M${d1.x - 7} ${ya - 9} V${ya + 9}" stroke="${ACCENT}" stroke-width="3"/>`,
     seg(`M${d1.x + 7} ${ya} H${C.job.x}`, LINE, true, 'g'), seg(`M${C.job.x + CW} ${ya} H${C.tag.x}`, LINE, true, 'g'),
     seg(`M${mid(C.tag)} ${bt(C.tag)} V${C.bad.y}`, LINE, true, 'g'), seg(`M${mid(C.workflow)} ${bt(C.workflow)} V${C.fix.y}`, LINE, false, 'g')].join('');
   const dmarks = L.diamonds.map((d) => diamond(d.x, d.y, true) + abs(d.x - 24, d.y - 30, 48, 14, `font-size:12px;font-weight:700;color:${ACCENT};text-align:center;white-space:nowrap`, esc(D.exit))

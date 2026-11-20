@@ -7,7 +7,7 @@
   "cards": {
     "workflow": {
       "name": "Workflow file",
-      "line": "uses: tj-actions/changed-files@v44.5.1",
+      "line": "uses: tj-actions/changed-files\n@v44.5.1",
       "mono": true
     },
     "job": {
@@ -16,7 +16,7 @@
     },
     "tag": {
       "name": "Tag v44.5.1",
-      "line": "a movable name, not a fixed commit; moved Mar 14-15, 2025"
+      "line": "one of the tags the advisory lists as moved to the malicious commit"
     },
     "bad": {
       "name": "Malicious commit",
@@ -36,7 +36,7 @@
   "diamonds": [
     {
       "id": "hook",
-      "label": "git commit hook"
+      "label": "commit hook"
     },
     {
       "id": "ci",
