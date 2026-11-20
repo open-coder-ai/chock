@@ -37,36 +37,24 @@ NAMES = {
 }
 PLUGIN_AGENT = {"claude-code": "claude"}
 GRADE_WORDS = {
-    "enforced": "blocks, verified to fail closed",
-    "enforceable": "can block, can be set to fail closed",
-    "fail-to-ask": "can block, asks a person when it cannot decide",
-    "best-effort": "can block, fails open",
+    "enforced": "fails closed",
+    "enforceable": "can fail closed",
+    "fail-to-ask": "asks when it fails",
+    "best-effort": "fails open",
     "detect": "sees it after the fact",
     "none": "",
 }
 WORDS = {
-    "title": "Which agents, and how strongly Chock holds in each",
-    "columns": [
-        ["ci", "CI check", True],
-        ["git", "Git hook", True],
-        ["hook", "Agent's own hook", False],
-        ["plugin", "One plugin", False],
-        ["rule", "AGENTS.md rule", False],
-    ],
-    "groups": {"tested live": "Plugin tested live", "untested": "Plugin untested", "": "No plugin"},
-    "ci": "refuses",
-    "git": "refuses at commit",
-    "rule": "advice the agent reads",
+    "title": "Where each coding agent can be stopped",
+    "columns": [["ci", "CI", True], ["git", "commit", True], ["hook", "pre-tool", False], ["rule", "AGENTS.md", False]],
+    "groups": {"tested live": "One plugin, tested live", "untested": "One plugin, untested", "": "Git hook and CI"},
     "plugin": {"tested": "tested live", "untested": "untested"},
-    "summary": "All __AGENTS__ get a CI check, a git hook and an AGENTS.md rule. __NATIVE__ also get their own hook. "
-    "As one plugin: __TESTED__ tested live, __UNTESTED__ untested.",
-    "legend_title": "How to read it",
     "legend": [
-        "Filled diamond: always refuses. Hollow: depends on the agent, or only advice the agent reads.",
-        "Fails open: if the agent's hook dies, the action goes ahead. The git hook and CI check still run.",
-        "Tested live: the plugin ran in that client. Untested: it is built, but has not run there.",
+        {"hard": True, "text": "filled: refuses here"},
+        {"hard": False, "text": "hollow: advice, or best effort"},
+        {"hard": None, "text": "fails open: if the agent's hook dies, the action goes ahead"},
     ],
-    "footer": "Read from chock at __COMMIT__ with agentseam __SEAM__. Grades are capped by their evidence.",
+    "footer": "Read from Chock at __COMMIT__ with agentseam __SEAM__. Grades are capped by their evidence.",
 }
 
 
@@ -98,13 +86,13 @@ def derive(commit: str) -> dict:
             {
                 "id": agent,
                 "name": NAMES[agent],
-                "ci": WORDS["ci"] if Surface.CI_GATE in surfaces else "",
-                "git": WORDS["git"] if Surface.GIT_HOOK in surfaces else "",
+                "ci": Surface.CI_GATE in surfaces,
+                "git": Surface.GIT_HOOK in surfaces,
                 "hook_grade": grade,
                 "hook": GRADE_WORDS[grade],
                 "matrix_pre_tool": matrix.enforcement_level(CHOCK_AGENT[agent], "pre_tool"),
                 "plugin": WORDS["plugin"].get(plugin.get(agent, ""), ""),
-                "rule": WORDS["rule"] if Surface.AMBIENT_RULE in surfaces else "",
+                "rule": Surface.AMBIENT_RULE in surfaces,
             }
         )
     order = {"tested live": 0, "untested": 1, "": 2}
@@ -116,21 +104,13 @@ def derive(commit: str) -> dict:
         "plugin_tested": count("plugin", "tested live"),
         "plugin_untested": count("plugin", "untested"),
     }
-    summary = WORDS["summary"]
-    for key, value in (("AGENTS", counts["agents"]), ("NATIVE", counts["own_hook"])):
-        summary = summary.replace(f"__{key}__", str(value))
-    summary = summary.replace("__TESTED__", str(counts["plugin_tested"])).replace(
-        "__UNTESTED__", str(counts["plugin_untested"])
-    )
     footer = WORDS["footer"].replace("__COMMIT__", commit[:7]).replace("__SEAM__", agentseam.__version__)
     return {
         "source": {"file": "SURFACE_AGENTS, in_agent_grade, agentseam matrix, plugin warnings", "commit": commit},
         "title": WORDS["title"],
         "columns": [{"id": i, "label": label, "hard": hard} for i, label, hard in WORDS["columns"]],
         "counts": counts,
-        "summary": summary,
         "groups": WORDS["groups"],
-        "legend_title": WORDS["legend_title"],
         "legend": WORDS["legend"],
         "footer": footer,
         "rows": rows,

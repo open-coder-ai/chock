@@ -1,47 +1,58 @@
-// The README "which agents" picture: one card per agent, one chip per way Chock holds. Every word and count comes from agents.json (agents_data.py); positions are computed here, and `layout` reports every shape so a test can check nothing overlaps.
-import { DEFAULT_PALETTE, SITE_PALETTE } from './where-chock-sits.mjs';
+// The README "where can each agent be stopped" picture: one card per agent in dashed group boxes, one diamond chip per place a check can run. Every word and count comes from agents.json (agents_data.py); positions are computed here, and `layout` reports every shape so a test can check nothing overlaps.
+import { DEFAULT_PALETTE } from './where-chock-sits.mjs';
 
-const PAD = 12, CG = 6, RG = 6, GAP = 4, PER = 6.2, CH = 16, MAXLINES = 2;
-const COLS = { name: 120, ci: 78, git: 134, hook: 196, plugin: 94, rule: 158 };
-const lines = (text, width) => Math.max(1, Math.ceil((text.length * PER + 22) / width));
+const BW = 840, BP = 10, CG = 8, PER = 6.6, CHIP_H = 20, CHIP_G = 4, COLS = 2;
+const CW = (BW - 2 * BP - (COLS - 1) * CG) / COLS;
+const chipW = (text) => Math.ceil(text.length * PER + 30);
+
+// The chips of one agent, strongest first: those its row has, the hook labelled with its grade.
+export const chipsOf = (W, r) => W.columns.filter((c) => r[c.id]).map((c) => ({ c, text: c.id === 'hook' ? `${c.label}: ${r.hook}` : c.label }));
 
 export const layout = (W) => {
-  const shapes = [], cells = [], bad = [];
+  const shapes = [], boxes = [], cards = [], chips = [];
   const add = (id, x, y, w, h) => shapes.push({ id, x, y, w, h });
-  const ids = ['name', ...W.columns.map((c) => c.id)];
-  const xs = {}; let x = PAD;
-  ids.forEach((id) => { xs[id] = x; x += COLS[id] + CG; });
-  const head = { y: 20 * Math.ceil((W.summary.length * 7) / 840) + 22 };
-  let y = head.y + 26, last = null;
-  const groups = [];
-  W.rows.forEach((r) => {
-    if (r.plugin !== last) {
-      if (last !== null) y += 8;
-      const n = W.rows.filter((q) => q.plugin === r.plugin).length;
-      groups.push({ text: `${W.groups[r.plugin]} (${n})`, y });
-      add(`group-${groups.length}`, 6, y, 300, 14);
-      y += 22; last = r.plugin;
+  let y = 12;
+  [...new Set(W.rows.map((r) => r.plugin))].forEach((kind, bi) => {
+    const rows = W.rows.filter((r) => r.plugin === kind), top = y;
+    let cy = y + 30;
+    for (let i = 0; i < rows.length; i += COLS) {
+      const slice = rows.slice(i, i + COLS).map((r, j) => {
+        const card = { r, x: BP + j * (CW + CG), y: cy, w: CW, chips: [] };
+        let cx = 10, cr = 0;
+        chipsOf(W, r).forEach((k) => {
+          const w = chipW(k.text);
+          if (cx + w > CW - 10 && cx > 10) { cx = 10; cr += 1; }
+          card.chips.push({ ...k, x: card.x + cx, y: cy + 36 + cr * (CHIP_H + CHIP_G), w, h: CHIP_H });
+          cx += w + CHIP_G;
+        });
+        card.rows = cr + 1;
+        return card;
+      });
+      const h = 36 + Math.max(...slice.map((c) => c.rows)) * (CHIP_H + CHIP_G) + 6;
+      slice.forEach((c) => { c.h = h; cards.push(c); chips.push(...c.chips); add(`card-${c.r.id}`, c.x, c.y, c.w, c.h); });
+      cy += h + CG;
     }
-    const n = Math.max(1, ...W.columns.map((c) => (r[c.id] ? lines(r[c.id], COLS[c.id]) : 1)));
-    if (n > MAXLINES) bad.push([r.id, 'too many lines']);
-    const h = 12 + n * CH + (n > 1 ? 2 : 0);
-    add(`row-${r.id}`, 0, y, 840, h);
-    if (lines(r.name, COLS.name) > 1) bad.push([r.id, 'name-text']);
-    W.columns.forEach((c) => { if (r[c.id]) cells.push({ r, c, x: xs[c.id] - 2, y: y + 4, w: COLS[c.id] + 4, h: h - 8, lines: lines(r[c.id], COLS[c.id]) }); });
-    r.y = y; r.h = h;
-    y += h + RG;
+    const h = cy - CG + BP - top;
+    boxes.push({ kind, x: 0, y: top, w: BW, h, label: W.groups[kind] });
+    add(`box-${bi}`, 0, top, BW, h);
+    y = top + h + 30;
   });
-  const lg = y + 14;
-  const Ht = lg + 22 * (1 + W.legend.length) + 34;
-  return { shapes, cells, groups, xs, head, legendTop: lg, Ht, bad };
+  const legendTop = y;
+  return { shapes, boxes, cards, chips, legendTop, Ht: legendTop + 26 * W.legend.length + 36 };
 };
 
-// Row cards closer than their gap, cells too tall for their lines, text that does not fit a column.
+// Cards closer than their gap, chips off their card or on each other, names too long for a card.
 export const crowded = (L) => {
-  const bad = [...L.bad], near = (a, b) => a.x < b.x + b.w + 2 && b.x < a.x + a.w + 2 && a.y < b.y + b.h + 2 && b.y < a.y + a.h + 2;
-  L.shapes.forEach((a, i) => L.shapes.slice(i + 1).forEach((b) => { if (near(a, b)) bad.push([a.id, b.id]); }));
-  L.cells.forEach((c, i) => L.cells.slice(i + 1).forEach((d) => { if (near({ ...c, x: c.x + 2, w: c.w - 4 }, { ...d, x: d.x + 2, w: d.w - 4 })) bad.push([c.r.id + c.c.id, d.r.id + d.c.id]); }));
-  L.cells.forEach((c) => { if (c.lines > MAXLINES) bad.push([c.r.id + c.c.id, 'cell-text']); });
+  const bad = [], near = (a, b, g = 2) => a.x < b.x + b.w + g && b.x < a.x + a.w + g && a.y < b.y + b.h + g && b.y < a.y + a.h + g;
+  L.shapes.filter((s) => s.id.startsWith('card-')).forEach((a, i, all) => all.slice(i + 1).forEach((b) => { if (near(a, b)) bad.push([a.id, b.id]); }));
+  L.cards.forEach((c) => {
+    if (c.r.name.length * 8.2 + 20 > c.w) bad.push([c.r.id, 'name-text']);
+    c.chips.forEach((k, i) => {
+      if (k.x + k.w > c.x + c.w - 8 || k.y + k.h > c.y + c.h - 2) bad.push([c.r.id, k.text, 'off-card']);
+      c.chips.slice(i + 1).forEach((o) => { if (near(k, o, 1)) bad.push([c.r.id, k.text, o.text]); });
+    });
+  });
+  L.boxes.forEach((b, i) => L.boxes.slice(i + 1).forEach((o) => { if (near(b, o, 12)) bad.push(['box', b.kind, o.kind]); }));
   return bad;
 };
 
@@ -51,26 +62,17 @@ export const where = (page, W, palette = DEFAULT_PALETTE) => {
   const { ink: INK, soft: SOFT, line: LINE, paper: PAPER, accent: ACCENT, grey: GREY, chip: CHIP, hollow: HOLLOW, fill: FILL } = palette;
   const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const abs = (x, y, w, h, css, inner) => `<div style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;${css}">${inner}</div>`;
-  const diamond = (x, y, hard, s = 10) => abs(x - s / 2, y - s / 2, s, s, `transform:rotate(45deg);box-sizing:border-box;border:2px solid ${hard ? ACCENT : GREY};background:${hard ? ACCENT : PAPER}`, '');
-  const kinds = [...new Set(W.rows.map((r) => r.plugin))], tones = [FILL.context, FILL.subagents, FILL.tools];
+  const diamond = (hard, s = 10) => `<span style="position:relative;flex:none;width:10px;height:10px;display:inline-block"><span style="position:absolute;left:${5 - s / 2}px;top:${5 - s / 2}px;width:${s}px;height:${s}px;transform:rotate(45deg);box-sizing:border-box;border:2px solid ${hard ? ACCENT : GREY};background:${hard ? ACCENT : PAPER}"></span></span>`;
+  const tones = [FILL.context, FILL.subagents, FILL.tools], kinds = [...new Set(W.rows.map((r) => r.plugin))];
   const fill = Object.fromEntries(kinds.map((k, i) => [k, tones[i]]));
-  const rows = W.rows.map((r) => abs(0, r.y, 840, r.h, `box-sizing:border-box;background:${fill[r.plugin]};border:1.5px solid ${LINE};border-radius:12px`,
-    abs(L.xs.name, 0, COLS.name, r.h, `display:flex;align-items:center;font-size:14px;font-weight:700;line-height:18px;color:${INK};white-space:nowrap`, esc(r.name)))).join('');
-  const chip = (k) => abs(k.x, k.y, k.w, k.h, `box-sizing:border-box;display:flex;align-items:center;gap:4px;padding:0 5px;border-radius:${k.lines > 1 ? 10 : 999}px;background:${CHIP};font-size:12px;line-height:${CH}px;font-weight:600;color:${k.c.hard ? ACCENT : INK}`,
-    `<span style="position:relative;flex:none;width:10px;height:10px">${diamond(5, 5, k.c.hard)}</span><span style="color:${k.c.hard ? ACCENT : INK}">${esc(k.r[k.c.id])}</span>`);
-  const heads = W.columns.map((c) => abs(L.xs[c.id] + 4, L.head.y, COLS[c.id], 18, `font-size:12px;font-weight:700;letter-spacing:.04em;line-height:18px;color:${SOFT};white-space:nowrap`, esc(c.label))).join('');
-  const groups = L.groups.map((g) => abs(6, g.y, 400, 14, `font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${SOFT};white-space:nowrap`, esc(g.text))).join('');
-  const legend = W.legend.map((t, i) => abs(0, L.legendTop + 22 + i * 22, 840, 18, `font-size:13px;font-weight:600;color:${SOFT};white-space:nowrap`, esc(t))).join('');
-  const total = L.Ht;
-  return page(`<div class="frame" style="width:880px;padding:20px;background:${PAPER};color:${INK};position:relative;height:${total + 98}px">
+  const boxes = L.boxes.map((b) => abs(b.x, b.y, b.w, b.h, `border:2px dashed ${LINE};border-radius:18px;box-sizing:border-box`, `<div style="position:absolute;left:16px;top:-13px;padding:0 8px;background:${PAPER};font-size:14px;font-weight:700;color:${INK};white-space:nowrap">${esc(b.label)}</div>`)).join('');
+  const cards = L.cards.map((c) => abs(c.x, c.y, c.w, c.h, `box-sizing:border-box;background:${fill[c.r.plugin]};border:1.5px solid ${LINE};border-radius:12px;padding:10px 8px`, `<div style="font-size:14px;font-weight:700;line-height:18px;color:${INK}">${esc(c.r.name)}</div>`)).join('');
+  const chip = (k) => abs(k.x, k.y, k.w, k.h, `box-sizing:border-box;display:flex;align-items:center;gap:4px;padding:0 6px;border-radius:999px;background:${CHIP};white-space:nowrap;font-size:12px;line-height:14px;font-weight:600;color:${k.c.hard ? ACCENT : HOLLOW}`, `${diamond(k.c.hard)}<span>${esc(k.text)}</span>`);
+  const key = W.legend.map((l, i) => abs(0, L.legendTop + i * 26, BW, 20, `font-size:13px;font-weight:600;color:${SOFT};display:flex;align-items:center;gap:12px;white-space:nowrap`, `${l.hard === null ? '<span style="width:10px;display:inline-block"></span>' : diamond(l.hard)}${esc(l.text)}`)).join('');
+  return page(`<div class="frame" style="width:880px;padding:20px;background:${PAPER};color:${INK};position:relative;height:${L.Ht + 110}px">
 <div style="position:absolute;left:20px;top:20px;width:840px;font-size:20px;line-height:1.35;font-weight:600">${esc(W.title)}</div>
-<div style="position:absolute;left:20px;top:78px;width:840px;height:${total}px">
-${abs(0, 0, 840, L.head.y - 8, `font-size:14px;line-height:20px;color:${SOFT}`, esc(W.summary))}
-${heads}${groups}${rows}${L.cells.map(chip).join('')}
-<div class="eyebrow" style="position:absolute;left:0;top:${L.legendTop}px;font-size:13px;color:${ACCENT}">${esc(W.legend_title)}</div>
-${legend}
-<div style="position:absolute;left:0;top:${total - 26}px;font-size:13px;color:${SOFT}">${esc(W.footer)}</div>
+<div style="position:absolute;left:20px;top:78px;width:840px;height:${L.Ht}px">
+${boxes}${cards}${L.chips.map(chip).join('')}${key}
+<div style="position:absolute;left:0;top:${L.Ht - 26}px;font-size:16px;color:${SOFT}">${esc(W.footer)}</div>
 </div></div>`);
 };
-
-export { DEFAULT_PALETTE, SITE_PALETTE };

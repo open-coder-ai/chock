@@ -51,13 +51,14 @@ def test_cells_match_surfaces_grades_and_the_readme_summary() -> None:
     data = _committed()
     for row in data["rows"]:
         surfaces = SURFACE_AGENTS[row["id"]]
-        assert bool(row["ci"]) == (Surface.CI_GATE in surfaces) and row["git"] and row["rule"]
+        assert row["ci"] is (Surface.CI_GATE in surfaces) and row["git"] is True and row["rule"] is True
         has_hook = bool({Surface.PRE_TOOL_USE, Surface.AGENT_HOOKS} & surfaces)
         assert (row["hook_grade"] != "none") == has_hook == bool(row["hook"])
         assert row["hook"] == derive.GRADE_WORDS[row["hook_grade"]]
         assert row["matrix_pre_tool"] in derive.GRADE_WORDS
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     counts = data["counts"]
+    assert sum(1 for r in data["rows"] if r["plugin"] == "tested live") == counts["plugin_tested"]
     assert f"All {counts['agents']} above get" in readme and f"{counts['own_hook']} also get a native hook" in readme
     assert f"{counts['plugin_tested']} tested, {counts['plugin_untested']} untested" in readme
 
@@ -96,28 +97,22 @@ def test_no_text_overflows_a_card() -> None:
     assert _node(script) == []
 
 
-def test_site_palette_render_has_the_same_layout_as_the_default() -> None:
-    script = (
-        "import {where, DEFAULT_PALETTE, SITE_PALETTE} from './docs/assets/readme/agents.mjs';"
-        "import {readFileSync} from 'node:fs';"
-        "const W = JSON.parse(readFileSync('docs/assets/readme/agents.json', 'utf8'));"
-        "const strip = (h) => h.replace(/#[0-9a-fA-F]{3,8}\\b/g, '#');"
-        "const a = where((b) => b, W), b = where((b) => b, W, SITE_PALETTE);"
-        "console.log(JSON.stringify({same: strip(a) === strip(b), differs: a !== b,"
-        " keys: Object.keys(DEFAULT_PALETTE.fill).join() === Object.keys(SITE_PALETTE.fill).join()}));"
-    )
-    assert _node(script) == {"same": True, "differs": True, "keys": True}
+def test_title_is_the_teaching_one_and_chock_is_named_only_in_the_footer() -> None:
+    data = _committed()
+    assert data["title"] == "Where each coding agent can be stopped"
+    text = json.dumps({k: v for k, v in data.items() if k not in ("footer", "source")}).lower()
+    assert "chock" not in text and "chock" in data["footer"].lower()
+    assert data["footer"].count(data["source"]["commit"][:7]) == 1
+    assert list(data["groups"].values()) == ["One plugin, tested live", "One plugin, untested", "Git hook and CI"]
 
 
-def test_both_pngs_exist_with_the_same_size_and_are_registered() -> None:
-    sizes = []
-    for name in ("agents", "agents-site"):
-        png = ASSETS / "v2" / f"{name}.png"
-        assert png.stat().st_size > 10_000, name
-        sizes.append(struct.unpack(">II", png.read_bytes()[16:24]))
-    assert sizes[0] == sizes[1]
+def test_png_exists_is_two_x_wide_and_is_registered_and_no_site_render_exists() -> None:
+    png = ASSETS / "v2" / "agents.png"
+    assert png.stat().st_size > 10_000
+    assert struct.unpack(">II", png.read_bytes()[16:24])[0] == 1760
+    assert not (ASSETS / "v2" / "agents-site.png").exists()
     render = (ASSETS / "render.mjs").read_text(encoding="utf-8")
-    assert "'v2/agents': AGENTS_PNG" in render and "'v2/agents-site': AGENTS_SITE" in render
+    assert "'v2/agents': AGENTS_PNG" in render and "agents-site" not in render
 
 
 def test_adapters_page_links_the_picture_and_the_readme_stays_untouched() -> None:
