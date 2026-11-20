@@ -1,0 +1,78 @@
+{
+  "title": "Pin actions to a commit, not a tag",
+  "frames": [
+    "Your repository and CI",
+    "The action's repo"
+  ],
+  "cards": {
+    "workflow": {
+      "name": "Workflow file",
+      "line": "uses: tj-actions/changed-files\n@v44.5.1",
+      "mono": true
+    },
+    "job": {
+      "name": "CI job",
+      "line": "runs whatever the tag points to today"
+    },
+    "tag": {
+      "name": "Tag v44.5.1",
+      "line": "one of the tags the advisory lists as moved to the malicious commit"
+    },
+    "bad": {
+      "name": "Malicious commit",
+      "line": "printed CI secrets into the job logs"
+    },
+    "fix": {
+      "name": "Pin it to a commit",
+      "line": "uses: tj-actions/changed-files@<40-hex commit SHA>  # v44.5.1",
+      "mono": true,
+      "badge": "same checks: exit 0"
+    }
+  },
+  "arrows": {
+    "tag-bad": "points to",
+    "workflow-fix": "instead"
+  },
+  "diamonds": [
+    {
+      "id": "hook",
+      "label": "commit hook"
+    },
+    {
+      "id": "ci",
+      "label": "CI gate"
+    }
+  ],
+  "exit": "exit 1",
+  "key": {
+    "path": "the incident's path: the workflow runs whatever the tag points to",
+    "stopped": "never reached once a check refuses",
+    "acts": "a check that refuses the line"
+  },
+  "printed_title": "What the check prints",
+  "printed": [
+    {
+      "kind": "cmd",
+      "text": "$ git commit        # tag.yml staged"
+    },
+    {
+      "kind": "out",
+      "text": "exit 1  Unpinned GitHub Action detected: a workflow references an action by a tag or branch (owner/repo at a movable ref) rather than a full 40-character commit SHA, ..."
+    },
+    {
+      "kind": "out",
+      "text": "  - .github/workflows/changed-files.yml: content pattern"
+    },
+    {
+      "kind": "cmd",
+      "text": "$ git commit        # the same file pinned to a full commit SHA"
+    },
+    {
+      "kind": "out",
+      "text": "exit 0"
+    }
+  ],
+  "limit": "A pin freezes what you pinned. If an update bot bumps it to a bad commit, that commit runs: the advisory tells anyone referencing the malicious commit by its SHA to update.",
+  "source": "What happened: GitHub advisory GHSA-mrrh-fwg8-r2c3 (CVE-2025-30066); CISA alert of 2025-03-18. Same line, same exit codes: rule pin-github-actions, catalog 1.2.0.",
+  "footer": "The example rule here is from Chock."
+}
