@@ -1,0 +1,275 @@
+{
+  "source": {
+    "file": "SURFACE_AGENTS, in_agent_grade, agentseam matrix, plugin warnings",
+    "commit": "b4fa4f77985d3d1638c2c98bfc605ad632558891"
+  },
+  "title": "Which agents, and how strongly Chock holds in each",
+  "columns": [
+    {
+      "id": "ci",
+      "label": "CI check",
+      "hard": true
+    },
+    {
+      "id": "git",
+      "label": "Git hook",
+      "hard": true
+    },
+    {
+      "id": "hook",
+      "label": "Agent's own hook",
+      "hard": false
+    },
+    {
+      "id": "plugin",
+      "label": "One plugin",
+      "hard": false
+    },
+    {
+      "id": "rule",
+      "label": "AGENTS.md rule",
+      "hard": false
+    }
+  ],
+  "counts": {
+    "agents": 20,
+    "own_hook": 15,
+    "plugin_tested": 8,
+    "plugin_untested": 3
+  },
+  "summary": "All 20 get a CI check, a git hook and an AGENTS.md rule. 15 also get their own hook. As one plugin: 8 tested live, 3 untested.",
+  "groups": {
+    "tested live": "Plugin tested live",
+    "untested": "Plugin untested",
+    "": "No plugin"
+  },
+  "legend_title": "How to read it",
+  "legend": [
+    "Filled diamond: always refuses. Hollow: depends on the agent, or only advice the agent reads.",
+    "Fails open: if the agent's hook dies, the action goes ahead. The git hook and CI check still run.",
+    "Tested live: the plugin ran in that client. Untested: it is built, but has not run there."
+  ],
+  "footer": "Read from chock at b4fa4f7 with agentseam 0.4.1. Grades are capped by their evidence.",
+  "rows": [
+    {
+      "id": "antigravity",
+      "name": "Antigravity CLI",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "best-effort",
+      "hook": "can block, fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "tested live",
+      "rule": "advice the agent reads"
+    },
+    {
+      "id": "claude",
+      "name": "Claude Code",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "best-effort",
+      "hook": "can block, fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "tested live",
+      "rule": "advice the agent reads"
+    },
+    {
+      "id": "codex",
+      "name": "Codex",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "best-effort",
+      "hook": "can block, fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "tested live",
+      "rule": "advice the agent reads"
+    },
+    {
+      "id": "copilot",
+      "name": "Copilot",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "best-effort",
+      "hook": "can block, fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "tested live",
+      "rule": "advice the agent reads"
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "enforceable",
+      "hook": "can block, can be set to fail closed",
+      "matrix_pre_tool": "enforceable",
+      "plugin": "tested live",
+      "rule": "advice the agent reads"
+    },
+    {
+      "id": "devin",
+      "name": "Devin",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "best-effort",
+      "hook": "can block, fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "tested live",
+      "rule": "advice the agent reads"
+    },
+    {
+      "id": "goose",
+      "name": "goose",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "best-effort",
+      "hook": "can block, fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "tested live",
+      "rule": "advice the agent reads"
+    },
+    {
+      "id": "grok",
+      "name": "Grok",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "best-effort",
+      "hook": "can block, fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "tested live",
+      "rule": "advice the agent reads"
+    },
+    {
+      "id": "factory-droid",
+      "name": "Factory Droid",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "best-effort",
+      "hook": "can block, fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "untested",
+      "rule": "advice the agent reads"
+    },
+    {
+      "id": "kimi-code",
+      "name": "Kimi Code",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "none",
+      "hook": "",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "untested",
+      "rule": "advice the agent reads"
+    },
+    {
+      "id": "openhands",
+      "name": "OpenHands",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "best-effort",
+      "hook": "can block, fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "untested",
+      "rule": "advice the agent reads"
+    },
+    {
+      "id": "aider",
+      "name": "Aider",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "none",
+      "hook": "",
+      "matrix_pre_tool": "none",
+      "plugin": "",
+      "rule": "advice the agent reads"
+    },
+    {
+      "id": "cline",
+      "name": "Cline",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "none",
+      "hook": "",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "",
+      "rule": "advice the agent reads"
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "best-effort",
+      "hook": "can block, fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "",
+      "rule": "advice the agent reads"
+    },
+    {
+      "id": "junie",
+      "name": "Junie",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "none",
+      "hook": "",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "",
+      "rule": "advice the agent reads"
+    },
+    {
+      "id": "mistral-vibe",
+      "name": "Mistral Vibe",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "best-effort",
+      "hook": "can block, fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "",
+      "rule": "advice the agent reads"
+    },
+    {
+      "id": "replit",
+      "name": "Replit",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "none",
+      "hook": "",
+      "matrix_pre_tool": "none",
+      "plugin": "",
+      "rule": "advice the agent reads"
+    },
+    {
+      "id": "tabnine",
+      "name": "Tabnine",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "best-effort",
+      "hook": "can block, fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "",
+      "rule": "advice the agent reads"
+    },
+    {
+      "id": "vscode",
+      "name": "VS Code",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "best-effort",
+      "hook": "can block, fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "",
+      "rule": "advice the agent reads"
+    },
+    {
+      "id": "windsurf",
+      "name": "Windsurf",
+      "ci": "refuses",
+      "git": "refuses at commit",
+      "hook_grade": "best-effort",
+      "hook": "can block, fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "",
+      "rule": "advice the agent reads"
+    }
+  ]
+}

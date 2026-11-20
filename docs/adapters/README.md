@@ -2,6 +2,12 @@
 
 Adapters map the agent-agnostic Chock core to agent-specific surfaces.
 
+## Which agents, and how strongly
+
+<p><img src="../assets/readme/v2/agents.png" alt="One card per agent: every agent gets a CI check, a git hook and an AGENTS.md rule; the agent's own hook, where there is one, can block but fails open (Cursor can be set to fail closed); the one-plugin route is tested live, untested or absent." width="820"></p>
+
+The picture is derived from the code by `python docs/assets/readme/derive.py readme`, so a change to an agent moves it.
+
 ## Agent-specific entry points
 
 Most agents read `AGENTS.md` directly and get **no wrapper file at all** — Cursor, Codex,

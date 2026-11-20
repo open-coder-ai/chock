@@ -4,7 +4,7 @@
 derive.py catalog   <chock-catalog checkout> <its commit sha>
 derive.py agentseam <agentseam checkout> <its commit sha>
 derive.py repos     (the public repo list, from repos.json)
-derive.py readme    (README.md's derive blocks, from data.json and chock's install and witness data)
+derive.py readme    (README.md's derive blocks, from data.json and chock's install and witness data, and agents.json)
 """
 
 from __future__ import annotations
@@ -237,6 +237,9 @@ def main(argv: list[str]) -> None:
         data.update(derive_agentseam(Path(argv[1]), argv[2]))
     elif argv[0] == "readme":
         README.write_text(render_readme(README.read_text(encoding="utf-8"), data), encoding="utf-8")
+        import agents_data  # noqa: PLC0415 -- the picture's data, refreshed by the same command
+
+        agents_data.write()
         return
     else:
         data.update(derive_repos())
