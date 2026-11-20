@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { where, SITE_PALETTE } from './where-chock-sits.mjs';
 import { where as sessionPath } from './session-path.mjs';
+import { where as incident } from './incident.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = process.env.OUT_DIR || HERE;
@@ -218,11 +219,12 @@ ${grid(3, 16, [['commit', 'A git hook or CI gate that exits non-zero.'], ['in-ag
 ${grid(3, 16, [[A.grades.enforced, 'matrix cells graded &ldquo;enforced&rdquo;: no agent reaches it'], [`${D.asi.refused_at_commit.length} of ${D.asi.with_policy}`, 'OWASP Agentic risks with a slice refused at commit'], [D.asi.fully_covered, 'OWASP Agentic risks fully covered: every mapping is partial']].map(([n, l]) => stat(n, l)))}`);
 
 const FIGURE = JSON.parse(readFileSync(path.join(HERE, 'where-chock-sits.json'), 'utf8'));
+const TJ = incident(page, JSON.parse(readFileSync(path.join(HERE, 'incident-tj-actions.json'), 'utf8')));
 const WHERE = where(page, FIGURE), WHERE_SITE = where(page, FIGURE, SITE_PALETTE), SESSION_PATH = sessionPath(page, FIGURE);
 
 const ALL_NEW = { layers: LAYERS, quickstart: QUICKSTART, matrix: MATRIX, catalog: CATALOG, family: FAMILY, honest: HONEST };
 // README v2 panels go under v2/; the titled refusal, roles and contribute PNGs at the old paths stay frozen until RW-7b.
-const V2 = { 'v2/refusal': REFUSAL, 'v2/roles': ROLES, 'v2/contribute': CONTRIBUTE, 'v2/where-chock-sits': WHERE, 'v2/where-chock-sits-site': WHERE_SITE, 'v2/session-path': SESSION_PATH };
+const V2 = { 'v2/refusal': REFUSAL, 'v2/roles': ROLES, 'v2/contribute': CONTRIBUTE, 'v2/where-chock-sits': WHERE, 'v2/where-chock-sits-site': WHERE_SITE, 'v2/session-path': SESSION_PATH, 'v2/incidents/tj-actions': TJ };
 
 // 1280x640 social preview banners: the same specs as the covers, laid out for the fixed canvas.
 const social = ({ repo, title, sub, chips, right }) => `<div class="social" style="width:1280px;height:640px;padding:64px 72px;background:#222C44;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:48px;align-items:center;overflow:hidden">
@@ -250,6 +252,8 @@ for (const [name, html] of Object.entries(ALL)) {
     return fonts.map((f) => document.fonts.check(f));
   });
   if (!ok.every(Boolean)) throw new Error(`fonts missing (Instrument Sans / JetBrains Mono): ${ok}`);
+  const over = await pg.evaluate(() => [...document.querySelectorAll('[data-fit]')].filter((e) => e.scrollHeight > e.clientHeight + 1 || e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent.slice(0, 40)));
+  if (over.length) throw new Error(`text overflows its box: ${JSON.stringify(over)}`);
   mkdirSync(path.dirname(path.join(OUT, name)), { recursive: true });
   await pg.locator(isSocial ? '.social' : '.frame').screenshot({ path: path.join(OUT, `${name}.png`) });
   console.log(`${name}.png`);
