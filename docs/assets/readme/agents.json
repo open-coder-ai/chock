@@ -1,0 +1,277 @@
+{
+  "source": {
+    "file": "SURFACE_AGENTS, in_agent_grade, agentseam matrix, plugin warnings",
+    "chock": "1.2.0"
+  },
+  "title": "Where each coding agent can be stopped",
+  "columns": [
+    {
+      "id": "ci",
+      "label": "CI",
+      "hard": true
+    },
+    {
+      "id": "git",
+      "label": "commit",
+      "hard": true
+    },
+    {
+      "id": "hook",
+      "label": "pre-tool",
+      "hard": false
+    },
+    {
+      "id": "rule",
+      "label": "AGENTS.md",
+      "hard": false
+    }
+  ],
+  "counts": {
+    "agents": 20,
+    "own_hook": 15,
+    "plugin_tested": 8,
+    "plugin_untested": 3
+  },
+  "groups": {
+    "tested live": "One plugin, tested live",
+    "untested": "One plugin, untested",
+    "": "Git hook and CI"
+  },
+  "legend": [
+    {
+      "hard": true,
+      "text": "filled: refuses here"
+    },
+    {
+      "hard": false,
+      "text": "hollow: advice, or best effort"
+    },
+    {
+      "hard": null,
+      "text": "fails open: if the agent's hook dies, the action goes ahead"
+    }
+  ],
+  "footer": "Read from Chock 1.2.0 with agentseam 0.4.1. Grades are capped by their evidence.",
+  "rows": [
+    {
+      "id": "antigravity",
+      "name": "Antigravity CLI",
+      "ci": true,
+      "git": true,
+      "hook_grade": "best-effort",
+      "hook": "fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "tested live",
+      "rule": true
+    },
+    {
+      "id": "claude",
+      "name": "Claude Code",
+      "ci": true,
+      "git": true,
+      "hook_grade": "best-effort",
+      "hook": "fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "tested live",
+      "rule": true
+    },
+    {
+      "id": "codex",
+      "name": "Codex",
+      "ci": true,
+      "git": true,
+      "hook_grade": "best-effort",
+      "hook": "fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "tested live",
+      "rule": true
+    },
+    {
+      "id": "copilot",
+      "name": "Copilot",
+      "ci": true,
+      "git": true,
+      "hook_grade": "best-effort",
+      "hook": "fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "tested live",
+      "rule": true
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "ci": true,
+      "git": true,
+      "hook_grade": "enforceable",
+      "hook": "can fail closed",
+      "matrix_pre_tool": "enforceable",
+      "plugin": "tested live",
+      "rule": true
+    },
+    {
+      "id": "devin",
+      "name": "Devin",
+      "ci": true,
+      "git": true,
+      "hook_grade": "best-effort",
+      "hook": "fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "tested live",
+      "rule": true
+    },
+    {
+      "id": "goose",
+      "name": "goose",
+      "ci": true,
+      "git": true,
+      "hook_grade": "best-effort",
+      "hook": "fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "tested live",
+      "rule": true
+    },
+    {
+      "id": "grok",
+      "name": "Grok",
+      "ci": true,
+      "git": true,
+      "hook_grade": "best-effort",
+      "hook": "fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "tested live",
+      "rule": true
+    },
+    {
+      "id": "factory-droid",
+      "name": "Factory Droid",
+      "ci": true,
+      "git": true,
+      "hook_grade": "best-effort",
+      "hook": "fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "untested",
+      "rule": true
+    },
+    {
+      "id": "kimi-code",
+      "name": "Kimi Code",
+      "ci": true,
+      "git": true,
+      "hook_grade": "none",
+      "hook": "",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "untested",
+      "rule": true
+    },
+    {
+      "id": "openhands",
+      "name": "OpenHands",
+      "ci": true,
+      "git": true,
+      "hook_grade": "best-effort",
+      "hook": "fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "untested",
+      "rule": true
+    },
+    {
+      "id": "aider",
+      "name": "Aider",
+      "ci": true,
+      "git": true,
+      "hook_grade": "none",
+      "hook": "",
+      "matrix_pre_tool": "none",
+      "plugin": "",
+      "rule": true
+    },
+    {
+      "id": "cline",
+      "name": "Cline",
+      "ci": true,
+      "git": true,
+      "hook_grade": "none",
+      "hook": "",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "",
+      "rule": true
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini",
+      "ci": true,
+      "git": true,
+      "hook_grade": "best-effort",
+      "hook": "fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "",
+      "rule": true
+    },
+    {
+      "id": "junie",
+      "name": "Junie",
+      "ci": true,
+      "git": true,
+      "hook_grade": "none",
+      "hook": "",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "",
+      "rule": true
+    },
+    {
+      "id": "mistral-vibe",
+      "name": "Mistral Vibe",
+      "ci": true,
+      "git": true,
+      "hook_grade": "best-effort",
+      "hook": "fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "",
+      "rule": true
+    },
+    {
+      "id": "replit",
+      "name": "Replit",
+      "ci": true,
+      "git": true,
+      "hook_grade": "none",
+      "hook": "",
+      "matrix_pre_tool": "none",
+      "plugin": "",
+      "rule": true
+    },
+    {
+      "id": "tabnine",
+      "name": "Tabnine",
+      "ci": true,
+      "git": true,
+      "hook_grade": "best-effort",
+      "hook": "fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "",
+      "rule": true
+    },
+    {
+      "id": "vscode",
+      "name": "VS Code",
+      "ci": true,
+      "git": true,
+      "hook_grade": "best-effort",
+      "hook": "fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "",
+      "rule": true
+    },
+    {
+      "id": "windsurf",
+      "name": "Windsurf",
+      "ci": true,
+      "git": true,
+      "hook_grade": "best-effort",
+      "hook": "fails open",
+      "matrix_pre_tool": "best-effort",
+      "plugin": "",
+      "rule": true
+    }
+  ]
+}
