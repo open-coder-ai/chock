@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import re
 import shutil
 import struct
 import subprocess
@@ -13,7 +12,6 @@ import pytest
 from readme_figure_support import ASSETS, ROOT
 
 JSON = ASSETS / "agents.json"
-HEX40 = re.compile(r"[0-9a-f]{40}")
 
 
 def _derive():
@@ -29,9 +27,9 @@ def _committed() -> dict:
 
 def test_agents_json_equals_what_the_code_derives_now() -> None:
     committed = _committed()
-    assert HEX40.fullmatch(committed["source"]["commit"])
-    now = _derive().derive(committed["source"]["commit"])
-    assert committed == now, "agents.json is behind the code; run: python docs/assets/readme/derive.py readme"
+    assert committed == _derive().derive(), (
+        "agents.json is behind the code; run: python docs/assets/readme/derive.py readme"
+    )
 
 
 def test_one_row_per_surface_agent_in_the_documented_order() -> None:
@@ -102,7 +100,7 @@ def test_title_is_the_teaching_one_and_chock_is_named_only_in_the_footer() -> No
     assert data["title"] == "Where each coding agent can be stopped"
     text = json.dumps({k: v for k, v in data.items() if k not in ("footer", "source")}).lower()
     assert "chock" not in text and "chock" in data["footer"].lower()
-    assert data["footer"].count(data["source"]["commit"][:7]) == 1
+    assert f"Chock {data['source']['chock']} with agentseam" in data["footer"]
     assert list(data["groups"].values()) == ["One plugin, tested live", "One plugin, untested", "Git hook and CI"]
 
 

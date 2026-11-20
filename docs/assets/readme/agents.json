@@ -1,7 +1,7 @@
 {
   "source": {
     "file": "SURFACE_AGENTS, in_agent_grade, agentseam matrix, plugin warnings",
-    "commit": "9d28566ea0504e1c1d57c40803f7b8a4f8771b73"
+    "chock": "1.2.0"
   },
   "title": "Where each coding agent can be stopped",
   "columns": [
@@ -51,7 +51,7 @@
       "text": "fails open: if the agent's hook dies, the action goes ahead"
     }
   ],
-  "footer": "Read from Chock at 9d28566 with agentseam 0.4.1. Grades are capped by their evidence.",
+  "footer": "Read from Chock 1.2.0 with agentseam 0.4.1. Grades are capped by their evidence.",
   "rows": [
     {
       "id": "antigravity",

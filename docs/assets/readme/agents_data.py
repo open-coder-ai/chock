@@ -7,12 +7,11 @@ the plugin warnings data. Only display names and the plain words for a grade are
 from __future__ import annotations
 
 import json
-import subprocess
+from importlib.metadata import version
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 OUT = HERE / "agents.json"
-ROOT = HERE.parents[2]
 NAMES = {
     "aider": "Aider",
     "antigravity": "Antigravity CLI",
@@ -54,16 +53,11 @@ WORDS = {
         {"hard": False, "text": "hollow: advice, or best effort"},
         {"hard": None, "text": "fails open: if the agent's hook dies, the action goes ahead"},
     ],
-    "footer": "Read from Chock at __COMMIT__ with agentseam __SEAM__. Grades are capped by their evidence.",
+    "footer": "Read from Chock __CHOCK__ with agentseam __SEAM__. Grades are capped by their evidence.",
 }
 
 
-def _commit() -> str:
-    done = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True)  # noqa: S607
-    return done.stdout.strip()
-
-
-def derive(commit: str) -> dict:
+def derive() -> dict:
     """The picture's data, read from the code as it is now."""
     import agentseam  # noqa: PLC0415 -- chock and agentseam are needed only to derive
     from agentseam import matrix  # noqa: PLC0415
@@ -104,9 +98,12 @@ def derive(commit: str) -> dict:
         "plugin_tested": count("plugin", "tested live"),
         "plugin_untested": count("plugin", "untested"),
     }
-    footer = WORDS["footer"].replace("__COMMIT__", commit[:7]).replace("__SEAM__", agentseam.__version__)
+    footer = WORDS["footer"].replace("__CHOCK__", version("chock")).replace("__SEAM__", agentseam.__version__)
     return {
-        "source": {"file": "SURFACE_AGENTS, in_agent_grade, agentseam matrix, plugin warnings", "commit": commit},
+        "source": {
+            "file": "SURFACE_AGENTS, in_agent_grade, agentseam matrix, plugin warnings",
+            "chock": version("chock"),
+        },
         "title": WORDS["title"],
         "columns": [{"id": i, "label": label, "hard": hard} for i, label, hard in WORDS["columns"]],
         "counts": counts,
@@ -118,5 +115,5 @@ def derive(commit: str) -> dict:
 
 
 def write() -> None:
-    """Rewrite agents.json at the current commit."""
-    OUT.write_text(json.dumps(derive(_commit()), indent=2) + "\n", encoding="utf-8")
+    """Rewrite agents.json from the code as it is now."""
+    OUT.write_text(json.dumps(derive(), indent=2) + "\n", encoding="utf-8")
