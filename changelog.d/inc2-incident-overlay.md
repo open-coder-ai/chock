@@ -1,0 +1,1 @@
+- An incident overlay renderer (`docs/assets/readme/incident-overlay.mjs`, `render-incident.mjs`) that draws one incident on the published harness figure from a small JSON, and its first picture, `v2/incidents/claude-settings-secrets.png`.
