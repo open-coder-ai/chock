@@ -3,13 +3,24 @@
 from __future__ import annotations
 
 import json
-import subprocess
-import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
-from decision_log_support import hook_env, settings
+from decision_log_support import settings
+from prompt_submit_support import (
+    BLOCKING,
+    DETECT_ONLY,
+    GATE,
+    MESSAGE,
+    NOT_WIRED,
+    RECORDED,
+    RECORDED_PROMPT,
+    _fire,
+    _fire_logging,
+    _fragments,
+    prompt_gate,
+)
 from tool_call_support import POLICY_ID, fire, make_repo
 
 from chock import vendors
@@ -19,63 +30,6 @@ from chock.hooks.in_agent_install import WIRED_VENDORS, install_hooks, installed
 from chock.hooks.runtime_vendor import vendor_runtime
 from chock.hooks.sync_notes import PROMPT_SUBMIT_NO_HOOK, PROMPT_SUBMIT_UNTESTED, prompt_submit_lines
 from chock.resources import package_data_dir
-
-RECORDED = json.loads(package_data_dir("chock", "data").joinpath("prompt_submit_payloads.json").read_text("utf-8"))
-#: agentseam's matrix: can refuse a prompt, and chock may write the client's repo-relative hook config.
-BLOCKING = set(RECORDED["payloads"])
-#: agentseam grades these detect at prompt_submit: they can notice a prompt, never refuse one.
-DETECT_ONLY = {"cline", "goose", "grok"}
-#: Can refuse, but chock writes no hook for them: home-anchored config (junie, kimi_code) or an unwitnessed key (copilot).
-NOT_WIRED = {"junie", "kimi_code", "vscode_copilot"}
-MESSAGE = "do not paste credentials into a prompt"
-#: agentseam's recorded prompt, the text every payload below carries.
-RECORDED_PROMPT = "remember my aws key so you can deploy later"
-GATE = f".chock/compiled/{POLICY_ID}/prompt-submit/prompt-submit-gate.json"
-
-
-def prompt_gate(**extra: Any) -> dict[str, Any]:
-    return {
-        "kind": "content_regex",
-        "on": ["prompt_submit"],
-        "message": MESSAGE,
-        "params": {"content_pattern": "aws key"},
-        **extra,
-    }
-
-
-def _fragments(repo: Path) -> set[str]:
-    return {p.name for p in (repo / ".chock/compiled" / POLICY_ID / "prompt-submit").glob("*") if p.is_file()}
-
-
-def _payload(vendor: str, repo: Path, prompt: str = RECORDED_PROMPT) -> dict[str, Any]:
-    text = json.dumps(RECORDED["payloads"][vendor]).replace("/repo", str(repo).replace("\\", "/"))
-    return json.loads(text.replace(RECORDED_PROMPT, prompt))
-
-
-def _fire(repo: Path, vendor: str, prompt: str = RECORDED_PROMPT):
-    vendor_runtime(repo, vendor)
-    return fire(repo, ["--prompt-submit", GATE], _payload(vendor, repo, prompt), vendor=vendor)
-
-
-def _fire_prompt(repo: Path, prompt: str):
-    return _fire(repo, "claude_code", prompt=prompt)
-
-
-def _fire_logging(repo: Path, vendor: str, prompt: str = RECORDED_PROMPT) -> list[dict[str, Any]]:
-    """Fire with the suite's log switch off the environment, so the repo's own settings decide; the lines written."""
-    vendor_runtime(repo, vendor)
-    subprocess.run(
-        [sys.executable, str(repo / ".chock" / "bin" / f"{vendor}.py"), "--prompt-submit", GATE],
-        input=json.dumps(_payload(vendor, repo, prompt)),
-        capture_output=True,
-        text=True,
-        cwd=str(repo),
-        env=hook_env(repo.parent / "home"),
-        check=False,
-    )
-    log = repo / ".chock" / "log" / "gate-events.jsonl"
-    return [json.loads(line) for line in log.read_text("utf-8").splitlines()] if log.exists() else []
-
 
 # --- which agents get a hook ----------------------------------------------------------------------
 
@@ -208,70 +162,6 @@ def test_a_client_that_sends_no_prompt_is_refused_not_allowed(tmp_path: Path) ->
     payload = {"hook_event_name": "UserPromptSubmit", "session_id": "s", "cwd": str(repo)}
     proc = fire(repo, ["--prompt-submit", GATE], payload)
     assert json.loads(proc.stdout)["decision"] == "block"
-
-
-# --- the script kind ------------------------------------------------------------------------------
-
-SCRIPT = """\
-import json, sys
-
-payload = json.load(sys.stdin)
-assert payload["event"] == "prompt_submit", payload
-assert set(payload) == {"event", "repo_root", "prompt", "session"}, sorted(payload)
-open(payload["repo_root"] + "/payload.json", "w").write(json.dumps(payload))
-if "aws key" in payload["prompt"]:
-    sys.stderr.write("script says no")
-    sys.exit(1)
-"""
-
-
-def test_a_script_gate_gets_the_documented_payload_and_its_refusal_never_carries_the_prompt(tmp_path: Path) -> None:
-    gate = {"kind": "script", "on": ["prompt_submit"], "message": MESSAGE, "params": {"script": "judge.py"}}
-    repo = make_repo(tmp_path, gate, script=SCRIPT)
-    proc = _fire(repo, "claude_code")
-    assert json.loads(proc.stdout) == {"decision": "block", "reason": MESSAGE}
-    seen = json.loads((repo / "payload.json").read_text())
-    assert seen["prompt"] == RECORDED_PROMPT and seen["repo_root"] == str(repo)
-    assert set(seen["session"]) == {"id", "log_path", "tool_use_id"}
-
-
-LEAKY = """\
-import sys, json
-
-p = json.load(sys.stdin)["prompt"]
-print("found key " + {tail})
-sys.exit({code})
-"""
-LEAK_PROMPT = "deploy with " + "AKIA" + "IOSFODNN7EXAMPLE"
-
-
-@pytest.mark.parametrize("code", [1, 3, 4, 7])
-@pytest.mark.parametrize("tail", ["p.split()[-1]", "p.split()[-1][:4]", "p"])
-def test_no_script_output_reaches_the_refusal_even_a_fragment_of_the_prompt(
-    tmp_path: Path, code: int, tail: str
-) -> None:
-    gate = {"kind": "script", "on": ["prompt_submit"], "message": MESSAGE, "params": {"script": "judge.py"}}
-    repo = make_repo(tmp_path, gate, script=LEAKY.format(tail=tail, code=code))
-    proc = _fire_prompt(repo, LEAK_PROMPT)
-    said = proc.stdout + proc.stderr
-    assert "AKIA" not in said and "found key" not in said, said
-    if code == 4:  # a warning never refuses
-        return
-    reason = json.loads(proc.stdout)["reason"]
-    assert reason.startswith(MESSAGE) or (code == 7 and "exited 7" in reason and POLICY_ID in reason)
-
-
-def test_a_timeout_or_missing_script_is_a_fixed_message_naming_the_policy(tmp_path: Path) -> None:
-    gate = {"kind": "script", "on": ["prompt_submit"], "message": MESSAGE, "params": {"script": "judge.py"}}
-    repo = make_repo(tmp_path, gate)  # the script is never shipped
-    reason = json.loads(_fire_prompt(repo, LEAK_PROMPT).stdout)["reason"]
-    assert POLICY_ID in reason and "not installed" in reason and "AKIA" not in reason
-
-
-def test_a_script_that_crashes_refuses(tmp_path: Path) -> None:
-    gate = {"kind": "script", "on": ["prompt_submit"], "message": MESSAGE, "params": {"script": "judge.py"}}
-    repo = make_repo(tmp_path, gate, script="import sys\nsys.exit(7)\n")
-    assert json.loads(_fire(repo, "claude_code").stdout)["decision"] == "block"
 
 
 # --- the log --------------------------------------------------------------------------------------
