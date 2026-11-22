@@ -8,7 +8,14 @@ from typing import Any
 
 from chock.gate.pattern_safety import REGEX_PARAM_SUFFIXES, catastrophic, catastrophic_message
 from chock.gate.runner import KINDS, WRITE_PATH_KINDS
-from chock.gate.schema import GATEWAY_ONLY_KINDS, KIND_PARAM_SCHEMAS, TOOL_CALL_EVENT, TOOL_CALL_KINDS
+from chock.gate.schema import (
+    GATEWAY_ONLY_KINDS,
+    KIND_PARAM_SCHEMAS,
+    PROMPT_SUBMIT_EVENT,
+    PROMPT_SUBMIT_KINDS,
+    TOOL_CALL_EVENT,
+    TOOL_CALL_KINDS,
+)
 from chock.validation.loading import schema_validator
 from chock.validation.report import Finding, Report
 
@@ -44,13 +51,13 @@ def _validate_gate(
             )
         )
 
-    if not tool_use_allowed and any(e in ("tool_use", TOOL_CALL_EVENT) for e in events):
+    if not tool_use_allowed and any(e in ("tool_use", TOOL_CALL_EVENT, PROMPT_SUBMIT_EVENT) for e in events):
         report.add(
             Finding(
                 gate_ref,
                 _CATEGORY,
                 "error",
-                "tool_use and tool_call are only allowed in hook.gate, not in gate.yaml",
+                "tool_use, tool_call and prompt_submit are only allowed in hook.gate, not in gate.yaml",
             )
         )
 
@@ -87,6 +94,8 @@ def _validate_in_agent_events(gate: dict[str, Any], events: list[str], gate_ref:
             problems.append("tool_call needs params.tools: the tool-name globs it applies to")
     elif "tools" in params:
         problems.append("params.tools has no effect without tool_call in 'on'")
+    if PROMPT_SUBMIT_EVENT in events and kind not in PROMPT_SUBMIT_KINDS:
+        problems.append(f"prompt_submit is judged by {' or '.join(PROMPT_SUBMIT_KINDS)}, not {kind}")
     outside = gate.get("outside_repo") or []
     if outside and "tool_use" not in events:
         problems.append("outside_repo is judged at PreToolUse: 'on' must include tool_use")

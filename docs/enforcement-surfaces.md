@@ -149,32 +149,32 @@ per gateway process; wrap N servers with N entries.
 
 Which surfaces each agent supports today (from `src/chock/compile/surfaces.py`):
 
-| Agent | ambient | git-hook | ci-gate | pre-tool-use | stop | managed-setting | agent-hooks |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Claude Code** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — |
-| **Cursor** | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| Copilot | ✅ | ✅ | ✅ | — | ✅ | — | ✅ |
-| Codex | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| Gemini | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| Windsurf | ✅ | ✅ | ✅ | ✅ | — | — | — |
-| Devin | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| Aider | ✅ | ✅ | ✅ | — | — | — | — |
-| Grok | ✅ | ✅ | ✅ | ✅ | — | — | — |
-| Junie | ✅ | ✅ | ✅ | — | — | — | — |
-| Kimi Code | ✅ | ✅ | ✅ | — | — | — | — |
-| Replit | ✅ | ✅ | ✅ | — | — | — | — |
-| Tabnine | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| VS Code | ✅ | ✅ | ✅ | — | ✅ | — | ✅ |
-| Antigravity CLI | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| Factory Droid | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| goose | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| OpenHands | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| Mistral Vibe | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| Cline | ✅ | ✅ | ✅ | — | — | — | — |
+| Agent | ambient | git-hook | ci-gate | pre-tool-use | stop | prompt-submit | managed-setting | agent-hooks |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Claude Code** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — |
+| **Cursor** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
+| Copilot | ✅ | ✅ | ✅ | — | ✅ | — | — | ✅ |
+| Codex | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
+| Gemini | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
+| Windsurf | ✅ | ✅ | ✅ | ✅ | — | ✅ | — | — |
+| Devin | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
+| Aider | ✅ | ✅ | ✅ | — | — | — | — | — |
+| Grok | ✅ | ✅ | ✅ | ✅ | — | — | — | — |
+| Junie | ✅ | ✅ | ✅ | — | — | — | — | — |
+| Kimi Code | ✅ | ✅ | ✅ | — | — | — | — | — |
+| Replit | ✅ | ✅ | ✅ | — | — | — | — | — |
+| Tabnine | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
+| VS Code | ✅ | ✅ | ✅ | — | ✅ | — | — | ✅ |
+| Antigravity CLI | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — |
+| Factory Droid | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
+| goose | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — |
+| OpenHands | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
+| Mistral Vibe | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — |
+| Cline | ✅ | ✅ | ✅ | — | — | — | — | — |
 
 In-agent membership derives from agentseam's matrix: every adapted vendor whose row can block a pre-tool call
 from a repo-level JSON or TOML hook config gets `pre-tool-use` (Copilot CLI and VS Code: `agent-hooks`, chock's
-owned file). `stop` is derived the same way from the **turn-end** row, which is a different question with a
+owned file). `prompt-submit` is derived the same way from the **prompt-submit** row (agentseam grades Cline, Goose and Grok `detect` there: no mark; [spec](../spec/prompt-submit.md)). `stop` is derived the same way from the **turn-end** row, which is a different question with a
 different answer: Grok and Windsurf can observe a finished turn but not refuse one, so they are `detect` and get
 no column mark. Cursor cannot hold a turn either, but its `stop` hook hands a refusal back to the agent as a
 `followup_message` (witnessed live on 3.21.18), which is `best-effort` and worth a mark: the agent is sent back

@@ -36,7 +36,7 @@ _DLOG_SYNC_BIN = (".chock", "bin")
 _DLOG_SYNC_LOG = ("log", "gate-events.jsonl")
 _DLOG_PLUGIN_LOG = ("log", "events.jsonl")
 #: The argv flags that name what a hook judges; the first present names the policy.
-_DLOG_TARGET_FLAGS = ("--guard", "--gate", "--tool-call", "--record")
+_DLOG_TARGET_FLAGS = ("--guard", "--gate", "--tool-call", "--record", "--prompt-submit")
 _DLOG_GATE_FLAG = "--gate"
 _DLOG_COMPILED = "compiled"
 #: How far above the runtime a plugin's manifest may sit (`<root>/scripts/<agent>.py`, or deeper).
@@ -44,7 +44,7 @@ _DLOG_MANIFEST_DEPTH = 3
 #: agentseam's decision outcomes, as the log names them; no decision is an allow.
 _DLOG_SPOKEN = {"deny": "block", "escalate": "ask", "warn": "warn"}
 _DLOG_EVENT_LOGGED = {"pre_tool": "tool_use"}
-_DLOG_SURFACE = {"pre_tool": "pre-tool-use", "stop": "stop"}
+_DLOG_SURFACE = {"pre_tool": "pre-tool-use", "stop": "stop", "prompt_submit": "prompt-submit"}
 _DLOG_NO_RULE = "no rule matched"
 _DLOG_DIST_INFO = re.compile(r"^chock-([^-]+)\.dist-info$")
 #: The pre-tool exit codes of a gate.py run that wrote its own line (allow, block, ask, warn); 2 wrote none.

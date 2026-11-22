@@ -83,7 +83,7 @@ def _merge(settings: dict, fragment: dict) -> None:
 #: The compiled surfaces whose fragments are whole hook-config documents for this vendor.
 #: Named rather than globbed over `*/`: a surface dir that happens to hold a like-named file
 #: is not thereby something to merge into a vendor config.
-FRAGMENT_SURFACES = ("pre-tool-use", "stop")
+FRAGMENT_SURFACES = ("pre-tool-use", "stop", "prompt-submit")
 
 
 def _fragments(repo_root: Path, vendor: str) -> list[tuple[str, Any]]:

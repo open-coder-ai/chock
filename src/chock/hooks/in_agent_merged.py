@@ -21,6 +21,7 @@ from chock.hooks.runtime_vendor import owned_markers, runtime_rel, vendor_runtim
 from chock.scaffold.mcp_write import _lstat_checked, write_file
 
 _CONFIG_MODE = 0o600
+_PROMPT = vendors.prompt_submit_event
 
 
 class Wiring(NamedTuple):
@@ -65,6 +66,8 @@ MERGED = {
                 flat=False,
                 report_key="matcher",
             ),
+            # A `prompt_submit` gate: its own event key, never folded into a pre-tool one.
+            Wiring(_PROMPT("claude_code"), "*/prompt-submit/prompt-submit.json", flat=False, report_key="matcher"),
             # The session-log recorders of a `tool_call` script gate: after a call, and instead
             # of that when the call failed (Claude fires PostToolUseFailure, not PostToolUse).
             Wiring(
@@ -109,6 +112,7 @@ MERGED = {
                 flat=True,
                 report_key="command",
             ),
+            Wiring(_PROMPT("cursor"), "*/prompt-submit/cursor-hooks.json", flat=True, report_key="command"),
             Wiring(
                 event=vendors.wire_event("cursor", "post_tool"),
                 fragment_glob="*/pre-tool-use/cursor-post-hooks.json",

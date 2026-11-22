@@ -37,7 +37,8 @@
               "commit",
               "push",
               "tool_use",
-              "tool_call"
+              "tool_call",
+              "prompt_submit"
             ]
           }
         },

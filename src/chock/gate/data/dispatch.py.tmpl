@@ -65,6 +65,10 @@ def _judge(event, judged, argv):
     if called is not None:
         judged[0:2] = ["tool_call", str(event.tool or "")]
         return _spoken(called)
+    prompted = _chock_timed(judged, "prompt_submit", lambda: evaluate_prompt_submit(argv, event))
+    if prompted is not None:
+        judged[0:2] = ["prompt_submit", _chock_Path(_flag_path(argv, PROMPT_SUBMIT_FLAG)).parent.parent.name]
+        return _spoken(prompted)
 # __SESSION_START_BRANCH__
     return None
 

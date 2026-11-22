@@ -27,7 +27,7 @@ PLUGIN_HOOK = "plugin-hook"
 GIT_HOOK_ENV = "git-hook-env"
 #: A vendor's admin-deployed file (`chock emit --managed`); until a row lands, every managed label stays vendor-docs.
 MANAGED = "managed"
-WITNESS_SURFACES = ("pre-tool-use", "agent-hooks", PLUGIN_HOOK, GIT_HOOK_ENV, MANAGED)
+WITNESS_SURFACES = ("pre-tool-use", "agent-hooks", "prompt-submit", PLUGIN_HOOK, GIT_HOOK_ENV, MANAGED)
 
 HONOURS_ASK = "honours_ask"
 CLAIM_NAMES = (HONOURS_ASK,)
