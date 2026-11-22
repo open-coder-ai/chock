@@ -253,7 +253,7 @@ def recompile(repo_root: Path | str, agents: list[str], *, skip_hooks: bool = Fa
             shutil.copy2(str(staged_runner), str(chock_dir / "bin" / "gate.py"))
 
     # An adopter who ran `init` before the runtime was tracked explicitly gets the rule here.
-    ensure_git_rules(repo_root)
+    ensure_git_rules(repo_root, agents)
 
     write_generated_json(coverage_path, coverage)
 
