@@ -86,7 +86,14 @@ def _eol(text: str) -> str:
 def _append(path: Path, rule: str, comment: str) -> None:
     """Append `rule` under `comment` unless an equivalent line is there; keep the file's line endings."""
     existing = path.read_bytes().decode("utf-8") if path.exists() else ""
-    if _normal(rule) in {_normal(line) for line in existing.splitlines()}:
+    lines = {_normal(line) for line in existing.splitlines()}
+    if _normal(rule) in lines:
+        return
+    if any(line.startswith("!") and line[1:].lstrip("/") == _normal(rule) for line in lines):
+        warn_once(
+            ("claude-local-settings-unignored", path.name),
+            f"{path.name} un-ignores {rule} on purpose; chock leaves it alone",
+        )
         return
     eol = _eol(existing)
     joiner = "" if not existing or existing.endswith("\n") else eol

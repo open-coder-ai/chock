@@ -92,3 +92,21 @@ def test_a_crlf_gitignore_stays_crlf(tmp_path: Path) -> None:
     assert data.count(RULE.encode()) == 1
     ensure_git_rules(tmp_path, ["claude"])
     assert (tmp_path / ".gitignore").read_bytes() == data
+
+
+@pytest.mark.parametrize("negation", [f"!{RULE}", f"!/{RULE}"])
+def test_an_adopter_negation_is_left_alone(tmp_path: Path, capsys: pytest.CaptureFixture[str], negation: str) -> None:
+    before = f".claude/*\n{negation}\n"
+    (tmp_path / ".gitignore").write_text(before, encoding="utf-8")
+    output.new_command()
+    ensure_git_rules(tmp_path, ["claude"])
+    assert RULE not in _lines(tmp_path / ".gitignore")
+    assert (tmp_path / ".gitignore").read_text(encoding="utf-8").startswith(before)
+    assert "on purpose" in capsys.readouterr().err
+
+
+def test_a_negation_only_in_dockerignore_leaves_gitignore_getting_the_rule(tmp_path: Path) -> None:
+    (tmp_path / ".dockerignore").write_text(f".claude/*\n!{RULE}\n", encoding="utf-8")
+    ensure_git_rules(tmp_path, ["claude"])
+    assert _lines(tmp_path / ".gitignore").count(RULE) == 1
+    assert _lines(tmp_path / ".dockerignore") == [".claude/*", f"!{RULE}"]
