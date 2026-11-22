@@ -98,7 +98,7 @@ def _write_config(repo_root: Path, agents: list[str], *, agent_agnostic: bool) -
     allowlist = path.parent / "dependency-allowlist.txt"
     if not allowlist.exists():
         allowlist.write_text(_dependency_allowlist_template(), encoding="utf-8")
-    ensure_git_rules(repo_root)
+    ensure_git_rules(repo_root, agents)
     return path
 
 
