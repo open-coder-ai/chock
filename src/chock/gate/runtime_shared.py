@@ -21,6 +21,7 @@ from . import (
     outside_repo,
     patch_apply,
     patch_image,
+    prompt_submit_gate,
     repo_names,
     repo_stop,
     session_log,
@@ -160,6 +161,7 @@ _HANDLER_MODULES = (
     stop_roots,
     write_gate,
     tool_call_gate,
+    prompt_submit_gate,
     multi,
 )
 

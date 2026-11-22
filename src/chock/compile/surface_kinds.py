@@ -17,6 +17,7 @@ class Surface(str, Enum):
     CI_GATE = "ci-gate"
     PRE_TOOL_USE = "pre-tool-use"
     STOP = "stop"
+    PROMPT_SUBMIT = "prompt-submit"
     MANAGED_SETTING = "managed-setting"
     GATEWAY = "gateway"
     MCP_GATEWAY = "mcp-gateway"

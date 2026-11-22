@@ -217,3 +217,71 @@ def test_the_new_forms_validate_and_run_from_a_real_suite(tmp_path: Path, capsys
     assert main([POLICY_ID, "--repo", str(tmp_path), "--json"]) == 0
     doc = json.loads(capsys.readouterr().out)
     assert [c["outcome"] for c in doc[0]["cases"]] == ["pass", "pass", "pass"]
+
+
+# --- prompt_submit: the prompt is the case's own text ---------------------------------------------
+
+PROMPT_WITH_KEY = "deploy with " + "AKIA" + "IOSFODNN7EXAMPLE" + " please"
+
+
+def test_a_prompt_submit_case_replays_the_gate_on_the_prompt(tmp_path: Path) -> None:
+    _policy(tmp_path, gate_on=["prompt_submit"])
+    blocked = {"event": "prompt_submit", "prompt": PROMPT_WITH_KEY, "expect": "block"}
+    assert _run(tmp_path, blocked) == ("pass", "a key")
+    assert _run(tmp_path, {"event": "prompt_submit", "prompt": "add a retry", "expect": "allow"})[0] == "pass"
+
+
+def test_a_prompt_submit_case_does_not_echo_the_prompt(tmp_path: Path) -> None:
+    _policy(tmp_path, gate_on=["prompt_submit"])
+    _, detail = _run(tmp_path, {"event": "prompt_submit", "prompt": PROMPT_WITH_KEY, "expect": "block"})
+    assert PROMPT_WITH_KEY not in detail and "AKIA" not in detail
+
+
+def test_a_prompt_submit_case_without_a_prompt_is_an_error_not_an_allow(tmp_path: Path) -> None:
+    _policy(tmp_path, gate_on=["prompt_submit"])
+    assert _run(tmp_path, {"event": "prompt_submit", "expect": "allow"})[0] == "error"
+
+
+def test_a_gate_not_declared_at_prompt_submit_allows_and_the_case_says_so(tmp_path: Path) -> None:
+    _policy(tmp_path, gate_on=["commit"])
+    outcome, _ = _run(tmp_path, {"event": "prompt_submit", "prompt": PROMPT_WITH_KEY, "expect": "block"})
+    assert outcome == "fail"
+
+
+def test_a_prompt_submit_case_validates_and_runs_from_a_real_suite(
+    tmp_path: Path, capsys: pytest.CaptureFixture
+) -> None:
+    policy = _policy(tmp_path, gate_on=["prompt_submit"])
+    cases = [
+        {
+            "id": "ps-001",
+            "category": "trigger",
+            "prompt": "a person pastes a key into a prompt",
+            "expect": "refused",
+            "execute": {"event": "prompt_submit", "prompt": PROMPT_WITH_KEY, "expect": "block"},
+        },
+        {
+            "id": "ps-002",
+            "category": "negative_trigger",
+            "prompt": "a person asks for a refactor",
+            "expect": "allowed",
+            "execute": {"event": "prompt_submit", "prompt": "refactor the uploader", "expect": "allow"},
+        },
+        {
+            "id": "ps-003",
+            "category": "behavior",
+            "prompt": "a lower-cased key is not the pattern",
+            "expect": "allowed",
+            "execute": {"event": "prompt_submit", "prompt": PROMPT_WITH_KEY.lower(), "expect": "allow"},
+        },
+    ]
+    suite = {"suite": {"id": "s", "policy_id": POLICY_ID, "metrics": {}, "cases": cases}}
+    (policy / "evals").mkdir()
+    (policy / "evals" / "suite.yaml").write_text(yaml.safe_dump(suite), encoding="utf-8")
+
+    report = Report()
+    _schema_validate_suite(policy / "evals" / "suite.yaml", report)
+    assert not report.errors, [f.message for f in report.errors]
+
+    assert main([POLICY_ID, "--repo", str(tmp_path), "--json"]) == 0
+    assert [c["outcome"] for c in json.loads(capsys.readouterr().out)[0]["cases"]] == ["pass", "pass", "pass"]

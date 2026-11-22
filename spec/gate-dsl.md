@@ -10,7 +10,7 @@ is declared under `hook.gate` in `manifest.yaml`. A hook may also carry a `hook.
 | field | required | type | notes |
 |-------|----------|------|-------|
 | `kind` | yes | string | `content_regex`, `forbidden_ref`, `dependency_allowlist`, `test_integrity`, `script`, or `egress_allowlist` (gateway-only) |
-| `on` | yes | list | events: `commit`, `push`, `tool_use`, `tool_call`. The key must be quoted `"on"` in YAML. |
+| `on` | yes | list | events: `commit`, `push`, `tool_use`, `tool_call`, `prompt_submit` ([`prompt-submit.md`](prompt-submit.md)). The key must be quoted `"on"` in YAML. |
 | `action` | no | string | `block` (default), `ask`, or `warn`: what a violation does, see [Actions](#actions). `verify` is a value of `enforcement`, not of `action`, and is refused |
 | `message` | yes | string | the reason: printed to stderr when the gate blocks, asks or warns |
 | `params` | yes | object | kind-specific parameters |

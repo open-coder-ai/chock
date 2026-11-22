@@ -721,7 +721,7 @@ def degrade(decision, event):
 # Not self-contained: chock's guard logic lives in the sibling _chock_runtime.py, loaded from this
 # file's own folder and pinned to the sha256 of that file's bytes (CRLF read as LF), hashed before they are executed.
 # Missing, unreadable, another version, or failing to import: every call refuses (_CHOCK_RUNTIME_FAULT), never allows.
-_CHOCK_RUNTIME_PIN = '791b92ce3802e2b71819589bced3f7c5fd079bf535cf469a785480a3a31c91f7'
+_CHOCK_RUNTIME_PIN = '3dbd24bcd23701b99e1ad4a66c09323b51d3b2910a9738be47d13c19444a9d39'
 
 
 def _chock_load_runtime():
@@ -956,6 +956,10 @@ def _judge(event, judged, argv):
     if called is not None:
         judged[0:2] = ["tool_call", str(event.tool or "")]
         return _spoken(called)
+    prompted = _chock_timed(judged, "prompt_submit", lambda: evaluate_prompt_submit(argv, event))
+    if prompted is not None:
+        judged[0:2] = ["prompt_submit", _chock_Path(_flag_path(argv, PROMPT_SUBMIT_FLAG)).parent.parent.name]
+        return _spoken(prompted)
     return None
 
 

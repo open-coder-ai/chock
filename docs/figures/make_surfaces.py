@@ -29,6 +29,7 @@ TIER_INDEX = {
     Surface.CI_GATE: 1,
     Surface.PRE_TOOL_USE: 2,
     Surface.STOP: 2,
+    Surface.PROMPT_SUBMIT: 2,
     Surface.AGENT_HOOKS: 2,
     Surface.MANAGED_SETTING: None,
     Surface.GATEWAY: None,
@@ -42,6 +43,7 @@ PHRASE = {
     Surface.CI_GATE: "enforced at commit",
     Surface.PRE_TOOL_USE: "enforced in-agent",
     Surface.STOP: "backstop, no grade",
+    Surface.PROMPT_SUBMIT: "in-agent, untested",
     Surface.AGENT_HOOKS: "enforced in-agent",
     Surface.MANAGED_SETTING: "compiled, not installed",
     Surface.GATEWAY: "modelled, not emitted",
@@ -54,12 +56,13 @@ TIER_NAME = ("advisory", "enforced at commit", "enforced in-agent")
 #: Reading order, three rows that each mean something: the floor every agent gets, the
 #: in-agent surfaces, and the ones named for honesty though no agent reaches them today.
 ROW1 = [Surface.AMBIENT_RULE, Surface.GIT_HOOK, Surface.CI_GATE]
-ROW2 = [Surface.PRE_TOOL_USE, Surface.STOP, Surface.AGENT_HOOKS]
+ROW2 = [Surface.PRE_TOOL_USE, Surface.STOP, Surface.PROMPT_SUBMIT, Surface.AGENT_HOOKS]
 ROW3 = [Surface.MANAGED_SETTING, Surface.GATEWAY, Surface.MCP_GATEWAY]
 ROWS = (ROW1, ROW2, ROW3)
 
 COLS = [140, 380, 620]  # column centres; 224-wide boxes, 16px gaps, 20px margins
 BOX_W, BOX_H = 224, 100
+NARROW_W = 168  # a four-box row: (720 - 3 gaps of 16) / 4
 ROW_Y = (150, 290, 430)
 BUS_Y = (115, 270, 410)
 
@@ -88,14 +91,22 @@ def _surface_count(surface):
     return sum(1 for agent in SURFACE_AGENTS if surface in SURFACE_AGENTS[agent])
 
 
-def _node(cx, y, surface, t):
+def _columns(n):
+    """Column centres for a row of `n` boxes: the three-box grid, or four narrower boxes across the same width."""
+    if n == len(COLS):
+        return COLS, BOX_W
+    first = POLICY_X + NARROW_W / 2
+    return [first + i * (NARROW_W + 16) for i in range(n)], NARROW_W
+
+
+def _node(cx, y, surface, t, width=BOX_W):
     """One surface box: name, agent count, and the tier word -- colour is never the only carrier."""
     idx = TIER_INDEX[surface]
     accent = t["enforcement"][idx] if idx is not None else t["neutral"]
-    x = cx - BOX_W / 2
+    x = cx - width / 2
     n = _surface_count(surface)
-    out = p.box(x, y, BOX_W, BOX_H, t["surface"], accent)
-    out += p.box(x, y, BOX_W, 5, accent, rx=0)  # tier chip, redundant with the word below
+    out = p.box(x, y, width, BOX_H, t["surface"], accent)
+    out += p.box(x, y, width, 5, accent, rx=0)  # tier chip, redundant with the word below
     out += p.text(x + 12, y + 26, surface.value, t["text"], NAME, p.MONO, "600")
     out += p.text(x + 12, y + 46, f"{n} agent{'' if n == 1 else 's'}", t["secondary"], COUNT)
     out += p.text(x + 12, y + 66, PHRASE[surface], accent, TIER, weight="600")
@@ -119,7 +130,9 @@ def render(t, _name):
         f"commit-time gates, git hook and CI gate. {_surface_count(Surface.PRE_TOOL_USE)} also "
         "get a native pre-tool-use hook, enforced live in the agent, and "
         f"{_surface_count(Surface.AGENT_HOOKS)} (vscode, copilot -- one underlying vendor) get "
-        f"chock's own agent-hooks file, also enforced in-agent. {_surface_count(Surface.STOP)} "
+        f"chock's own agent-hooks file, also enforced in-agent. {_surface_count(Surface.PROMPT_SUBMIT)} "
+        "get a prompt-submit hook that can refuse a prompt, untested in a live client. "
+        f"{_surface_count(Surface.STOP)} "
         "get an end-of-turn hook that reads what the turn wrote: a backstop for what a pre-tool "
         "hook cannot see, carrying no coverage grade of its own. Three surfaces are named for "
         "honesty though no agent reaches them yet: managed-setting is compiled for Claude but "
@@ -140,10 +153,11 @@ def render(t, _name):
     cx = (COLS[0] + COLS[-1]) / 2
     previous = POLICY_Y + POLICY_H
     for row, bus_y, row_y in zip(ROWS, BUS_Y, ROW_Y, strict=True):
+        cols, width = _columns(len(row))
         svg += _wire(cx, previous, cx, bus_y, a)
-        svg += _wire(COLS[0], bus_y, COLS[-1], bus_y, a)
-        for x, surface in zip(COLS, row, strict=True):
-            svg += _node(x, row_y, surface, t)
+        svg += _wire(cols[0], bus_y, cols[-1], bus_y, a)
+        for x, surface in zip(cols, row, strict=True):
+            svg += _node(x, row_y, surface, t, width)
         previous = bus_y
 
     legend_y = 550

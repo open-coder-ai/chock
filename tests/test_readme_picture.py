@@ -53,10 +53,12 @@ def test_card_lines_are_at_most_six_words_and_arrow_labels_two() -> None:
     assert all(len(label.split()) <= 2 for label in HARNESS["arrows"].values())
 
 
-def test_no_prompt_submit_hook_is_wired_so_none_is_filled() -> None:
+def test_the_prompt_submit_badge_is_filled_with_its_proof_and_says_it_is_untested() -> None:
     sources = " ".join(p.read_text(encoding="utf-8") for p in (ROOT / "src" / "chock").rglob("*.py"))
-    assert "PROMPT_SUBMIT" not in sources
-    assert not [p for p in FIGURE["points"] if p["id"] == "prompt_submit" and p["acts"]]
+    assert "PROMPT_SUBMIT" in sources
+    (point,) = [p for p in FIGURE["points"] if p["id"] == "prompt_submit"]
+    assert point["acts"] and point["proof"] == ["tests/test_prompt_submit_gate.py"]
+    assert "Untested" in point["line"], "no live refusal of a prompt is witnessed yet"
 
 
 def test_no_two_shapes_of_the_harness_layout_are_too_close() -> None:

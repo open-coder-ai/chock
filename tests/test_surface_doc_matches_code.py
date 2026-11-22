@@ -22,6 +22,7 @@ COLUMNS = [
     Surface.CI_GATE,
     Surface.PRE_TOOL_USE,
     Surface.STOP,
+    Surface.PROMPT_SUBMIT,
     Surface.MANAGED_SETTING,
     Surface.AGENT_HOOKS,
 ]

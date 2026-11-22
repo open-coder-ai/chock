@@ -14,6 +14,10 @@ DEPENDENCY_ALLOWLIST_KIND = "dependency_allowlist"
 #: a call carries no file and no branch, only a tool name and its input.
 TOOL_CALL_EVENT = "tool_call"
 TOOL_CALL_KINDS = ("content_regex", "script")
+#: The in-agent event that judges the prompt a person submitted, before the model reads it: the text it
+#: sees is the prompt alone, so the kinds are the two that can read text.
+PROMPT_SUBMIT_EVENT = "prompt_submit"
+PROMPT_SUBMIT_KINDS = ("content_regex", "script")
 #: Kinds handed the session log; their hook logs every tool call, so the log is complete.
 TOOL_CALL_SESSION_KINDS = ("script",)
 

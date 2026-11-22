@@ -12,7 +12,7 @@ Each card is a component of a coding agent's harness; the badges on a card are t
 
 - **Session start**: arms the hooks from what is committed. *Where the agent has hooks.*
 - **Session end** (not used): agentseam exposes this point; no shipped Chock code acts on it. *Where the agent has hooks.*
-- **Prompt submitted** (not used): agentseam exposes this point; no shipped Chock code acts on it. *Where the agent has hooks.*
+- **Prompt submitted**: judges the prompt where the agent can refuse one. Untested in a live client. *Where the agent has hooks.*
 - **Instructions loaded** (not used): agentseam exposes this point; no shipped Chock code acts on it. *Where the agent has hooks.*
 - **Before context is compacted** (not used): agentseam exposes this point; no shipped Chock code acts on it. *Where the agent has hooks.*
 - **Before a tool runs**: Chock judges the call: allow, ask or block. A refusal goes back to the model with one line on what to do instead. *Where the agent has hooks.*

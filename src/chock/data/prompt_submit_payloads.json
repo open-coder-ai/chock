@@ -1,0 +1,110 @@
+{
+  "_doc": "One prompt_submit payload per blocking vendor, and what the vendor's wire carries for a deny, from agentseam's golden fixtures (tests/fixtures/golden at 17dd700). The prompt is agentseam's own: 'remember my aws key so you can deploy later'. `deny` is the golden deny with its reason, `policy`, left for the test to swap.",
+  "deny": {
+    "claude_code": {
+      "exit": 0,
+      "stdout": "{\"decision\": \"block\", \"reason\": \"policy\"}"
+    },
+    "codex_cli": {
+      "exit": 0,
+      "stdout": "{\"decision\": \"block\", \"reason\": \"policy\"}"
+    },
+    "cursor": {
+      "exit": 0,
+      "stdout": "{\"continue\": false, \"user_message\": \"policy\"}"
+    },
+    "devin": {
+      "exit": 0,
+      "stdout": "{\"decision\": \"block\", \"reason\": \"policy\"}"
+    },
+    "factory_droid": {
+      "exit": 0,
+      "stdout": "{\"decision\": \"block\", \"reason\": \"policy\"}"
+    },
+    "gemini_cli": {
+      "exit": 0,
+      "stdout": "{\"decision\": \"deny\", \"reason\": \"policy\"}"
+    },
+    "openhands": {
+      "exit": 0,
+      "stdout": "{\"decision\": \"deny\", \"reason\": \"policy\"}"
+    },
+    "tabnine": {
+      "exit": 0,
+      "stdout": "{\"decision\": \"deny\", \"reason\": \"policy\"}"
+    },
+    "windsurf": {
+      "exit": 2,
+      "stdout": "policy"
+    }
+  },
+  "payloads": {
+    "claude_code": {
+      "cwd": "/repo",
+      "hook_event_name": "UserPromptSubmit",
+      "permission_mode": "default",
+      "prompt": "remember my aws key so you can deploy later",
+      "session_id": "example",
+      "transcript_path": "/repo/.claude/transcript.jsonl"
+    },
+    "codex_cli": {
+      "cwd": "/repo",
+      "hook_event_name": "UserPromptSubmit",
+      "model": "gpt-5-codex",
+      "permission_mode": "auto",
+      "prompt": "remember my aws key so you can deploy later",
+      "session_id": "example",
+      "turn_id": "turn-1"
+    },
+    "cursor": {
+      "conversation_id": "example",
+      "cursor_version": "1.7.2",
+      "cwd": "/repo",
+      "generation_id": "gen-1",
+      "hook_event_name": "beforeSubmitPrompt",
+      "model": "claude-opus-4-7-thinking-max",
+      "prompt": "remember my aws key so you can deploy later",
+      "workspace_roots": [
+        "/repo"
+      ]
+    },
+    "devin": {
+      "hook_event_name": "UserPromptSubmit",
+      "prompt": "remember my aws key so you can deploy later",
+      "prompt_id": "turn-1",
+      "session_id": "example"
+    },
+    "factory_droid": {
+      "cwd": "/repo",
+      "hook_event_name": "UserPromptSubmit",
+      "permission_mode": "auto-medium",
+      "prompt": "remember my aws key so you can deploy later",
+      "session_id": "example",
+      "transcript_path": "/repo/s.jsonl"
+    },
+    "gemini_cli": {
+      "cwd": "/repo",
+      "hook_event_name": "BeforeAgent",
+      "prompt": "remember my aws key so you can deploy later",
+      "session_id": "example"
+    },
+    "openhands": {
+      "event_type": "UserPromptSubmit",
+      "message": "remember my aws key so you can deploy later",
+      "session_id": "example",
+      "working_dir": "/repo"
+    },
+    "tabnine": {
+      "cwd": "/repo",
+      "hook_event_name": "BeforeAgent",
+      "prompt": "remember my aws key so you can deploy later",
+      "session_id": "example",
+      "timestamp": "2026-08-26T00:00:00.000Z"
+    },
+    "windsurf": {
+      "hook_event_name": "pre_user_prompt",
+      "query": "remember my aws key so you can deploy later",
+      "trajectory_id": "example"
+    }
+  }
+}

@@ -12,6 +12,8 @@ import tempfile
 from pathlib import Path
 from typing import Any, Iterator
 
+from agentseam import Event
+
 from chock.compile.compiler import _load_manifest
 from chock.eval.fixture import init_repo, prepare
 from chock.eval.model import Case, CaseResult
@@ -36,10 +38,12 @@ from chock.gate.guard_runner import (
     is_guard_crash,
     split_command,
 )
+from chock.gate.prompt_submit_gate import PROMPT_SUBMIT_FLAG, evaluate_prompt_submit
 from chock.gate.runner import GATE_LOG_ENV
 
 #: gate_runner.judge()'s process-exit convention: 0 allow, 1 block, 2 spec error, 3 ask, 4 warn.
 _GATE_EXIT_SPEC_ERROR = 2
+PROMPT_SUBMIT_CASE_EVENT = "prompt_submit"
 _GATE_EXIT_VERDICT = {gate_runner.EXIT_ASK: ASK, gate_runner.EXIT_WARN: WARN}
 
 
@@ -117,6 +121,26 @@ def _run_gate(
     return _observed(code, judged), reason or f"gate exit {code}"
 
 
+_PROMPT_VERDICTS = {"deny": BLOCK, "escalate": ASK, "warn": WARN}
+_PROMPT_GATE_REL = Path(".chock") / "compiled" / "eval" / "prompt-submit" / "prompt-submit-gate.json"
+
+
+def _run_prompt_submit(repo: Path, gate_spec: dict[str, Any], spec: dict[str, Any]) -> tuple[str, str]:
+    """Return (verdict, detail) by handing the gate a prompt the way the vendored hook does."""
+    prompt = spec.get("prompt")
+    if not isinstance(prompt, str) or not prompt:
+        return ERROR, "case runs at prompt_submit but declares no prompt, so the gate would judge nothing"
+    gate_path = repo / _PROMPT_GATE_REL
+    gate_path.parent.mkdir(parents=True, exist_ok=True)
+    gate_path.write_text(json.dumps(gate_spec), encoding="utf-8", newline="\n")
+    event = Event("eval", "prompt_submit", prompt=prompt, cwd=str(repo))
+    with _person_env():
+        verdict = evaluate_prompt_submit([PROMPT_SUBMIT_FLAG, str(gate_path)], event)
+    if verdict is None:
+        return ALLOW, "prompt_submit gate allowed the prompt"
+    return _PROMPT_VERDICTS.get(verdict[0], BLOCK), verdict[1]
+
+
 def _run_guard(repo: Path, guard: Path, command: str) -> tuple[str, str]:
     """Return (verdict, detail) by invoking a guard script with the argv it guards."""
     bash = find_interpreter(guard)
@@ -184,6 +208,10 @@ def _replay(case: Case, spec: dict[str, Any], env: tuple[Path, Path, Path, list[
             "unreadable": "the compiled gate exists but could not be parsed; nothing is enforcing this policy",
             "manifest": "case describes a gate but the policy declares none",
         }[source]
+    if event == PROMPT_SUBMIT_CASE_EVENT:
+        prepare(repo, spec)
+        _install_script(repo, policy_dir, gate_spec)
+        return _run_prompt_submit(repo, gate_spec, spec)
     writes, added = prepare_agent(repo, spec) if event in AGENT_CASE_EVENTS else (None, None)
     if writes is None:
         prepare(repo, spec)

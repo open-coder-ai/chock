@@ -106,6 +106,11 @@ def generic_stop_config(vendor: str, command: str) -> HookDoc:
     return with_timeout(vendor, vendors.stop_hook_config(vendor, command))
 
 
+def generic_prompt_submit_config(vendor: str, command: str) -> HookDoc:
+    """The vendor's prompt-submit hook-config document running `command`, with its timeout."""
+    return with_timeout(vendor, vendors.prompt_submit_hook_config(vendor, command))
+
+
 def generic_post_tool_config(vendor: str, command: str) -> HookDoc:
     """The vendor's after-tool hook-config document running `command`, with its timeout."""
     return with_timeout(vendor, vendors.post_tool_hook_config(vendor, command))

@@ -97,6 +97,26 @@ def stop_vendors() -> tuple[str, ...]:
     return tuple(sorted(v for v in VENDOR_CONFIG if _matrix.can_block(v, _contract.STOP) and repo_wirable(v)))
 
 
+def prompt_submit_vendors() -> tuple[str, ...]:
+    """Vendors whose prompt-submit hook can refuse a prompt: the matrix predicate, install-capped.
+
+    Detect-only agents (cline, goose, grok) and agents with no such event get no entry. Copilot's
+    own hooks file has no witnessed prompt key, so it gets none either rather than an invented one.
+    """
+    return tuple(
+        sorted(
+            v
+            for v in VENDOR_CONFIG
+            if _matrix.can_block(v, _contract.PROMPT_SUBMIT) and repo_wirable(v) and v not in AGENT_HOOKS_VENDORS
+        )
+    )
+
+
+def prompt_submit_event(vendor: str) -> str:
+    """The vendor's wire spelling of the prompt-submit event (`UserPromptSubmit`, `BeforeAgent`, ...)."""
+    return wire_event(vendor, _contract.PROMPT_SUBMIT)
+
+
 def config_path(vendor: str) -> str:
     """Repo-relative path of the file the vendor reads hook wiring from; chock's own plugin slot for goose."""
     return str(entry(vendor)["config_path"]).replace(_UPSTREAM_OWNER_SLOT, _OWNER_SLOT, 1)
@@ -236,6 +256,11 @@ def stop_hook_config(vendor: str, command: str) -> Any:
     vocabulary.
     """
     return _adapters.get(vendor).hook_config((_contract.STOP,), command, None)
+
+
+def prompt_submit_hook_config(vendor: str, command: str) -> Any:
+    """The vendor's complete hook-config document running `command` when a prompt is submitted; no matcher."""
+    return _adapters.get(vendor).hook_config((_contract.PROMPT_SUBMIT,), command, None)
 
 
 def config_envelope(vendor: str) -> dict[str, Any]:

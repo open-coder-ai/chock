@@ -4,12 +4,17 @@ from __future__ import annotations
 
 from chock.compile.levels import (
     AT_COMMIT,
+    IN_AGENT_LEVELS,
     IN_AGENT_TODAY,
+    PROMPT_SUBMIT_TODAY,
     STOP_TODAY,
     Grade,
     _matrix_can_block,
+    _prompt_submit_can_block,
     _stop_can_block,
     in_agent_grade,
+    level_rank,
+    prompt_submit_grade,
 )
 from chock.compile.surface_kinds import Surface
 from chock.vendors import AGENT_HOOKS_VENDORS, CHOCK_AGENT
@@ -25,6 +30,7 @@ __all__ = [
     "SURFACE_AGENTS",
     "UNCREDITED_SURFACES",
     "Surface",
+    "with_prompt_submit",
 ]
 
 
@@ -64,7 +70,26 @@ for _agent in STOP_TODAY:
 del _agent
 
 
-INSTALLED_SURFACES: set[Surface] = {Surface.GIT_HOOK, Surface.CI_GATE, Surface.AMBIENT_RULE, Surface.STOP}
+#: Derived from the matrix asking about the prompt-submit event: detect-only agents (cline, goose,
+#: grok) and agents with no such event are not members, so a policy is credited nothing there.
+for _agent in PROMPT_SUBMIT_TODAY:
+    if not _prompt_submit_can_block(_agent):  # pragma: no cover - membership already derives from can_block
+        _msg = (
+            f"agentseam's matrix says {_agent!r} cannot refuse a submitted prompt any more; "
+            "prompt-submit membership must be re-derived, not silently kept"
+        )
+        raise AssertionError(_msg)
+    SURFACE_AGENTS[_agent].add(Surface.PROMPT_SUBMIT)
+del _agent
+
+
+INSTALLED_SURFACES: set[Surface] = {
+    Surface.GIT_HOOK,
+    Surface.CI_GATE,
+    Surface.AMBIENT_RULE,
+    Surface.STOP,
+    Surface.PROMPT_SUBMIT,
+}
 
 #: Surfaces that run, and refuse, but are deliberately worth no coverage word. `stop` sees
 #: what a turn left on disk -- after every tool call in it has already run -- so it catches
@@ -102,6 +127,20 @@ def coverage_cell(
     if Surface.AMBIENT_RULE in active & INSTALLED_SURFACES:
         return Grade("advisory", None, witnessed=False)
     return Grade("none", None, witnessed=False)
+
+
+def with_prompt_submit(base: Grade, emitted: set[Surface], agent: str, *, installed: bool) -> Grade:
+    """`base` bounded by the prompt-submit hook, where the policy emitted and installed one for an agent that can refuse.
+
+    A policy gating a tool call and a prompt is only as strong as the weaker of the two; one gating
+    only prompts has nothing else to be graded on, so the prompt-submit word stands on its own.
+    """
+    if not (installed and Surface.PROMPT_SUBMIT in emitted and agent in PROMPT_SUBMIT_TODAY):
+        return base
+    prompt = prompt_submit_grade(agent, at_commit=base.at_commit)
+    if base.level in IN_AGENT_LEVELS and base.level != "none":
+        return min(base, prompt, key=lambda grade: level_rank(grade.level))
+    return prompt
 
 
 def coverage_level(

@@ -145,7 +145,7 @@ def _install_vendors(repo_root: Path, wired: tuple[str, ...]) -> list[str]:
         else:
             if installed:
                 print(f"Registered {len(installed)} {install_label(vendor)}")
-                for line in sync_notes.notes(vendor):
+                for line in sync_notes.notes(vendor, repo_root):
                     print(line)
                 if hint := vendors.trust_hint(vendor):
                     # Codex skips an untrusted project hook without a word: wired is not live.

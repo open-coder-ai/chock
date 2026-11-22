@@ -18,15 +18,17 @@ from chock.compile.emitters import (
     ci,
     git_hook,
     in_agent,
+    in_agent_prompt_submit,
     mcp_gateway,
 )
-from chock.compile.levels import IN_AGENT_TODAY, Grade, render_grade
+from chock.compile.levels import IN_AGENT_TODAY, PROMPT_SUBMIT_TODAY, Grade, render_grade
 from chock.compile.surfaces import (
     AGENTS_ARG_REQUIRED_MSG,
     SURFACE_AGENTS,
     Surface,
     coverage_cell,
     parse_agent_selection,
+    with_prompt_submit,
 )
 from chock.config import agents_from_config
 from chock.hooks.in_agent_install import WIRED_VENDORS, installed_policy_ids
@@ -43,6 +45,7 @@ EMITTERS: dict[Surface, Any] = {
     Surface.CI_GATE: ci,
     Surface.PRE_TOOL_USE: in_agent.pre_tool_use,
     Surface.STOP: in_agent.stop,
+    Surface.PROMPT_SUBMIT: in_agent_prompt_submit,
     Surface.AMBIENT_RULE: ambient,
     Surface.MCP_GATEWAY: mcp_gateway,
     Surface.AGENT_HOOKS: in_agent.agent_hooks,
@@ -145,15 +148,23 @@ def compile_policy(
         for agent in IN_AGENT_TODAY
         if Surface.AGENT_HOOKS in SURFACE_AGENTS[agent]
     }
+    prompt_submit_for = {
+        agent: policy_id in vendor_installed[CHOCK_AGENT[agent]]
+        for agent in PROMPT_SUBMIT_TODAY
+        if Surface.PROMPT_SUBMIT in SURFACE_AGENTS[agent]
+    }
     ci_installed = ci_workflow_installed(root)
     coverage: dict[str, dict[str, dict[str, object]]] = {policy_id: {}}
     for agent in agent_list:
-        coverage[policy_id][agent] = coverage_cell(
+        cell = coverage_cell(
             selected_set,
             agent,
             pre_tool_use_installed=installed_for.get(agent, False),
             ci_gate_installed=ci_installed,
             agent_hooks_installed=agent_hooks_for.get(agent, False),
+        )
+        coverage[policy_id][agent] = with_prompt_submit(
+            cell, selected_set, agent, installed=prompt_submit_for.get(agent, False)
         )._asdict()
 
     coverage_path = output_root.parent / "coverage.json"

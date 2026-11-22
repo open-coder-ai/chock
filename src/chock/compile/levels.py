@@ -9,7 +9,7 @@ from agentseam import matrix as _matrix
 from agentseam import matrix_terms as _terms
 
 from chock import evidence
-from chock.vendors import CHOCK_AGENT, in_agent_vendors, stop_vendors
+from chock.vendors import CHOCK_AGENT, in_agent_vendors, prompt_submit_vendors, stop_vendors
 
 #: Chock agents with an in-agent pre-tool surface. A narrower concept than `CHOCK_AGENT`
 #: (adapter-instruction coverage): derived by scoping the alias table to the vendors the
@@ -39,6 +39,16 @@ def _stop_can_block(chock_agent: str) -> bool:
     """Whether agentseam's verified matrix confirms `chock_agent` can refuse a finished turn."""
     mapped = CHOCK_AGENT.get(chock_agent) if chock_agent in STOP_TODAY else None
     return bool(mapped) and _matrix.can_block(mapped, _contract.STOP)
+
+
+#: Chock agents whose client can REFUSE a submitted prompt: asked of the matrix at that event, not inherited.
+PROMPT_SUBMIT_TODAY = tuple(sorted(a for a, v in CHOCK_AGENT.items() if v in prompt_submit_vendors()))
+
+
+def _prompt_submit_can_block(chock_agent: str) -> bool:
+    """Whether agentseam's verified matrix confirms `chock_agent` can refuse a submitted prompt."""
+    mapped = CHOCK_AGENT.get(chock_agent) if chock_agent in PROMPT_SUBMIT_TODAY else None
+    return bool(mapped) and _matrix.can_block(mapped, _contract.PROMPT_SUBMIT)
 
 
 DISABLED = "disabled"
@@ -166,6 +176,20 @@ def in_agent_grade(
         weakest_basis(resting_bases(mapped)),
         evidence.witness(mapped, surface) is not None,
         at_commit,
+    )
+
+
+def prompt_submit_grade(agent: str, *, at_commit: bool = False) -> Grade:
+    """The honest grade of an INSTALLED prompt-submit gate on `agent`: the matrix's word at that event, evidence-capped.
+
+    Witnessed only when the ledger holds a live run of chock's prompt-submit hook in that client.
+    """
+    mapped = CHOCK_AGENT.get(agent) if agent in PROMPT_SUBMIT_TODAY else None
+    if not mapped:
+        return Grade("none", None, witnessed=False)
+    level = capped(_matrix.enforcement_level(mapped, _contract.PROMPT_SUBMIT), resting_bases(mapped))
+    return Grade(
+        level, weakest_basis(resting_bases(mapped)), evidence.witness(mapped, "prompt-submit") is not None, at_commit
     )
 
 

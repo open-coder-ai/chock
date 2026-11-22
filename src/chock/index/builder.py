@@ -17,7 +17,9 @@ from chock.output import warn
 
 _ENFORCEMENT_ORDER = {"block": 0, "verify": 1, "advise": 2}
 #: The surfaces that put a gate in the agent's own hooks.
-_IN_AGENT_SURFACES = frozenset({Surface.PRE_TOOL_USE.value, Surface.STOP.value, Surface.AGENT_HOOKS.value})
+_IN_AGENT_SURFACES = frozenset(
+    {Surface.PRE_TOOL_USE.value, Surface.STOP.value, Surface.AGENT_HOOKS.value, Surface.PROMPT_SUBMIT.value}
+)
 
 
 @dataclass
@@ -31,7 +33,7 @@ class IndexEntry:
     description: str
     rule_text: str = ""
     manifest_path: str = ""
-    #: The gate is also compiled for the agent's own hooks (`on: tool_use` or `tool_call`, on a surface
+    #: The gate is also compiled for the agent's own hooks (`on: tool_use`, `tool_call` or `prompt_submit`, on a surface
     #: this repo's config keeps), not only for git.
     in_agent: bool = False
 
@@ -84,7 +86,7 @@ def _one_liner(description: str) -> str:
 def _in_agent(manifest: dict[str, Any], pid: str, config: dict[str, Any]) -> bool:
     """The gate names an in-agent event and the policy's effective surfaces keep an in-agent one."""
     gate = (manifest.get("hook") or {}).get("gate") or {}
-    if not {"tool_use", "tool_call"} & set(gate.get("on") or []):
+    if not {"tool_use", "tool_call", "prompt_submit"} & set(gate.get("on") or []):
         return False
     return bool(_IN_AGENT_SURFACES & set(policy_status(config, pid, manifest)["targets"] or []))
 
