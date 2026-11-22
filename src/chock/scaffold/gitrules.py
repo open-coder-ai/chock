@@ -85,7 +85,7 @@ def _eol(text: str) -> str:
 
 def _append(path: Path, rule: str, comment: str) -> None:
     """Append `rule` under `comment` unless an equivalent line is there; keep the file's line endings."""
-    existing = path.read_text(encoding="utf-8", newline="") if path.exists() else ""
+    existing = path.read_bytes().decode("utf-8") if path.exists() else ""
     if _normal(rule) in {_normal(line) for line in existing.splitlines()}:
         return
     eol = _eol(existing)
@@ -122,7 +122,7 @@ def ensure_git_rules(repo_root: Path, agents: Iterable[str] = ()) -> None:
     """Append whichever of chock's rules the repository's .gitignore does not already carry."""
     repo_root = Path(repo_root)
     gitignore = repo_root / ".gitignore"
-    existing = gitignore.read_text(encoding="utf-8", newline="") if gitignore.exists() else ""
+    existing = gitignore.read_bytes().decode("utf-8") if gitignore.exists() else ""
     eol = _eol(existing)
     present = {_normal(line) for line in existing.splitlines()}
     added = ""
