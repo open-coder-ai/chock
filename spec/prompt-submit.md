@@ -11,8 +11,9 @@ event turns an `ask` into a refusal.
 | `script` | JSON on stdin: `{"event": "prompt_submit", "repo_root": "...", "prompt": "<text>", "session": {"id", "log_path", "tool_use_id"}}` | exit `0` allows, `1` blocks, `3` asks, `4` warns; a crash, timeout or missing script takes the declared `action` |
 
 The refusal is the client's own way of rejecting a prompt (agentseam's rendering for that client),
-carrying the gate's `message`. It never carries the prompt or the text that matched (a script's own
-output is replaced by the `message` if it contains the prompt), and the decision log records the
+carrying the gate's `message`. It never carries the prompt or the text that matched: a script's own words (stdout or stderr) are not
+shown at this event. A script's refusal is the gate's `message`; a crash, timeout or missing script is a fixed
+engine message naming the policy and the cause (exited N, timed out, not installed). And the decision log records the
 policy and the verdict, never the prompt. A prompt the client did not send as text is refused, not allowed.
 
 The hook is written only for clients agentseam grades able to refuse a prompt (`can_block` at

@@ -2866,6 +2866,8 @@ _PROMPT_SCRIPT_KIND = 'script'
 
 _PROMPT_DEFAULT_MESSAGE = 'blocked by a chock prompt_submit gate'
 
+_PROMPT_EXIT_VERDICTS = {0: None, 1: 'deny', 3: 'escalate', 4: 'warn'}
+
 def _prompt_message(spec):
     return str(spec.get('message') or '').strip() or _PROMPT_DEFAULT_MESSAGE
 
@@ -2890,6 +2892,25 @@ def _prompt_regex(spec, prompt, deadline, policy):
         return ('deny', f'content_regex gate {policy}: {why}{_TOOL_CALL_UNDECIDED}')
     return ('deny', _prompt_message(spec)) if hits[0] else None
 
+def _prompt_script(spec, root, payload, deadline, policy):
+    """Run the policy's script on `payload`; only its exit code is used, never its output."""
+    named = str((spec.get('params') or {}).get('script', ''))
+    script = _chock_Path(root) / named
+    refusing = f'chock prompt_submit gate {policy}: script'
+    if not script.is_file():
+        return ('deny', f'{refusing} not installed{_TOOL_CALL_UNDECIDED}')
+    argv, env = isolated_child([sys.executable, str(script)])
+    try:
+        proc = run_tree(argv, input=json.dumps(payload), capture_output=True, text=True, encoding='utf-8', errors='replace', cwd=str(root), env=env, timeout=time_left(deadline, argv), check=False)
+    except _chock_subprocess.TimeoutExpired as exc:
+        return ('deny', f'{refusing} gave no verdict within {allowed_seconds(exc)}{_TOOL_CALL_UNDECIDED}')
+    except OSError as exc:
+        return ('deny', f'{refusing} could not run ({type(exc).__name__}){_TOOL_CALL_UNDECIDED}')
+    if proc.returncode in _PROMPT_EXIT_VERDICTS:
+        verdict = _PROMPT_EXIT_VERDICTS[proc.returncode]
+        return None if verdict is None else (verdict, _prompt_message(spec))
+    return ('deny', f'{refusing} exited {proc.returncode}{_TOOL_CALL_UNDECIDED}')
+
 def _prompt_verdict(spec, root, event, deadline, policy):
     """None to allow, else (verdict, message) for this prompt; a prompt it cannot read refuses."""
     prompt = getattr(event, 'prompt', None)
@@ -2900,14 +2921,8 @@ def _prompt_verdict(spec, root, event, deadline, policy):
         return _prompt_regex(spec, prompt, deadline, policy)
     if kind == _PROMPT_SCRIPT_KIND:
         payload = {'event': PROMPT_SUBMIT_EVENT, 'repo_root': str(root), 'prompt': prompt, 'session': session_for(event, root)}
-        return _tool_call_script(spec, root, payload, deadline)
+        return _prompt_script(spec, root, payload, deadline, policy)
     return ('deny', f'chock prompt_submit gate: kind {kind!r} cannot judge a prompt{_TOOL_CALL_UNDECIDED}')
-
-def _prompt_free(verdict, spec, prompt):
-    """`verdict` with its message swapped for the gate's own when it carries the prompt text."""
-    if verdict is None or not isinstance(prompt, str) or (not prompt.strip()):
-        return verdict
-    return verdict if prompt.strip() not in verdict[1] else (verdict[0], _prompt_message(spec))
 
 def evaluate_prompt_submit(argv, event):
     """The decision a prompt_submit gate earns this prompt, or None: `--prompt-submit <gate>` names the gate."""
@@ -2921,7 +2936,7 @@ def evaluate_prompt_submit(argv, event):
         return None
     policy = gate.parent.parent.name
     verdict = _prompt_verdict(spec, repo_root_for(event, gate), event, engine_deadline(), policy)
-    return _prompt_free(_tool_call_capped(spec, verdict), spec, event.prompt)
+    return _tool_call_capped(spec, verdict)
 
 MULTI_FLAG = '--multi'
 
