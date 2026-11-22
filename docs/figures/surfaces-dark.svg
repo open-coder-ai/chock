@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="760" height="640" viewBox="0 0 760 640" role="img" aria-labelledby="t d">
-  <title id="t">One policy, 9 surfaces</title>
-  <desc id="d">A fan-out diagram: one chock policy compiles into 9 enforcement surfaces. All 20 supported agent names get the advisory ambient rule and the two commit-time gates, git hook and CI gate. 13 also get a native pre-tool-use hook, enforced live in the agent, and 2 (vscode, copilot -- one underlying vendor) get chock's own agent-hooks file, also enforced in-agent. 13 get an end-of-turn hook that reads what the turn wrote: a backstop for what a pre-tool hook cannot see, carrying no coverage grade of its own. Three surfaces are named for honesty though no agent reaches them yet: managed-setting is compiled for Claude but not installed, gateway is modelled but not emitted, and mcp-gateway emits but is not yet credited to any agent.</desc>
+  <title id="t">One policy, 10 surfaces</title>
+  <desc id="d">A fan-out diagram: one chock policy compiles into 10 enforcement surfaces. All 20 supported agent names get the advisory ambient rule and the two commit-time gates, git hook and CI gate. 13 also get a native pre-tool-use hook, enforced live in the agent, and 2 (vscode, copilot -- one underlying vendor) get chock's own agent-hooks file, also enforced in-agent. 9 get a prompt-submit hook that can refuse a prompt, untested in a live client. 13 get an end-of-turn hook that reads what the turn wrote: a backstop for what a pre-tool hook cannot see, carrying no coverage grade of its own. Three surfaces are named for honesty though no agent reaches them yet: managed-setting is compiled for Claude but not installed, gateway is modelled but not emitted, and mcp-gateway emits but is not yet credited to any agent.</desc>
   <rect width="760" height="640" fill="#1a1a19"/>
   <rect x="20" y="20" width="720" height="70" rx="4" fill="#1a1a19" stroke="#3987e5" stroke-width="2"/>
   <text x="36" y="48" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="15" font-weight="600" fill="#ffffff" text-anchor="start">one policy</text>
@@ -29,28 +29,35 @@
   <line x1="620" y1="130" x2="620" y2="150" stroke="#3987e5" stroke-width="2" stroke-linecap="round"/>
   <polygon points="620,150 614,144 626,144" fill="#3987e5"/>
   <line x1="380" y1="115" x2="380" y2="270" stroke="#3987e5" stroke-width="2"/>
-  <line x1="140" y1="270" x2="620" y2="270" stroke="#3987e5" stroke-width="2"/>
-  <rect x="28" y="290" width="224" height="100" rx="4" fill="#1a1a19" stroke="#184f95" stroke-width="2"/>
-  <rect x="28" y="290" width="224" height="5" rx="0" fill="#184f95"/>
-  <text x="40" y="316" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="13" font-weight="600" fill="#ffffff" text-anchor="start">pre-tool-use</text>
-  <text x="40" y="336" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">13 agents</text>
-  <text x="40" y="356" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#184f95" text-anchor="start">enforced in-agent</text>
-  <line x1="140" y1="270" x2="140" y2="290" stroke="#184f95" stroke-width="2" stroke-linecap="round"/>
-  <polygon points="140,290 134,284 146,284" fill="#184f95"/>
-  <rect x="268" y="290" width="224" height="100" rx="4" fill="#1a1a19" stroke="#184f95" stroke-width="2"/>
-  <rect x="268" y="290" width="224" height="5" rx="0" fill="#184f95"/>
-  <text x="280" y="316" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="13" font-weight="600" fill="#ffffff" text-anchor="start">stop</text>
-  <text x="280" y="336" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">13 agents</text>
-  <text x="280" y="356" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#184f95" text-anchor="start">backstop, no grade</text>
-  <line x1="380" y1="270" x2="380" y2="290" stroke="#184f95" stroke-width="2" stroke-linecap="round"/>
-  <polygon points="380,290 374,284 386,284" fill="#184f95"/>
-  <rect x="508" y="290" width="224" height="100" rx="4" fill="#1a1a19" stroke="#184f95" stroke-width="2"/>
-  <rect x="508" y="290" width="224" height="5" rx="0" fill="#184f95"/>
-  <text x="520" y="316" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="13" font-weight="600" fill="#ffffff" text-anchor="start">agent-hooks</text>
-  <text x="520" y="336" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">2 agents</text>
-  <text x="520" y="356" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#184f95" text-anchor="start">enforced in-agent</text>
-  <line x1="620" y1="270" x2="620" y2="290" stroke="#184f95" stroke-width="2" stroke-linecap="round"/>
-  <polygon points="620,290 614,284 626,284" fill="#184f95"/>
+  <line x1="104" y1="270" x2="656" y2="270" stroke="#3987e5" stroke-width="2"/>
+  <rect x="20" y="290" width="168" height="100" rx="4" fill="#1a1a19" stroke="#184f95" stroke-width="2"/>
+  <rect x="20" y="290" width="168" height="5" rx="0" fill="#184f95"/>
+  <text x="32" y="316" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="13" font-weight="600" fill="#ffffff" text-anchor="start">pre-tool-use</text>
+  <text x="32" y="336" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">13 agents</text>
+  <text x="32" y="356" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#184f95" text-anchor="start">enforced in-agent</text>
+  <line x1="104" y1="270" x2="104" y2="290" stroke="#184f95" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="104,290 98,284 110,284" fill="#184f95"/>
+  <rect x="204" y="290" width="168" height="100" rx="4" fill="#1a1a19" stroke="#184f95" stroke-width="2"/>
+  <rect x="204" y="290" width="168" height="5" rx="0" fill="#184f95"/>
+  <text x="216" y="316" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="13" font-weight="600" fill="#ffffff" text-anchor="start">stop</text>
+  <text x="216" y="336" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">13 agents</text>
+  <text x="216" y="356" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#184f95" text-anchor="start">backstop, no grade</text>
+  <line x1="288" y1="270" x2="288" y2="290" stroke="#184f95" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="288,290 282,284 294,284" fill="#184f95"/>
+  <rect x="388" y="290" width="168" height="100" rx="4" fill="#1a1a19" stroke="#184f95" stroke-width="2"/>
+  <rect x="388" y="290" width="168" height="5" rx="0" fill="#184f95"/>
+  <text x="400" y="316" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="13" font-weight="600" fill="#ffffff" text-anchor="start">prompt-submit</text>
+  <text x="400" y="336" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">9 agents</text>
+  <text x="400" y="356" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#184f95" text-anchor="start">in-agent, untested</text>
+  <line x1="472" y1="270" x2="472" y2="290" stroke="#184f95" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="472,290 466,284 478,284" fill="#184f95"/>
+  <rect x="572" y="290" width="168" height="100" rx="4" fill="#1a1a19" stroke="#184f95" stroke-width="2"/>
+  <rect x="572" y="290" width="168" height="5" rx="0" fill="#184f95"/>
+  <text x="584" y="316" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="13" font-weight="600" fill="#ffffff" text-anchor="start">agent-hooks</text>
+  <text x="584" y="336" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#c3c2b7" text-anchor="start">2 agents</text>
+  <text x="584" y="356" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#184f95" text-anchor="start">enforced in-agent</text>
+  <line x1="656" y1="270" x2="656" y2="290" stroke="#184f95" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="656,290 650,284 662,284" fill="#184f95"/>
   <line x1="380" y1="270" x2="380" y2="410" stroke="#3987e5" stroke-width="2"/>
   <line x1="140" y1="410" x2="620" y2="410" stroke="#3987e5" stroke-width="2"/>
   <rect x="28" y="430" width="224" height="100" rx="4" fill="#1a1a19" stroke="#383835" stroke-width="2"/>
