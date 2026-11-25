@@ -100,3 +100,13 @@ def test_together_rings_only_the_replayed_point_and_never_claims_the_rest() -> N
     assert all("could" in r["label"] for r in SPEC_T["dashed"])
     assert "after the key is published" in SPEC_T["backstop"][0]["label"]
     assert "stopped" not in json.dumps(SPEC_T).lower()
+
+
+def test_together_quotes_are_verbatim_and_attributed() -> None:
+    assert [q["text"] for q in SPEC_T["quotes"]] == [
+        "an AI coding agent committed a credential that provided access to the private Hugging Face repository.",
+        "Our automated scanning detected the exposed credential, and we reverted the commit.",
+    ]
+    assert "Together AI incident report, 21 Nov 2026" in SPEC_T["refusal_title"]
+    assert "already public" in SPEC_T["quotes"][1]["note"]
+    assert "Together AI's own words" in _legend(TOGETHER)
