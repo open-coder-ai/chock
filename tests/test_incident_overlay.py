@@ -78,7 +78,7 @@ def _legend(slug: str) -> str:
 
 def test_together_png_exists_and_the_picture_builds() -> None:
     width, height = struct.unpack(">II", PNG_T.read_bytes()[16:24])
-    assert PNG_T.stat().st_size > 10_000 and width == 1760 and height > 2000
+    assert PNG_T.stat().st_size > 10_000 and width == 1760 and 1500 < height < 2602
     assert "Read the report: together.ai/blog" in _legend(TOGETHER)
 
 
@@ -111,3 +111,16 @@ def test_together_quotes_are_verbatim_and_attributed() -> None:
     assert "Together AI incident report, 21 Nov 2026" in SPEC_T["refusal_title"]
     assert "already public" in SPEC_T["quotes"][1]["note"]
     assert "Together AI's own words" in _legend(TOGETHER)
+
+
+def test_dense_option_shortens_the_layout_and_the_default_is_untouched() -> None:
+    script = (
+        "import {layout} from './docs/assets/readme/where-chock-sits.mjs';"
+        "import {readFileSync} from 'node:fs';"
+        "const W = JSON.parse(readFileSync('docs/assets/readme/where-chock-sits.json', 'utf8')), D = JSON.parse(JSON.stringify(W));"
+        "D.harness.dense = true;"
+        "console.log(JSON.stringify([layout(W).Ht, layout(D).Ht]));"
+    )
+    plain, dense = json.loads(_node(script))
+    assert SPEC_T["dense"] is True and "dense" not in SPEC
+    assert dense < plain
