@@ -1,0 +1,1 @@
+- An incident picture for an agent that committed a key to a public repo (`v2/incidents/together-agent-credential.png`), with no product name in it: the incident overlay takes an optional `legend` and `backstop` ring, defaults unchanged.

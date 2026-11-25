@@ -24,13 +24,15 @@ export const checkSpec = (L, spec) => {
   const unknown = [...spec.path.edges, ...spec.steps.map((s) => s.edge)].filter((e) => !EDGES.includes(e));
   if (unknown.length) throw new Error(`unknown edge ${unknown}`);
   const ids = new Set(L.badges.map((b) => b.p.id)), cards = new Set(Object.keys(L.cards));
-  [...spec.rings, ...spec.dashed].filter((r) => !ids.has(r.point)).forEach((r) => { throw new Error(`no badge ${r.point}`); });
+  [...spec.rings, ...spec.dashed, ...(spec.backstop || [])].filter((r) => !ids.has(r.point)).forEach((r) => { throw new Error(`no badge ${r.point}`); });
   spec.path.cards.filter((c) => !cards.has(c)).forEach((c) => { throw new Error(`no card ${c}`); });
 };
 
 export const incident = (page, W, spec, palette = DEFAULT_PALETTE) => {
   const base = JSON.parse(JSON.stringify(W));
   base.harness.title = spec.title;
+  if (spec.legend) base.harness.key = { ...base.harness.key, ...spec.legend };
+  const backstop = spec.backstop || [];
   const L = layout(base);
   checkSpec(L, spec);
   const { paper: PAPER, ink: INK, soft: SOFT, line: LINE } = palette;
@@ -40,13 +42,14 @@ export const incident = (page, W, spec, palette = DEFAULT_PALETTE) => {
   const lines = spec.path.edges.map((e) => `<path d="${edge(e).d}" fill="none" stroke="${RED}" stroke-width="3" stroke-linejoin="round" marker-end="url(#r)"/>`).join('');
   const disc = (x, y, text, size = 20) => abs(x - size / 2, y - size / 2, size, size, `border-radius:50%;background:${RED};color:#fff;font-size:12px;font-weight:700;line-height:${size}px;text-align:center`, esc(text));
   const steps = spec.steps.map((s, i) => { const [x, y] = markAt(edge(s.edge).d); return disc(x, y, i + 1); }).join('');
-  const ringed = (r, i, dashed) => { const b = L.badges.find((q) => q.p.id === r.point), g = 3; return abs(b.x - g, b.y - g, b.w + 2 * g, b.h + 2 * g, `box-sizing:border-box;border:3px ${dashed ? 'dashed' : 'solid'} ${RED};border-radius:999px`) + disc(b.x + b.w + g, b.y - g, String.fromCharCode(65 + i), 18); };
-  const rings = spec.rings.map((r, i) => ringed(r, i, false)).join('') + spec.dashed.map((r, i) => ringed(r, spec.rings.length + i, true)).join('');
+  const ringed = (r, i, kind) => { const b = L.badges.find((q) => q.p.id === r.point), g = 3, c = kind === 'backstop' ? SOFT : RED; return abs(b.x - g, b.y - g, b.w + 2 * g, b.h + 2 * g, `box-sizing:border-box;border:3px ${{ solid: 'solid', dashed: 'dashed', backstop: 'dotted' }[kind]} ${c};border-radius:999px`) + abs(b.x + b.w + g - 9, b.y - g - 9, 18, 18, `border-radius:50%;background:${c};color:#fff;font-size:12px;font-weight:700;line-height:18px;text-align:center`, String.fromCharCode(65 + i)); };
+  const nR = spec.rings.length, nD = spec.dashed.length;
+  const rings = spec.rings.map((r, i) => ringed(r, i, 'solid')).join('') + spec.dashed.map((r, i) => ringed(r, nR + i, 'dashed')).join('') + backstop.map((r, i) => ringed(r, nR + nD + i, 'backstop')).join('');
   const cropH = 78 + L.Ht + 20 + 56;
   const frame = where((body) => body, base, palette);
   const overlay = `<div style="position:absolute;left:20px;top:78px;width:840px;height:${L.Ht}px">${dim}<svg width="840" height="${L.Ht}" style="position:absolute;left:0;top:0" xmlns="http://www.w3.org/2000/svg"><defs>${marker}</defs>${lines}</svg>${steps}${rings}</div>`;
-  const row = (mark, text, round) => `<div style="display:flex;gap:10px;align-items:flex-start;margin-top:8px"><span style="flex:none;width:20px;height:20px;line-height:20px;text-align:center;font-size:12px;font-weight:700;color:#fff;background:${RED};border-radius:${round ? '50%' : '4px'}">${mark}</span><span style="font-size:14px;line-height:20px;color:${INK}">${esc(text)}</span></div>`;
-  const key = spec.steps.map((s, i) => row(i + 1, s.text, true)).join('') + spec.rings.map((r, i) => row(String.fromCharCode(65 + i), r.label, false)).join('') + spec.dashed.map((r, i) => row(String.fromCharCode(65 + spec.rings.length + i), r.label, false)).join('') + (spec.dashed.length ? `<div style="margin-top:10px;font-size:13px;color:${SOFT}">solid ring: a check the proof ran and recorded. dashed ring: a place a rule can be added.</div>` : '');
+  const row = (mark, text, round, bg = RED) => `<div style="display:flex;gap:10px;align-items:flex-start;margin-top:8px"><span style="flex:none;width:20px;height:20px;line-height:20px;text-align:center;font-size:12px;font-weight:700;color:#fff;background:${bg};border-radius:${round ? '50%' : '4px'}">${mark}</span><span style="font-size:14px;line-height:20px;color:${INK}">${esc(text)}</span></div>`;
+  const key = spec.steps.map((s, i) => row(i + 1, s.text, true)).join('') + spec.rings.map((r, i) => row(String.fromCharCode(65 + i), r.label, false)).join('') + spec.dashed.map((r, i) => row(String.fromCharCode(65 + nR + i), r.label, false)).join('') + backstop.map((r, i) => row(String.fromCharCode(65 + nR + nD + i), r.label, false, SOFT)).join('') + (spec.dashed.length ? `<div style="margin-top:10px;font-size:13px;color:${SOFT}">solid ring: a check the proof ran and recorded. dashed ring: a place a rule can be added.</div>` : '');
   const refusals = spec.refusals.length
     ? spec.refusals.map((r) => `<div style="margin-top:10px"><div style="font-size:13px;font-weight:700;color:${SOFT}">${esc(r.sample)}: exit ${esc(r.exit)}</div><pre class="mono" style="margin:4px 0 0;white-space:pre-wrap;font-size:13px;line-height:1.5;color:${INK}">${esc(r.text)}</pre></div>`).join('')
     : `<div class="mono" style="margin-top:10px;font-size:13px;color:${SOFT}">no proof recorded yet</div>`;

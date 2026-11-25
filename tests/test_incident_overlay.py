@@ -11,8 +11,11 @@ import pytest
 from readme_figure_support import ASSETS, FIGURE, ROOT
 
 SLUG = "claude-settings-secrets"
+TOGETHER = "together-agent-credential"
 SPEC = json.loads((ASSETS / "incidents" / f"{SLUG}.json").read_text(encoding="utf-8"))
+SPEC_T = json.loads((ASSETS / "incidents" / f"{TOGETHER}.json").read_text(encoding="utf-8"))
 PNG = ASSETS / "v2" / "incidents" / f"{SLUG}.png"
+PNG_T = ASSETS / "v2" / "incidents" / f"{TOGETHER}.png"
 POINTS = {p["id"] for p in FIGURE["points"]}
 
 
@@ -61,3 +64,39 @@ def test_dashed_labels_never_claim_a_catch() -> None:
 def test_the_product_name_is_only_in_the_footer() -> None:
     text = json.dumps({k: v for k, v in SPEC.items() if k not in ("_", "footer", "alt")}).lower()
     assert "chock" not in text and "chock" in SPEC["footer"].lower()
+
+
+def _legend(slug: str) -> str:
+    script = (
+        "import {incident} from './docs/assets/readme/incident-overlay.mjs';"
+        "import {readFileSync} from 'node:fs';"
+        "const r = (p) => JSON.parse(readFileSync(p, 'utf8'));"
+        f"console.log(incident((b) => b, r('docs/assets/readme/where-chock-sits.json'), r('docs/assets/readme/incidents/{slug}.json')));"
+    )
+    return _node(script)
+
+
+def test_together_png_exists_and_the_picture_builds() -> None:
+    width, height = struct.unpack(">II", PNG_T.read_bytes()[16:24])
+    assert PNG_T.stat().st_size > 10_000 and width == 1760 and height > 2000
+    assert "Source: Together AI incident report" in _legend(TOGETHER)
+
+
+def test_legend_override_is_optional_and_the_default_is_unchanged() -> None:
+    assert "Chock runs here" in _legend(SLUG)
+    assert "Chock runs here" not in _legend(TOGETHER).split("The path")[0]
+
+
+def test_together_has_no_product_name_anywhere_in_its_spec() -> None:
+    assert "chock" not in json.dumps(SPEC_T).lower()
+    assert SPEC_T["footer"] == "Source: Together AI incident report, 21 Nov 2026"
+
+
+def test_together_rings_only_the_replayed_point_and_never_claims_the_rest() -> None:
+    assert [r["point"] for r in SPEC_T["rings"]] == ["git-commit"]
+    assert {r["point"] for r in SPEC_T["dashed"]} == {"pre_tool", "git-push"}
+    assert [r["point"] for r in SPEC_T["backstop"]] == ["ci-gate"]
+    assert {r["point"] for r in SPEC_T["rings"] + SPEC_T["dashed"] + SPEC_T["backstop"]} <= POINTS
+    assert all("could" in r["label"] for r in SPEC_T["dashed"])
+    assert "after the key is published" in SPEC_T["backstop"][0]["label"]
+    assert "stopped" not in json.dumps(SPEC_T).lower()
