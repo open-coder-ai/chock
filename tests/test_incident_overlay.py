@@ -79,7 +79,7 @@ def _legend(slug: str) -> str:
 def test_together_png_exists_and_the_picture_builds() -> None:
     width, height = struct.unpack(">II", PNG_T.read_bytes()[16:24])
     assert PNG_T.stat().st_size > 10_000 and width == 1760 and height > 2000
-    assert "Source: Together AI incident report" in _legend(TOGETHER)
+    assert "Read the report: together.ai/blog" in _legend(TOGETHER)
 
 
 def test_legend_override_is_optional_and_the_default_is_unchanged() -> None:
@@ -89,7 +89,8 @@ def test_legend_override_is_optional_and_the_default_is_unchanged() -> None:
 
 def test_together_has_no_product_name_anywhere_in_its_spec() -> None:
     assert "chock" not in json.dumps(SPEC_T).lower()
-    assert SPEC_T["footer"] == "Source: Together AI incident report, 21 Nov 2026"
+    assert SPEC_T["footer"] == "Read the report: together.ai/blog, Security event: Prompt leakage, 21 Nov 2026"
+    assert SPEC_T["footer_accent"] is True
 
 
 def test_together_rings_only_the_replayed_point_and_never_claims_the_rest() -> None:

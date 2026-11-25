@@ -58,5 +58,5 @@ export const incident = (page, W, spec, palette = DEFAULT_PALETTE) => {
 <div style="position:relative;width:880px;height:${cropH}px;overflow:hidden">${frame}${overlay}</div>
 <div style="padding:0 40px 20px"><div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${SOFT}">${esc(spec.path.title)}</div>${key}
 <div style="margin-top:16px;padding:12px 16px;border:1.5px solid ${LINE};border-radius:12px;background:${palette.chip}"><div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${SOFT}">${esc(spec.refusal_title)}</div>${refusals}</div>
-<div style="margin-top:16px;font-size:16px;color:${SOFT}">${esc(spec.footer)}</div></div></div>`);
+<div style="margin-top:16px;${spec.footer_accent ? `font-size:20px;line-height:1.35;font-weight:700;color:${palette.accent}` : `font-size:16px;color:${SOFT}`}">${esc(spec.footer)}</div></div></div>`);
 };
