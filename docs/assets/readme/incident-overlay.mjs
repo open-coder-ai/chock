@@ -60,25 +60,3 @@ export const incident = (page, W, spec, palette = DEFAULT_PALETTE) => {
 <div style="margin-top:16px;padding:12px 16px;border:1.5px solid ${LINE};border-radius:12px;background:${palette.chip}"><div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${SOFT}">${esc(spec.refusal_title)}</div>${refusals}</div>
 <div style="margin-top:16px;${spec.footer_accent ? `font-size:20px;line-height:1.35;font-weight:700;color:${palette.accent}` : `font-size:16px;color:${SOFT}`}">${esc(spec.footer)}</div></div></div>`);
 };
-
-// A 4:5 version for a social feed (1080x1350): title, quotes, only the cards on the path with their rings, one line per ring, footer. Reads spec.compact {cards, labels, note}; the full picture is unchanged.
-export const compact = (page, W, spec, palette = DEFAULT_PALETTE) => {
-  const { paper: PAPER, ink: INK, soft: SOFT, line: LINE, chip: CHIP, fill: FILL, accent: ACCENT, grey: GREY } = palette, C = spec.compact;
-  const kinds = [...spec.rings.map((r) => [r, 'solid']), ...spec.dashed.map((r) => [r, 'dashed']), ...(spec.backstop || []).map((r) => [r, 'dotted'])];
-  const named = [...W.harness.cards, ...W.harness.repo_cards];
-  const CW = 168, GAP = 36, CH = 220, tone = (k) => (k === 'dotted' ? SOFT : RED);
-  const cards = C.cards.map((id, i) => {
-    const c = named.find((q) => q.id === id), p = W.points.find((q) => q.on === id && kinds.some(([r]) => r.point === q.id)), k = p && kinds.findIndex(([r]) => r.point === p.id);
-    const badge = p ? `<div style="position:absolute;left:8px;right:8px;bottom:16px;height:34px;box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:0 10px;border-radius:999px;background:${CHIP};border:3px ${{ solid: 'solid', dashed: 'dashed', dotted: 'dotted' }[kinds[k][1]]} ${tone(kinds[k][1])};font-size:18px;font-weight:600;color:${p.acts ? ACCENT : GREY}"><span style="flex:none;width:12px;height:12px;transform:rotate(45deg);box-sizing:border-box;border:2px solid ${p.acts ? ACCENT : GREY};background:${p.acts ? ACCENT : PAPER}"></span>${esc(p.label)}<span style="position:absolute;right:-10px;top:-20px;width:28px;height:28px;border-radius:50%;background:${tone(kinds[k][1])};color:#fff;font-size:17px;font-weight:700;line-height:28px;text-align:center">${String.fromCharCode(65 + k)}</span></div>` : '';
-    const arrow = i ? `<svg width="${GAP}" height="20" style="position:absolute;left:${-GAP}px;top:${CH / 2 - 10}px"><path d="M2 10 H${GAP - 4}" stroke="${RED}" stroke-width="4"/><path d="M${GAP - 14} 3 L${GAP - 3} 10 L${GAP - 14} 17" fill="none" stroke="${RED}" stroke-width="4"/></svg>` : '';
-    return `<div style="position:relative;flex:none;width:${CW}px;height:${CH}px">${arrow}<div style="position:absolute;inset:0;box-sizing:border-box;background:${FILL[id]};border:2px solid ${LINE};border-radius:14px;padding:14px 12px"><div style="font-size:23px;font-weight:700;line-height:27px;color:${INK}">${esc(c.name)}</div><div style="font-size:19px;line-height:24px;color:${SOFT};margin-top:6px">${esc(c.line)}</div></div>${badge}</div>`;
-  }).join('');
-  const rows = kinds.map(([r, k], i) => `<div style="display:flex;gap:16px;align-items:center;margin-top:${i ? 14 : 0}px"><span style="flex:none;width:34px;height:34px;line-height:34px;text-align:center;font-size:20px;font-weight:700;color:#fff;background:${tone(k)};border-radius:50%">${String.fromCharCode(65 + i)}</span><span style="font-size:28px;line-height:34px;color:${INK}">${esc(C.labels[i])}</span></div>`).join('');
-  const quotes = spec.quotes.map((q, i) => `<div style="margin-top:14px;font-size:27px;line-height:36px;color:${INK}">“${esc(q.text)}”${i === spec.quotes.length - 1 ? `<div style="margin-top:8px;font-size:24px;font-weight:700;color:${RED}">${esc(C.note)}</div>` : ''}</div>`).join('');
-  return page(`<div id="incident" style="width:1080px;height:1350px;box-sizing:border-box;padding:56px 48px 52px;background:${PAPER};color:${INK};display:flex;flex-direction:column;justify-content:space-between">
-<div style="font-size:42px;line-height:1.2;font-weight:600">${esc(spec.title)}</div>
-<div style="padding:20px 26px 24px;border:2px solid ${LINE};border-radius:16px;background:${CHIP}"><div style="font-size:16px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${SOFT}">${esc(spec.refusal_title)}</div>${quotes}</div>
-<div style="display:flex;gap:${GAP}px;margin-top:6px;margin-bottom:-6px">${cards}</div>
-<div>${rows}</div>
-<div style="font-size:34px;line-height:1.3;font-weight:700;color:${palette.accent}">${esc(spec.footer)}</div></div>`);
-};

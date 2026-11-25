@@ -66,12 +66,12 @@ def test_the_product_name_is_only_in_the_footer() -> None:
     assert "chock" not in text and "chock" in SPEC["footer"].lower()
 
 
-def _legend(slug: str, fn: str = "incident") -> str:
+def _legend(slug: str) -> str:
     script = (
-        f"import {{{fn}}} from './docs/assets/readme/incident-overlay.mjs';"
+        "import {incident} from './docs/assets/readme/incident-overlay.mjs';"
         "import {readFileSync} from 'node:fs';"
         "const r = (p) => JSON.parse(readFileSync(p, 'utf8'));"
-        f"console.log({fn}((b) => b, r('docs/assets/readme/where-chock-sits.json'), r('docs/assets/readme/incidents/{slug}.json')));"
+        f"console.log(incident((b) => b, r('docs/assets/readme/where-chock-sits.json'), r('docs/assets/readme/incidents/{slug}.json')));"
     )
     return _node(script)
 
@@ -111,11 +111,3 @@ def test_together_quotes_are_verbatim_and_attributed() -> None:
     assert "Together AI incident report, 21 Nov 2026" in SPEC_T["refusal_title"]
     assert "already public" in SPEC_T["quotes"][1]["note"]
     assert "Together AI's own words" in _legend(TOGETHER)
-
-
-def test_compact_picture_is_4x5_and_names_no_product() -> None:
-    width, height = struct.unpack(">II", (ASSETS / "v2" / "incidents" / f"{TOGETHER}-compact.png").read_bytes()[16:24])
-    assert (width, height) == (2160, 2700)
-    html = _legend(TOGETHER, "compact")
-    assert "chock" not in html.lower() and "Read the report" in html and "already public when the scan found it" in html
-    assert len(SPEC_T["compact"]["labels"]) == len(SPEC_T["rings"] + SPEC_T["dashed"] + SPEC_T["backstop"])
