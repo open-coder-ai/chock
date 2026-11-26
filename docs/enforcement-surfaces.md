@@ -174,7 +174,7 @@ Which surfaces each agent supports today (from `src/chock/compile/surfaces.py`):
 
 In-agent membership derives from agentseam's matrix: every adapted vendor whose row can block a pre-tool call
 from a repo-level JSON or TOML hook config gets `pre-tool-use` (Copilot CLI and VS Code: `agent-hooks`, chock's
-owned file). `prompt-submit` is derived the same way from the **prompt-submit** row (agentseam grades Cline, Goose and Grok `detect` there: no mark; [spec](../spec/prompt-submit.md)). `stop` is derived the same way from the **turn-end** row, which is a different question with a
+owned file). `prompt-submit` is derived the same way from the **prompt-submit** row (agentseam grades Cline, Goose and Grok `detect` there: no mark; [spec](../spec/prompt-submit.md)). Claude Code's refusal of a prompt is witnessed live (2.1.332, Windows, 2026-11-26); every other client stays untested. `stop` is derived the same way from the **turn-end** row, which is a different question with a
 different answer: Grok and Windsurf can observe a finished turn but not refuse one, so they are `detect` and get
 no column mark. Cursor cannot hold a turn either, but its `stop` hook hands a refusal back to the agent as a
 `followup_message` (witnessed live on 3.21.18), which is `best-effort` and worth a mark: the agent is sent back

@@ -21,6 +21,9 @@ PROMPT_SUBMIT_UNTESTED = (
     "prompt-submit: untested -- no live refusal of a prompt is recorded for this client yet, "
     "so a prompt_submit gate here is wiring, not a witnessed block."
 )
+PROMPT_SUBMIT_WITNESSED = (
+    "prompt-submit: witnessed -- a live refusal of a prompt is recorded for this client ({client}, {date})."
+)
 PROMPT_SUBMIT_NO_HOOK = (
     "prompt-submit: no hook written -- agentseam grades this client detect or none at that event: "
     "it can notice a prompt, not refuse one, so a prompt_submit gate does nothing here."
@@ -41,14 +44,15 @@ def tier_line(vendor: str, event: str = contract.PRE_TOOL, label: str = "pre-too
 def prompt_submit_lines(vendor: str, repo_root: Path | None) -> list[str]:
     """What sync says about prompt-submit gates for `vendor`, only in a repo that compiled one.
 
-    A blocking agent gets agentseam's row and the untested note; a detect-only one is told it got no hook.
+    A blocking agent gets agentseam's row and the witnessed or untested note; a detect-only one is told it got no hook.
     """
     if repo_root is None or not any((Path(repo_root) / ".chock" / "compiled").glob("*/prompt-submit/*-gate.json")):
         return []
     if vendor in vendors.prompt_submit_vendors():
         line = tier_line(vendor, contract.PROMPT_SUBMIT, "prompt-submit")
-        untested = None if evidence.witness(vendor, "prompt-submit") else PROMPT_SUBMIT_UNTESTED
-        return [text for text in (line, untested) if text]
+        seen = evidence.witness(vendor, "prompt-submit")
+        note = PROMPT_SUBMIT_WITNESSED.format(client=seen.client, date=seen.date) if seen else PROMPT_SUBMIT_UNTESTED
+        return [text for text in (line, note) if text]
     return [PROMPT_SUBMIT_NO_HOOK]
 
 

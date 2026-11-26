@@ -22,7 +22,9 @@ Cursor, Devin, Factory Droid, Gemini CLI, OpenHands, Tabnine and Windsurf. Cline
 are graded detect: they can notice a prompt, never refuse one, so they get no entry and `chock sync`
 says so. Junie and Kimi Code keep their hook config in the user's home, and Copilot has no witnessed
 prompt key in chock's own hooks file, so none is written there either. Every grade is agentseam's
-word for the client and is **untested** here until a live refusal is witnessed.
+word for the client. Claude Code is **witnessed**: the owner saw a live refusal on 2026-11-26 (Claude Code 2.1.332,
+Windows). Every other client stays **untested** here until a live refusal is witnessed there; the witness covers neither
+other clients nor other platforms.
 
 `file_changed` is not a gate event: agentseam grades it `detect` for Claude Code, Cursor and Goose,
 so a hook can notice a change after the write but never refuse it; use `tool_use` to refuse a write.

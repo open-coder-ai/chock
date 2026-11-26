@@ -131,7 +131,7 @@ def render(t, _name):
         "get a native pre-tool-use hook, enforced live in the agent, and "
         f"{_surface_count(Surface.AGENT_HOOKS)} (vscode, copilot -- one underlying vendor) get "
         f"chock's own agent-hooks file, also enforced in-agent. {_surface_count(Surface.PROMPT_SUBMIT)} "
-        "get a prompt-submit hook that can refuse a prompt, untested in a live client. "
+        "get a prompt-submit hook that can refuse a prompt, witnessed live in Claude Code and untested in the others. "
         f"{_surface_count(Surface.STOP)} "
         "get an end-of-turn hook that reads what the turn wrote: a backstop for what a pre-tool "
         "hook cannot see, carrying no coverage grade of its own. Three surfaces are named for "
