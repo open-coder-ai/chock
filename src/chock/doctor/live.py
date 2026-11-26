@@ -1,4 +1,4 @@
-"""`chock doctor --live`: run chock's own installed pre-tool hooks as the client calls them, on a canary and a harmless command."""
+"""`chock doctor --live`: run chock's own installed pre-tool and prompt-submit hooks as the client calls them, on a canary and a harmless input."""
 
 from __future__ import annotations
 
@@ -16,35 +16,31 @@ from typing import Any
 import yaml
 
 from chock import vendors
+from chock.doctor import live_prompt
 from chock.doctor.checks import FAIL, INFO, PASS, Check, engine, rebuild
+from chock.doctor.live_exec import BASH, POWERSHELL, PROBE_SESSION, call, own_session, said
 from chock.doctor.payloads import DENY_ON_THE_WIRE, EXIT_2, payload
 from chock.doctor.targets import ROUTE_SYNC, Target
-from chock.gate.guard_runner import bash_candidates
-from chock.gate.runner.journal import LOG_LEVEL_ENV, LOG_OFF
 from chock.hooks import launch
 from chock.hooks.in_agent_install import install_hooks
-from chock.plugin import hook_dir, store
-from chock.plugin.clients import CLIENTS
 from chock.policies import discover_policy_dirs
 from chock.vendored import vendored_differences
 
+PROMPT_REFUSES, PROMPT_ALLOWS, PROMPT_LIVE = (
+    live_prompt.PROMPT_REFUSES,
+    live_prompt.PROMPT_ALLOWS,
+    live_prompt.PROMPT_LIVE,
+)
 REFUSES, ALLOWS, LIVE = "live: refuses the canary", "live: allows a harmless command", "live"
 #: A command every policy lets through: it reads nothing and writes nothing.
 HARMLESS = "echo chock-doctor-live"
-#: Seconds one hook command may take; a client's own timeouts are of this order.
-TIMEOUT = 60
 #: The exit code every client reads as a refusal.
 REFUSAL_EXIT = 2
-#: The probe logs nothing, so the decision log never holds a refusal no agent asked for.
-QUIET = {LOG_LEVEL_ENV: LOG_OFF}
 _REFERENCE = re.compile(r'--(guard|multi)\s+"?([^"\s]+)"?')
+#: Why a plugin's hook commands are not run: its hook file can be re-rendered only from the catalog it was built from.
+PLUGIN_SKIP = "plugin route: chock cannot re-render a plugin's hook commands without fetching its catalog"
 _TOOL_KEYS = ("tool_name", "toolName")
 _ANY = (None, "", "*")
-#: The per-shell keys a hook entry may carry in place of `command` (Copilot's `bash` and `powershell`).
-BASH, POWERSHELL = "bash", "powershell"
-#: The probe's own session: its calls never join a real session's log, and that file is removed afterwards.
-PROBE_SESSION = "chock-doctor-live"
-_SESSION_KEYS = ("session_id", "sessionId", "conversation_id", "conversationId", "trajectory_id")
 _STATE = (".chock", "state")
 
 
@@ -101,6 +97,14 @@ def commands(target: Target) -> list[tuple[str, str]]:
     sample = payload(target.agent, HARMLESS) if target.agent in DENY_ON_THE_WIRE else {}
     tool = next((sample[k] for k in _TOOL_KEYS if isinstance(sample.get(k), str)), None)
     return [c for part in _under(doc, vendors.shell_gate_event(target.agent)) for c in _collect(part, tool)]
+
+
+def prompt_commands(target: Target) -> list[tuple[str, str]]:
+    """The prompt-submit entries the client runs, read from the very file it reads; none where chock writes none."""
+    if target.agent not in vendors.prompt_submit_vendors():
+        return []
+    doc = _document(target.hooks)
+    return [c for part in _under(doc, vendors.prompt_submit_event(target.agent)) for c in _collect(part, None)]
 
 
 def rendered(target: Target) -> set[tuple[str, str]]:
@@ -168,43 +172,8 @@ def canary(target: Target, repo: Path, found: list[tuple[str, str]]) -> tuple[st
     return None
 
 
-def _argv(agent: str, key: str, command: str) -> list[str] | str:
-    """The shell the client runs a hook in on this OS: sh on POSIX; on Windows PowerShell for a `powershell` entry,
-    cmd.exe where the store says so, else Git Bash."""
-    if os.name != "nt":
-        return [shutil.which("sh") or "sh", "-c", command]
-    if key == POWERSHELL:
-        return [shutil.which("powershell") or "powershell", "-NoProfile", "-Command", command]
-    cmd = any(c.agent == agent and store.windows_hook_command(f) == hook_dir.QUOTE_FREE for f, c in CLIENTS.items())
-    bash = [] if cmd else bash_candidates()
-    return [bash[0], "-c", command] if bash else command
-
-
 def _probe(agent: str, asked: str, repo: Path) -> dict[str, Any]:
-    sent = payload(agent, asked, repo.as_posix())
-    named = [key for key in _SESSION_KEYS if key in sent] or [_SESSION_KEYS[0]]
-    return {**sent, **dict.fromkeys(named, PROBE_SESSION)}
-
-
-def _call(target: Target, repo: Path, entry: tuple[str, str], asked: str) -> subprocess.CompletedProcess | str:
-    """One hook command's answer to `asked`, or why it gave none."""
-    argv = _argv(target.agent, *entry)
-    try:
-        return subprocess.run(  # noqa: S603 -- a hook command this engine rendered, byte-equal, as the client runs it
-            argv,
-            shell=isinstance(argv, str),
-            cwd=repo,
-            env={**os.environ, **QUIET},
-            input=json.dumps(_probe(target.agent, asked, repo)),
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=TIMEOUT,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        return f"{type(exc).__name__}: {exc}"
+    return own_session(payload(agent, asked, repo.as_posix()))
 
 
 def refused(agent: str, done: subprocess.CompletedProcess) -> bool:
@@ -213,54 +182,48 @@ def refused(agent: str, done: subprocess.CompletedProcess) -> bool:
     return done.returncode == REFUSAL_EXIT or (word != EXIT_2 and done.returncode == 0 and f'"{word}"' in done.stdout)
 
 
-def _said(done: subprocess.CompletedProcess | str) -> str:
-    if isinstance(done, str):
-        return done
-    text = (done.stderr.strip() or done.stdout.strip()).splitlines()
-    return f"exit {done.returncode}" + (f": {text[0][:160]}" if text else "")
-
-
 def _refuses(target: Target, repo: Path, found: list[tuple[str, str]], probe: tuple[str, str] | None) -> Check:
     if probe is None:
         return Check(INFO, LIVE, "skipped (no in-agent policy installed on its shell tool)")
     policy, case = probe
-    answers = [_call(target, repo, c, case) for c in found]
+    answers = [call(target, repo, c, _probe(target.agent, case, repo)) for c in found]
     for done in answers:
         if not isinstance(done, str) and refused(target.agent, done) and policy in done.stdout + done.stderr:
             return Check(PASS, REFUSES, f"{policy} refused `{case}`")
-    return Check(FAIL, REFUSES, f"{policy} did not refuse `{case}`: {_said(answers[0])}", rebuild(target))
+    return Check(FAIL, REFUSES, f"{policy} did not refuse `{case}`: {said(answers[0])}", rebuild(target))
 
 
 def _allows(target: Target, repo: Path, found: list[tuple[str, str]]) -> Check:
-    for done in (_call(target, repo, c, HARMLESS) for c in found):
+    for done in (call(target, repo, c, _probe(target.agent, HARMLESS, repo)) for c in found):
         if isinstance(done, str) or done.returncode != 0 or refused(target.agent, done):
-            return Check(FAIL, ALLOWS, f"`{HARMLESS}` was not allowed: {_said(done)}", rebuild(target))
+            return Check(FAIL, ALLOWS, f"`{HARMLESS}` was not allowed: {said(done)}", rebuild(target))
     return Check(PASS, ALLOWS, f"`{HARMLESS}` allowed by {len(found)} hook command(s)")
 
 
-def _runnable(target: Target) -> tuple[list[tuple[str, str]], list[Check]]:
-    """(chock's own pre-tool entries, the rows that say what was not run); no entries when nothing may run."""
+def _runnable(target: Target) -> tuple[list[tuple[str, str]], list[tuple[str, str]], list[Check]]:
+    """(chock's own pre-tool entries, its prompt-submit entries, the rows that say what was not run)."""
     if target.route != ROUTE_SYNC:
-        return [], [Check(INFO, LIVE, "skipped (plugin route: chock cannot re-render a plugin's hook commands)")]
+        return [], [], [Check(INFO, LIVE, f"skipped ({PLUGIN_SKIP})")]
     if target.agent not in DENY_ON_THE_WIRE:
-        return [], [Check(INFO, LIVE, f"skipped (no recorded {target.agent} pre-tool payload)")]
+        return [], [], [Check(INFO, LIVE, f"skipped (no recorded {target.agent} pre-tool payload)")]
     if not own_runtime(target):
-        return [], [Check(INFO, LIVE, "skipped (runtime is not this engine's)", rebuild(target))]
+        return [], [], [Check(INFO, LIVE, "skipped (runtime is not this engine's)", rebuild(target))]
     try:
-        found, ours = commands(target), rendered(target)
+        found, prompts, ours = commands(target), prompt_commands(target), rendered(target)
     except (OSError, ValueError, tomllib.TOMLDecodeError) as exc:
-        return [], [Check(FAIL, LIVE, f"{target.hooks} is unreadable ({exc})", rebuild(target))]
+        return [], [], [Check(FAIL, LIVE, f"{target.hooks} is unreadable ({exc})", rebuild(target))]
     mine = [entry for entry in found if entry in ours]
-    other = len(found) - len(mine)
+    prompt_mine = [entry for entry in prompts if entry in ours]
+    other = len(found) + len(prompts) - len(mine) - len(prompt_mine)
     rows = [Check(INFO, LIVE, f"{other} other hook command(s) not run (not chock's)")] if other else []
     if not mine:
         rows.append(Check(FAIL, LIVE, f"{target.hooks} holds no pre-tool command chock renders", rebuild(target)))
-    return mine, rows
+    return mine, prompt_mine, rows
 
 
 def run(target: Target, repo: Path) -> list[Check]:
-    """The two live rows for one target, after a row for anything not run; or the one row that says why nothing ran."""
-    found, rows = _runnable(target)
+    """The live rows for one target, after a row for anything not run; or the one row that says why nothing ran."""
+    found, prompts, rows = _runnable(target)
     if not found:
         return rows
     logs = [
@@ -268,7 +231,8 @@ def run(target: Target, repo: Path) -> list[Check]:
     ]
     fresh = [path for path in logs if not path.exists()]
     try:
-        return [*rows, _refuses(target, repo, found, canary(target, repo, found)), _allows(target, repo, found)]
+        pre = [_refuses(target, repo, found, canary(target, repo, found)), _allows(target, repo, found)]
+        return [*rows, *pre, *live_prompt.rows(target, repo, prompts)]
     finally:
         for path in fresh:
             path.unlink(missing_ok=True)
