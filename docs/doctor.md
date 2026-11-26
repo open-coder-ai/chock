@@ -58,6 +58,6 @@ Every target ends with one row, `armed`, and `--json` carries it as `"armed": "y
 - `unknown`: anything else, and the row says which row left it so (a skipped live run, a heartbeat
   that is `WARN` or `INFO`, `--live` not given).
 
-The heartbeat proves the client calls the hook; live proves the hook refuses. Only both together
+The heartbeat shows the client runs chock's hooks; it does not show which event fired, so `yes` does not prove the client calls the prompt-submit hook in particular. Live proves the hook refuses. Only both together
 are `yes`, so a fresh install reads `unknown` until a session has started. The exit code is unchanged:
 1 on any `FAIL`.

@@ -35,4 +35,8 @@ def answer(found: list[Check]) -> tuple[str, Check]:
     missing = _first_missing(found, REQUIRED + (PROMPT_ROWS if prompt_hooked else ()))
     if missing:
         return UNKNOWN, Check(INFO, ARMED, f"{UNKNOWN}: {missing}")
-    return YES, Check(PASS, ARMED, f"{YES}: the hooks refuse and allow as they should, and the client has called them")
+    return YES, Check(
+        PASS,
+        ARMED,
+        f"{YES}: the hooks refuse and allow as they should, and the client has called chock's hooks since a session started",
+    )
