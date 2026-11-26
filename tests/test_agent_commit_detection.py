@@ -192,6 +192,45 @@ def test_the_escape_hatch_does_not_open_in_an_agents_terminal(tmp_path: Path, mo
     assert run(_waivable_gate(repo), "pre-commit", None, repo) == 0
 
 
+# --- the note names only a waiver an agent could have used (chock#238) ----------------------------
+
+
+def _unwaivable_gate(repo: Path) -> Path:
+    """The reporter's policy: a `content_regex` with no `allowlist_pragma`, so no waiver exists to be refused."""
+    params = {"content_pattern": r'"select "\s*\+'}
+    spec = {"kind": "content_regex", "on": ["commit"], "action": "block", "message": "sql", "params": params}
+    gate = repo / "gate.json"
+    gate.write_text(json.dumps(spec), encoding="utf-8")
+    return gate
+
+
+def test_an_agent_commit_refused_by_a_policy_without_a_pragma_prints_no_waiver_note(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    repo = init_repo(tmp_path)
+    _stage_waived(repo)
+    monkeypatch.setenv("CLAUDECODE", "1")
+    assert run(_unwaivable_gate(repo), "pre-commit", None, repo) == 1
+    err = capsys.readouterr().err
+    assert "sql" in err
+    assert "treated as an agent's" not in err
+    assert "not honoured" not in err
+    assert "from their own shell" not in err
+
+
+def test_the_same_policy_with_a_pragma_prints_the_note(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    """The control for the test above: only the `allowlist_pragma` differs."""
+    repo = init_repo(tmp_path)
+    _stage_waived(repo)
+    monkeypatch.setenv("CLAUDECODE", "1")
+    assert run(_waivable_gate(repo), "pre-commit", None, repo) == 1
+    err = capsys.readouterr().err
+    assert "treated as an agent's (CLAUDECODE=1)" in err
+    assert "not honoured" in err
+
+
 # --- the evidence ---------------------------------------------------------------------------------
 
 
