@@ -89,5 +89,12 @@
     "client": "Codex CLI 0.169.0, Windows",
     "date": "2026-11-14",
     "method": "live probe: the repo's PreToolUse hook refused `git commit --no-verify` and no commit was made, after the project's hooks were trusted (chock cc127e4)"
+  },
+  {
+    "agent": "claude_code",
+    "surface": "prompt-submit",
+    "client": "Claude Code 2.1.332, Windows",
+    "date": "2026-11-26",
+    "method": "live probe of a `scan-secrets-prompt` gate at UserPromptSubmit. A prompt holding a random AWS-shaped key was refused before the model saw it: Claude Code showed \"UserPromptSubmit operation blocked by hook: A credential was found in this prompt, so it was not sent. Remove it and submit again; if it was a real credential, rotate it, because it may already sit in a terminal history or a log.\", the model did not answer, and a prompt without a key was answered normally. The last decision-log line was `prompt_submit`, `scan-secrets-prompt`, `block`, with no prompt text. Catalog 57d4a27, scan-secrets-prompt 0.0.1, engine c684731. Not covered: other clients and other platforms (org-plan witness/prompt-submit/2026-11-26-claude-code-scan-secrets-prompt.md, d7b19f1)"
   }
 ]

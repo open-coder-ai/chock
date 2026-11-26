@@ -23,12 +23,17 @@ from prompt_submit_support import (
 )
 from tool_call_support import POLICY_ID, fire, make_repo
 
-from chock import vendors
+from chock import evidence, vendors
 from chock.compile.levels import PROMPT_SUBMIT_TODAY
 from chock.compile.surfaces import SURFACE_AGENTS, Surface
 from chock.hooks.in_agent_install import WIRED_VENDORS, install_hooks, installed_policy_ids
 from chock.hooks.runtime_vendor import vendor_runtime
-from chock.hooks.sync_notes import PROMPT_SUBMIT_NO_HOOK, PROMPT_SUBMIT_UNTESTED, prompt_submit_lines
+from chock.hooks.sync_notes import (
+    PROMPT_SUBMIT_NO_HOOK,
+    PROMPT_SUBMIT_UNTESTED,
+    PROMPT_SUBMIT_WITNESSED,
+    prompt_submit_lines,
+)
 from chock.resources import package_data_dir
 
 # --- which agents get a hook ----------------------------------------------------------------------
@@ -89,12 +94,26 @@ def test_a_policy_gating_prompt_submit_and_tool_use_is_wired_at_both_events(tmp_
 # --- the label ------------------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("vendor", sorted(BLOCKING))
+WITNESSED = {v for v in BLOCKING if evidence.witness(v, "prompt-submit")}
+
+
+def test_only_claude_code_has_a_witnessed_prompt_refusal() -> None:
+    assert WITNESSED == {"claude_code"}
+
+
+@pytest.mark.parametrize("vendor", sorted(BLOCKING - WITNESSED))
 def test_a_blocking_agent_is_labelled_with_agentseams_grade_and_untested(tmp_path: Path, vendor: str) -> None:
     repo = make_repo(tmp_path, prompt_gate())
     lines = prompt_submit_lines(vendor, repo)
     assert lines[0].startswith("prompt-submit: ") and "agentseam basis" in lines[0]
     assert lines[-1] == PROMPT_SUBMIT_UNTESTED
+
+
+def test_claude_codes_prompt_gate_is_labelled_witnessed_not_untested(tmp_path: Path) -> None:
+    lines = prompt_submit_lines("claude_code", make_repo(tmp_path, prompt_gate()))
+    assert lines[0].startswith("prompt-submit: ") and "agentseam basis" in lines[0]
+    assert lines[-1] == PROMPT_SUBMIT_WITNESSED.format(client="Claude Code 2.1.332, Windows", date="2026-11-26")
+    assert PROMPT_SUBMIT_UNTESTED not in lines
 
 
 @pytest.mark.parametrize("vendor", sorted(DETECT_ONLY))
@@ -116,7 +135,7 @@ def test_coverage_credits_prompt_submit_only_to_agents_that_can_refuse(tmp_path:
 
     policy = repo / ".agents" / "policies" / POLICY_ID
     cells = compile_policy(policy, output_root=repo / ".chock" / "compiled", repo_root=repo).coverage[POLICY_ID]
-    assert cells["claude"]["level"] == "best-effort" and cells["claude"]["witnessed"] is False
+    assert cells["claude"]["level"] == "best-effort" and cells["claude"]["witnessed"] is True
     assert cells["cursor"]["level"] == "enforceable" and cells["cursor"]["witnessed"] is False
     assert cells["goose"]["level"] != "best-effort" and cells["grok"]["level"] != "best-effort"
     assert cells["copilot"]["level"] not in {"best-effort", "enforceable"}
