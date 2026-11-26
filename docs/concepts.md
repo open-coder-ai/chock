@@ -180,8 +180,11 @@ mode in the 2026-11-20 witness.
 | Gateway | blocked | `[<id>] <message> (asks a person; the gateway cannot prompt, so it blocks)` | `test_gateway_ask_blocks_and_says_so` |
 | Stop | a warning | `chock <id> asks a person; the turn has ended and nobody can answer, so this is a warning` | `test_stop_ask_is_a_warning_that_says_so` |
 | `tool_use` | exit 3: the client prompts, in every mode | `Chock policy <id> asks: <message>` | `test_tool_use_ask_prompts_in_every_mode`, `test_a_write_gate_ask_names_the_policy_and_its_message` |
+| `tool_use` in an unattended agent session | the client's prompt waits for a person, with no time limit; the call neither runs nor is refused | `Chock policy <id> asks: <message>` | none: seen 2026-11-26, Claude Code 2.1.332 (auto mode, cloud session), not tested |
 
 A CI refusal of work a person approved at commit would be a false refusal, so `ci` passes with a note.
+
+Run an unattended agent, where nobody can answer a prompt, only with policies that block rather than ask, or expect it to stop.
 
 ## What counts as an added line
 
