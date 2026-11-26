@@ -9,7 +9,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from chock.display import inert
-from chock.doctor import checks, live
+from chock.doctor import armed, checks, live, live_prompt
 from chock.doctor.targets import plugin_targets, sync_targets
 from chock.stop_everywhere import everywhere_line
 
@@ -19,12 +19,14 @@ def _say(line: str) -> None:
 
 
 _LIVE_HELP = (
-    "also run chock's own pre-tool hook commands, only those byte-equal to what this engine renders and only when "
-    "the launcher and runtime are this engine's, as the client's config file writes them, from the repo: once on "
-    "the first refusing eval case of the first policy they run (it must refuse) and once on "
-    f"`{live.HARMLESS}` (it must allow). Any other hook command is counted, never run. The installed policies' "
-    "guard code runs, as it does in `chock check` evals. It starts no client, sends nothing anywhere and logs "
-    "nothing. It does not prove the client calls the hook: that is the heartbeat row"
+    "also run chock's own hook commands, only those byte-equal to what this engine renders and only when "
+    "the launcher and runtime are this engine's, as the client's config file writes them, from the repo: pre-tool "
+    "once on the first refusing eval case of the first policy they run (it must refuse) and once on "
+    f"`{live.HARMLESS}` (it must allow); prompt-submit likewise on a policy's refusing eval prompt and "
+    f"`{live_prompt.HARMLESS_PROMPT}`. Any other hook command is counted, never run, and a plugin's are never run. The "
+    "installed policies' guard code runs, as it does in `chock check` evals. It starts no client, sends nothing "
+    "anywhere and logs nothing. Every target ends with an `armed` row, yes, no or unknown: yes needs these probes "
+    "and the heartbeat, which proves the client calls the hook"
 )
 
 
@@ -56,9 +58,12 @@ def main(argv: list[str] | None = None) -> int:
         found = checks.run(target, repo, max(1, args.sessions), args.client_version)
         if args.live:
             found += live.run(target, repo)
+        verdict, row_armed = armed.answer(found)
+        found.append(row_armed)
         failed = failed or any(c.status == checks.FAIL for c in found)
         if args.json:
             row = {"client": target.client, "agent": target.agent, "route": target.route, "root": str(target.root)}
+            row["armed"] = verdict
             _say(json.dumps({**row, "checks": [asdict(c) for c in found]}))
             continue
         _say(f"{target.client} [{target.route}] {target.root}")
