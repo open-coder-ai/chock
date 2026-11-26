@@ -1,0 +1,1 @@
+- The ask table in docs/concepts.md gains a row for `tool_use` in an unattended agent session: the client's prompt waits for a person with no time limit, so the call neither runs nor is refused. Recorded as seen (Claude Code 2.1.332, auto mode, cloud session, 2026-11-26), not tested; run an unattended agent only with policies that block, not ask.
