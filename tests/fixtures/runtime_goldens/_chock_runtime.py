@@ -1318,13 +1318,33 @@ def created_text(event):
     tool_input = _edit_call_input(event)
     return next((text for text in map(tool_input.get, _CREATE_KEYS) if isinstance(text, str)), None)
 
+def without_moved(added, removed):
+    """`added` lines minus those a removed line equals once stripped: a moved or re-indented line is not added.
+
+    One for one: each removed line cancels at most one added line, so a copy that keeps its original stays.
+    """
+    budget = {}
+    for line in removed:
+        budget[line.strip()] = budget.get(line.strip(), 0) + 1
+    kept = []
+    for line in added:
+        if budget.get(line.strip()):
+            budget[line.strip()] -= 1
+        else:
+            kept.append(line)
+    return kept
+
 def added_from_event(event):
-    """What an edit call introduces -- what `added_lines` means for it -- or {} for any other call."""
+    """What an edit call introduces -- what `added_lines` means for it -- or {} for any other call.
+
+    The lines of its new text that its old text does not already hold, so a line it only moves is not added.
+    """
     replacements = edit_replacements(event)
     path = getattr(event, 'path', None)
     if replacements is None or not path:
         return {}
-    return {str(path): '\n'.join((new for _, new, _ in replacements))}
+    added = [line for old, new, _ in replacements for line in without_moved(new.splitlines(), old.splitlines())]
+    return {str(path): '\n'.join(added)}
 
 _PATCH_SPACE = '\t\n\x0b\x0c\r \x85\xa0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000'
 
@@ -1493,7 +1513,7 @@ def _patch_not_empty(state, text):
         _patch_refuse(state['number'], text, 'a hunk has no lines')
 
 def _patch_chunk(op, context=None):
-    chunk = {'context': context, 'old': [], 'new': [], 'pairs': [], 'eof': False, 'added': []}
+    chunk = {'context': context, 'old': [], 'new': [], 'pairs': [], 'eof': False, 'added': [], 'removed': []}
     op['body'].append(chunk)
     return chunk
 
@@ -1529,6 +1549,8 @@ def _patch_change(op, line):
         chunk['new'].append(text)
     if kind == '+':
         chunk['added'].append(text)
+    elif kind == '-':
+        chunk['removed'].append(text)
     return True
 
 def _patch_update_line(state, op, line):
@@ -1657,7 +1679,7 @@ def patch_added(event):
         if op == 'add':
             added[key] = '\n'.join(body)
         elif op == 'update':
-            lines = [line for chunk in body for line in chunk['added']]
+            lines = without_moved([line for chunk in body for line in chunk['added']], [line for chunk in body for line in chunk['removed']])
             added[key] = '\n'.join(filter(None, (added.get(key, ''), *lines)))
     return added
 

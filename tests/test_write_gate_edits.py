@@ -51,8 +51,8 @@ def test_an_edit_is_judged_as_the_whole_file_it_leaves(tmp_path: Path) -> None:
     assert write_gate.writes_from_event(_claude_edit(), root) == {REPO: BEFORE.replace(FRAGMENT_OLD, FRAGMENT_NEW)}
 
 
-def test_the_edit_fragment_alone_is_still_what_added_lines_means(tmp_path: Path) -> None:
-    assert write_gate.added_from_event(_claude_edit()) == {REPO: FRAGMENT_NEW}
+def test_the_edit_fragment_less_the_lines_it_keeps_is_what_added_lines_means(tmp_path: Path) -> None:
+    assert write_gate.added_from_event(_claude_edit()) == {REPO: BAD.rstrip("\n")}
 
 
 def test_replace_all_replaces_every_occurrence_and_the_default_the_first(tmp_path: Path) -> None:

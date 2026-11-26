@@ -165,3 +165,34 @@ upgrade — which is precisely what makes customisation impossible. See [Policie
 The per-agent wrapper that points an agent at `AGENTS.md` (the compiled source of truth) in the
 format that agent expects — root `CLAUDE.md` for Claude Code, `CONVENTIONS.md` for Aider, and so
 on. Most agents read `AGENTS.md` natively and get no wrapper at all. See [Adapters](adapters/README.md).
+
+## What an ask does where nobody can answer
+
+A gate whose `action` is `ask` puts the decision to a person. Where no person can answer, the surface says
+what it did, naming the policy. No surface reads the client's permission mode: Claude Code prompted in every
+mode in the 2026-11-20 witness.
+
+| Surface | What an ask does | The text | Test |
+|---|---|---|---|
+| Git hooks | exit 1: refused | `gate: <id> asks a person to decide, and a hook cannot prompt, so this was refused.` plus the person-only way forward | `test_git_hook_ask_is_refused_and_says_so` |
+| `ci` event | an annotation, exit 0: passes with a note | `chock <id> asks a person; CI cannot ask, so this passed with this note` | `test_ci_ask_passes_with_a_note_that_names_the_policy` |
+| `--floor` | refused | `chock <id> asks a person; CI cannot ask, so the floor refused` | `test_floor_ask_refuses_and_says_so` |
+| Gateway | blocked | `[<id>] <message> (asks a person; the gateway cannot prompt, so it blocks)` | `test_gateway_ask_blocks_and_says_so` |
+| Stop | a warning | `chock <id> asks a person; the turn has ended and nobody can answer, so this is a warning` | `test_stop_ask_is_a_warning_that_says_so` |
+| `tool_use` | exit 3: the client prompts, in every mode | `Chock policy <id> asks: <message>` | `test_tool_use_ask_prompts_in_every_mode`, `test_a_write_gate_ask_names_the_policy_and_its_message` |
+
+A CI refusal of work a person approved at commit would be a false refusal, so `ci` passes with a note.
+
+## What counts as an added line
+
+A line the change only moves or re-indents is not added. On commit, push, `ci` and `--floor`, an added line
+is unchanged when the same change removes an equal line, in any file of the change, after stripping leading
+and trailing whitespace. On an agent write the equal line must be in the file's old content, or in the edit's
+`old_string`. Each removed line cancels at most one added line, so a copy that keeps its original is still
+added; a line that is also edited is still added; whitespace inside a line counts; re-quoting is not covered.
+Script gates keep their own `(path, key)` baseline. The `--floor` per-commit history pass judges whole blobs
+and is unchanged: a re-indented file or a block moved to another file is still named there.
+
+`--floor` honours a waiver only when the base branch already has it. A waiver the pull request adds is refused,
+and the refusal says so and how a person lands it: commit the waiver to the base branch from their own shell,
+then re-run the check.

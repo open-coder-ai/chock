@@ -15,7 +15,8 @@ from .constants import (
     STOP_EVENT,
     WRITE_PATH_KINDS,
 )
-from .context import GateContext, WriteContext
+from .context import GateContext
+from .writecontext import WriteContext
 
 
 # >>> gate.py 12

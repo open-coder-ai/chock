@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 
 
 # >>> gate.py 22
@@ -75,6 +76,41 @@ def _diff_sides(text: str) -> tuple[list[str], list[str]]:
         msg = "git diff ends inside a hunk"
         raise DiffError(msg)
     return sides
+
+
+def _diff_chunks(text: str) -> list[str]:
+    """`text` split into one unified diff per file, at each line that opens a file's `diff --git` header."""
+    starts = [match.start() for match in re.finditer(r"^diff --git ", text, re.MULTILINE)]
+    if text and (not starts or starts[0]):
+        msg = "git diff has a line outside any file"
+        raise DiffError(msg)
+    return [text[a:b] for a, b in zip(starts, [*starts[1:], len(text)], strict=True)]
+
+
+def _drop_moved(lines: list[str], budget: dict[str, int]) -> list[str]:
+    """`lines` without the ones `budget` still owes cancelling, spending it one for one."""
+    kept = []
+    for line in lines:
+        key = line.strip()
+        if budget.get(key):
+            budget[key] -= 1
+        else:
+            kept.append(line)
+    return kept
+
+
+def cancel_moved(files: list[tuple[list[str], list[str]]]) -> list[tuple[list[str], list[str]]]:
+    """Each file's (added, removed) without the lines the change only moves or re-indents.
+
+    An added line cancels against one removed line equal to it after stripping leading and trailing
+    whitespace, in any file of the change; each removed line cancels at most one added line. The
+    removed side drops the same pairs, so a moved line is neither added nor removed.
+    """
+    adds = Counter(line.strip() for added, _ in files for line in added)
+    gone = Counter(line.strip() for _, removed in files for line in removed)
+    pairs = dict(adds & gone)
+    add_budget, gone_budget = dict(pairs), dict(pairs)
+    return [(_drop_moved(added, add_budget), _drop_moved(removed, gone_budget)) for added, removed in files]
 
 
 def _nul_paths(out: bytes) -> list[str]:

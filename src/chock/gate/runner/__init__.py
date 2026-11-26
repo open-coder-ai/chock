@@ -37,11 +37,12 @@ from .constants import (
     WAIVABLE_EVENTS,
     WRITE_PATH_KINDS,
 )
-from .context import GateContext, GateResult, WriteContext
+from .context import GateContext, GateResult
 from .kinds import EXTRACTORS, KINDS
 from .material import own_paths
 from .report import _annotation, _cell, _encodable, _reason, _repo_relative, ci_inert
 from .verdict import Evaluation, _policy_id, _verdict, evaluate, judge, run, script_verdict
+from .writecontext import WriteContext
 
 __all__ = [
     "ACTION_ASK",

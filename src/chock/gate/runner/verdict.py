@@ -43,6 +43,7 @@ from .report import (
     _github_actions,
     _reason,
     _report_refusal,
+    ask_note,
     ci_inert,
     inert,
 )
@@ -71,6 +72,7 @@ def _verdict(result: GateResult, declared: str, level: str = ROLLOUT_ENFORCE) ->
 def _deliver(verdict: str, result: GateResult, spec: dict, event: str, policy_id: str | None) -> int:
     """Report a `warn` or `ask` in this event's own channel and return its exit code."""
     reason = _reason(result, spec, TOOL_USE_EVENT if event in AGENT_EVENTS else event, policy_id)
+    reason = ask_note(reason, event, policy_id) if verdict == ACTION_ASK else reason
     if event in AGENT_EVENTS:
         print(reason, file=sys.stderr)
         # The turn's end has nobody to ask and nothing to withhold: a Stop ask is a warning.

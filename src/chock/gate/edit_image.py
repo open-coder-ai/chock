@@ -99,10 +99,31 @@ def created_text(event):
     return next((text for text in map(tool_input.get, _CREATE_KEYS) if isinstance(text, str)), None)
 
 
+def without_moved(added, removed):
+    """`added` lines minus those a removed line equals once stripped: a moved or re-indented line is not added.
+
+    One for one: each removed line cancels at most one added line, so a copy that keeps its original stays.
+    """
+    budget = {}
+    for line in removed:
+        budget[line.strip()] = budget.get(line.strip(), 0) + 1
+    kept = []
+    for line in added:
+        if budget.get(line.strip()):
+            budget[line.strip()] -= 1
+        else:
+            kept.append(line)
+    return kept
+
+
 def added_from_event(event):
-    """What an edit call introduces -- what `added_lines` means for it -- or {} for any other call."""
+    """What an edit call introduces -- what `added_lines` means for it -- or {} for any other call.
+
+    The lines of its new text that its old text does not already hold, so a line it only moves is not added.
+    """
     replacements = edit_replacements(event)
     path = getattr(event, "path", None)
     if replacements is None or not path:
         return {}
-    return {str(path): "\n".join(new for _, new, _ in replacements)}
+    added = [line for old, new, _ in replacements for line in without_moved(new.splitlines(), old.splitlines())]
+    return {str(path): "\n".join(added)}

@@ -12,7 +12,7 @@ from conftest import init_repo
 from runtime_support import write_runtime
 
 from chock.gate import runtime_bundle
-from chock.gate.runner import actor, context, headread
+from chock.gate.runner import actor, headread, writecontext
 
 _ENTRY = "claude_code"
 
@@ -112,7 +112,7 @@ def test_one_write_evaluation_spawns_git_once_per_committed_file(
 ) -> None:
     repo = _committed(tmp_path)
     calls = _counting(monkeypatch)
-    ctx = context.WriteContext(repo, {"a.txt": "x\n"})
+    ctx = writecontext.WriteContext(repo, {"a.txt": "x\n"})
     for _ in range(4):
         assert ctx.committed_blob("a.txt") == "one\ntwo\n"
     for _ in range(10):
@@ -124,20 +124,20 @@ def test_one_write_evaluation_spawns_git_once_per_committed_file(
 def test_a_failure_is_read_once_and_stays_a_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo = _committed(tmp_path)
     calls = _counting(monkeypatch)
-    ctx = context.WriteContext(repo, {})
+    ctx = writecontext.WriteContext(repo, {})
     assert [ctx.committed_blob("missing.txt") for _ in range(3)] == ["", "", ""]
     assert _shows(calls) == 1
 
 
 def test_no_commit_yet_reads_as_before(tmp_path: Path) -> None:
     repo = init_repo(tmp_path)
-    assert context.WriteContext(repo, {}).committed_blob("a.txt") == ""
+    assert writecontext.WriteContext(repo, {}).committed_blob("a.txt") == ""
     assert actor.committed_rollout(repo, "HEAD") == "enforce"
 
 
 def test_a_new_head_is_read_afresh_after_forgetting(tmp_path: Path) -> None:
     repo = _committed(tmp_path)
-    ctx = context.WriteContext(repo, {})
+    ctx = writecontext.WriteContext(repo, {})
     assert ctx.committed_blob("a.txt") == "one\ntwo\n"
     (repo / "a.txt").write_text("three\n", encoding="utf-8")
     subprocess.run(["git", "commit", "-qam", "d", "--no-gpg-sign"], cwd=repo, check=True)

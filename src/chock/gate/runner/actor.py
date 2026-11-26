@@ -221,8 +221,8 @@ def approval(repo_root: Path | None = None) -> dict[str, str]:
 def _ask_refusal(policy_id: str | None, signal: str | None) -> str:
     """Why a hook refuses an `ask`, and the one way through: a person's explicit override, which only a person is told."""
     if policy_id is None:
-        return f"gate: this gate asks a person, a hook cannot prompt, and it has no policy id for {ALLOW_ENV} to name."
-    lead = f"gate: {policy_id} asks a person to decide, and a hook cannot prompt."
+        return f"gate: this gate asks a person, a hook cannot prompt, and it has no policy id for {ALLOW_ENV} to name, so this was refused."
+    lead = f"gate: {policy_id} asks a person to decide, and a hook cannot prompt, so this was refused."
     if signal:
         return (
             f"{lead} This is treated as an agent's ({signal}), and an agent cannot answer for the person: "

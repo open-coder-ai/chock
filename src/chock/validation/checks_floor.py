@@ -29,7 +29,7 @@ from chock.gate.runner import (
 from chock.gate.runner.constants import _ACTION_RANK, _DEPENDENCY_KIND, _ROLLOUT_CEILING
 from chock.gate.runner.context import ListingError
 from chock.gate.runner.kinds import PatternDeadlineError
-from chock.gate.runner.report import _reason
+from chock.gate.runner.report import _reason, ask_note
 from chock.gate.runner.script import _UNDECIDED
 from chock.validation import control_plane as cp
 from chock.validation import floor_sarif
@@ -170,7 +170,9 @@ def judge_gates(  # noqa: PLR0913 -- the range, the branch, what it excludes and
             verdict = _verdict(result, gate.spec.get("action", ACTION_BLOCK), level)
             if verdict == "allow":
                 continue
-            line = f"{gate.policy} [base] ({verdict}): {_reason(result, gate.spec, FLOOR_EVENT, gate.policy)}"
+            reason = _reason(result, gate.spec, FLOOR_EVENT, gate.policy)
+            reason = ask_note(reason, FLOOR_EVENT, gate.policy) if verdict == ACTION_ASK else reason
+            line = f"{gate.policy} [base] ({verdict}): {reason}"
             (outcome.refusals if verdict in _REFUSING else outcome.notes).append(line)
     return outcome
 
@@ -209,9 +211,8 @@ def _judged(repo: Path, base: Revision, head: Revision, branch: str | None) -> O
         outcome.undecided.append(inert(str(exc)))
     for policy, finding in history:
         verdict = min(_declared(base, policy), _ROLLOUT_CEILING[level], key=_ACTION_RANK.__getitem__)
-        (outcome.refusals if verdict in _REFUSING else outcome.notes).append(
-            f"{policy} [history] ({verdict}): {finding}"
-        )
+        said = ask_note(finding, FLOOR_EVENT, policy) if verdict == ACTION_ASK else finding
+        (outcome.refusals if verdict in _REFUSING else outcome.notes).append(f"{policy} [history] ({verdict}): {said}")
     outcome.notes += notes
     return outcome
 
