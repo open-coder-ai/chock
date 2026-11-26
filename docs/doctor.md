@@ -5,10 +5,10 @@ exactly like a protected session. `chock doctor` checks that each client's chock
 place, current, and seen running.
 
 ```bash
-chock doctor [--repo .] [--client <id>] [--client-version <v>] [--sessions 3] [--json]
+chock doctor [--repo .] [--client <id>] [--client-version <v>] [--sessions 3] [--json] [--live]
 ```
 
-Read-only; no network, and it never runs a client. For each client with chock hooks, on the
+Read-only; no network, and it never runs a client (`--live` runs chock's own hook commands, below). For each client with chock hooks, on the
 sync route (the vendored runtimes `chock sync` put in `--repo`) and the plugin route (bundles
 `chock install` built into a client's default folder), it prints one line per check, `PASS`,
 `WARN`, `FAIL` or `INFO`, with a one-line fix:
@@ -27,3 +27,37 @@ sync route (the vendored runtimes `chock sync` put in `--repo`) and the plugin r
 
 `--client` takes an install client id (`claude-code`) or an agent id (`claude_code`). Exit 1
 when any check fails or no chock hooks are found, else 0.
+
+## `--live`: do the hooks refuse?
+
+`--live` runs chock's own installed hook commands, as the client's config file writes them and from
+the repo, and checks each answers as its client reads it. It starts no client, sends nothing anywhere
+and logs nothing (the probe's session is removed afterwards). A command runs only if it is
+byte-equal to what this engine renders for that client, and only when the launcher and every
+vendored runtime are byte-equal to this engine's; any other hook command is counted, never run.
+The installed policies' guard code runs, as it does in `chock check` evals.
+
+- **live: refuses the canary**: the first installed pre-tool policy's own first refusing eval case
+  must be refused by that policy;
+- **live: allows a harmless command**: `echo chock-doctor-live` must be allowed;
+- **live: refuses the canary prompt** and **live: allows a harmless prompt**: for a target with a
+  `prompt_submit` gate installed, a policy's first `prompt_submit` eval case that must block must
+  be refused by that policy's hook, and `hello` must be allowed. Only clients with a payload agentseam
+  recorded for that event are probed; any other gets an `INFO` row.
+
+A plugin target's hook commands are never run: its hook file can be re-rendered only from the
+catalog it was built from, which doctor does not fetch. Its live row is `INFO`.
+
+### `armed`
+
+Every target ends with one row, `armed`, and `--json` carries it as `"armed": "yes" | "no" | "unknown"`.
+
+- `yes`: hooks, launcher and engine are `PASS`, the live rows (the prompt rows too, where chock wrote a
+  prompt-submit hook) are `PASS`, and the heartbeat is `PASS`;
+- `no`: any row is `FAIL`; the row names the first one and its fix;
+- `unknown`: anything else, and the row says which row left it so (a skipped live run, a heartbeat
+  that is `WARN` or `INFO`, `--live` not given).
+
+The heartbeat proves the client calls the hook; live proves the hook refuses. Only both together
+are `yes`, so a fresh install reads `unknown` until a session has started. The exit code is unchanged:
+1 on any `FAIL`.
