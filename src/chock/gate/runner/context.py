@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .constants import _PUSH_LINE_MIN_PARTS, CASE_BLIND_PLATFORMS
-from .gitparse import DiffError, ListingError, _diff_chunks, _diff_sides, _nul_paths, cancel_moved
+from .gitparse import DiffError, ListingError, _diff_sides, _nul_paths, cancel_moved
 
 # >>> gate.py 01
 _GIT = shutil.which("git") or "git"
@@ -67,7 +67,6 @@ class GateContext:
         #: Path prefixes this gate never judges: its own policy's source and compiled folders.
         self.own = tuple(own)
         self._rename_map: dict[str, str] | None = None
-        self._moved: dict[str, tuple[list[str], list[str]]] | None = None
 
     def is_own(self, path: str) -> bool:
         """Whether `path` is in this policy's own source or compiled folder."""
@@ -173,40 +172,21 @@ class GateContext:
         """What `git diff` takes to show the whole change, renames followed, no hunk context."""
         return [*self._range(), "-M", "-U0", "--no-color", "--no-ext-diff", "--no-textconv"]
 
-    def _change_paths(self) -> list[str]:
-        """Every path the change touches, in the order `git diff` shows them."""
-        return self._listing("diff", *self._range(), "-M", "--name-only")
-
     def _diff_text(self, path: str) -> str:
         """`path`'s `-U0` diff as git writes it, unconverted; raises DiffError when git fails."""
         old = self._renames().get(path)
         return self._git_diff(*self._diff_args(), "--", *((path, old) if old else (path,)))
 
-    def _moves_cancelled(self) -> dict[str, tuple[list[str], list[str]]]:
-        """{path: (added, removed)} of the whole change with the lines it only moves or re-indents cancelled.
-
-        Empty when git's diff and its path listing disagree on the files, which leaves every line counted.
-        """
-        if self._moved is None:
-            try:
-                paths = self._change_paths()
-            except ListingError as exc:
-                raise DiffError(str(exc)) from exc
-            chunks = _diff_chunks(self._git_diff(*self._diff_args()))
-            self._moved = {}
-            if len(paths) == len(chunks):
-                sides = cancel_moved([_diff_sides(chunk) for chunk in chunks])
-                self._moved = dict(zip(paths, sides, strict=True))
-        return self._moved
+    def _sides(self, path: str) -> tuple[list[str], list[str]]:
+        """`path`'s (added, removed) lines, less what the file only moves or re-indents (a rename is one file)."""
+        return cancel_moved(*_diff_sides(self._diff_text(path)))
 
     def added_lines(self, path: str) -> list[str]:
-        moved = self._moves_cancelled().get(path)
-        return moved[0] if moved else _diff_sides(self._diff_text(path))[0]
+        return self._sides(path)[0]
 
     def removed_lines(self, path: str) -> list[str]:
         """The deleted side of the diff -- what a test-weakening change takes away."""
-        moved = self._moves_cancelled().get(path)
-        return moved[1] if moved else _diff_sides(self._diff_text(path))[1]
+        return self._sides(path)[1]
 
     def staged_blob(self, path: str) -> str:
         """The proposed content: staged in index mode, committed at HEAD in range mode."""

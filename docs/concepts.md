@@ -186,12 +186,13 @@ A CI refusal of work a person approved at commit would be a false refusal, so `c
 ## What counts as an added line
 
 A line the change only moves or re-indents is not added. On commit, push, `ci` and `--floor`, an added line
-is unchanged when the same change removes an equal line, in any file of the change, after stripping leading
-and trailing whitespace. On an agent write the equal line must be in the file's old content, or in the edit's
-`old_string`. Each removed line cancels at most one added line, so a copy that keeps its original is still
+is unchanged when the same file loses an equal line, after stripping leading and trailing whitespace; a
+rename is one file. On an agent write the equal line must be in the file's old content, or in the edit's
+`old_string`. Nothing crosses files: a line moved to another file stays judged where it lands and counted as
+removed where it left, so a policy scoped to some paths, or test-integrity, still sees it. Each removed line cancels at most one added line, so a copy that keeps its original is still
 added; a line that is also edited is still added; whitespace inside a line counts; re-quoting is not covered.
 Script gates keep their own `(path, key)` baseline. The `--floor` per-commit history pass judges whole blobs
-and is unchanged: a re-indented file or a block moved to another file is still named there.
+and is unchanged: a re-indented file is still named there.
 
 `--floor` honours a waiver only when the base branch already has it. A waiver the pull request adds is refused,
 and the refusal says so and how a person lands it: commit the waiver to the base branch from their own shell,

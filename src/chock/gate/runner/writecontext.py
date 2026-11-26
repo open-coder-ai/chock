@@ -70,8 +70,7 @@ class WriteContext(GateContext):
         return self._writes.get(path, "")
 
     def _diff(self, path: str) -> tuple[list[str], list[str]]:
-        added, removed = _line_diff(self.head_blob(path), self._writes.get(path, ""))
-        return cancel_moved([(added, removed)])[0]
+        return cancel_moved(*_line_diff(self.head_blob(path), self._writes.get(path, "")))
 
     def added_lines(self, path: str) -> list[str]:
         if path in self._added:

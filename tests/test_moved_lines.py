@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import pytest
 from conftest import init_repo, write_gate
 from floor_support import base_repo, commit, run_floor, write
+from floor_support import gate as floor_gate
 
 from chock.gate import edit_image, patch_image
 from chock.gate.runner import WriteContext, run
@@ -28,7 +29,7 @@ CASES = {
     "moved_to_another_file": (
         {PATH: f"{ONE}\n\n{TWO}", OTHER: "x = 1\n"},
         {PATH: TWO, OTHER: f"x = 1\n\n{ONE}"},
-        False,
+        True,
     ),
     "reindented_file": ({PATH: SPACED}, {PATH: REINDENTED}, False),
     "copy_keeps_the_original": ({PATH: f"{ONE}\n\n{TWO}"}, {PATH: f"{ONE}\n\n{TWO}\n\n{ONE}"}, True),
@@ -136,8 +137,7 @@ def test_a_patch_moves_a_line_without_adding_it() -> None:
 
 
 def test_each_removed_line_cancels_one_added_line() -> None:
-    kept = cancel_moved([(["a", "  a ", "b"], []), ([], ["a"])])
-    assert kept == [(["  a ", "b"], []), ([], [])]
+    assert cancel_moved(["a", "  a ", "b"], ["a"]) == (["  a ", "b"], [])
 
 
 def test_a_write_context_keeps_a_copy(tmp_path: Path) -> None:
@@ -145,3 +145,79 @@ def test_a_write_context_keeps_a_copy(tmp_path: Path) -> None:
     (repo / "m.py").write_text("a = 1\n", encoding="utf-8")
     ctx = WriteContext(repo, {"m.py": "a = 1\na = 1\n"})
     assert ctx.added_lines("m.py") == ["a = 1"]
+
+
+def _commit_all(repo: Path, message: str = "base") -> None:
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", message], cwd=repo, check=True)
+
+
+def _repo(tmp_path: Path, files: dict[str, str]) -> Path:
+    (tmp_path / "repo").mkdir()
+    repo = init_repo(tmp_path / "repo")
+    for rel, text in files.items():
+        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / rel).write_text(text, encoding="utf-8")
+    _commit_all(repo)
+    return repo
+
+
+ASSERTED = "def test_a():\n    assert result == expected\n    assert other == 1\n"
+
+
+def test_an_assert_moved_out_of_a_test_file_is_still_a_removal(tmp_path: Path) -> None:
+    repo = _repo(tmp_path, {"tests/test_x.py": ASSERTED, "notes/old.md": "notes\n"})
+    (repo / "tests/test_x.py").write_text("def test_a():\n    assert other == 1\n", encoding="utf-8")
+    (repo / "notes/old.md").write_text("notes\n    assert result == expected\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    params = {"test_path_regex": "(^|/)tests?/", "assertion_pattern": r"\bassert\b"}
+    spec = {"kind": "test_integrity", "on": ["commit"], "action": "block", "message": "m", "params": params}
+    (tmp_path / "gate").mkdir()
+    assert run(write_gate(tmp_path / "gate", spec), "pre-commit", None, repo) == 1
+
+
+UNPINNED = "      - uses: actions/checkout@v4\n"
+WORKFLOW_SPEC = {
+    "kind": "content_regex",
+    "on": ["commit"],
+    "action": "block",
+    "message": "pin it",
+    "paths": [".github/workflows/*"],
+    "params": {"content_pattern": r"uses: \S+@v\d"},
+}
+BEFORE = {"docs/example.md": f"steps:\n{UNPINNED}", ".github/workflows/ci.yml": "name: ci\n"}
+
+
+def test_an_unpinned_uses_line_moved_into_a_workflow_is_still_refused_at_commit(tmp_path: Path) -> None:
+    repo = _repo(tmp_path, BEFORE)
+    (repo / "docs/example.md").write_text("steps:\n", encoding="utf-8")
+    (repo / ".github/workflows/ci.yml").write_text(f"name: ci\n{UNPINNED}", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    (tmp_path / "gate").mkdir()
+    assert run(write_gate(tmp_path / "gate", WORKFLOW_SPEC), "pre-commit", None, repo) == 1
+
+
+def test_a_line_moved_into_a_path_scoped_policys_files_is_still_refused_at_the_floor(tmp_path: Path, capsys) -> None:
+    """The floor treats `.github/workflows` as control plane, so the scoped files here are `deploy/*`."""
+    repo = base_repo(tmp_path)
+    floor_gate(repo, "pin-uses", {**WORKFLOW_SPEC, "paths": ["deploy/*"]})
+    write(repo, "docs/example.md", f"steps:\n{UNPINNED}")
+    write(repo, "deploy/run.yml", "name: run\n")
+    seed = commit(repo, "seed")
+    write(repo, "docs/example.md", "steps:\n")
+    write(repo, "deploy/run.yml", f"name: run\n{UNPINNED}")
+    commit(repo, "move")
+    _, out = run_floor(repo, capsys, "--base", seed)
+    assert "FAIL pin-uses [base]" in out, out
+
+
+def test_a_renamed_and_re_indented_file_is_one_file_at_commit(tmp_path: Path) -> None:
+    top = "".join(f"line_{n} = {n}\n" for n in range(30))
+    old = f"{top}def spaced():\n    if True:\n        t = '{TOKEN}'\n"
+    new = f"{top}def spaced():\n  if True:\n    t = '{TOKEN}'\n"
+    repo = _repo(tmp_path, {"old.py": old})
+    subprocess.run(["git", "mv", "old.py", "new.py"], cwd=repo, check=True)
+    (repo / "new.py").write_text(new, encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    (tmp_path / "gate").mkdir()
+    assert run(_gate(tmp_path / "gate"), "pre-commit", None, repo) == 0

@@ -41,9 +41,6 @@ class FloorContext(GateContext):
     def _diff_args(self) -> list[str]:
         return [*self._range(), "--text", "-U0", "--no-color", "--no-ext-diff", "--no-textconv"]
 
-    def _change_paths(self) -> list[str]:
-        return self._listing("diff", *self._range(), "--name-only")
-
     def _diff_text(self, path: str) -> str:
         return self._git_diff(*self._diff_args(), "--", path)
 

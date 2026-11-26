@@ -113,7 +113,7 @@ def test_an_unreadable_diff_refuses(
 ) -> None:
     repo = _repo(tmp_path)
     _stage(repo, "a.txt", "fine\n")
-    monkeypatch.setattr(GateContext, "_git_diff", lambda *_: "@@ -0,0 +1 @@\n+fine\n")
+    monkeypatch.setattr(GateContext, "_diff_text", lambda *_: "@@ -0,0 +1 @@\n+fine\n")
     assert run(_content_gate(repo), "pre-commit", None, repo) == 2
     assert "refusing" in capsys.readouterr().err
 
