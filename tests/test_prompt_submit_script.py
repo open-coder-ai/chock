@@ -55,7 +55,10 @@ def test_no_script_output_reaches_the_refusal_even_a_fragment_of_the_prompt(
     if code == 4:  # a warning never refuses
         return
     reason = json.loads(proc.stdout)["reason"]
-    assert reason.startswith(MESSAGE) or (code == 7 and "exited 7" in reason and POLICY_ID in reason)
+    asked = f"Chock policy {POLICY_ID} asks: {MESSAGE}"
+    assert reason.startswith(asked if code == 3 else MESSAGE) or (
+        code == 7 and "exited 7" in reason and POLICY_ID in reason
+    )
 
 
 def test_a_timeout_or_missing_script_is_a_fixed_message_naming_the_policy(tmp_path: Path) -> None:

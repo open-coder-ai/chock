@@ -27,6 +27,7 @@ from .budget import (
     run_tree,
     time_left,
 )
+from .gate_outcome import ask_reason
 from .session_log import (
     session_for,
     session_outcome,
@@ -50,6 +51,7 @@ _TOOL_CALL_EXIT_VERDICTS = {0: None, 1: "deny", 3: "escalate", 4: "warn"}
 #: goes past it, so a warn gate never blocks and an ask gate never denies outright.
 _TOOL_CALL_CEILING = {"block": "deny", "ask": "escalate", "warn": "warn"}
 _TOOL_CALL_RANK = {"warn": 0, "escalate": 1, "deny": 2}
+_TOOL_CALL_DEFAULT_MESSAGE = "blocked by a chock tool_call gate"
 _TOOL_CALL_UNDECIDED = " -- refusing rather than allowing what it never judged"
 
 
@@ -67,7 +69,7 @@ def tool_call_matches(globs, tool):
 
 
 def _tool_call_refusal(spec, spoken):
-    return spoken or str(spec.get("message") or "").strip() or "blocked by a chock tool_call gate"
+    return spoken or str(spec.get("message") or "").strip() or _TOOL_CALL_DEFAULT_MESSAGE
 
 
 def _tool_call_regex(spec, tool_input, deadline, policy):
@@ -151,6 +153,13 @@ def _tool_call_capped(spec, verdict):
     return (min(verdict[0], ceiling, key=_TOOL_CALL_RANK.__getitem__), verdict[1])
 
 
+def asked_as_policy(verdict, policy, noun, bare):
+    """`verdict`, when an ask, worded `Chock policy <id> asks: <its message>`; `bare` is the gate's no-message default."""
+    if verdict is None or verdict[0] != "escalate":
+        return verdict
+    return (verdict[0], ask_reason(policy, "" if verdict[1] == bare else verdict[1], noun))
+
+
 def _tool_call_spec(gate):
     """The compiled gate as a dict, or (None, refusal) when the install is broken."""
     if not gate.exists():
@@ -192,6 +201,7 @@ def evaluate_tool_call(argv, event):
     ):
         policy = gate.parent.parent.name
         verdict = _tool_call_capped(spec, _tool_call_verdict(spec, root, event, engine_deadline(), policy))
+        verdict = asked_as_policy(verdict, policy, "call", _TOOL_CALL_DEFAULT_MESSAGE)
     if spec.get("kind") in _TOOL_CALL_NEEDS_SESSION:
         session_record(root, event, "pre", _TOOL_CALL_BLOCKED if verdict and verdict[0] == "deny" else None)
     return verdict

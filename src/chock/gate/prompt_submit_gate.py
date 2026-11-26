@@ -31,6 +31,7 @@ from .tool_call_gate import (
     _TOOL_CALL_UNDECIDED,
     _flag_path,
     _tool_call_capped,
+    asked_as_policy,
 )
 from .write_gate import repo_root_for
 
@@ -138,4 +139,4 @@ def evaluate_prompt_submit(argv, event):
         return None
     policy = gate.parent.parent.name
     verdict = _prompt_verdict(spec, repo_root_for(event, gate), event, engine_deadline(), policy)
-    return _tool_call_capped(spec, verdict)
+    return asked_as_policy(_tool_call_capped(spec, verdict), policy, "prompt", _PROMPT_DEFAULT_MESSAGE)
