@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import subprocess
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from chock.gate.runner import GateContext
-from chock.gate.runner.context import _GIT
-from chock.gate.runner.gitparse import DiffError, _diff_sides
+from chock.gate.runner.gitparse import _diff_sides
 from chock.validation.floor_git import Revision
 
 
@@ -40,20 +38,11 @@ class FloorContext(GateContext):
     def _range(self) -> list[str]:
         return ["--no-renames", str(self.base), self.head]
 
+    def _diff_args(self) -> list[str]:
+        return [*self._range(), "--text", "-U0", "--no-color", "--no-ext-diff", "--no-textconv"]
+
     def _diff_text(self, path: str) -> str:
-        args = ("diff", *self._range(), "--text", "-U0", "--no-color", "--no-ext-diff", "--no-textconv", "--", path)
-        try:
-            proc = subprocess.run(  # noqa: S603 -- reading committed revisions is this class's whole job
-                [_GIT, "--literal-pathspecs", *args], cwd=str(self.repo_root), capture_output=True, check=False
-            )
-        except OSError as exc:
-            msg = f"git could not run ({exc})"
-            raise DiffError(msg) from exc
-        if proc.returncode:
-            first = (proc.stderr.decode("utf-8", "replace").strip().splitlines() or [""])[0]
-            msg = f"git diff failed (exit {proc.returncode}): {first}"
-            raise DiffError(msg)
-        return proc.stdout.decode("utf-8", "replace")
+        return self._git_diff(*self._diff_args(), "--", path)
 
     def staged_blob(self, path: str) -> str:
         """The proposal: the file at the head; "" only when the head has no such file, FloorError when unreadable."""

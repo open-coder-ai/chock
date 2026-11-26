@@ -13,8 +13,11 @@ from typing import Any
 from .actor import _waiver_pattern
 from .constants import (
     _AGENT_COMMIT_NOTE,
+    _ASK_NOTES,
+    _FLOOR_WAIVER_NOTE,
     ACTION_BLOCK,
     AGENT_COMMIT_EVENT,
+    FLOOR_EVENT,
     HEAD_WAIVER_EVENTS,
     TOOL_USE_EVENT,
 )
@@ -51,10 +54,20 @@ def _reason(result: GateResult, spec: dict, event: str = "commit", policy_id: st
         policy, matches = _for_agent(policy), [_for_agent(m) for m in matches]
     policy, matches = _inert_lines(policy), [inert(m) for m in matches]
     if "new_findings" not in result.detail:
-        return "\n".join([policy, *(f"  - {m}" for m in matches)])
-    if event == TOOL_USE_EVENT:
-        return "\n".join([*matches, _CUSTOMISE_POINTER.format(policy=policy_id or "<id>")])
-    return "\n".join([*matches, _summary(result, policy_id), policy])
+        lines = [policy, *(f"  - {m}" for m in matches)]
+    elif event == TOOL_USE_EVENT:
+        lines = [*matches, _CUSTOMISE_POINTER.format(policy=policy_id or "<id>")]
+    else:
+        lines = [*matches, _summary(result, policy_id), policy]
+    if event == FLOOR_EVENT and _may_waive(spec, event):
+        lines.append(_FLOOR_WAIVER_NOTE)
+    return "\n".join(lines)
+
+
+def ask_note(reason: str, event: str, policy_id: str | None) -> str:
+    """`reason` led by what an ask did at `event` where nobody can answer it; as is where a person is asked."""
+    note = _ASK_NOTES.get(event, "")
+    return f"{note.format(policy=policy_id or 'gate')}\n{reason}" if note else reason
 
 
 def _may_waive(spec: dict, event: str) -> bool:

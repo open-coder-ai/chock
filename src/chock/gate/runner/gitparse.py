@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 
 
 # >>> gate.py 22
@@ -75,6 +76,29 @@ def _diff_sides(text: str) -> tuple[list[str], list[str]]:
         msg = "git diff ends inside a hunk"
         raise DiffError(msg)
     return sides
+
+
+def _drop_moved(lines: list[str], budget: dict[str, int]) -> list[str]:
+    """`lines` without the ones `budget` still owes cancelling, spending it one for one."""
+    kept = []
+    for line in lines:
+        key = line.strip()
+        if budget.get(key):
+            budget[key] -= 1
+        else:
+            kept.append(line)
+    return kept
+
+
+def cancel_moved(added: list[str], removed: list[str]) -> tuple[list[str], list[str]]:
+    """One file's (added, removed) without the lines it only moves or re-indents.
+
+    An added line cancels against one removed line of the same file equal to it after stripping leading
+    and trailing whitespace; each removed line cancels at most one added line, and both sides drop the pair.
+    Nothing crosses files: a line moved to another file is still added there and removed here.
+    """
+    pairs = dict(Counter(line.strip() for line in added) & Counter(line.strip() for line in removed))
+    return _drop_moved(added, dict(pairs)), _drop_moved(removed, dict(pairs))
 
 
 def _nul_paths(out: bytes) -> list[str]:

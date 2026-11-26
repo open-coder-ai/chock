@@ -44,7 +44,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${DROID_PLUGIN_ROOT}/scripts/launch.sh\" \"${DROID_PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --members \"${DROID_PLUGIN_ROOT}/scripts/factory_droid.py\" --multi \"${DROID_PLUGIN_ROOT}/scripts/chock_index/PreToolUse-f8a1fdfc.json\" --index-sha256 8fe48ecbdb8f33340d67c1f7e4cd9ab63dc3448a8a6b5e82e3e1c246fd6d84db --root \"${DROID_PLUGIN_ROOT}\"",
+            "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${DROID_PLUGIN_ROOT}/scripts/launch.sh\" \"${DROID_PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --members \"${DROID_PLUGIN_ROOT}/scripts/factory_droid.py\" --multi \"${DROID_PLUGIN_ROOT}/scripts/chock_index/PreToolUse-f8a1fdfc.json\" --index-sha256 4ded7b61849eea0690f179a2874b10086cc4f8948d1a43c096a8128af5790b18 --root \"${DROID_PLUGIN_ROOT}\"",
             "timeout": 45
           }
         ],
@@ -54,7 +54,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${DROID_PLUGIN_ROOT}/scripts/launch.sh\" \"${DROID_PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --members \"${DROID_PLUGIN_ROOT}/scripts/factory_droid.py\" --multi \"${DROID_PLUGIN_ROOT}/scripts/chock_index/PreToolUse-91dc9fe9.json\" --index-sha256 b19ea0f41925c00a7d824de29a06169c9b302eece530e4a27bf652688ecbc16b --root \"${DROID_PLUGIN_ROOT}\"",
+            "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${DROID_PLUGIN_ROOT}/scripts/launch.sh\" \"${DROID_PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --members \"${DROID_PLUGIN_ROOT}/scripts/factory_droid.py\" --multi \"${DROID_PLUGIN_ROOT}/scripts/chock_index/PreToolUse-91dc9fe9.json\" --index-sha256 0fb11c77581ebb1ec23d7e4413677f6adda65fe9ae3e36c439135b09b2f5354d --root \"${DROID_PLUGIN_ROOT}\"",
             "timeout": 45
           }
         ],
@@ -75,7 +75,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${DROID_PLUGIN_ROOT}/scripts/launch.sh\" \"${DROID_PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --members \"${DROID_PLUGIN_ROOT}/scripts/factory_droid.py\" --multi \"${DROID_PLUGIN_ROOT}/scripts/chock_index/Stop-185f9750.json\" --index-sha256 6aa9f88643e1854d5122f6d9c3e5b28be53d6ada4a7188618731f87a8d3ba5ce --root \"${DROID_PLUGIN_ROOT}\"",
+            "command": "git -c 'alias.chock-sh=!set -f; IFS=; test -f $1 || { echo chock: the plugin launcher is missing, so this call cannot be checked. Refusing. >&2; exit 2; }; sh' chock-sh \"${DROID_PLUGIN_ROOT}/scripts/launch.sh\" \"${DROID_PLUGIN_ROOT}/scripts/chock_bundle.py\" --bundle demo-bundle --members \"${DROID_PLUGIN_ROOT}/scripts/factory_droid.py\" --multi \"${DROID_PLUGIN_ROOT}/scripts/chock_index/Stop-185f9750.json\" --index-sha256 87dd650b394e4a547269793a678396382a2ec320f3f85e803e12009dad9152e9 --root \"${DROID_PLUGIN_ROOT}\"",
             "timeout": 45
           }
         ]

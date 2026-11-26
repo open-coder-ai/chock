@@ -30,6 +30,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from .edit_image import without_moved
 from .patch_apply import _PATCH_SPACE, apply_hunks
 
 _BEGIN = "*** Begin Patch"
@@ -95,7 +96,7 @@ def _patch_not_empty(state, text):
 
 
 def _patch_chunk(op, context=None):
-    chunk = {"context": context, "old": [], "new": [], "pairs": [], "eof": False, "added": []}
+    chunk = {"context": context, "old": [], "new": [], "pairs": [], "eof": False, "added": [], "removed": []}
     op["body"].append(chunk)
     return chunk
 
@@ -133,6 +134,8 @@ def _patch_change(op, line):
         chunk["new"].append(text)
     if kind == "+":
         chunk["added"].append(text)
+    elif kind == "-":
+        chunk["removed"].append(text)
     return True
 
 
@@ -270,6 +273,9 @@ def patch_added(event):
         if op == "add":
             added[key] = "\n".join(body)
         elif op == "update":
-            lines = [line for chunk in body for line in chunk["added"]]
+            lines = without_moved(
+                [line for chunk in body for line in chunk["added"]],
+                [line for chunk in body for line in chunk["removed"]],
+            )
             added[key] = "\n".join(filter(None, (added.get(key, ""), *lines)))
     return added

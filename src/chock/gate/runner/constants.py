@@ -41,6 +41,7 @@ __all__ = [
     "_ACTOR_CLIENT_CAP",
     "_ACTOR_UNSAFE",
     "_AGENT_COMMIT_NOTE",
+    "_ASK_NOTES",
     "_CONFIG_ITEM_RE",
     "_CONFIG_KEY_RE",
     "_CONFIG_PATH",
@@ -48,6 +49,7 @@ __all__ = [
     "_DEPENDENCY_KIND",
     "_ENV_NAME_RE",
     "_EVENT_NAME",
+    "_FLOOR_WAIVER_NOTE",
     "_GIT_EVENTS",
     "_HUMAN_ENV",
     "_LOG_FIELDS",
@@ -126,6 +128,19 @@ _AGENT_COMMIT_NOTE = (
     "gate: this commit is treated as an agent's ({signal}), so a waiver it adds "
     "was not honoured; only waivers already in HEAD count. A person reviews and waives it, then "
     "commits from their own shell."
+)
+
+#: What an `ask` did where nobody can answer it, by the event it came at; each names the policy.
+_ASK_NOTES = {
+    "ci": "chock {policy} asks a person; CI cannot ask, so this passed with this note",
+    "ci-floor": "chock {policy} asks a person; CI cannot ask, so the floor refused",
+    "stop": "chock {policy} asks a person; the turn has ended and nobody can answer, so this is a warning",
+}
+
+_FLOOR_WAIVER_NOTE = (
+    "A waiver this pull request adds was not honoured: the pull request adds it, and anyone who can open one "
+    "could add one. Only a waiver already in the base branch counts. A person lands a waiver by committing it "
+    "to the base branch from their own shell, then re-running this check."
 )
 
 

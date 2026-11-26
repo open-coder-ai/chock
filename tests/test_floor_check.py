@@ -49,6 +49,24 @@ def test_a_waiver_the_pull_request_adds_is_not_honoured(tmp_path, capsys) -> Non
     assert "assertions removed across tests" in out
 
 
+def test_the_refusal_says_a_waiver_the_pull_request_adds_was_not_honoured(tmp_path, capsys) -> None:
+    repo = base_repo(tmp_path)
+    write(repo, "tests/test_core.py", f"def test_a():\n    # {TEST_PRAGMA}\n    assert 1 + 1 == 2\n")
+    commit(repo, "pr")
+    _, out = run_floor(repo, capsys)
+    assert "A waiver this pull request adds was not honoured: the pull request adds it" in out
+    assert "committing it to the base branch from their own shell, then re-running this check" in out
+
+
+def test_a_policy_without_a_waiver_gets_no_waiver_note(tmp_path, capsys) -> None:
+    repo = base_repo(tmp_path)
+    write(repo, "src/app.py", "VALUE = 'FLOOR-TOKEN-9'\n")
+    commit(repo, "pr")
+    _, out = run_floor(repo, capsys)
+    assert "FAIL floor-token [base]" in out
+    assert "A waiver this pull request adds" not in out
+
+
 def test_a_base_waiver_on_a_line_the_pull_request_removes_is_not_honoured(tmp_path, capsys) -> None:
     """V4: a waiver counts only on a line present and unchanged in both base and head."""
     repo = base_repo(tmp_path)

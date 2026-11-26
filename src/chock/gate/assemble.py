@@ -27,6 +27,7 @@ MODULES = (
     "report",
     "script",
     "verdict",
+    "writecontext",
 )
 
 #: A module's text after its header is fragments, each opened by this line; fragment numbers set

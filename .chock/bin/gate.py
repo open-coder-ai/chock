@@ -403,14 +403,11 @@ class GateContext:
             self._rename_map = {tokens[i + 2]: tokens[i + 1] for i in range(0, len(tokens) - 2, 3)}
         return self._rename_map
 
-    def _diff_text(self, path: str) -> str:
-        """`path`'s `-U0` diff as git writes it, unconverted; raises DiffError when git fails."""
-        old = self._renames().get(path)
-        paths = (path, old) if old else (path,)
-        args = ("diff", *self._range(), "-M", "-U0", "--no-color", "--no-ext-diff", "--no-textconv", "--", *paths)
+    def _git_diff(self, *args: str) -> str:
+        """`git diff` over `args`, as git writes it; raises DiffError when git fails."""
         try:
             proc = subprocess.run(  # noqa: S603 -- reading repo facts via git is this class's whole job
-                [_GIT, "--literal-pathspecs", *args],
+                [_GIT, "--literal-pathspecs", "diff", *args],
                 cwd=str(self.repo_root),
                 capture_output=True,
                 check=False,
@@ -424,12 +421,25 @@ class GateContext:
             raise DiffError(msg)
         return proc.stdout.decode("utf-8", "replace")
 
+    def _diff_args(self) -> list[str]:
+        """What `git diff` takes to show the whole change, renames followed, no hunk context."""
+        return [*self._range(), "-M", "-U0", "--no-color", "--no-ext-diff", "--no-textconv"]
+
+    def _diff_text(self, path: str) -> str:
+        """`path`'s `-U0` diff as git writes it, unconverted; raises DiffError when git fails."""
+        old = self._renames().get(path)
+        return self._git_diff(*self._diff_args(), "--", *((path, old) if old else (path,)))
+
+    def _sides(self, path: str) -> tuple[list[str], list[str]]:
+        """`path`'s (added, removed) lines, less what the file only moves or re-indents (a rename is one file)."""
+        return cancel_moved(*_diff_sides(self._diff_text(path)))
+
     def added_lines(self, path: str) -> list[str]:
-        return _diff_sides(self._diff_text(path))[0]
+        return self._sides(path)[0]
 
     def removed_lines(self, path: str) -> list[str]:
         """The deleted side of the diff -- what a test-weakening change takes away."""
-        return _diff_sides(self._diff_text(path))[1]
+        return self._sides(path)[1]
 
     def staged_blob(self, path: str) -> str:
         """The proposed content: staged in index mode, committed at HEAD in range mode."""
@@ -463,92 +473,6 @@ class GateContext:
             if len(parts) >= _PUSH_LINE_MIN_PARTS:
                 refs.append(parts[2])
         return refs
-
-
-def _line_diff(old: str, new: str) -> tuple[list[str], list[str]]:
-    """(added, removed) lines turning `old` into `new`, by sequence like a `-U0` diff."""
-    old_lines, new_lines = old.splitlines(), new.splitlines()
-    added: list[str] = []
-    removed: list[str] = []
-    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, old_lines, new_lines, autojunk=False).get_opcodes():
-        if tag != "equal":
-            removed.extend(old_lines[i1:i2])
-            added.extend(new_lines[j1:j2])
-    return added, removed
-
-
-class WriteContext(GateContext):
-    """Files an agent is about to write, or has just written, shaped like a staged diff.
-
-    The gate kinds are untouched and cannot tell the difference: only the material changes.
-    `writes` is each file as it would be (pre-tool) or is (stop). The baseline it changed from
-    is the file on disk before the write at pre-tool, and HEAD at the turn's end, where the
-    disk already holds the writes. `added_lines` is an edit's own text when it carries one
-    (`added`), else the diff against that baseline, so a whole-file write or a dirty file is
-    judged on what changed and never on lines that were already there.
-
-    It still subclasses GateContext so repo_root and the git-backed accessors a kind may
-    reach for keep working -- an allowlist file still lives in the repository even when the
-    content under judgement does not.
-    """
-
-    def __init__(
-        self,
-        repo_root: Path,
-        writes: Mapping[str, str],
-        scope: Sequence[str] | None = None,
-        added: Mapping[str, str] | None = None,
-        own: Sequence[str] = (),
-        *,
-        stop: bool = False,
-        session: Mapping[str, object] | None = None,
-        case_blind: bool | None = None,
-    ) -> None:
-        super().__init__(repo_root=repo_root, scope=scope, own=own, session=session, case_blind=case_blind)
-        self._writes = dict(writes)
-        self._added = dict(added or {})
-        self._stop = stop
-
-    def _rename_range(self) -> list[str] | None:
-        """At the turn's end, HEAD against the index and tree; a write before the tool runs has no rename."""
-        return ["HEAD"] if self._stop else None
-
-    def staged_paths(self, diff_filter: str = "ACMRT", *, judge_own: bool = False) -> list[str]:
-        """Every write is a present file, so a filter asking only for deletions finds none."""
-        if not set(diff_filter) & set("ACMRT"):
-            return []
-        return [path for path in self._writes if self.in_scope(path, judge_own=judge_own)]
-
-    def staged_blob(self, path: str) -> str:
-        return self._writes.get(path, "")
-
-    def _diff(self, path: str) -> tuple[list[str], list[str]]:
-        return _line_diff(self.head_blob(path), self._writes.get(path, ""))
-
-    def added_lines(self, path: str) -> list[str]:
-        if path in self._added:
-            return self._added[path].splitlines()
-        return self._diff(path)[0]
-
-    def net_added_lines(self, path: str) -> list[str]:
-        return self._diff(path)[0]
-
-    def removed_lines(self, path: str) -> list[str]:
-        return self._diff(path)[1]
-
-    def committed_blob(self, path: str) -> str:
-        """HEAD's file, named from `repo_root` (`./`), which may sit below the git top-level."""
-        shown = _head_show(self.repo_root, f"./{path}")
-        return "" if shown is None else _text_mode(shown, "replace")
-
-    def head_blob(self, path: str) -> str:
-        """The baseline: HEAD at the turn's end, else what is on disk now, which this write would replace."""
-        if self._stop:
-            return self.committed_blob(self.renamed_from(path))
-        try:
-            return (self.repo_root / path).read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            return ""
 
 
 #: Platforms whose default filesystem ignores case: a path typed in another case names the same file.
@@ -616,6 +540,19 @@ _AGENT_COMMIT_NOTE = (
     "gate: this commit is treated as an agent's ({signal}), so a waiver it adds "
     "was not honoured; only waivers already in HEAD count. A person reviews and waives it, then "
     "commits from their own shell."
+)
+
+#: What an `ask` did where nobody can answer it, by the event it came at; each names the policy.
+_ASK_NOTES = {
+    "ci": "chock {policy} asks a person; CI cannot ask, so this passed with this note",
+    "ci-floor": "chock {policy} asks a person; CI cannot ask, so the floor refused",
+    "stop": "chock {policy} asks a person; the turn has ended and nobody can answer, so this is a warning",
+}
+
+_FLOOR_WAIVER_NOTE = (
+    "A waiver this pull request adds was not honoured: the pull request adds it, and anyone who can open one "
+    "could add one. Only a waiver already in the base branch counts. A person lands a waiver by committing it "
+    "to the base branch from their own shell, then re-running this check."
 )
 
 
@@ -1417,10 +1354,20 @@ def _reason(result: GateResult, spec: dict, event: str = "commit", policy_id: st
         policy, matches = _for_agent(policy), [_for_agent(m) for m in matches]
     policy, matches = _inert_lines(policy), [inert(m) for m in matches]
     if "new_findings" not in result.detail:
-        return "\n".join([policy, *(f"  - {m}" for m in matches)])
-    if event == TOOL_USE_EVENT:
-        return "\n".join([*matches, _CUSTOMISE_POINTER.format(policy=policy_id or "<id>")])
-    return "\n".join([*matches, _summary(result, policy_id), policy])
+        lines = [policy, *(f"  - {m}" for m in matches)]
+    elif event == TOOL_USE_EVENT:
+        lines = [*matches, _CUSTOMISE_POINTER.format(policy=policy_id or "<id>")]
+    else:
+        lines = [*matches, _summary(result, policy_id), policy]
+    if event == FLOOR_EVENT and _may_waive(spec, event):
+        lines.append(_FLOOR_WAIVER_NOTE)
+    return "\n".join(lines)
+
+
+def ask_note(reason: str, event: str, policy_id: str | None) -> str:
+    """`reason` led by what an ask did at `event` where nobody can answer it; as is where a person is asked."""
+    note = _ASK_NOTES.get(event, "")
+    return f"{note.format(policy=policy_id or 'gate')}\n{reason}" if note else reason
 
 
 def _may_waive(spec: dict, event: str) -> bool:
@@ -1666,8 +1613,8 @@ def approval(repo_root: Path | None = None) -> dict[str, str]:
 def _ask_refusal(policy_id: str | None, signal: str | None) -> str:
     """Why a hook refuses an `ask`, and the one way through: a person's explicit override, which only a person is told."""
     if policy_id is None:
-        return f"gate: this gate asks a person, a hook cannot prompt, and it has no policy id for {ALLOW_ENV} to name."
-    lead = f"gate: {policy_id} asks a person to decide, and a hook cannot prompt."
+        return f"gate: this gate asks a person, a hook cannot prompt, and it has no policy id for {ALLOW_ENV} to name, so this was refused."
+    lead = f"gate: {policy_id} asks a person to decide, and a hook cannot prompt, so this was refused."
     if signal:
         return (
             f"{lead} This is treated as an agent's ({signal}), and an agent cannot answer for the person: "
@@ -1684,6 +1631,7 @@ def _ask_answered(policy_id: str | None, signal: str | None) -> bool:
 def _deliver(verdict: str, result: GateResult, spec: dict, event: str, policy_id: str | None) -> int:
     """Report a `warn` or `ask` in this event's own channel and return its exit code."""
     reason = _reason(result, spec, TOOL_USE_EVENT if event in AGENT_EVENTS else event, policy_id)
+    reason = ask_note(reason, event, policy_id) if verdict == ACTION_ASK else reason
     if event in AGENT_EVENTS:
         print(reason, file=sys.stderr)
         # The turn's end has nobody to ask and nothing to withhold: a Stop ask is a warning.
@@ -2525,6 +2473,29 @@ def _diff_sides(text: str) -> tuple[list[str], list[str]]:
     return sides
 
 
+def _drop_moved(lines: list[str], budget: dict[str, int]) -> list[str]:
+    """`lines` without the ones `budget` still owes cancelling, spending it one for one."""
+    kept = []
+    for line in lines:
+        key = line.strip()
+        if budget.get(key):
+            budget[key] -= 1
+        else:
+            kept.append(line)
+    return kept
+
+
+def cancel_moved(added: list[str], removed: list[str]) -> tuple[list[str], list[str]]:
+    """One file's (added, removed) without the lines it only moves or re-indents.
+
+    An added line cancels against one removed line of the same file equal to it after stripping leading
+    and trailing whitespace; each removed line cancels at most one added line, and both sides drop the pair.
+    Nothing crosses files: a line moved to another file is still added there and removed here.
+    """
+    pairs = dict(Counter(line.strip() for line in added) & Counter(line.strip() for line in removed))
+    return _drop_moved(added, dict(pairs)), _drop_moved(removed, dict(pairs))
+
+
 def _nul_paths(out: bytes) -> list[str]:
     """Paths from a `-z` listing, verbatim. Raises ListingError on anything but NUL-terminated UTF-8 entries."""
     if not out:
@@ -2690,6 +2661,92 @@ def _head_forget() -> None:
 def _text_mode(raw: bytes, errors: str = "strict") -> str:
     """`raw` as a text-mode pipe reads it: utf-8, universal newlines."""
     return raw.decode("utf-8", errors).replace("\r\n", "\n").replace("\r", "\n")
+
+
+def _line_diff(old: str, new: str) -> tuple[list[str], list[str]]:
+    """(added, removed) lines turning `old` into `new`, by sequence like a `-U0` diff."""
+    old_lines, new_lines = old.splitlines(), new.splitlines()
+    added: list[str] = []
+    removed: list[str] = []
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, old_lines, new_lines, autojunk=False).get_opcodes():
+        if tag != "equal":
+            removed.extend(old_lines[i1:i2])
+            added.extend(new_lines[j1:j2])
+    return added, removed
+
+
+class WriteContext(GateContext):
+    """Files an agent is about to write, or has just written, shaped like a staged diff.
+
+    The gate kinds are untouched and cannot tell the difference: only the material changes.
+    `writes` is each file as it would be (pre-tool) or is (stop). The baseline it changed from
+    is the file on disk before the write at pre-tool, and HEAD at the turn's end, where the
+    disk already holds the writes. `added_lines` is an edit's own text when it carries one
+    (`added`), else the diff against that baseline, so a whole-file write or a dirty file is
+    judged on what changed and never on lines that were already there.
+
+    It still subclasses GateContext so repo_root and the git-backed accessors a kind may
+    reach for keep working -- an allowlist file still lives in the repository even when the
+    content under judgement does not.
+    """
+
+    def __init__(
+        self,
+        repo_root: Path,
+        writes: Mapping[str, str],
+        scope: Sequence[str] | None = None,
+        added: Mapping[str, str] | None = None,
+        own: Sequence[str] = (),
+        *,
+        stop: bool = False,
+        session: Mapping[str, object] | None = None,
+        case_blind: bool | None = None,
+    ) -> None:
+        super().__init__(repo_root=repo_root, scope=scope, own=own, session=session, case_blind=case_blind)
+        self._writes = dict(writes)
+        self._added = dict(added or {})
+        self._stop = stop
+
+    def _rename_range(self) -> list[str] | None:
+        """At the turn's end, HEAD against the index and tree; a write before the tool runs has no rename."""
+        return ["HEAD"] if self._stop else None
+
+    def staged_paths(self, diff_filter: str = "ACMRT", *, judge_own: bool = False) -> list[str]:
+        """Every write is a present file, so a filter asking only for deletions finds none."""
+        if not set(diff_filter) & set("ACMRT"):
+            return []
+        return [path for path in self._writes if self.in_scope(path, judge_own=judge_own)]
+
+    def staged_blob(self, path: str) -> str:
+        return self._writes.get(path, "")
+
+    def _diff(self, path: str) -> tuple[list[str], list[str]]:
+        return cancel_moved(*_line_diff(self.head_blob(path), self._writes.get(path, "")))
+
+    def added_lines(self, path: str) -> list[str]:
+        if path in self._added:
+            return self._added[path].splitlines()
+        return self._diff(path)[0]
+
+    def net_added_lines(self, path: str) -> list[str]:
+        return self._diff(path)[0]
+
+    def removed_lines(self, path: str) -> list[str]:
+        return self._diff(path)[1]
+
+    def committed_blob(self, path: str) -> str:
+        """HEAD's file, named from `repo_root` (`./`), which may sit below the git top-level."""
+        shown = _head_show(self.repo_root, f"./{path}")
+        return "" if shown is None else _text_mode(shown, "replace")
+
+    def head_blob(self, path: str) -> str:
+        """The baseline: HEAD at the turn's end, else what is on disk now, which this write would replace."""
+        if self._stop:
+            return self.committed_blob(self.renamed_from(path))
+        try:
+            return (self.repo_root / path).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            return ""
 
 
 #: The git hook a merge's own commit runs: judged as a commit.
