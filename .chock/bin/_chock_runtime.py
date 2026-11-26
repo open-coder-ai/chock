@@ -1680,10 +1680,34 @@ def runner_outcome(returncode, stderr):
     outcome = _EXIT_OUTCOME.get(returncode, GATE_ERRORED)
     return (outcome, '' if outcome == GATE_CLEAN else (stderr or '').strip())
 
+def ask_reason(policy, message, noun):
+    """What a person is shown on an ask: the policy and its own message, never the matched text or the tool argument."""
+    message = (message or '').strip()
+    return f'Chock policy {policy} asks: {message}' if message else f'Chock policy {policy} asks before this {noun}.'
+
+def _spec(gate):
+    try:
+        spec = json.loads(gate.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return {}
+    return spec if isinstance(spec, dict) else {}
+
+def asked_message(gate, message):
+    """What the ask says: a script gate's first non-empty stderr line (the runner already made it inert; its own "chose to ask" filler is no words), else the spec's message.
+
+    The rest of the runner's text is per-match lines, which carry the written text and stay out.
+    """
+    spec = _spec(gate)
+    first = next((line.strip() for line in (message or '').splitlines() if line.strip()), '')
+    named = str((spec.get('params') or {}).get('script', '')).replace('\\', '/').rsplit('/', 1)[-1]
+    if spec.get('kind') == 'script' and first and (first != f'{named} chose to ask'):
+        return first
+    return str(spec.get('message') or '').strip()
+
 def gate_decision(outcome, message, gate):
     """The decision an outcome earns, or None when the gate allowed: deny, escalate (ask) or warn."""
     policy = gate.parent.parent.name
-    spoken = {GATE_BLOCKED: (VERDICT_DENY, message or f'Blocked by chock policy: {policy}'), GATE_ASKED: (VERDICT_ESCALATE, message or f'Chock policy {policy} asks before this write.'), GATE_WARNED: (VERDICT_WARN, message or f'Chock policy {policy} warns about this write.'), GATE_ERRORED: (VERDICT_DENY, f'chock could not check this write: {message}. Refusing rather than reporting an allow it never established.')}
+    spoken = {GATE_BLOCKED: (VERDICT_DENY, message or f'Blocked by chock policy: {policy}'), GATE_ASKED: (VERDICT_ESCALATE, ask_reason(policy, asked_message(gate, message), 'write')), GATE_WARNED: (VERDICT_WARN, message or f'Chock policy {policy} warns about this write.'), GATE_ERRORED: (VERDICT_DENY, f'chock could not check this write: {message}. Refusing rather than reporting an allow it never established.')}
     return spoken.get(outcome)
 
 OUTSIDE_KEY = 'outside_repo'
@@ -2744,6 +2768,8 @@ _TOOL_CALL_CEILING = {'block': 'deny', 'ask': 'escalate', 'warn': 'warn'}
 
 _TOOL_CALL_RANK = {'warn': 0, 'escalate': 1, 'deny': 2}
 
+_TOOL_CALL_DEFAULT_MESSAGE = 'blocked by a chock tool_call gate'
+
 _TOOL_CALL_UNDECIDED = ' -- refusing rather than allowing what it never judged'
 
 def _flag_path(argv, flag):
@@ -2758,7 +2784,7 @@ def tool_call_matches(globs, tool):
     return any((_chock_fnmatch.fnmatchcase(tool, str(glob)) for glob in globs))
 
 def _tool_call_refusal(spec, spoken):
-    return spoken or str(spec.get('message') or '').strip() or 'blocked by a chock tool_call gate'
+    return spoken or str(spec.get('message') or '').strip() or _TOOL_CALL_DEFAULT_MESSAGE
 
 def _tool_call_regex(spec, tool_input, deadline, policy):
     """`deny` verdict when the input, as JSON text, matches the gate's `content_pattern`.
@@ -2820,6 +2846,12 @@ def _tool_call_capped(spec, verdict):
         return verdict
     return (min(verdict[0], ceiling, key=_TOOL_CALL_RANK.__getitem__), verdict[1])
 
+def asked_as_policy(verdict, policy, noun, bare):
+    """`verdict`, when an ask, worded `Chock policy <id> asks: <its message>`; `bare` is the gate's no-message default."""
+    if verdict is None or verdict[0] != 'escalate':
+        return verdict
+    return (verdict[0], ask_reason(policy, '' if verdict[1] == bare else verdict[1], noun))
+
 def _tool_call_spec(gate):
     """The compiled gate as a dict, or (None, refusal) when the install is broken."""
     if not gate.exists():
@@ -2852,6 +2884,7 @@ def evaluate_tool_call(argv, event):
     if TOOL_CALL_EVENT in spec.get('on', []) and tool_call_matches((spec.get('params') or {}).get('tools', []), str(event.tool or '')):
         policy = gate.parent.parent.name
         verdict = _tool_call_capped(spec, _tool_call_verdict(spec, root, event, engine_deadline(), policy))
+        verdict = asked_as_policy(verdict, policy, 'call', _TOOL_CALL_DEFAULT_MESSAGE)
     if spec.get('kind') in _TOOL_CALL_NEEDS_SESSION:
         session_record(root, event, 'pre', _TOOL_CALL_BLOCKED if verdict and verdict[0] == 'deny' else None)
     return verdict
@@ -2936,7 +2969,7 @@ def evaluate_prompt_submit(argv, event):
         return None
     policy = gate.parent.parent.name
     verdict = _prompt_verdict(spec, repo_root_for(event, gate), event, engine_deadline(), policy)
-    return _tool_call_capped(spec, verdict)
+    return asked_as_policy(_tool_call_capped(spec, verdict), policy, 'prompt', _PROMPT_DEFAULT_MESSAGE)
 
 MULTI_FLAG = '--multi'
 
