@@ -1,0 +1,1 @@
+- Every ask now reads `Chock policy <id> asks: <the policy's message>` (or `... asks before this <write|call|prompt>.` when it has no message), on the write, `tool_call` and `prompt_submit` gates; the guard path's wording is unchanged. The reason names the policy and its own message, never the written text or the tool argument. Block and warn texts are unchanged.
