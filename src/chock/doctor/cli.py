@@ -9,7 +9,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from chock.display import inert
-from chock.doctor import armed, checks, live
+from chock.doctor import armed, checks, live, live_prompt
 from chock.doctor.targets import plugin_targets, sync_targets
 from chock.stop_everywhere import everywhere_line
 
@@ -23,7 +23,7 @@ _LIVE_HELP = (
     "the launcher and runtime are this engine's, as the client's config file writes them, from the repo: pre-tool "
     "once on the first refusing eval case of the first policy they run (it must refuse) and once on "
     f"`{live.HARMLESS}` (it must allow); prompt-submit likewise on a policy's refusing eval prompt and "
-    f"`{live.HARMLESS_PROMPT}`. Any other hook command is counted, never run, and a plugin's are never run. The "
+    f"`{live_prompt.HARMLESS_PROMPT}`. Any other hook command is counted, never run, and a plugin's are never run. The "
     "installed policies' guard code runs, as it does in `chock check` evals. It starts no client, sends nothing "
     "anywhere and logs nothing. Every target ends with an `armed` row, yes, no or unknown: yes needs these probes "
     "and the heartbeat, which proves the client calls the hook"

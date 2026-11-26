@@ -10,7 +10,7 @@ import pytest
 import yaml
 from conftest import baseline_policy, init_repo
 
-from chock.doctor import armed, checks, cli, live
+from chock.doctor import armed, checks, cli, live, live_prompt
 from chock.doctor.payloads import PROMPT_AGENTS, prompt_payload, prompt_refused
 from chock.doctor.targets import ROUTE_PLUGIN, Target, sync_targets
 from chock.scaffold.recompile import recompile
@@ -105,7 +105,7 @@ def test_the_prompt_probe_names_its_own_session_and_writes_nothing(synced: Path)
     before = {p: p.read_bytes() for p in synced.rglob("*") if p.is_file() and ".git" not in p.parts}
     live.run(_target(synced), synced)
     assert {p: p.read_bytes() for p in synced.rglob("*") if p.is_file() and ".git" not in p.parts} == before
-    sent = live._prompt_probe(AGENT, "hello", synced)
+    sent = live_prompt.prompt_probe(AGENT, "hello", synced)
     assert sent["session_id"] == live.PROBE_SESSION and sent["prompt"] == "hello"
 
 
@@ -129,7 +129,7 @@ def test_a_target_without_a_prompt_submit_hook_gets_no_prompt_row(synced: Path) 
 def test_an_agent_with_no_recorded_prompt_payload_gets_an_info_row(
     synced: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(live, "PROMPT_AGENTS", frozenset())
+    monkeypatch.setattr(live_prompt, "PROMPT_AGENTS", frozenset())
     found = _by_name(live.run(_target(synced), synced))
     assert found[live.PROMPT_LIVE].status == checks.INFO
     assert found[live.PROMPT_LIVE].detail == f"skipped (no recorded {AGENT} prompt payload)"
@@ -222,7 +222,7 @@ def test_a_failing_prompt_row_makes_armed_no(synced: Path) -> None:
 
 def test_a_prompt_row_left_unproved_leaves_armed_unknown(synced: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _log(synced, BEAT, HOOK)
-    monkeypatch.setattr(live, "PROMPT_AGENTS", frozenset())
+    monkeypatch.setattr(live_prompt, "PROMPT_AGENTS", frozenset())
     verdict, row = armed.answer(_rows(synced))
     assert verdict == armed.UNKNOWN and "no recorded claude_code prompt payload" in row.detail
 

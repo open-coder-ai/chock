@@ -16,43 +16,31 @@ from typing import Any
 import yaml
 
 from chock import vendors
+from chock.doctor import live_prompt
 from chock.doctor.checks import FAIL, INFO, PASS, Check, engine, rebuild
-from chock.doctor.payloads import DENY_ON_THE_WIRE, EXIT_2, PROMPT_AGENTS, payload, prompt_payload, prompt_refused
+from chock.doctor.live_exec import BASH, POWERSHELL, PROBE_SESSION, call, own_session, said
+from chock.doctor.payloads import DENY_ON_THE_WIRE, EXIT_2, payload
 from chock.doctor.targets import ROUTE_SYNC, Target
-from chock.gate.guard_runner import bash_candidates
-from chock.gate.runner.journal import LOG_LEVEL_ENV, LOG_OFF
 from chock.hooks import launch
 from chock.hooks.in_agent_install import install_hooks
-from chock.plugin import hook_dir, store
-from chock.plugin.clients import CLIENTS
 from chock.policies import discover_policy_dirs
 from chock.vendored import vendored_differences
 
+PROMPT_REFUSES, PROMPT_ALLOWS, PROMPT_LIVE = (
+    live_prompt.PROMPT_REFUSES,
+    live_prompt.PROMPT_ALLOWS,
+    live_prompt.PROMPT_LIVE,
+)
 REFUSES, ALLOWS, LIVE = "live: refuses the canary", "live: allows a harmless command", "live"
-PROMPT_REFUSES, PROMPT_ALLOWS = "live: refuses the canary prompt", "live: allows a harmless prompt"
-PROMPT_LIVE = "live: prompt submit"
 #: A command every policy lets through: it reads nothing and writes nothing.
 HARMLESS = "echo chock-doctor-live"
-#: A prompt every policy lets through.
-HARMLESS_PROMPT = "hello"
-#: Seconds one hook command may take; a client's own timeouts are of this order.
-TIMEOUT = 60
 #: The exit code every client reads as a refusal.
 REFUSAL_EXIT = 2
-#: The probe logs nothing, so the decision log never holds a refusal no agent asked for.
-QUIET = {LOG_LEVEL_ENV: LOG_OFF}
 _REFERENCE = re.compile(r'--(guard|multi)\s+"?([^"\s]+)"?')
-PROMPT_EVENT = "prompt_submit"
 #: Why a plugin's hook commands are not run: its hook file can be re-rendered only from the catalog it was built from.
 PLUGIN_SKIP = "plugin route: chock cannot re-render a plugin's hook commands without fetching its catalog"
-_PROMPT_GATE = re.compile(r'--prompt-submit\s+"?([^"\s]+)"?')
 _TOOL_KEYS = ("tool_name", "toolName")
 _ANY = (None, "", "*")
-#: The per-shell keys a hook entry may carry in place of `command` (Copilot's `bash` and `powershell`).
-BASH, POWERSHELL = "bash", "powershell"
-#: The probe's own session: its calls never join a real session's log, and that file is removed afterwards.
-PROBE_SESSION = "chock-doctor-live"
-_SESSION_KEYS = ("session_id", "sessionId", "conversation_id", "conversationId", "trajectory_id")
 _STATE = (".chock", "state")
 
 
@@ -184,52 +172,8 @@ def canary(target: Target, repo: Path, found: list[tuple[str, str]]) -> tuple[st
     return None
 
 
-def _argv(agent: str, key: str, command: str) -> list[str] | str:
-    """The shell the client runs a hook in on this OS: sh on POSIX; on Windows PowerShell for a `powershell` entry,
-    cmd.exe where the store says so, else Git Bash."""
-    if os.name != "nt":
-        return [shutil.which("sh") or "sh", "-c", command]
-    if key == POWERSHELL:
-        return [shutil.which("powershell") or "powershell", "-NoProfile", "-Command", command]
-    cmd = any(c.agent == agent and store.windows_hook_command(f) == hook_dir.QUOTE_FREE for f, c in CLIENTS.items())
-    bash = [] if cmd else bash_candidates()
-    return [bash[0], "-c", command] if bash else command
-
-
-def _own_session(sent: dict[str, Any]) -> dict[str, Any]:
-    named = [key for key in _SESSION_KEYS if key in sent] or [_SESSION_KEYS[0]]
-    return {**sent, **dict.fromkeys(named, PROBE_SESSION)}
-
-
 def _probe(agent: str, asked: str, repo: Path) -> dict[str, Any]:
-    return _own_session(payload(agent, asked, repo.as_posix()))
-
-
-def _prompt_probe(agent: str, asked: str, repo: Path) -> dict[str, Any]:
-    return _own_session(prompt_payload(agent, asked, repo.as_posix()))
-
-
-def _call(
-    target: Target, repo: Path, entry: tuple[str, str], sent: dict[str, Any]
-) -> subprocess.CompletedProcess | str:
-    """One hook command's answer to `asked`, or why it gave none."""
-    argv = _argv(target.agent, *entry)
-    try:
-        return subprocess.run(  # noqa: S603 -- a hook command this engine rendered, byte-equal, as the client runs it
-            argv,
-            shell=isinstance(argv, str),
-            cwd=repo,
-            env={**os.environ, **QUIET},
-            input=json.dumps(sent),
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=TIMEOUT,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        return f"{type(exc).__name__}: {exc}"
+    return own_session(payload(agent, asked, repo.as_posix()))
 
 
 def refused(agent: str, done: subprocess.CompletedProcess) -> bool:
@@ -238,94 +182,22 @@ def refused(agent: str, done: subprocess.CompletedProcess) -> bool:
     return done.returncode == REFUSAL_EXIT or (word != EXIT_2 and done.returncode == 0 and f'"{word}"' in done.stdout)
 
 
-def _said(done: subprocess.CompletedProcess | str) -> str:
-    if isinstance(done, str):
-        return done
-    text = (done.stderr.strip() or done.stdout.strip()).splitlines()
-    return f"exit {done.returncode}" + (f": {text[0][:160]}" if text else "")
-
-
 def _refuses(target: Target, repo: Path, found: list[tuple[str, str]], probe: tuple[str, str] | None) -> Check:
     if probe is None:
         return Check(INFO, LIVE, "skipped (no in-agent policy installed on its shell tool)")
     policy, case = probe
-    answers = [_call(target, repo, c, _probe(target.agent, case, repo)) for c in found]
+    answers = [call(target, repo, c, _probe(target.agent, case, repo)) for c in found]
     for done in answers:
         if not isinstance(done, str) and refused(target.agent, done) and policy in done.stdout + done.stderr:
             return Check(PASS, REFUSES, f"{policy} refused `{case}`")
-    return Check(FAIL, REFUSES, f"{policy} did not refuse `{case}`: {_said(answers[0])}", rebuild(target))
+    return Check(FAIL, REFUSES, f"{policy} did not refuse `{case}`: {said(answers[0])}", rebuild(target))
 
 
 def _allows(target: Target, repo: Path, found: list[tuple[str, str]]) -> Check:
-    for done in (_call(target, repo, c, _probe(target.agent, HARMLESS, repo)) for c in found):
+    for done in (call(target, repo, c, _probe(target.agent, HARMLESS, repo)) for c in found):
         if isinstance(done, str) or done.returncode != 0 or refused(target.agent, done):
-            return Check(FAIL, ALLOWS, f"`{HARMLESS}` was not allowed: {_said(done)}", rebuild(target))
+            return Check(FAIL, ALLOWS, f"`{HARMLESS}` was not allowed: {said(done)}", rebuild(target))
     return Check(PASS, ALLOWS, f"`{HARMLESS}` allowed by {len(found)} hook command(s)")
-
-
-def _first_prompt_block(suite: Path) -> str | None:
-    try:
-        cases = (yaml.safe_load(suite.read_text(encoding="utf-8")) or {}).get("suite", {}).get("cases") or []
-    except (OSError, yaml.YAMLError, AttributeError):
-        return None
-    for case in cases:
-        run = case.get("execute") if isinstance(case, dict) else None
-        if isinstance(run, dict) and (run.get("event"), run.get("expect")) == (PROMPT_EVENT, "block"):
-            prompt = run.get("prompt")
-            if isinstance(prompt, str) and prompt:
-                return prompt
-    return None
-
-
-def _prompt_policy(command: str) -> str | None:
-    """The policy id a prompt-submit hook command's compiled gate belongs to."""
-    named = _PROMPT_GATE.search(command)
-    return Path(named.group(1)).parent.parent.name if named else None
-
-
-def prompt_canary(repo: Path, found: list[tuple[str, str]]) -> tuple[str, str] | None:
-    """(policy id, prompt): the first installed prompt-submit policy's own first refusing eval case; None when none has one."""
-    for _key, command in found:
-        policy = _prompt_policy(command)
-        case = _first_prompt_block(repo / ".agents" / "policies" / policy / "evals" / "suite.yaml") if policy else None
-        if policy and case is not None:
-            return policy, case
-    return None
-
-
-def _prompt_refused(agent: str, done: subprocess.CompletedProcess | str) -> bool:
-    return not isinstance(done, str) and prompt_refused(agent, done.returncode, done.stdout)
-
-
-def _prompt_refuses(target: Target, repo: Path, found: list[tuple[str, str]]) -> Check:
-    probe = prompt_canary(repo, found)
-    if probe is None:
-        return Check(INFO, PROMPT_LIVE, "skipped (no prompt_submit policy has an eval case that must block)")
-    policy, case = probe
-    sent = _prompt_probe(target.agent, case, repo)
-    answers = [_call(target, repo, c, sent) for c in found if _prompt_policy(c[1]) == policy]
-    if any(_prompt_refused(target.agent, done) for done in answers):
-        return Check(PASS, PROMPT_REFUSES, f"{policy} refused its eval prompt")
-    said = _said(answers[0]) if answers else "no hook command runs it"
-    return Check(FAIL, PROMPT_REFUSES, f"{policy} did not refuse its eval prompt: {said}", rebuild(target))
-
-
-def _prompt_allows(target: Target, repo: Path, found: list[tuple[str, str]]) -> Check:
-    sent = _prompt_probe(target.agent, HARMLESS_PROMPT, repo)
-    for done in (_call(target, repo, c, sent) for c in found):
-        if isinstance(done, str) or done.returncode != 0 or _prompt_refused(target.agent, done):
-            return Check(FAIL, PROMPT_ALLOWS, f"`{HARMLESS_PROMPT}` was not allowed: {_said(done)}", rebuild(target))
-    return Check(PASS, PROMPT_ALLOWS, f"`{HARMLESS_PROMPT}` allowed by {len(found)} hook command(s)")
-
-
-def _prompt_rows(target: Target, repo: Path, found: list[tuple[str, str]]) -> list[Check]:
-    """The two prompt-submit rows; nothing for a target with no such hook of chock's."""
-    if not found:
-        return []
-    if target.agent not in PROMPT_AGENTS:
-        return [Check(INFO, PROMPT_LIVE, f"skipped (no recorded {target.agent} prompt payload)")]
-    refuses = _prompt_refuses(target, repo, found)
-    return [refuses, _prompt_allows(target, repo, found)]
 
 
 def _runnable(target: Target) -> tuple[list[tuple[str, str]], list[tuple[str, str]], list[Check]]:
@@ -360,7 +232,7 @@ def run(target: Target, repo: Path) -> list[Check]:
     fresh = [path for path in logs if not path.exists()]
     try:
         pre = [_refuses(target, repo, found, canary(target, repo, found)), _allows(target, repo, found)]
-        return [*rows, *pre, *_prompt_rows(target, repo, prompts)]
+        return [*rows, *pre, *live_prompt.rows(target, repo, prompts)]
     finally:
         for path in fresh:
             path.unlink(missing_ok=True)
