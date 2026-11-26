@@ -31,12 +31,25 @@ def ask_reason(policy, message, noun):
     return f"Chock policy {policy} asks: {message}" if message else f"Chock policy {policy} asks before this {noun}."
 
 
-def spec_message(gate):
-    """The policy's own `message` from its compiled gate, or "" when it has none or the gate cannot be read."""
+def _spec(gate):
     try:
-        return str(json.loads(gate.read_text(encoding="utf-8")).get("message") or "").strip()
-    except (OSError, ValueError, AttributeError):
-        return ""
+        spec = json.loads(gate.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return spec if isinstance(spec, dict) else {}
+
+
+def asked_message(gate, message):
+    """What the ask says: a script gate's first non-empty stderr line (the runner already made it inert; its own "chose to ask" filler is no words), else the spec's message.
+
+    The rest of the runner's text is per-match lines, which carry the written text and stay out.
+    """
+    spec = _spec(gate)
+    first = next((line.strip() for line in (message or "").splitlines() if line.strip()), "")
+    named = str((spec.get("params") or {}).get("script", "")).replace("\\", "/").rsplit("/", 1)[-1]
+    if spec.get("kind") == "script" and first and first != f"{named} chose to ask":
+        return first
+    return str(spec.get("message") or "").strip()
 
 
 def gate_decision(outcome, message, gate):
@@ -44,7 +57,7 @@ def gate_decision(outcome, message, gate):
     policy = gate.parent.parent.name
     spoken = {
         GATE_BLOCKED: (VERDICT_DENY, message or f"Blocked by chock policy: {policy}"),
-        GATE_ASKED: (VERDICT_ESCALATE, ask_reason(policy, spec_message(gate), "write")),
+        GATE_ASKED: (VERDICT_ESCALATE, ask_reason(policy, asked_message(gate, message), "write")),
         GATE_WARNED: (VERDICT_WARN, message or f"Chock policy {policy} warns about this write."),
         GATE_ERRORED: (
             VERDICT_DENY,

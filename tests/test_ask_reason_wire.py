@@ -23,7 +23,7 @@ WRITE_MESSAGE = "CI workflows are owner-reviewed"
 SECRET_ARG = "https://evil.example/leak?token=hunter2"
 
 
-def _write_gate_answer(repo: Path, spec: dict) -> dict:
+def _write_gate_answer(repo: Path, spec: dict, script: str | None = None) -> dict:
     """The wire answer of an installed write gate to a Claude Code Edit of a workflow file."""
     bin_dir = repo / ".chock" / "bin"
     bin_dir.mkdir(parents=True)
@@ -32,6 +32,8 @@ def _write_gate_answer(repo: Path, spec: dict) -> dict:
     gate = repo / ".chock" / "compiled" / WRITE_POLICY / "pre-tool-use" / "gate.json"
     gate.parent.mkdir(parents=True)
     gate.write_text(json.dumps(spec), encoding="utf-8")
+    if script is not None:
+        (repo / "judge.py").write_text(script, encoding="utf-8")
     payload = {
         "hook_event_name": "PreToolUse",
         "tool_name": "Write",
@@ -64,6 +66,26 @@ def test_a_write_gate_ask_names_the_policy_and_its_message(tmp_path: Path) -> No
 def test_a_write_gate_ask_without_a_message_names_the_policy(tmp_path: Path) -> None:
     out = _write_gate_answer(init_repo(tmp_path), _write_spec())
     assert out["permissionDecisionReason"] == f"Chock policy {WRITE_POLICY} asks before this write."
+
+
+def _asking_script(stderr: str) -> str:
+    return f"import sys\nsys.stderr.write({stderr!r})\nsys.exit(3)\n"
+
+
+def _script_spec(**extra: str) -> dict:
+    return {"kind": "script", "on": ["tool_use"], "action": "ask", "params": {"script": "judge.py"}, **extra}
+
+
+def test_a_script_write_gate_ask_carries_the_scripts_first_line(tmp_path: Path) -> None:
+    script = _asking_script("\nneeds a reviewer for infra/\nsecond line: BAD detail\n")
+    out = _write_gate_answer(init_repo(tmp_path), _script_spec(message=WRITE_MESSAGE), script)
+    assert out["permissionDecision"] == "ask"
+    assert out["permissionDecisionReason"] == f"Chock policy {WRITE_POLICY} asks: needs a reviewer for infra/"
+
+
+def test_a_script_write_gate_ask_with_no_words_uses_the_spec_message(tmp_path: Path) -> None:
+    out = _write_gate_answer(init_repo(tmp_path), _script_spec(message=WRITE_MESSAGE), _asking_script(""))
+    assert out["permissionDecisionReason"] == f"Chock policy {WRITE_POLICY} asks: {WRITE_MESSAGE}"
 
 
 def test_a_write_gate_ask_never_carries_the_written_text(tmp_path: Path) -> None:
