@@ -1,0 +1,1 @@
+- Copilot witness rows name the client version they were seen on (1.0.94; behaviour on 1.0.116 and later unwitnessed). The docs say to start Copilot CLI from the repository root: from 1.0.116, `--trust-folder` in a subdirectory no longer runs the root's hooks. No grade or tier changed.

@@ -202,7 +202,7 @@ Four formats are each **witnessed denying a destructive command on a real instal
 | Format | Client(s) | Deny dialect |
 | :--- | :--- | :--- |
 | claude | Claude Code | exit 0 + `permissionDecision` deny JSON (measured 2026-10-21, Claude Code 2.1.305) |
-| copilot | Copilot CLI, VS Code | exit 0 + `permissionDecision` deny JSON (from the adapter's copilot_respond template; unmeasured this session) |
+| copilot | Copilot CLI, VS Code | exit 0 + `permissionDecision` deny JSON (from the adapter's copilot_respond template; unmeasured this session). Start Copilot CLI from the repository root: from 1.0.116, `--trust-folder` in a subdirectory no longer runs the root's hooks; the witness is 1.0.94 |
 | cursor | Cursor | stdout `{"permission": "deny"}` |
 | codex | Codex (after its per-hook trust review) | exit 0 + `permissionDecision` JSON |
 

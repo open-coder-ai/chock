@@ -18,14 +18,14 @@
     "surface": "agent-hooks",
     "client": "Copilot CLI and VS Code agent mode",
     "date": "2026-08-23",
-    "method": "live probe: an exit-2 deny blocked a matched command on both (chock 5d78831)"
+    "method": "live probe: an exit-2 deny blocked a matched command on both (chock 5d78831). Copilot CLI version not recorded; behaviour on 1.0.116 and later unwitnessed"
   },
   {
     "agent": "copilot",
     "surface": "plugin-hook",
     "client": "GitHub Copilot CLI 1.0.94, Windows",
     "date": "2026-10-11",
-    "method": "live probe of the chock plugin. `pin-github-actions` refused a create write at preToolUse, before the file landed. `chock-guardrails-protect` refused a shell write to `.chock/guardrails.json` at preToolUse. Not covered: VS Code agent mode, a toggle-file write through the edit tool, and a delete-only apply_patch (org-plan witness/results/witness-copilot-2026-10-11.md, 83f636d)"
+    "method": "live probe of the chock plugin. `pin-github-actions` refused a create write at preToolUse, before the file landed. `chock-guardrails-protect` refused a shell write to `.chock/guardrails.json` at preToolUse. Not covered: VS Code agent mode, a toggle-file write through the edit tool, and a delete-only apply_patch (org-plan witness/results/witness-copilot-2026-10-11.md, 83f636d). Seen on 1.0.94; behaviour on 1.0.116 and later unwitnessed"
   },
   {
     "agent": "claude_code",
