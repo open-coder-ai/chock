@@ -13,14 +13,10 @@ each guarantee holds.
 | `ambient-rule` | Advisory | Yes | Compiled `AGENTS.md` block the agent is asked to follow |
 | `pre-tool-use` | Hard, pre-execution | No | Blocks a command **before** the agent runs it, in each client's own deny dialect — every matrix-blocking vendor with a repo-level config (see the Cursor caveat) |
 | `stop` | Hard, **post-execution** | No, but it fires after the tool calls it judges | Reads what the turn left in the worktree and refuses to end the turn. Credited with **no coverage word** -- see the backstop note below |
-| `agent-hooks` | Hard, pre-execution | No | The same exit-2 deny for Copilot CLI + VS Code agent mode, from `.github/hooks/chock.json` (witnessed blocking on both, 2026-08-23). A content gate also gets a `PreToolUse` entry over `Edit\|Write` there (a top-level `permissionDecision` deny stopped an `Edit` in VS Code agent mode, 2026-09-28), and its turn-end gate is a `Stop` entry in the same file |
+| `agent-hooks` | Hard, pre-execution | No | The same exit-2 deny for Copilot CLI + VS Code agent mode, from `.github/hooks/chock.json` (witnessed blocking on both, 2026-08-23). A content gate also gets a `PreToolUse` entry over `Edit\|Write` there (a top-level `permissionDecision` deny stopped an `Edit` in VS Code agent mode, 2026-09-28), and its turn-end gate is a `Stop` entry in the same file. Start Copilot CLI from the repository root: from 1.0.116, `--trust-folder` in a subdirectory no longer runs the root's hooks, and 1.0.116 and later is unwitnessed |
 | `managed-setting` | Hard, org-level | No | Admin-deployed allow/ask/deny rules |
 | `gateway` | Hard, un-circumventable | No | Budget/egress backstop — *modeled now, emitted later* |
 | `mcp-gateway` | Hard, **MCP-routed tools only** | Yes (P3c) | A stdio proxy the client launches instead of the real MCP server; refuses matching `tools/call` payloads. Emitted today; **credits no agent** until the per-client config witness ships |
-
-> **Copilot CLI: start it from the repository root.** The Copilot witnesses were seen on 1.0.94 (plugin-hook) and an unrecorded
-> version (agent-hooks). Copilot CLI 1.0.116 and later, started in a subdirectory with `--trust-folder`, no longer runs the
-> root's hooks, so chock's hooks may not run. Behaviour on 1.0.116 and later is unwitnessed; no grade or tier changes.
 
 > **`stop` is a backstop, and is deliberately worth nothing.** It exists for what
 > `pre-tool-use` structurally *cannot* see: a pre-tool hook is handed the tool call, so it
