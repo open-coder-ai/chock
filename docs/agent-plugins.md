@@ -206,6 +206,8 @@ Four formats are each **witnessed denying a destructive command on a real instal
 | cursor | Cursor | stdout `{"permission": "deny"}` |
 | codex | Codex (after its per-hook trust review) | exit 0 + `permissionDecision` JSON |
 
+Copilot CLI: start it from the repository root. From 1.0.116, `--trust-folder` used in a subdirectory no longer runs the root's hooks, so chock's hooks may not run. The witness is 1.0.94; later versions are unwitnessed.
+
 One guard, one adapter, byte-identical across all four — only the envelope each client
 reads differs.
 

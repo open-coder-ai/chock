@@ -18,6 +18,10 @@ each guarantee holds.
 | `gateway` | Hard, un-circumventable | No | Budget/egress backstop — *modeled now, emitted later* |
 | `mcp-gateway` | Hard, **MCP-routed tools only** | Yes (P3c) | A stdio proxy the client launches instead of the real MCP server; refuses matching `tools/call` payloads. Emitted today; **credits no agent** until the per-client config witness ships |
 
+> **Copilot CLI: start it from the repository root.** The Copilot witnesses were seen on 1.0.94 (plugin-hook) and an unrecorded
+> version (agent-hooks). Copilot CLI 1.0.116 and later, started in a subdirectory with `--trust-folder`, no longer runs the
+> root's hooks, so chock's hooks may not run. Behaviour on 1.0.116 and later is unwitnessed; no grade or tier changes.
+
 > **`stop` is a backstop, and is deliberately worth nothing.** It exists for what
 > `pre-tool-use` structurally *cannot* see: a pre-tool hook is handed the tool call, so it
 > matches only a recorded write vocabulary, and a heredoc or a redirect carries no file argument
